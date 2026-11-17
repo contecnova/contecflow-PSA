@@ -2201,3 +2201,18 @@ select.ds-input:where(:not([multiple]):not([size])) { height: 38px; padding-bloc
   color: var(--text-3);
   overflow-wrap: anywhere;
 }
+
+/* Gráficos (recharts), 17-11-2026: la sombra que marca la barra bajo el ratón
+   venía con el gris claro de la librería (#ccc), un destello blanco en tema
+   oscuro. El CSS gana al atributo de presentación `fill`, así que se arregla
+   aquí una vez para los ~34 gráficos de la app. */
+.recharts-tooltip-cursor {
+  fill: var(--surface-3);
+  fill-opacity: 0.6;
+  stroke: var(--border);
+}
+.recharts-default-tooltip {
+  background: var(--surface-2) !important;
+  border-color: var(--border) !important;
+  color: var(--text-1);
+}

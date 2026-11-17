@@ -139,22 +139,25 @@ button.rpd-fila-boton:hover { background: var(--surface-3); }
 .rpd-celda--tentativa { border-style: dashed; }
 .rpd-celda--marcada { box-shadow: 0 0 0 2px var(--accent) inset; }
 
-.rpd-tono--success { --rpd-fondo: var(--success-bg); --rpd-borde: var(--success-border); --rpd-texto: var(--success); }
-.rpd-tono--warning { --rpd-fondo: var(--warning-bg); --rpd-borde: var(--warning-border); --rpd-texto: var(--warning); }
-.rpd-tono--danger  { --rpd-fondo: var(--danger-bg);  --rpd-borde: var(--danger-border);  --rpd-texto: var(--danger); }
-.rpd-tono--info    { --rpd-fondo: var(--info-bg);    --rpd-borde: var(--info-border);    --rpd-texto: var(--info); }
-.rpd-tono--accent  { --rpd-fondo: var(--accent-muted); --rpd-borde: var(--accent-border); --rpd-texto: var(--accent); }
-.rpd-tono--purple  { --rpd-fondo: var(--purple-bg);  --rpd-borde: var(--purple-border); --rpd-texto: var(--purple); }
-.rpd-tono--orange  { --rpd-fondo: var(--orange-bg);  --rpd-borde: var(--orange-border); --rpd-texto: var(--orange); }
+/* 17-11-2026: en la rejilla los tonos llevan más presencia que en una etiqueta:
+   con los fondos suaves del tema (`*-bg`) las celdas casi no se veían en oscuro. */
+.rpd-tono--success { --rpd-fondo: color-mix(in srgb, var(--success) 42%, transparent); --rpd-borde: var(--success); --rpd-texto: var(--text-1); }
+.rpd-tono--warning { --rpd-fondo: color-mix(in srgb, var(--warning) 42%, transparent); --rpd-borde: var(--warning); --rpd-texto: var(--text-1); }
+.rpd-tono--danger { --rpd-fondo: color-mix(in srgb, var(--danger) 42%, transparent); --rpd-borde: var(--danger); --rpd-texto: var(--text-1); }
+.rpd-tono--info { --rpd-fondo: color-mix(in srgb, var(--info) 42%, transparent); --rpd-borde: var(--info); --rpd-texto: var(--text-1); }
+.rpd-tono--accent { --rpd-fondo: color-mix(in srgb, var(--accent) 42%, transparent); --rpd-borde: var(--accent); --rpd-texto: var(--text-1); }
+.rpd-tono--purple { --rpd-fondo: color-mix(in srgb, var(--purple) 42%, transparent); --rpd-borde: var(--purple); --rpd-texto: var(--text-1); }
+.rpd-tono--orange { --rpd-fondo: color-mix(in srgb, var(--orange) 42%, transparent); --rpd-borde: var(--orange); --rpd-texto: var(--text-1); }
 .rpd-tono--neutral { --rpd-fondo: var(--surface-3);  --rpd-borde: var(--surface-4);     --rpd-texto: var(--text-2); }
 .rpd-tono--vacio   { --rpd-fondo: transparent;       --rpd-borde: var(--surface-4);     --rpd-texto: var(--text-3); }
 /* Color de un dato (tipo de ausencia, turno): fondo y borde derivados. */
 .rpd-tono--color {
-  --rpd-fondo: color-mix(in srgb, var(--rpd-color) 30%, transparent);
-  --rpd-borde: color-mix(in srgb, var(--rpd-color) 65%, transparent);
+  /* 17-11-2026: al 30 % el color del dato casi no se veía en tema oscuro. */
+  --rpd-fondo: color-mix(in srgb, var(--rpd-color) 55%, transparent);
+  --rpd-borde: var(--rpd-color);
   --rpd-texto: var(--text-1);
 }
-.rpd-tono--color.rpd-celda--tentativa { --rpd-fondo: color-mix(in srgb, var(--rpd-color) 12%, transparent); }
+.rpd-tono--color.rpd-celda--tentativa { --rpd-fondo: color-mix(in srgb, var(--rpd-color) 22%, transparent); }
 
 /* Leyenda */
 .rpd-leyenda {

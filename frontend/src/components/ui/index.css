@@ -412,11 +412,15 @@
   gap: var(--space-2);
 }
 .ui-kpi__valor {
-  font-size: var(--text-2xl);
+  /* 17-11-2026: «120.000 €» partía el € a otra línea (overflow-wrap:anywhere).
+     La cifra y su unidad no se separan (el formateador pone espacio duro) y el
+     tamaño se adapta al ancho de la tarjeta en vez de partir el número. */
+  font-size: clamp(var(--text-lg), 2.1vw, var(--text-2xl));
   font-weight: 700;
   line-height: 1.1;
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 .ui-kpi__extra {
   display: inline-flex;
