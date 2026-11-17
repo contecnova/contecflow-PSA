@@ -9,7 +9,8 @@ imputacion en ese proyecto y dia (`partes_sin_duplicar`): ni en
 
 `hours_logged` ya no se suma a mano: se recalcula (`recalcular`) cada vez que
 cambian imputaciones o partes de una persona externa, desde los ganchos de
-sesion de `app/models/enterprise.py` (cubre alta, cronometro, edicion, borrado,
+sesion de este modulo, registrados al importarse desde `app/main.py` y
+`app/worker.py` (cubre alta, cronometro, edicion, borrado,
 importacion, voz, bots...). Al cruzar el umbral de consumo
 (`EXTERNOS_UMBRAL_CONSUMO_PCT`, en caliente) y al llegar al 100 % de horas
 contratadas o del importe del pedido se avisa al responsable interno y al PM.
@@ -131,7 +132,7 @@ def asignaciones_afectadas(db: Session, pares: set, ids_asignacion: set) -> list
     return [a for a in filas if a.id in ids_asignacion or (a.worker and (a.worker.user_id, a.project_id) in pares)]
 
 
-# ── Ganchos de sesion (los registra app/models/enterprise.py) ───────────────
+# ── Ganchos de sesion (se registran al final del modulo) ────────────────────
 
 _CLAVE = "externos_horas_pendientes"
 
@@ -180,3 +181,18 @@ def aplicar_pendientes(session) -> None:
             logger.exception("externos: no se pudo recalcular el consumo de asignaciones")
     finally:
         session.info.pop("_externos_en_curso", None)
+
+
+# Registro de los ganchos en la sesion base (antes en `app/models/enterprise.py`;
+# un modelo no importa servicios). Lo importan `app/main.py` y `app/worker.py`.
+from sqlalchemy import event as _sa_event  # noqa: E402
+
+
+@_sa_event.listens_for(Session, "before_flush")
+def _externos_anotar_horas(session, flush_context, instances) -> None:
+    anotar_cambios(session)
+
+
+@_sa_event.listens_for(Session, "before_commit")
+def _externos_recalcular_horas(session) -> None:
+    aplicar_pendientes(session)

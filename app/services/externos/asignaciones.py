@@ -13,6 +13,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from app.core import timeutil
 from app.core.errores import ErrorDeDominio
 
 
@@ -95,7 +96,7 @@ def terminar(db: Session, a, fecha: Optional[date], actor, auditar: bool = True)
     from app.models.enterprise import SubcontractorAssignment
     from app.models.project import ProjectMember
     from app.services.audit import audit_log
-    hoy = date.today()
+    hoy = timeutil.today()
     fin = fecha or hoy
     if a.end_date is None or a.end_date > fin:
         a.end_date = fin

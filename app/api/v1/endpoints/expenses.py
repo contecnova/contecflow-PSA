@@ -21,6 +21,7 @@ from app.core.paginacion import Paginacion, exponer, lista_paginada, paginacion
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.services.expense_service import (
+    acotar_gasto_del_externo,
     review_expense as svc_review_expense,
     export_expenses_excel,
     ocr_receipt as svc_ocr_receipt,
@@ -186,34 +187,16 @@ def project_expense_summary(
     })
 
 
-def _acotar_gasto_del_externo(db: Session, payload: ExpenseCreate, user: User) -> None:
-    """Externos como internos (16-11-2026): el subcontratado presenta su gasto
-    (el servicio lo crea a su nombre, `user_id=current_user.id`), pero el
-    proyecto ha de ser uno de los suyos (`scope_projects_query`; 404 si no) y
-    sin contrato: los contratos son datos comerciales de la empresa."""
-    from app.services.politica_de_visibilidad import es_externo
-    if not es_externo(user):
-        return
-    from app.core.errores import ErrorDeDominio
-    from app.models.project import Project
-    from app.services.project_service import scope_projects_query
-    if payload.contract_id:
-        raise ErrorDeDominio(403, "Los contratos no están disponibles para tu rol")
-    if payload.project_id and not scope_projects_query(db.query(Project.id), db, user).filter(
-            Project.id == payload.project_id).first():
-        raise ErrorDeDominio(404, "Proyecto no encontrado")
-
-
 @router.post("", summary="Crear gasto")
 def create_expense(
     payload: ExpenseCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     # Externos como internos (16-11-2026): presentar un gasto propio, tambien el
-    # subcontratado (proyecto suyo, `_acotar_gasto_del_externo`).
+    # subcontratado (proyecto suyo, `acotar_gasto_del_externo`).
     _rol: User = Depends(require_worker),
 ):
-    _acotar_gasto_del_externo(db, payload, current_user)
+    acotar_gasto_del_externo(db, payload, current_user)
     expense = svc_create_expense(db, payload, current_user.id, _next_code(db))
     return APIResponse.ok(data=_expense_out(expense))
 

@@ -28,6 +28,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from app.core import timeutil
 from app.core.errores import ErrorDeDominio
 
 logger = logging.getLogger(__name__)
@@ -55,7 +56,7 @@ def acceso_vigente(db: Session, user, hoy: Optional[date] = None) -> bool:
     w = trabajador_de_usuario(db, user.id)
     if w is None:
         return True
-    hoy = hoy or date.today()
+    hoy = hoy or timeutil.today()
     return bool(w.is_active is not False and w.has_access
                 and (w.access_until is None or w.access_until >= hoy))
 
@@ -183,7 +184,7 @@ def caducar_accesos(db: Session, org_id: Optional[str] = None, hoy: Optional[dat
     from app.services.externos.asignaciones import terminar
     from app.services.notifications import notify_user
     from app.services.settings_service import get_runtime_int
-    hoy = hoy or date.today()
+    hoy = hoy or timeutil.today()
     dias = int(get_runtime_int(db, "EXTERNOS_AVISO_CADUCIDAD_DIAS", org_id) or 14)
     avisados = caducados = cerradas = 0
     activos = db.query(SubcontractorWorker).filter(

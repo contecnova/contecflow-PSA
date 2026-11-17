@@ -296,6 +296,7 @@ import app.services.service_desk.ticket_events  # noqa: F401,E402
 import app.services.automation_events  # noqa: F401,E402
 import app.services.preferencias_de_aviso  # noqa: F401,E402
 import app.services.traduccion.deteccion  # noqa: F401,E402  (idioma de los mensajes al guardar)
+import app.services.externos.horas  # noqa: F401,E402  (hours_logged de externos al imputar)
 
 
 # ── Reglas de las tareas (segunda auditoria 2026-11, #33 y #37) ──────────────

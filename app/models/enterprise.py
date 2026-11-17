@@ -84,18 +84,9 @@ def _olvidar_cabezas_antes(session, flush_context, instances) -> None:
 
 
 # Externos como internos (migracion 178): `hours_logged` de las asignaciones de
-# externos se recalcula cuando cambian sus imputaciones o partes, venga el
-# cambio de donde venga. Ver `app/services/externos/horas.py`.
-@_sa_event.listens_for(_SesionBase, "before_flush")
-def _externos_anotar_horas(session, flush_context, instances) -> None:
-    from app.services.externos.horas import anotar_cambios
-    anotar_cambios(session)
-
-
-@_sa_event.listens_for(_SesionBase, "before_commit")
-def _externos_recalcular_horas(session) -> None:
-    from app.services.externos.horas import aplicar_pendientes
-    aplicar_pendientes(session)
+# externos se recalcula cuando cambian sus imputaciones o partes. Los ganchos de
+# sesion los registra `app/services/externos/horas.py` al importarse (desde
+# `app/main.py` y `app/worker.py`): un modelo no importa servicios.
 
 
 # ── Per-project permissions ───────────────────────────────────────────────────

@@ -22,6 +22,8 @@ from typing import Iterable, Optional
 
 from sqlalchemy.orm import Session
 
+from app.core import timeutil
+
 
 def interpretar_dias_laborables(texto: Optional[str]) -> frozenset[int]:
     """«1,2,3,4,5» → {1..5}. Valores fuera de 1-7 o ilegibles se descartan.
@@ -196,7 +198,7 @@ def cargar_calendarios(
     # y dos despues del fin): el calendario sigue siendo usable (ninguna
     # busqueda de «siguiente laborable» se queda sin fin).
     from app.services.externos.disponibilidad import ventanas
-    base = desde or date.today()
+    base = desde or timeutil.today()
     for uid, v in ventanas(db, ids).items():
         fuera = ausencias.setdefault(uid, set())
         if v.desde and v.desde > base - timedelta(days=365):

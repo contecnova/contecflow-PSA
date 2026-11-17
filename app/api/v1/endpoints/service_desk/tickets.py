@@ -22,6 +22,7 @@ from app.services.service_desk.ticket_read_service import (
 )
 from app.services.service_desk.ticket_update_service import get_scoped_ticket_or_404, apply_ticket_update
 from app.services.service_desk.ticket_creation_service import build_internal_ticket, build_client_portal_ticket
+from app.services.service_desk.ticket_creation_service import acotar_alta_del_externo
 from app.services.service_desk.comment_service import (
     get_scoped_ticket_or_404 as get_scoped_ticket_for_comment_or_404,
     add_internal_comment,
@@ -159,48 +160,13 @@ def get_ticket(ticket_id: str, db: Session = Depends(get_db), current_user: User
     return APIResponse.ok(data=ticket_detail_payload(db, current_user, ticket_id, _ticket_out))
 
 
-def _acotar_alta_del_externo(db: Session, payload: TicketCreateIn, user: User) -> None:
-    """Externos como internos (16-11-2026): el subcontratado abre tickets como un
-    agente, pero solo de lo suyo. El ticket queda en su alcance
-    (`created_by_user_id`); lo que se le cuelga tambien ha de estarlo:
-
-    - el proyecto, uno de los suyos (`scope_projects_query`); si no, 404;
-    - cliente y contrato (datos comerciales), solo los del proyecto;
-    - el CI (CMDB de la empresa), no;
-    - el asignado, alguien que ve (`ids_de_personas_visibles`).
-    """
-    from app.services.politica_de_visibilidad import es_externo, ids_de_personas_visibles
-    if not es_externo(user):
-        return
-    from app.core.errores import ErrorDeDominio
-    from app.models.pipeline import Contract
-    from app.models.project import Project
-    from app.services.project_service import scope_projects_query
-    proyecto = None
-    if payload.project_id:
-        proyecto = scope_projects_query(db.query(Project), db, user).filter(Project.id == payload.project_id).first()
-        if proyecto is None:
-            raise ErrorDeDominio(404, "Proyecto no encontrado")
-    cliente_del_proyecto = getattr(proyecto, "client_id", None)
-    if payload.client_id and payload.client_id != cliente_del_proyecto:
-        raise ErrorDeDominio(404, "Cliente no encontrado")
-    if payload.contract_id:
-        contrato = db.query(Contract).filter(Contract.id == payload.contract_id).first()
-        if contrato is None or not cliente_del_proyecto or getattr(contrato, "client_id", None) != cliente_del_proyecto:
-            raise ErrorDeDominio(404, "Contrato no encontrado")
-    if payload.ci_id:
-        raise ErrorDeDominio(403, "La CMDB no está disponible para tu rol")
-    if payload.assigned_to_user_id and payload.assigned_to_user_id not in ids_de_personas_visibles(db, user):
-        raise ErrorDeDominio(404, "Usuario no encontrado")
-
-
 @router.post("/tickets", summary="Crear ticket (agente interno)")
 def create_ticket(payload: TicketCreateIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
     # Externos como internos (16-11-2026): tambien el subcontratado, acotado por
-    # `_acotar_alta_del_externo` (proyecto suyo, sin datos comerciales ajenos).
+    # `acotar_alta_del_externo` (proyecto suyo, sin datos comerciales ajenos).
     _rol: User = Depends(require_worker),
 ):
-    _acotar_alta_del_externo(db, payload, current_user)
+    acotar_alta_del_externo(db, payload, current_user)
     ticket = build_internal_ticket(db, payload, current_user.id)
     _commit_or_rollback(db); db.refresh(ticket)
     return APIResponse.ok(data=_ticket_out(ticket))

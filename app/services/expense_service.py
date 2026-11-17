@@ -648,3 +648,21 @@ def _avisos(e) -> list:
 def _resumen_politica(e):
     from app.services.gastos_politicas import resumen_guardado
     return resumen_guardado(e)
+
+
+def acotar_gasto_del_externo(db: Session, payload, user: User) -> None:
+    """Externos como internos (16-11-2026): el subcontratado presenta su gasto
+    (el servicio lo crea a su nombre, `user_id=current_user.id`), pero el
+    proyecto ha de ser uno de los suyos (`scope_projects_query`; 404 si no) y
+    sin contrato: los contratos son datos comerciales de la empresa."""
+    from app.services.politica_de_visibilidad import es_externo
+    if not es_externo(user):
+        return
+    from app.core.errores import ErrorDeDominio
+    from app.models.project import Project
+    from app.services.project_service import scope_projects_query
+    if payload.contract_id:
+        raise ErrorDeDominio(403, "Los contratos no están disponibles para tu rol")
+    if payload.project_id and not scope_projects_query(db.query(Project.id), db, user).filter(
+            Project.id == payload.project_id).first():
+        raise ErrorDeDominio(404, "Proyecto no encontrado")

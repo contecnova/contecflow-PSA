@@ -488,3 +488,38 @@ def build_fulfillment_task(db: Session, peticion: Ticket, titulo: str, group_id:
         _auto_assign_ticket_on_create(db, tarea)
     db.flush()
     return tarea
+
+
+def acotar_alta_del_externo(db: Session, payload: TicketCreateIn, user) -> None:
+    """Externos como internos (16-11-2026): el subcontratado abre tickets como un
+    agente, pero solo de lo suyo. El ticket queda en su alcance
+    (`created_by_user_id`); lo que se le cuelga tambien ha de estarlo:
+
+    - el proyecto, uno de los suyos (`scope_projects_query`); si no, 404;
+    - cliente y contrato (datos comerciales), solo los del proyecto;
+    - el CI (CMDB de la empresa), no;
+    - el asignado, alguien que ve (`ids_de_personas_visibles`).
+    """
+    from app.services.politica_de_visibilidad import es_externo, ids_de_personas_visibles
+    if not es_externo(user):
+        return
+    from app.core.errores import ErrorDeDominio
+    from app.models.pipeline import Contract
+    from app.models.project import Project
+    from app.services.project_service import scope_projects_query
+    proyecto = None
+    if payload.project_id:
+        proyecto = scope_projects_query(db.query(Project), db, user).filter(Project.id == payload.project_id).first()
+        if proyecto is None:
+            raise ErrorDeDominio(404, "Proyecto no encontrado")
+    cliente_del_proyecto = getattr(proyecto, "client_id", None)
+    if payload.client_id and payload.client_id != cliente_del_proyecto:
+        raise ErrorDeDominio(404, "Cliente no encontrado")
+    if payload.contract_id:
+        contrato = db.query(Contract).filter(Contract.id == payload.contract_id).first()
+        if contrato is None or not cliente_del_proyecto or getattr(contrato, "client_id", None) != cliente_del_proyecto:
+            raise ErrorDeDominio(404, "Contrato no encontrado")
+    if payload.ci_id:
+        raise ErrorDeDominio(403, "La CMDB no está disponible para tu rol")
+    if payload.assigned_to_user_id and payload.assigned_to_user_id not in ids_de_personas_visibles(db, user):
+        raise ErrorDeDominio(404, "Usuario no encontrado")

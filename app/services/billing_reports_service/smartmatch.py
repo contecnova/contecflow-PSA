@@ -8,6 +8,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
+from app.core import timeutil
 from app.models.task import ESTADOS_DE_TAREA_TERMINADOS
 from app.core.config import settings
 from app.models.user import User
@@ -174,7 +175,7 @@ def smartmatch(payload: dict, db: Session) -> dict:
     from app.services.externos.disponibilidad import horas_disponibles, ventanas
     usuarios = usuarios_q.all()
     ventanas_ext = ventanas(db, [u.id for u in usuarios])
-    hoy = date.today()
+    hoy = timeutil.today()
     try:
         ini = date.fromisoformat(payload["start_date"]) if payload.get("start_date") else hoy
         fin = date.fromisoformat(payload["end_date"]) if payload.get("end_date") else ini + timedelta(days=13)
