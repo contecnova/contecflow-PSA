@@ -204,6 +204,14 @@ _ORDEN = {"gt": lambda a, b: a > b, "gte": lambda a, b: a >= b, "lt": lambda a, 
           "lte": lambda a, b: a <= b, "eq": lambda a, b: a == b, "ne": lambda a, b: a != b}
 
 
+def _hora(v) -> str:
+    """«9:5», «09:05», time → «09:05» (error si no es una hora)."""
+    if hasattr(v, "hour"):
+        return f"{v.hour:02d}:{v.minute:02d}"
+    h, m = str(v).strip().split(":")[:2]
+    return f"{int(h):02d}:{int(m):02d}"
+
+
 def _norm_texto(v) -> str:
     return str(v if v is not None else "").strip().lower()
 
@@ -259,6 +267,25 @@ def comparar(ev: Evaluador, tipo: str, op: str, real: Any, valor: Any, valor2: A
         raise ValueError(f"operador {op} no vale para un periodo")
     if tipo == "booleano":
         return bool(real) == bool(valor)
+    if tipo == "hora":
+        # «HH:MM» con ceros a la izquierda se compara como texto (rev. 180).
+        v, a = _hora(real), _hora(valor)
+        if op == "between":
+            return a <= v <= _hora(valor2)
+        return _ORDEN[op](v, a)
+    if isinstance(real, (list, tuple, set)):
+        # Un campo con varios valores (grupos, tipos que solapan; rev. 180):
+        # «es» / «está en» = alguno coincide; «no es» / «no está en» = ninguno.
+        reales = {_norm_texto(x) for x in real}
+        buscados = {_norm_texto(x) for x in (valor if isinstance(valor, (list, tuple)) else [valor])}
+        if op in ("eq", "in"):
+            return bool(reales & buscados)
+        if op in ("ne", "not_in"):
+            return not (reales & buscados)
+        if op in ("contains", "not_contains"):
+            r = any(_norm_texto(valor) in x for x in reales)
+            return r if op == "contains" else not r
+        raise ValueError(f"operador {op} no vale para una lista")
     # texto, enum, entidad, pais, ciudad: comparación sin mayúsculas ni espacios.
     v = _norm_texto(real)
     if op in LISTA:

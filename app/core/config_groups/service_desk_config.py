@@ -58,6 +58,16 @@ class ServiceDeskSettingsMixin:
     SD_PORTAL_ASSISTANT_ACTION_TTL_MINUTES: int = Field(default=15, env="SD_PORTAL_ASSISTANT_ACTION_TTL_MINUTES")
     SD_PORTAL_ASSISTANT_MIN_MATCH: float = Field(default=0.2, env="SD_PORTAL_ASSISTANT_MIN_MATCH")
     SD_PASSWORD_RESET_SERVICE_ID: str = Field(default="", env="SD_PASSWORD_RESET_SERVICE_ID")
+    # Canales en tiempo real (17-11-2026): el asistente del portal entiende con
+    # la IA (si no hay IA, reconocimiento por palabras) y su tope de tokens.
+    SD_PORTAL_ASSISTANT_AI: bool = Field(default=True, env="SD_PORTAL_ASSISTANT_AI")
+    SD_PORTAL_ASSISTANT_MAX_TOKENS: int = Field(default=700, env="SD_PORTAL_ASSISTANT_MAX_TOKENS")
+    # Slack: canal donde se publica la tarjeta de cada ticket nuevo (su hilo
+    # queda atado) y canales de entrada (cada mensaje raiz abre un ticket), por
+    # id de canal. Adjuntos de los canales: tope en MB.
+    SD_SLACK_TICKET_CHANNEL: str = Field(default="", env="SD_SLACK_TICKET_CHANNEL")
+    SD_SLACK_INTAKE_CHANNELS: str = Field(default="", env="SD_SLACK_INTAKE_CHANNELS")
+    SD_CHANNEL_MAX_ATTACHMENT_MB: int = Field(default=16, env="SD_CHANNEL_MAX_ATTACHMENT_MB")
 
     # ── Cambios ──────────────────────────────────────────────────────────────
     # Cola (AgentGroup) que hace de comite de cambios; en emergencias votan

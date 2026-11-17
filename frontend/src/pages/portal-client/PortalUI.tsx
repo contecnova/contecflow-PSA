@@ -638,10 +638,12 @@ interface PortalFieldProps {
   label?: ReactNode
   hint?: ReactNode
   required?: boolean
+  /** Error de validación del servidor (o local) de este campo. */
+  error?: string
   children?: ReactNode
 }
 
-export function PortalField({ label, hint, required, children }: PortalFieldProps) {
+export function PortalField({ label, hint, required, error, children }: PortalFieldProps) {
   return (
     <div className="portui-stack-3">
       {label && (
@@ -650,6 +652,7 @@ export function PortalField({ label, hint, required, children }: PortalFieldProp
         </label>
       )}
       {children}
+      {error && <div className="u-field-error" role="alert">{error}</div>}
       {hint && <div className="u-text3-xs">{hint}</div>}
     </div>
   )

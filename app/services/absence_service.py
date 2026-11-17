@@ -313,6 +313,11 @@ def serialize_absence(a, viewer=None, db=None) -> dict:
         "end_date": str(a.end_date),
         "working_days": a.working_days,
         "amount": a.amount, "unit": a.unit, "hours": a.hours,
+        # Rev. 180: por horas (franja de cada día) y horas de su horario que cubre.
+        "modo": a.modo or ("horas" if a.start_time else "dias"),
+        "start_time": a.start_time.strftime("%H:%M") if a.start_time else None,
+        "end_time": a.end_time.strftime("%H:%M") if a.end_time else None,
+        "scheduled_hours": a.scheduled_hours,
         "half_day_start": bool(a.half_day_start), "half_day_end": bool(a.half_day_end),
         "shift_id": a.shift_id, "substitute_id": a.substitute_id,
         "substitute_name": a.substitute.full_name if getattr(a, "substitute", None) else None,

@@ -47,6 +47,9 @@ export { CampoFecha, CampoRangoDeFechas } from './SelectorDeFecha'
 export type { CampoFechaProps, CampoRangoDeFechasProps, TextosDeFecha } from './SelectorDeFecha'
 export { default as DateInput } from './DateInput'
 export { default as SelectorDePeriodo } from './SelectorDePeriodo'
+// Errores de validación del servidor junto a cada campo (17-11-2026)
+export { useErroresDeCampo } from './useErroresDeCampo'
+export type { ErroresDeCampo } from './useErroresDeCampo'
 // Rejilla única fila × día / semana y su navegador de mes (16-11-2026)
 export { default as RejillaPersonaDia, NavegadorDeMes, MuestraDeRejilla, columnasDeDias, columnasDeSemanas, rangoDelMes, isoLocal } from './RejillaPersonaDia'
 export type { RejillaPersonaDiaProps, FilaDeRejilla, ColumnaDeRejilla, CeldaDeRejilla, EntradaDeLeyenda, TonoDeRejilla } from './RejillaPersonaDia'

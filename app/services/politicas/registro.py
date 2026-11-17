@@ -28,6 +28,8 @@ OPERADORES_POR_TIPO: dict[str, tuple[str, ...]] = {
     # Un periodo (desde, hasta) del contexto contra el periodo de la condición:
     # «solapa con» un cierre de vacaciones, «no solapa con» (tarea #25).
     "periodo": ("overlaps", "not_overlaps"),
+    # Una hora del día «HH:MM» (rev. 180: franja de una ausencia por horas).
+    "hora": ("eq", "ne", "lt", "lte", "gt", "gte", "between"),
 }
 
 #: Operadores que no llevan valor, y los que llevan dos.

@@ -14,6 +14,7 @@ import type {
 import { useAppLang } from '../../i18n/AppLangContext'
 import { UserSelect, ProjectSelect, ClientSelect } from '../ui/EntitySelect'
 import DateInput from '../ui/DateInput'
+import { CampoFecha } from '../ui/SelectorDeFecha'
 import { CODIGOS_DE_PAIS, nombreDePais } from '../../constants/paises'
 import { STALE_5_MIN_MS } from '../../constants/timings'
 import './politicas.css'
@@ -194,6 +195,9 @@ export function EntradaDeValor({ dominio, campo, operador, valor, onChange, opci
     case 'numero':
       return <input type="number" className="pol-campo pol-campo--corto" aria-label={etiqueta} value={(valor as number | null) ?? ''}
         onChange={e => onChange(e.target.value === '' ? null : Number(e.target.value))} />
+    case 'hora':
+      return <CampoFecha modo="hora" className="pol-campo pol-campo--corto" aria-label={etiqueta} value={(valor as string | null) ?? ''}
+        onChange={v => onChange(v || null)} />
     case 'fecha':
     case 'periodo':
       return <DateInput className="pol-campo" aria-label={etiqueta} value={(valor as string | null) ?? ''} onChange={e => onChange(e.target.value)} />

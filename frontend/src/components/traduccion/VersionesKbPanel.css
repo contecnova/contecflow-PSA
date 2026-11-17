@@ -148,3 +148,21 @@
   gap: var(--space-1);
   flex-shrink: 0;
 }
+/* 17-11-2026: el original al lado de la versión (avisos y catálogo). */
+.trad-kb__original {
+  font-size: var(--text-xs);
+  color: var(--text-3);
+}
+.trad-kb__original summary {
+  cursor: pointer;
+  color: var(--text-2);
+}
+.trad-kb__original-texto {
+  margin: var(--space-1) 0 0;
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  color: var(--text-1);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

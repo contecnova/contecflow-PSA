@@ -7,7 +7,7 @@ import { imputationsApi, projectsApi, tasksApi, aiCopilotApi } from '../services
 import type { AnomaliasDeImputacion } from '../services/api/tipos-analitica'
 import type { Imputacion, ResumenSemanal, SesionDeCronometro } from '../services/api/tipos-personas'
 import { queueImputation } from '../services/offlineQueue'
-import { Button, Card, Drawer, EmptyState, IconButton, Page, Select, Checkbox } from '../components/ui'
+import { Button, Card, Drawer, EmptyState, IconButton, Page, Select, Checkbox, useErroresDeCampo } from '../components/ui'
 import { AlertTriangle, CalendarClock, Check, CheckCircle2, Clock, FolderX, Lightbulb, Pencil, Timer, Trash2, TrendingDown, X } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { fmtDate, fmtNumber, extractErr, localeActivo } from '../utils/helpers'
@@ -273,9 +273,12 @@ export default function ImputarPage(): JSX.Element {
   const hasAnyAnomaly = (anomaliesData?.anomalies?.length || 0) > 0
 
   const [anomaliesDrawerOpen, setAnomaliesDrawerOpen] = useState(false)
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="imput-horas-error" role="alert">{campos.de(k)}</div> : null
 
   const { mutate, isPending } = useMutation({
     mutationFn: (data: Record<string, unknown>) => imputationsApi.create(data),
+    onMutate: () => campos.limpiar(),
     onSuccess: () => {
       setSaved(true)
       setDuplicateError(null)
@@ -293,7 +296,7 @@ export default function ImputarPage(): JSX.Element {
       const err = e as { response?: { status?: number; data?: { detail?: string } } }
       if (err?.response?.status === 409) {
         setDuplicateError(err?.response?.data?.detail || t('pagina_imput.ya_existe_una_imputacion_para_esta'))
-      } else {
+      } else if (!campos.recoger(e)) {
         toast.error(extractErr(e, t('common.error') || GENERIC_ERROR_FALLBACK))
       }
     },
@@ -350,6 +353,7 @@ export default function ImputarPage(): JSX.Element {
   })
 
   const set = (k: string) => (v: unknown) => {
+    campos.limpiar(k)
     setForm(f => ({ ...f, [k]: v }))
     if (k === 'task_id' || k === 'date') {
       setDuplicateError(null)
@@ -397,6 +401,7 @@ export default function ImputarPage(): JSX.Element {
               <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
             ))}
           </Select>
+          {msg('project_id')}
         </div>
 
         {/* Task */}
@@ -415,6 +420,7 @@ export default function ImputarPage(): JSX.Element {
               <option key={t.id} value={t.id}>{t.code} — {t.title}</option>
             ))}
           </Select>
+          {msg('task_id')}
         </div>
 
         {/* Date */}
@@ -428,6 +434,7 @@ export default function ImputarPage(): JSX.Element {
             max={today}
             className="imput-card-7"
           />
+          {msg('date')}
         </div>
 
         {/* Hours */}
@@ -463,6 +470,7 @@ export default function ImputarPage(): JSX.Element {
           {horasEscritas !== '' && horasLeidas === null && (
             <div className="imput-horas-error" role="alert">{t('imputa_page.horas_invalidas')}</div>
           )}
+          {msg('hours')}
           {form.hours > 0 && (
             <div className="imput-box-6">
               {t('imputa_page.total_today')}: <span className={`imput-label-2 ${todayHours + form.hours > jornada ? 'imputarp-sx9' : 'imputarp-sx2'}`}>
@@ -484,6 +492,7 @@ export default function ImputarPage(): JSX.Element {
             rows={3}
             className="imput-input-3"
           />
+          {msg('description')}
         </div>
 
         {/* Billable toggle */}

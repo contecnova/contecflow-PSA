@@ -516,7 +516,24 @@ def procesar_evento(db: Session, ev: TicketEvent) -> dict:
         if ev.kind == "status_changed" and data.get("new") in ESTADOS_DE_TICKET_CERRADOS:
             from app.services.service_desk.fulfillment_service import al_terminar_una_tarea
             cuenta["peticion_resuelta"] = al_terminar_una_tarea(db, ticket)
+        cuenta.update(_por_los_canales(db, ev, ticket, data))
     return cuenta
+
+
+def _por_los_canales(db: Session, ev: TicketEvent, ticket: Ticket, data: dict) -> dict:
+    """Canales en tiempo real (17-11-2026), lo ultimo del evento y sin lanzar: la
+    respuesta publica de un agente sale a los hilos de Slack y a WhatsApp del
+    ticket, y un ticket nuevo publica su tarjeta en el canal de avisos de Slack."""
+    try:
+        if ev.kind == "commented" and data.get("is_public") and data.get("comment_id"):
+            from app.services.service_desk.salida_por_canales import al_comentar
+            return {"canales": al_comentar(db, ticket, data["comment_id"])["sent"]}
+        if ev.kind == "created":
+            from app.services.service_desk.canal_slack import publicar_aviso_de_ticket
+            return {"slack_hilo": publicar_aviso_de_ticket(db, ticket)}
+    except Exception:
+        logger.warning("evento %s: salida por los canales fallida", ev.id, exc_info=True)
+    return {}
 
 
 def procesar_pendientes(db: Session, limite: Optional[int] = None) -> dict:

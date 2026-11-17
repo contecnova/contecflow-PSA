@@ -5,7 +5,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { clientsApi, unwrapList } from '../services/api'
 import type { MetaDeLista } from '../services/api/tipos-plataforma'
-import { Button, Spinner, EmptyState, Modal, Tabs, useSort, SortableTH, Pulsable, Select } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, Tabs, useSort, SortableTH, Pulsable, Select, useErroresDeCampo } from '../components/ui'
 import Pagination from '../components/ui/Pagination'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -137,6 +137,8 @@ export default function ClientsPage(): JSX.Element {
   const [showEdit, setShowEdit] = useState(false)
   const [editClientForm, setEditClientForm] = useState<Record<string, string>>({})
   const [clientView, setClientView] = useState('grid')
+  const camposNuevo = useErroresDeCampo()
+  const camposEdit = useErroresDeCampo()
 
   const statusLabel = (s: string | undefined) => (s && STATUS_COLOR[s] ? t(`clientspage.estado_${s}`) : s)
   const industryLabel = (i: string) => (INDUSTRIES.includes(i) ? t(`clientspage.sector_${i}`) : i)
@@ -167,6 +169,7 @@ export default function ClientsPage(): JSX.Element {
 
   const { mutate: create, isPending: creating } = useMutation({
     mutationFn: (d: Record<string, unknown>) => clientsApi.create(d),
+    onMutate: () => camposNuevo.limpiar(),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['clients'] })
       setShowCreate(false)
@@ -174,18 +177,19 @@ export default function ClientsPage(): JSX.Element {
       createValidation.setErrors({})
       toast.success(t('clientspage.cliente_creado'))
     },
-    onError: (e: unknown) => toast.error(extractErr(e, t('clientspage.error_crear'))),
+    onError: (e: unknown) => { if (!camposNuevo.recoger(e)) toast.error(extractErr(e, t('clientspage.error_crear'))) },
   })
 
   const { mutate: updateClient, isPending: updatingClient } = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => clientsApi.update(id, data),
+    onMutate: () => camposEdit.limpiar(),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['clients'] })
       qc.invalidateQueries({ queryKey: ['client-detail', selected?.id] })
       setShowEdit(false)
       toast.success(t('clientspage.cliente_actualizado'))
     },
-    onError: (e: unknown) => toast.error(extractErr(e, t('clientspage.error_actualizar'))),
+    onError: (e: unknown) => { if (!camposEdit.recoger(e)) toast.error(extractErr(e, t('clientspage.error_actualizar'))) },
   })
 
   const openEditClient = () => {
@@ -403,79 +407,91 @@ export default function ClientsPage(): JSX.Element {
             <div>
               <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cli-label">{t('clientspage.campo_nombre')}</label>
               <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={editClientForm.name}
-                onChange={e => setEditClientForm(f => ({ ...f, name: e.target.value }))}
+                onChange={e => { camposEdit.limpiar('name'); setEditClientForm(f => ({ ...f, name: e.target.value })) }}
                 className="cli-input" />
+              {camposEdit.de('name') && <div className="u-field-error">{camposEdit.de('name')}</div>}
             </div>
             <div>
               <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cli-label">{t('clientspage.campo_nombre_corto')}</label>
               <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={editClientForm.short_name}
-                onChange={e => setEditClientForm(f => ({ ...f, short_name: e.target.value }))}
+                onChange={e => { camposEdit.limpiar('short_name'); setEditClientForm(f => ({ ...f, short_name: e.target.value })) }}
                 className="cli-input" />
+              {camposEdit.de('short_name') && <div className="u-field-error">{camposEdit.de('short_name')}</div>}
             </div>
             <div>
               <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cli-label">{t('clientspage.campo_cif')}</label>
               <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={editClientForm.tax_id}
-                onChange={e => setEditClientForm(f => ({ ...f, tax_id: e.target.value }))}
+                onChange={e => { camposEdit.limpiar('tax_id'); setEditClientForm(f => ({ ...f, tax_id: e.target.value })) }}
                 className="cli-input" />
+              {camposEdit.de('tax_id') && <div className="u-field-error">{camposEdit.de('tax_id')}</div>}
             </div>
             <div>
               <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cli-label">{t('clientspage.campo_sector')}</label>
               <Select suelto placeholder={false} id={`${idCampo}-4`} value={editClientForm.industry}
-                onChange={e => setEditClientForm(f => ({ ...f, industry: e.target.value }))}
+                onChange={e => { camposEdit.limpiar('industry'); setEditClientForm(f => ({ ...f, industry: e.target.value })) }}
                 className="cli-input">
                 {industryOptions}
               </Select>
+              {camposEdit.de('industry') && <div className="u-field-error">{camposEdit.de('industry')}</div>}
             </div>
             <div>
               <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="cli-label">{t('clientspage.campo_contacto')}</label>
               <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={editClientForm.contact_name}
-                onChange={e => setEditClientForm(f => ({ ...f, contact_name: e.target.value }))}
+                onChange={e => { camposEdit.limpiar('contact_name'); setEditClientForm(f => ({ ...f, contact_name: e.target.value })) }}
                 className="cli-input" />
+              {camposEdit.de('contact_name') && <div className="u-field-error">{camposEdit.de('contact_name')}</div>}
             </div>
             <div>
               <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="cli-label">{t('clientspage.campo_email')}</label>
               <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="email" value={editClientForm.contact_email}
-                onChange={e => setEditClientForm(f => ({ ...f, contact_email: e.target.value }))}
+                onChange={e => { camposEdit.limpiar('contact_email'); setEditClientForm(f => ({ ...f, contact_email: e.target.value })) }}
                 className="cli-input" />
+              {camposEdit.de('contact_email') && <div className="u-field-error">{camposEdit.de('contact_email')}</div>}
             </div>
             <div>
               <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="cli-label">{t('clients.telefono')}</label>
               <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={editClientForm.contact_phone}
-                onChange={e => setEditClientForm(f => ({ ...f, contact_phone: e.target.value }))}
+                onChange={e => { camposEdit.limpiar('contact_phone'); setEditClientForm(f => ({ ...f, contact_phone: e.target.value })) }}
                 className="cli-input" />
+              {camposEdit.de('contact_phone') && <div className="u-field-error">{camposEdit.de('contact_phone')}</div>}
             </div>
             <div>
               <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="cli-label">{t('clientspage.campo_estado')}</label>
               <Select suelto placeholder={false} id={`${idCampo}-8`} value={editClientForm.status}
-                onChange={e => setEditClientForm(f => ({ ...f, status: e.target.value }))}
+                onChange={e => { camposEdit.limpiar('status'); setEditClientForm(f => ({ ...f, status: e.target.value })) }}
                 className="cli-input">
                 {statusOptions}
               </Select>
+              {camposEdit.de('status') && <div className="u-field-error">{camposEdit.de('status')}</div>}
             </div>
             <div>
               <label id={`${idCampo}-etpais`} htmlFor={`${idCampo}-pais`} className="cli-label">{t('clients.pais')}</label>
               <input id={`${idCampo}-pais`} aria-labelledby={`${idCampo}-etpais`} value={editClientForm.country}
-                onChange={e => setEditClientForm(f => ({ ...f, country: e.target.value }))}
+                onChange={e => { camposEdit.limpiar('country'); setEditClientForm(f => ({ ...f, country: e.target.value })) }}
                 className="cli-input" placeholder={t('clients.pais')} />
+              {camposEdit.de('country') && <div className="u-field-error">{camposEdit.de('country')}</div>}
             </div>
             <div>
               <label id={`${idCampo}-etciudad`} htmlFor={`${idCampo}-ciudad`} className="cli-label">{t('clientspage.campo_ciudad')}</label>
               <input id={`${idCampo}-ciudad`} aria-labelledby={`${idCampo}-etciudad`} value={editClientForm.city}
-                onChange={e => setEditClientForm(f => ({ ...f, city: e.target.value }))}
+                onChange={e => { camposEdit.limpiar('city'); setEditClientForm(f => ({ ...f, city: e.target.value })) }}
                 className="cli-input" placeholder={t('clientspage.campo_ciudad')} />
+              {camposEdit.de('city') && <div className="u-field-error">{camposEdit.de('city')}</div>}
             </div>
             <div className="u-col-full">
               <label id={`${idCampo}-etweb`} htmlFor={`${idCampo}-web`} className="cli-label">{t('clientspage.campo_web')}</label>
               <input id={`${idCampo}-web`} aria-labelledby={`${idCampo}-etweb`} value={editClientForm.website}
-                onChange={e => setEditClientForm(f => ({ ...f, website: e.target.value }))}
+                onChange={e => { camposEdit.limpiar('website'); setEditClientForm(f => ({ ...f, website: e.target.value })) }}
                 className="cli-input" placeholder={t('clientspage.placeholder_web')} />
+              {camposEdit.de('website') && <div className="u-field-error">{camposEdit.de('website')}</div>}
             </div>
           </div>
           <div className="u-mb-16">
             <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="cli-label">{t('clientspage.campo_notas')}</label>
             <textarea id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} value={editClientForm.notes}
-              onChange={e => setEditClientForm(f => ({ ...f, notes: e.target.value }))}
+              onChange={e => { camposEdit.limpiar('notes'); setEditClientForm(f => ({ ...f, notes: e.target.value })) }}
               className="cli-input" />
+              {camposEdit.de('notes') && <div className="u-field-error">{camposEdit.de('notes')}</div>}
           </div>
           <div className="u-actions-8">
             <Button variant="secondary" onClick={() => setShowEdit(false)}>
@@ -497,6 +513,7 @@ export default function ClientsPage(): JSX.Element {
           const value = e.target.value
           setNewForm(f => ({ ...f, [key]: value }))
           createValidation.clearFieldError(key)
+          camposNuevo.limpiar(key)
         }
         const submitCreate = () => {
           const result = createValidation.validateForm(newForm)
@@ -505,11 +522,12 @@ export default function ClientsPage(): JSX.Element {
         }
         const errId = (key: string) => `${idCampo}-err-${key}`
         // Props de error de un campo: marca aria-invalid (lo pinta .cli-input) y lo enlaza al mensaje.
-        const errProps = (key: string) => createValidation.errors[key]
+        const errTxt = (key: string) => createValidation.errors[key] ?? camposNuevo.de(key)
+        const errProps = (key: string) => errTxt(key)
           ? { 'aria-invalid': true as const, 'aria-describedby': errId(key) }
           : {}
-        const errField = (key: string) => createValidation.errors[key] && (
-          <div id={errId(key)} className="u-field-error">{createValidation.errors[key]}</div>
+        const errField = (key: string) => errTxt(key) && (
+          <div id={errId(key)} className="u-field-error">{errTxt(key)}</div>
         )
         return (
         <Modal open title={t('clients.new_client')} onClose={() => { setShowCreate(false); createValidation.setErrors({}) }} width={600}>
@@ -520,7 +538,7 @@ export default function ClientsPage(): JSX.Element {
             <div><label id={`${idCampo}-etnuevo518`} htmlFor={`${idCampo}-nuevo518`} className="cli-label">{t('clientspage.campo_sector')}</label>
               <Select suelto placeholder={false} id={`${idCampo}-nuevo518`} value={newForm.industry} onChange={setCreateField('industry')} className="cli-input">
                 {industryOptions}
-              </Select>
+              </Select>{errField('industry')}
             </div>
             <div><label id={`${idCampo}-etnuevo523`} htmlFor={`${idCampo}-nuevo523`} className="cli-label">{t('clientspage.campo_contacto')}</label><input id={`${idCampo}-nuevo523`} aria-labelledby={`${idCampo}-etnuevo523`} value={newForm.contact_name} onChange={setCreateField('contact_name')} className="cli-input" {...errProps('contact_name')} />{errField('contact_name')}</div>
             <div><label id={`${idCampo}-etnuevo524`} htmlFor={`${idCampo}-nuevo524`} className="cli-label">{t('clientspage.campo_email')}</label><input id={`${idCampo}-nuevo524`} aria-labelledby={`${idCampo}-etnuevo524`} type="email" value={newForm.contact_email} onChange={setCreateField('contact_email')} className="cli-input" {...errProps('contact_email')} />{errField('contact_email')}</div>
@@ -528,7 +546,7 @@ export default function ClientsPage(): JSX.Element {
             <div><label id={`${idCampo}-etnuevo526`} htmlFor={`${idCampo}-nuevo526`} className="cli-label">{t('clientspage.campo_estado')}</label>
               <Select suelto placeholder={false} id={`${idCampo}-nuevo526`} value={newForm.status} onChange={setCreateField('status')} className="cli-input">
                 {statusOptions}
-              </Select>
+              </Select>{errField('status')}
             </div>
           </div>
           <div className="u-mb-16"><label id={`${idCampo}-etnuevo532`} htmlFor={`${idCampo}-nuevo532`} className="cli-label">{t('clientspage.campo_notas')}</label><textarea id={`${idCampo}-nuevo532`} aria-labelledby={`${idCampo}-etnuevo532`} value={newForm.notes} onChange={setCreateField('notes')} className="cli-input" {...errProps('notes')} />{errField('notes')}</div>

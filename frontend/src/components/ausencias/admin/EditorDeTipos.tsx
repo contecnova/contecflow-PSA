@@ -3,6 +3,11 @@
  * unidad, visibilidad, flujo por defecto, sustituto, datos de salud y los
  * documentos que pide cada tipo con su plazo, recordatorio, repetición y
  * escalado. Todo con controles: nadie escribe JSON.
+ *
+ * Rev. 180: modos de petición (días, medio día, horas), retribuido, saldo
+ * «bolsa de horas», periodo del saldo y mes de inicio, arrastre máximo y su
+ * caducidad, caducidad de los apuntes, prorrateo por alta, tabla de referencia
+ * del derecho (tablas numéricas de Políticas) y reglas de la bolsa.
  */
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -10,7 +15,8 @@ import { Plus, Trash2, Umbrella } from 'lucide-react'
 import { ausenciasApi } from '../../../services/api/ausencias'
 import { approvalsApi } from '../../../services/api'
 import type {
-  DestinatarioDeAviso, PlazoDesde, RequisitoDocumental, TipoDeAusencia, TipoDeAusenciaIn, TipoDeDocumento,
+  DestinatarioDeAviso, ModoDePeticion, PeriodoDeSaldo, PlazoDesde, ReglasDeBolsa, RequisitoDocumental, Saldo, TipoDeAusencia,
+  TipoDeAusenciaIn, TipoDeDocumento,
 } from '../../../services/api/tipos-ausencias'
 import { Button, EmptyState, Modal, Spinner, Select, Pulsable, IconButton } from '../../ui'
 import { confirmar } from '../../../context/ConfirmContext'
@@ -23,7 +29,19 @@ const tipoNuevo = (): TipoDeAusenciaIn => ({
   clave: '', nombre: '', nombres: {}, color: colorPorDefecto(), icono: 'umbrella', descuenta_saldo: false, saldo: null,
   cupo_anual: null, unidad: 'dias', visibilidad: 'equipo', workflow_id: null, requiere_aprobacion: true,
   requiere_sustituto: false, datos_especiales: false, activo: true, orden: 100, requisitos: [],
+  modos: ['dias', 'medio_dia'], retribuido: true, periodo_saldo: 'anual', inicio_periodo_mes: 1, arrastre_max: null,
+  arrastre_caduca_meses: null, caduca_meses: null, prorratear_alta: false, derecho_tabla_id: null, bolsa: null,
 })
+/** Reglas neutras de una bolsa nueva: cada hora de más cuenta una hora, sin umbral ni topes. */
+const bolsaNueva = (): ReglasDeBolsa => ({
+  factor: 1, factor_festivo: 1, factor_no_laborable: 1, umbral_minutos: 0, tope_diario: null, tope_periodo: null, solo_aprobadas: true,
+})
+const MODOS: ModoDePeticion[] = ['dias', 'medio_dia', 'horas']
+const SALDOS: Saldo[] = ['vacaciones', 'propio', 'bolsa']
+const PERIODOS: PeriodoDeSaldo[] = ['anual', 'semestral', 'trimestral', 'mensual', 'sin_periodo']
+const MESES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+/** Un número opcional de un input (vacío = null). */
+const numOpcional = (v: string): number | null => (v === '' ? null : Number(v))
 const PLAZOS: PlazoDesde[] = ['solicitud', 'inicio', 'fin']
 const DESTINOS: DestinatarioDeAviso['tipo'][] = ['responsable', 'rol', 'persona', 'departamento', 'grupo', 'solicitante']
 const CLASE = { persona: 'usuario', rol: 'rol', departamento: 'departamento', grupo: 'grupo' } as const
@@ -56,6 +74,8 @@ export default function EditorDeTipos() {
                   <span className="ausadm-chips">
                     {t.descuenta_saldo && <span className="ausadm-chip">{ta(`saldo_${t.saldo}`)}</span>}
                     <span className="ausadm-chip">{ta(`unidad_${t.unidad}`)}</span>
+                    {(t.modos ?? []).map(m => <span key={m} className="ausadm-chip">{ta(`modo_${m}`)}</span>)}
+                    {t.retribuido === false && <span className="ausadm-chip">{ta('no_retribuido')}</span>}
                     <span className="ausadm-chip">{ta(`visibilidad_${t.visibilidad}`)}</span>
                     {t.datos_especiales && <span className="ausadm-chip ausadm-chip--aviso">{ta('datos_especiales_corto')}</span>}
                     {t.requisitos.length > 0 && <span className="ausadm-chip">{ta('n_documentos', { n: t.requisitos.length })}</span>}
@@ -75,7 +95,15 @@ export default function EditorDeTipos() {
 
 function aEntrada(t: TipoDeAusencia): TipoDeAusenciaIn {
   const { id: _id, de_sistema: _s, ...resto } = t
-  return { ...resto, requisitos: t.requisitos.map(r => ({ ...r })) }
+  const base = tipoNuevo()
+  return {
+    ...resto, requisitos: t.requisitos.map(r => ({ ...r })),
+    // Tipos de antes de la rev. 180 sin estos campos: los valores neutros.
+    modos: t.modos?.length ? [...t.modos] : base.modos, retribuido: t.retribuido ?? base.retribuido,
+    periodo_saldo: t.periodo_saldo ?? base.periodo_saldo, inicio_periodo_mes: t.inicio_periodo_mes ?? base.inicio_periodo_mes,
+    arrastre_max: t.arrastre_max ?? null, arrastre_caduca_meses: t.arrastre_caduca_meses ?? null, caduca_meses: t.caduca_meses ?? null,
+    prorratear_alta: t.prorratear_alta ?? false, derecho_tabla_id: t.derecho_tabla_id ?? null, bolsa: t.bolsa ? { ...t.bolsa } : null,
+  }
 }
 
 function FormularioDeTipo({ id, inicial, deSistema, onCerrar }: {
@@ -91,6 +119,9 @@ function FormularioDeTipo({ id, inicial, deSistema, onCerrar }: {
     queryFn: () => approvalsApi.listWorkflows({ entity_type: 'leave' }).then(r => (r.data ?? []).filter(w => w.entity_type === 'leave')),
   })
   const documentos = useQuery({ queryKey: ['ausencias', 'documentos'], queryFn: () => ausenciasApi.documentos() })
+  const opciones = useOpciones().data
+  // Tablas de referencia numéricas de Políticas (de ausencias o de cualquier dominio) para el derecho.
+  const tablas = (opciones?.tablas ?? []).filter(x => x.tipo_de_valor === 'numero' && (!x.dominio || x.dominio === 'ausencias'))
   const refrescar = () => qc.invalidateQueries({ queryKey: ['ausencias'] })
   const guardar = useMutation({
     mutationFn: () => (id ? ausenciasApi.guardarTipo(id, d) : ausenciasApi.crearTipo(d)),
@@ -150,24 +181,92 @@ function FormularioDeTipo({ id, inicial, deSistema, onCerrar }: {
           </label>
         </div>
         <fieldset className="ds-grupo-opciones ausadm-fieldset">
+          <legend className="ausadm-etiqueta">{ta('modos_de_peticion')}</legend>
+          <div className="ausadm-fila">
+            {MODOS.map(m => (
+              <Casilla key={m} etiqueta={ta(`modo_${m}`)} valor={d.modos.includes(m)}
+                onChange={v => cambiar({ modos: v ? MODOS.filter(x => x === m || d.modos.includes(x)) : d.modos.filter(x => x !== m) })} />
+            ))}
+          </div>
+          <span className="ausadm-ayuda">{d.modos.length ? ta('modos_ayuda') : ta('modos_vacio')}</span>
+          <Casilla etiqueta={ta('retribuido')} ayuda={ta('retribuido_ayuda')} valor={d.retribuido} onChange={v => cambiar({ retribuido: v })} />
+        </fieldset>
+        <fieldset className="ds-grupo-opciones ausadm-fieldset">
           <legend className="ausadm-etiqueta">{ta('saldo')}</legend>
           <Casilla etiqueta={ta('descuenta_saldo')} valor={d.descuenta_saldo}
             onChange={v => cambiar({ descuenta_saldo: v, saldo: v ? (d.saldo ?? 'vacaciones') : null })} />
           {d.descuenta_saldo && (
-            <div className="ausadm-fila">
-              <Select suelto className="ausadm-campo" aria-label={ta('que_saldo')} value={d.saldo ?? 'vacaciones'}
-                onChange={e => cambiar({ saldo: e.target.value as 'vacaciones' | 'propio' })} placeholder={false}>
-                <option value="vacaciones">{ta('saldo_vacaciones')}</option>
-                <option value="propio">{ta('saldo_propio')}</option>
-              </Select>
-              {d.saldo === 'propio' && (
-                <label className="ausadm-fila">
-                  <span className="ausadm-ayuda">{ta('cupo_anual', { unidad: ta(`unidad_${d.unidad}`) })}</span>
-                  <input aria-label={ta('cupo_anual', { unidad: ta(`unidad_${d.unidad}`) })} type="number" min={0} step="0.5" className="ausadm-campo ausadm-campo--corto" required
-                    value={d.cupo_anual ?? ''} onChange={e => cambiar({ cupo_anual: e.target.value === '' ? null : Number(e.target.value) })} />
+            <>
+              <div className="ausadm-fila">
+                <Select suelto className="ausadm-campo" aria-label={ta('que_saldo')} value={d.saldo ?? 'vacaciones'}
+                  onChange={e => { const s = e.target.value as Saldo; cambiar({ saldo: s, bolsa: s === 'bolsa' ? (d.bolsa ?? bolsaNueva()) : null }) }} placeholder={false}>
+                  {SALDOS.map(s => <option key={s} value={s}>{ta(`saldo_${s}`)}</option>)}
+                </Select>
+                {d.saldo === 'propio' && (
+                  <label className="ausadm-fila">
+                    <span className="ausadm-ayuda">{ta('cupo_anual', { unidad: ta(`unidad_${d.unidad}`) })}</span>
+                    <input aria-label={ta('cupo_anual', { unidad: ta(`unidad_${d.unidad}`) })} type="number" min={0} step="0.5" className="ausadm-campo ausadm-campo--corto"
+                      required={!d.derecho_tabla_id}
+                      value={d.cupo_anual ?? ''} onChange={e => cambiar({ cupo_anual: numOpcional(e.target.value) })} />
+                  </label>
+                )}
+              </div>
+              <span className="ausadm-ayuda">{ta(`saldo_${d.saldo ?? 'vacaciones'}_ayuda`)}</span>
+              <div className="ausadm-grid-2">
+                <label className="ausadm-campo-con-etiqueta">
+                  <span className="ausadm-etiqueta">{ta('periodo_saldo')}</span>
+                  <Select suelto className="ausadm-campo" value={d.periodo_saldo} placeholder={false}
+                    onChange={e => cambiar({ periodo_saldo: e.target.value as PeriodoDeSaldo })}>
+                    {PERIODOS.map(x => <option key={x} value={x}>{ta(`periodo_${x}`)}</option>)}
+                  </Select>
                 </label>
+                {d.periodo_saldo !== 'sin_periodo' && d.periodo_saldo !== 'mensual' && (
+                  <label className="ausadm-campo-con-etiqueta">
+                    <span className="ausadm-etiqueta">{ta('inicio_periodo_mes')}</span>
+                    <Select suelto className="ausadm-campo" value={String(d.inicio_periodo_mes)} placeholder={false}
+                      onChange={e => cambiar({ inicio_periodo_mes: Number(e.target.value) })}>
+                      {MESES.map(m => <option key={m} value={m}>{ta(`mes_${m}`)}</option>)}
+                    </Select>
+                  </label>
+                )}
+                {d.saldo !== 'bolsa' && (
+                  <label className="ausadm-campo-con-etiqueta">
+                    <span className="ausadm-etiqueta">{ta('derecho_tabla')}</span>
+                    <Select suelto className="ausadm-campo" value={d.derecho_tabla_id ?? ''} aria-describedby="ausadm-tabla-ayuda"
+                      onChange={e => cambiar({ derecho_tabla_id: e.target.value || null })} placeholder={tablas.length ? ta('sin_tabla') : ta('no_hay_tablas')}>
+                      {tablas.map(x => <option key={x.id} value={x.id}>{x.nombre}</option>)}
+                    </Select>
+                    <span id="ausadm-tabla-ayuda" className="ausadm-ayuda">{ta('derecho_tabla_ayuda')}</span>
+                  </label>
+                )}
+                <label className="ausadm-campo-con-etiqueta">
+                  <span className="ausadm-etiqueta">{ta('arrastre_max', { unidad: ta(`unidad_${d.unidad}`) })}</span>
+                  <input aria-label={ta('arrastre_max', { unidad: ta(`unidad_${d.unidad}`) })} type="number" min={0} step="0.5"
+                    className="ausadm-campo ausadm-campo--corto" value={d.arrastre_max ?? ''} placeholder={ta('sin_arrastre')}
+                    onChange={e => cambiar({ arrastre_max: numOpcional(e.target.value) })} />
+                </label>
+                {d.arrastre_max != null && d.arrastre_max > 0 && (
+                  <label className="ausadm-campo-con-etiqueta">
+                    <span className="ausadm-etiqueta">{ta('arrastre_caduca_meses')}</span>
+                    <input aria-label={ta('arrastre_caduca_meses')} type="number" min={0} step={1} className="ausadm-campo ausadm-campo--corto"
+                      value={d.arrastre_caduca_meses ?? ''} placeholder={ta('no_caduca')}
+                      onChange={e => cambiar({ arrastre_caduca_meses: numOpcional(e.target.value) })} />
+                  </label>
+                )}
+                <label className="ausadm-campo-con-etiqueta">
+                  <span className="ausadm-etiqueta">{ta('caduca_meses')}</span>
+                  <input aria-label={ta('caduca_meses')} type="number" min={0} step={1} className="ausadm-campo ausadm-campo--corto"
+                    value={d.caduca_meses ?? ''} placeholder={ta('no_caduca')} aria-describedby="ausadm-caduca-ayuda"
+                    onChange={e => cambiar({ caduca_meses: numOpcional(e.target.value) })} />
+                  <span id="ausadm-caduca-ayuda" className="ausadm-ayuda">{ta('caduca_meses_ayuda')}</span>
+                </label>
+              </div>
+              {d.saldo !== 'bolsa' && (
+                <Casilla etiqueta={ta('prorratear_alta')} ayuda={ta('prorratear_alta_ayuda')} valor={d.prorratear_alta}
+                  onChange={v => cambiar({ prorratear_alta: v })} />
               )}
-            </div>
+              {d.saldo === 'bolsa' && <ReglasDeLaBolsa valor={d.bolsa ?? bolsaNueva()} onChange={bolsa => cambiar({ bolsa })} />}
+            </>
           )}
         </fieldset>
         <fieldset className="ds-grupo-opciones ausadm-fieldset">
@@ -196,6 +295,46 @@ function FormularioDeTipo({ id, inicial, deSistema, onCerrar }: {
         </div>
       </form>
     </Modal>
+  )
+}
+
+/** Cómo se acumulan las horas de más en la bolsa (desde las imputaciones). */
+function ReglasDeLaBolsa({ valor, onChange }: { valor: ReglasDeBolsa; onChange: (b: ReglasDeBolsa) => void }) {
+  const { ta } = useT()
+  const poner = (c: Partial<ReglasDeBolsa>) => onChange({ ...valor, ...c })
+  const numero = (clave: 'factor' | 'factor_festivo' | 'factor_no_laborable') => (
+    <label className="ausadm-campo-con-etiqueta">
+      <span className="ausadm-etiqueta">{ta(`bolsa_${clave}`)}</span>
+      <input aria-label={ta(`bolsa_${clave}`)} type="number" min={0} step="0.25" className="ausadm-campo ausadm-campo--corto" required
+        value={valor[clave]} onChange={e => poner({ [clave]: Math.max(0, Number(e.target.value) || 0) } as Partial<ReglasDeBolsa>)} />
+    </label>
+  )
+  const opcional = (clave: 'tope_diario' | 'tope_periodo') => (
+    <label className="ausadm-campo-con-etiqueta">
+      <span className="ausadm-etiqueta">{ta(`bolsa_${clave}`)}</span>
+      <input aria-label={ta(`bolsa_${clave}`)} type="number" min={0} step="0.5" className="ausadm-campo ausadm-campo--corto"
+        value={valor[clave] ?? ''} placeholder={ta('sin_tope')} onChange={e => poner({ [clave]: numOpcional(e.target.value) } as Partial<ReglasDeBolsa>)} />
+    </label>
+  )
+  return (
+    <div className="ausadm-tarjeta" role="group" aria-label={ta('bolsa_reglas')}>
+      <span className="ausadm-etiqueta">{ta('bolsa_reglas')}</span>
+      <span className="ausadm-ayuda">{ta('bolsa_reglas_ayuda')}</span>
+      <div className="ausadm-grid-3">
+        {numero('factor')}
+        {numero('factor_festivo')}
+        {numero('factor_no_laborable')}
+        <label className="ausadm-campo-con-etiqueta">
+          <span className="ausadm-etiqueta">{ta('bolsa_umbral_minutos')}</span>
+          <input aria-label={ta('bolsa_umbral_minutos')} type="number" min={0} step={5} className="ausadm-campo ausadm-campo--corto"
+            value={valor.umbral_minutos} onChange={e => poner({ umbral_minutos: Math.max(0, Number(e.target.value) || 0) })} />
+        </label>
+        {opcional('tope_diario')}
+        {opcional('tope_periodo')}
+      </div>
+      <Casilla etiqueta={ta('bolsa_solo_aprobadas')} ayuda={ta('bolsa_solo_aprobadas_ayuda')} valor={valor.solo_aprobadas}
+        onChange={v => poner({ solo_aprobadas: v })} />
+    </div>
   )
 }
 

@@ -114,6 +114,42 @@ class KBArticleTranslation(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
 
+class PortalContentTranslation(Base):
+    """Version revisable de un contenido de operador que lee el portal (rev. 181).
+
+    Avisos (`announcement`: title, body) y nombres y descripciones del catalogo
+    de servicios (`catalog_category` y `catalog_service`: name, description), en
+    un idioma del portal. Mismo ciclo que las versiones de la KB:
+    `draft` -> `in_review` -> `published` | `rejected`. El portal sirve la
+    publicada; sin ella, la traduccion automatica en cache (marcada).
+    `source_hash` es la huella de los textos originales al generar o editar: si
+    el original cambia, la version queda desactualizada (y se avisa a los
+    revisores). `fields` es JSON `{campo: texto}`.
+    """
+    __tablename__ = "portal_content_translations"
+    __table_args__ = (UniqueConstraint("content_type", "content_id", "language",
+                                       name="uq_portal_content_translation_lang"),)
+
+    id = Column(String(36), primary_key=True, default=_id)
+    organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
+    # announcement | catalog_category | catalog_service
+    content_type = Column(String(30), nullable=False)
+    content_id = Column(String(36), nullable=False, index=True)
+    language = Column(String(16), nullable=False)
+    fields = Column(Text, nullable=False)
+    # draft | in_review | published | rejected
+    status = Column(String(12), nullable=False, default="in_review", server_default="in_review", index=True)
+    provider = Column(String(30), nullable=True)
+    source_language = Column(String(16), nullable=True)
+    source_hash = Column(String(64), nullable=True)
+    generated_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    reviewed_by_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    reviewed_at = Column(DateTime(timezone=True), nullable=True)
+    review_comment = Column(String(500), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
 # El idioma de los mensajes nuevos se detecta al guardar (local, sin red). El
 # escuchador lo registra `app.services.traduccion.deteccion` al importarse desde
 # `app/main.py` y `app/worker.py`, como la bandeja de eventos de ticket: un

@@ -5,19 +5,24 @@
  * celda (arrastrar y soltar). Cada gesto se guarda de una vez
  * (`PUT /absences/roster`). Teclado: las celdas son botones.
  * Debajo, las rotaciones (ciclos de N días con personas y desfase).
+ *
+ * Rev. 180: encima del turno se ven las ausencias de cada persona y día (del
+ * horario efectivo): la de día completo con una marca y la de horas como
+ * parcial, con su franja en el detalle (no ocupa el día entero).
  */
 import { useEffect, useState } from 'react'
 import type { DragEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarDays, Eraser, Moon, Star, Users } from 'lucide-react'
+import { CalendarDays, Clock, Eraser, Moon, Star, UserX, Users } from 'lucide-react'
 import { ausenciasApi } from '../../../services/api/ausencias'
-import type { CambioDeTurno, CeldaDeCuadrante, Cuadrante, Turno } from '../../../services/api/tipos-ausencias'
+import type { AusenciaEnHorario, CambioDeTurno, CeldaDeCuadrante, Cuadrante, Turno } from '../../../services/api/tipos-ausencias'
 import { EmptyState, RejillaPersonaDia, Spinner, columnasDeDias, IconButton } from '../../ui'
 import { useToast } from '../../../context/ToastContext'
 import { useOpciones } from '../../politicas/comun'
 import { AvisoDeError, Muestra, errorDe, isoDe, mesDe, useT } from './comun'
 import { Filtros, Navegacion } from './MapaDeCobertura'
 import EditorDeRotaciones from './EditorDeRotaciones'
+import { num, textoDeTramos, tramosDe, useTa } from '../comun'
 
 type Pincel = { tipo: 'turno'; id: string } | { tipo: 'libre' } | { tipo: 'quitar' }
 const TIPO_DND = 'application/x-ausencias-pincel'
@@ -40,6 +45,15 @@ export default function CuadranteDeTurnos() {
     queryKey: ['ausencias', 'cuadrante', rango.desde, rango.hasta, equipo, departamento],
     queryFn: () => ausenciasApi.cuadrante({ ...rango, equipo: equipo || undefined, departamento: departamento || undefined }),
   })
+  // Las ausencias de cada persona y día salen del horario efectivo del mismo rango y filtros.
+  const horario = useQuery({
+    queryKey: ['ausencias', 'horario', rango.desde, rango.hasta, equipo, departamento, ''],
+    queryFn: () => ausenciasApi.horario({ ...rango, equipo: equipo || undefined, departamento: departamento || undefined }),
+  })
+  const ausencias = new Map<string, AusenciaEnHorario[]>()
+  for (const p of horario.data?.personas ?? []) {
+    for (const [dia, c] of Object.entries(p.celdas)) if (c.ausencias.length) ausencias.set(`${p.id}|${dia}`, c.ausencias)
+  }
   return (
     <section aria-labelledby="ausadm-cuad-titulo" className="u-stack-10">
       <div className="ausadm-cabecera">
@@ -51,14 +65,15 @@ export default function CuadranteDeTurnos() {
         departamentos={opciones?.departamentos ?? []} onEquipo={setEquipo} onDepartamento={setDepartamento} />
       {q.isLoading ? <Spinner label={ta('cargando')} />
         : q.isError ? <AvisoDeError error={q.error} defecto={ta('error_cargar')} />
-        : q.data && <Rejilla datos={q.data} />}
+        : q.data && <Rejilla datos={q.data} ausencias={ausencias} />}
       <EditorDeRotaciones />
     </section>
   )
 }
 
-function Rejilla({ datos }: { datos: Cuadrante }) {
+function Rejilla({ datos, ausencias }: { datos: Cuadrante; ausencias: Map<string, AusenciaEnHorario[]> }) {
   const { ta } = useT()
+  const taus = useTa().ta
   const qc = useQueryClient()
   const toast = useToast()
   const [pincel, setPincel] = useState<Pincel | null>(datos.turnos[0] ? { tipo: 'turno', id: datos.turnos[0].id } : null)
@@ -96,10 +111,15 @@ function Rejilla({ datos }: { datos: Cuadrante }) {
       aplicar(p, [clave])
     } catch { /* no era un chip de la paleta */ }
   }
-  const textoDeCelda = (persona: string, d: string, c: CeldaDeCuadrante | undefined, t: Turno | undefined) => {
-    const turno = c ? (t ? `${t.nombre} ${t.hora_inicio}–${t.hora_fin}` : ta(c.origen === 'festivo' ? 'festivo' : 'libre')) : ta('sin_cuadrante')
+  const textoDeCelda = (personaId: string, persona: string, d: string, c: CeldaDeCuadrante | undefined, t: Turno | undefined) => {
+    const turno = c ? (t ? `${t.nombre} ${textoDeTramos(tramosDe(t))}` : ta(c.origen === 'festivo' ? 'festivo' : 'libre')) : ta('sin_cuadrante')
     const origen = c ? ta(`origen_${c.origen}`) : ''
-    return `${persona}, ${d}: ${turno}${origen ? ` (${origen})` : ''}${festivos.has(d) ? ` · ${festivos.get(d)}` : ''}`
+    const aus = (ausencias.get(`${personaId}|${d}`) ?? []).map(a => {
+      const nombre = a.tipo === 'private' ? taus('privada') : (a.nombre ?? a.tipo)
+      const cuanto = a.completa ? taus('dia_completo') : `${textoDeTramos(a.tramos)} (${taus('menos_horas', { n: num(a.horas) })})`
+      return `${nombre} ${cuanto} · ${taus(`estado_${a.estado}`)}`
+    })
+    return `${persona}, ${d}: ${turno}${origen ? ` (${origen})` : ''}${festivos.has(d) ? ` · ${festivos.get(d)}` : ''}${aus.length ? `. ${aus.join('. ')}` : ''}`
   }
   return (
     <div className="ausadm-cuadrante">
@@ -116,7 +136,7 @@ function Rejilla({ datos }: { datos: Cuadrante }) {
               {t ? <Muestra color={t.color} className="ausadm-muestra--punto" />
                 : p.tipo === 'libre' ? <Moon size={12} aria-hidden /> : <Eraser size={12} aria-hidden />}
               {nombreDePincel(p)}
-              {t && <span className="ausadm-ayuda">{t.hora_inicio}–{t.hora_fin}</span>}
+              {t && <span className="ausadm-ayuda">{textoDeTramos(tramosDe(t))}</span>}
             </IconButton>
           )
         })}
@@ -132,11 +152,18 @@ function Rejilla({ datos }: { datos: Cuadrante }) {
           const clave = `${p.id}|${d}`
           const c = datos.celdas[p.id]?.[d]
           const t = c?.turno_id ? turnos.get(c.turno_id) : undefined
-          const detalle = textoDeCelda(p.nombre, d, c, t)
+          const detalle = textoDeCelda(p.id, p.nombre, d, c, t)
+          const aus = ausencias.get(clave) ?? []
+          const marca = aus.some(a => a.completa) ? <UserX size={9} aria-hidden /> : aus.length ? <Clock size={9} aria-hidden /> : null
           return {
             color: t?.color, tono: t ? undefined : c ? 'neutral' : undefined,
             tentativa: c?.origen === 'cambio', marcada: seleccion.has(clave), detalle,
-            contenido: t ? t.nombre.slice(0, 1) : c ? (c.origen === 'festivo' ? <Star size={10} aria-hidden /> : <Moon size={10} aria-hidden />) : null,
+            contenido: (
+              <>
+                {t ? t.nombre.slice(0, 1) : c ? (c.origen === 'festivo' ? <Star size={10} aria-hidden /> : <Moon size={10} aria-hidden />) : null}
+                {marca}
+              </>
+            ),
             boton: {
               onMouseDown: e => { if (e.button === 0) { setArrastrando(true); setSeleccion(new Set([clave])) } },
               onMouseEnter: () => { if (arrastrando) setSeleccion(s => new Set(s).add(clave)) },
@@ -147,10 +174,11 @@ function Rejilla({ datos }: { datos: Cuadrante }) {
           }
         }}
         leyenda={[
-          ...datos.turnos.map(t => ({ clave: t.id, etiqueta: `${t.nombre} ${t.hora_inicio}–${t.hora_fin}`, color: t.color })),
+          ...datos.turnos.map(t => ({ clave: t.id, etiqueta: `${t.nombre} ${textoDeTramos(tramosDe(t))}`, color: t.color })),
           { clave: 'libre', etiqueta: ta('libre'), tono: 'neutral' as const },
           { clave: 'cambio', etiqueta: ta('origen_cambio'), tono: 'vacio' as const, tentativa: true },
         ]}
+        notaLeyenda={ausencias.size ? taus('leyenda_ausencias_cuadrante') : undefined}
       />
     </div>
   )

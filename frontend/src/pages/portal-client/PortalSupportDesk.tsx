@@ -30,7 +30,7 @@ import { DYNAMIC_FORM_OPTIONS_LIMIT } from '../../constants/pagination'
 import './PortalSupportDesk.css'
 import { CampoFecha } from '../../components/ui/SelectorDeFecha'
 import { textosDeFechaDelPortal } from '../../i18n/fechaPortal'
-import { Pulsable } from '../../components/ui'
+import { Pulsable, useErroresDeCampo } from '../../components/ui'
 
 
 const PRIORITY_TONE: Record<string, string> = {
@@ -214,9 +214,11 @@ export function PortalSupportDesk() {
   })
 
   const [dynamicValues, setDynamicValues] = useState<Record<string, string>>({})
+  const campos = useErroresDeCampo()
 
   const { mutate: createTicket, isPending: creatingTicket } = useMutation({
     mutationFn: (d: Record<string, unknown>) => CLIENT_API.post('/sd/tickets/client', d),
+    onMutate: () => campos.limpiar(),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['portal-sd-tickets'] })
       setShowCreate(false)
@@ -224,7 +226,7 @@ export function PortalSupportDesk() {
       setDynamicValues({})
       toast.success(traducir('portalsupportdesk.ticket_abierto'))
     },
-    onError: (e: unknown) => toast.error(errorDe(e, traducir('error_inesperado'))),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(errorDe(e, traducir('error_inesperado'))) },
   })
   const { mutate: addComment } = useMutation({
     mutationFn: (d: Record<string, unknown>) => CLIENT_API.post(`/sd/tickets/${selectedId}/comments/client`, d),
@@ -646,9 +648,9 @@ export function PortalSupportDesk() {
           title={traducir('portalsupportdesk.has_revisado_la_base_de_conocimiento')}
           body={_t('psd_kb_banner_body')} />
         {catalog.length > 0 && (
-          <PortalField label={traducir('portalsupportdesk.servicio_del_catalogo')}>
+          <PortalField label={traducir('portalsupportdesk.servicio_del_catalogo')} error={campos.de('service_item_id')}>
             <PortalSelect value={createForm.service_item_id}
-              onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setCreateForm(f => ({ ...f, service_item_id: e.target.value }))}>
+              onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => { campos.limpiar('service_item_id'); setCreateForm(f => ({ ...f, service_item_id: e.target.value })) }}>
               <option value="">{traducir('invoices.select')}</option>
               {catalog.map(cat => (
                 <optgroup key={cat.id} label={textoDe(cat, 'name', cat.name, formularioOriginal)}>
@@ -662,9 +664,9 @@ export function PortalSupportDesk() {
           </PortalField>
         )}
         {(contextOptions.cis || []).length > 0 && (
-          <PortalField label={traducir('portalsupportdesk.ci_afectado_opcional')}>
+          <PortalField label={traducir('portalsupportdesk.ci_afectado_opcional')} error={campos.de('ci_id')}>
             <PortalSelect value={createForm.ci_id || ''}
-              onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setCreateForm(f => ({ ...f, ci_id: e.target.value }))}>
+              onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => { campos.limpiar('ci_id'); setCreateForm(f => ({ ...f, ci_id: e.target.value })) }}>
               <option value="">{traducir('invoices.select')}</option>
               {(contextOptions.cis || []).map(ci => (
                 <option key={ci.id} value={ci.id}>{ci.code ? `${ci.code} - ` : ''}{ci.name}</option>
@@ -673,7 +675,7 @@ export function PortalSupportDesk() {
           </PortalField>
         )}
         <div className="posude-stack-1">
-          <PortalField label={traducir('portalsupportdesk.tipo_de_ticket')}>
+          <PortalField label={traducir('portalsupportdesk.tipo_de_ticket')} error={campos.de('ticket_type')}>
             <div className="u-wrap-8">
               {([
                 ['incident', _t('ticket_type_incident'), Bug],
@@ -682,28 +684,28 @@ export function PortalSupportDesk() {
               ] as [string, string, typeof Bug][]).map(([v, l, Icon]) => (
                 <PortalButton key={v} size="sm" icon={<Icon size={14} />}
                   variant={createForm.ticket_type === v ? 'primary' : 'secondary'}
-                  onClick={() => setCreateForm(f => ({ ...f, ticket_type: v }))}>{l}</PortalButton>
+                  onClick={() => { campos.limpiar('ticket_type'); setCreateForm(f => ({ ...f, ticket_type: v })) }}>{l}</PortalButton>
               ))}
             </div>
           </PortalField>
-          <PortalField label={traducir('portalsupportdesk.titulo')} required>
-            <PortalInput value={createForm.title} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setCreateForm(f => ({ ...f, title: e.target.value }))} placeholder={traducir('portalsupportdesk.resumen_claro_del_problema')} />
+          <PortalField label={traducir('portalsupportdesk.titulo')} required error={campos.de('title')}>
+            <PortalInput value={createForm.title} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => { campos.limpiar('title'); setCreateForm(f => ({ ...f, title: e.target.value })) }} placeholder={traducir('portalsupportdesk.resumen_claro_del_problema')} />
           </PortalField>
           <SugerenciasDeLaKb texto={createForm.title} onResuelto={() => { setDynamicValues({}); setShowCreate(false) }} />
-          <PortalField label={traducir('portalsupportdesk.descripcion')} required hint={_t('psd_desc_hint')}>
-            <PortalTextarea rows={4} value={createForm.description} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setCreateForm(f => ({ ...f, description: e.target.value }))} placeholder={traducir('portalsupportdesk.describe_el_problema_o_solicitud')} />
+          <PortalField label={traducir('portalsupportdesk.descripcion')} required error={campos.de('description')} hint={_t('psd_desc_hint')}>
+            <PortalTextarea rows={4} value={createForm.description} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => { campos.limpiar('description'); setCreateForm(f => ({ ...f, description: e.target.value })) }} placeholder={traducir('portalsupportdesk.describe_el_problema_o_solicitud')} />
           </PortalField>
           <div className="u-grid2-12">
-            <PortalField label={traducir('service_desk.edit_urgency')}>
-              <PortalSelect value={createForm.urgency} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setCreateForm(f => ({ ...f, urgency: e.target.value }))}>
+            <PortalField label={traducir('service_desk.edit_urgency')} error={campos.de('urgency')}>
+              <PortalSelect value={createForm.urgency} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => { campos.limpiar('urgency'); setCreateForm(f => ({ ...f, urgency: e.target.value })) }}>
                 <option value="critical">{traducir('portalsupportdesk.critica_el_negocio_esta_parado')}</option>
                 <option value="high">{traducir('portalsupportdesk.alta_funcionalidad_importante_no_funciona')}</option>
                 <option value="medium">{traducir('portalsupportdesk.media_hay_un_workaround')}</option>
                 <option value="low">{traducir('portalsupportdesk.baja_problema_menor')}</option>
               </PortalSelect>
             </PortalField>
-            <PortalField label={traducir('cmdb.impact')}>
-              <PortalSelect value={createForm.impact} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setCreateForm(f => ({ ...f, impact: e.target.value }))}>
+            <PortalField label={traducir('cmdb.impact')} error={campos.de('impact')}>
+              <PortalSelect value={createForm.impact} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => { campos.limpiar('impact'); setCreateForm(f => ({ ...f, impact: e.target.value })) }}>
                 <option value="enterprise">{traducir('portalsupportdesk.toda_la_empresa')}</option>
                 <option value="department">{traducir('portalsupportdesk.mi_departamento')}</option>
                 <option value="user">{traducir('portalsupportdesk.solo_a_mi')}</option>

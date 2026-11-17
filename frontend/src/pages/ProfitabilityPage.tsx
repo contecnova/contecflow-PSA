@@ -27,6 +27,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import DateInput from '../components/ui/DateInput'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
+import EvolucionDelMargen from './profitability/EvolucionDelMargen'
 import './ProfitabilityPage.css'
 import { TOOLTIP_SUPERFICIE_3_REDONDO_XS } from '../constants/estilosGrafico'
 type MilestoneItem = HitoDeRentabilidad
@@ -321,6 +322,9 @@ export default function ProfitabilityPage() {
           <KpiCard icon={<FolderOpen size={16} />} label={t('rentabilidad_ui.proyectos')} value={portfolio.project_count} />
         </div>
       )}
+
+      {/* 17-11-2026: evolución de ingreso, coste y margen con periodo libre y desglose. */}
+      <EvolucionDelMargen />
 
       {isLoading ? <Spinner /> : projects.length === 0 ? (
         <EmptyState icon={<TrendingUp size={28} />} title={t('profitability.sin_datos_de_rentabilidad')} description={t('rentabilidad_ui.sin_datos_desc')} />

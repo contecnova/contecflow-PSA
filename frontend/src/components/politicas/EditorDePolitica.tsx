@@ -2,11 +2,14 @@
  * Editor de una versión de política: definición y ámbito, reglas (condición,
  * resultados y bandas), simulador e historial de versiones. Solo un borrador
  * se edita; una publicada se ve y se copia como versión nueva.
+ *
+ * Rev. 180: el ámbito admite grupos y una sección «Excepciones» con personas y
+ * grupos que quedan fuera aunque cumplan el resto del ámbito.
  */
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowLeft, ArrowUp, CheckCircle, Copy, History, Play, Plus, Power, Save, Trash2 } from 'lucide-react'
-import { politicasApi } from '../../services/api'
+import { politicasApi, usersApi } from '../../services/api'
 import type { AmbitoDePolitica, DocumentoDePolitica, ErrorDeValidacion, Politica, Regla } from '../../services/api/tipos-politicas'
 import { Button, EmptyState, Spinner, Tabs, Pulsable, Checkbox } from '../ui'
 import DateInput from '../ui/DateInput'
@@ -20,7 +23,9 @@ import EditorDeExceso from './EditorDeExceso'
 import Simulador from './Simulador'
 import { ListaDeValores, SelectorDeEntidad, useCatalogo, useOpciones, useTextos } from './comun'
 
-const AMBITO_VACIO: AmbitoDePolitica = { departamentos: [], equipos: [], roles: [], ubicaciones: [], personas: [] }
+const AMBITO_VACIO: AmbitoDePolitica = {
+  departamentos: [], equipos: [], roles: [], ubicaciones: [], personas: [], grupos: [], excepto_personas: [], excepto_grupos: [],
+}
 
 export function documentoNuevo(dominio: string): DocumentoDePolitica {
   return { dominio, nombre: '', descripcion: '', prioridad: 100, activa: true, vigente_desde: null, vigente_hasta: null,
@@ -171,6 +176,8 @@ function Definicion({ doc, set, errorDe }: {
   const amb = doc.ambito
   const setAmb = (k: keyof AmbitoDePolitica, v: string[]) => set('ambito', { ...amb, [k]: v })
   const ubicaciones = [...CODIGOS_DE_PAIS, ...(opciones?.ciudades ?? [])]
+  const grupos = (opciones?.grupos ?? []).map(g => g.id)
+  const nombreDeGrupo = (id: string) => opciones?.grupos.find(g => g.id === id)?.nombre ?? id
   return (
     <div className="u-stack-14">
       <div className="pol-grid-2">
@@ -200,17 +207,42 @@ function Definicion({ doc, set, errorDe }: {
           <ListaDeValores etiqueta={t('pol.ubicaciones')} valores={amb.ubicaciones} opciones={ubicaciones} libre
             placeholder={t('pol.ubicacion_placeholder')} onChange={v => setAmb('ubicaciones', v.map(x => (x.length === 2 ? x.toUpperCase() : x)))}
             mostrar={u => (u.length === 2 ? pais(u) : u.includes('/') ? `${pais(u.split('/')[0])} / ${u.split('/')[1]}` : u)} />
+          <ListaDeValores etiqueta={t('pol.grupos')} valores={amb.grupos ?? []} opciones={grupos} onChange={v => setAmb('grupos', v)} mostrar={nombreDeGrupo} />
         </div>
-        <div className="pol-mt">
-          <span className="pol-etiqueta">{t('pol.personas')}</span>
-          <div className="pol-fila">
-            {amb.personas.map(p => <span key={p} className="pol-chip">{p.slice(0, 8)}…
-              <Pulsable aria-label={t('pol.quitar_valor', { valor: p })} onClick={() => setAmb('personas', amb.personas.filter(x => x !== p))}>×</Pulsable></span>)}
-            <SelectorDeEntidad clase="usuario" valor="" opciones={opciones} etiqueta={t('pol.anadir_persona')}
-              onChange={v => v && !amb.personas.includes(v) && setAmb('personas', [...amb.personas, v])} />
+        <ListaDePersonas etiqueta={t('pol.personas')} anadir={t('pol.anadir_persona')} valores={amb.personas}
+          onChange={v => setAmb('personas', v)} />
+        <div className="pol-mt" role="group" aria-labelledby="pol-excepciones">
+          <h4 id="pol-excepciones" className="pol-etiqueta">{t('pol.excepciones')}</h4>
+          <p className="pol-ayuda">{t('pol.excepciones_ayuda')}</p>
+          <div className="pol-grid-2">
+            <ListaDeValores etiqueta={t('pol.excepto_grupos')} valores={amb.excepto_grupos ?? []} opciones={grupos}
+              onChange={v => setAmb('excepto_grupos', v)} mostrar={nombreDeGrupo} />
           </div>
+          <ListaDePersonas etiqueta={t('pol.excepto_personas')} anadir={t('pol.anadir_excepcion')} valores={amb.excepto_personas ?? []}
+            onChange={v => setAmb('excepto_personas', v)} />
         </div>
       </section>
+    </div>
+  )
+}
+
+/** Personas elegidas (chips con su nombre) y el selector para añadir otra. */
+function ListaDePersonas({ etiqueta, anadir, valores, onChange }: {
+  etiqueta: string; anadir: string; valores: string[]; onChange: (v: string[]) => void
+}) {
+  const { t } = useTextos()
+  const opciones = useOpciones().data
+  const directorio = useQuery({ queryKey: ['users', 'directory'], queryFn: () => usersApi.directory().then(r => r.data) })
+  const nombre = (id: string) => (directorio.data ?? []).find(u => u.id === id)?.full_name ?? `${id.slice(0, 8)}…`
+  return (
+    <div className="pol-mt">
+      <span className="pol-etiqueta">{etiqueta}</span>
+      <div className="pol-fila">
+        {valores.map(p => <span key={p} className="pol-chip">{nombre(p)}
+          <Pulsable aria-label={t('pol.quitar_valor', { valor: nombre(p) })} onClick={() => onChange(valores.filter(x => x !== p))}>×</Pulsable></span>)}
+        <SelectorDeEntidad clase="usuario" valor="" opciones={opciones} etiqueta={anadir}
+          onChange={v => { if (v && !valores.includes(v)) onChange([...valores, v]) }} />
+      </div>
     </div>
   )
 }

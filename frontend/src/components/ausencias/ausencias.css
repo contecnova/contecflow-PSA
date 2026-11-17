@@ -96,3 +96,7 @@
 /* La rejilla es la común del kit (RejillaPersonaDia). */
 .aus-calendario { width: 100%; }
 .aus-titulo-seccion { font-size: var(--text-md); font-weight: 700; color: var(--text-1); margin: 0; }
+
+/* Rev. 180: horario efectivo (celdas de la rejilla) */
+.aus-horario-celda { font-size: 10px; font-variant-numeric: tabular-nums; line-height: 1; white-space: nowrap; }
+.aus-horario-celda--parcial { font-weight: 600; color: var(--text-1); }

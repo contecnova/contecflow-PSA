@@ -275,7 +275,17 @@ def get_holidays(db: Session) -> list:
     return db.query(Holiday).order_by(Holiday.date).all()
 
 
+def _sede_valida(db: Session, payload_dict: dict) -> None:
+    """Rev. 180: un festivo de sede apunta a una sede de la empresa."""
+    from app.core.errores import ErrorDeDominio
+    from app.models.advanced_config import Office
+    oid = payload_dict.get("office_id")
+    if oid and db.query(Office.id).filter(Office.id == oid).first() is None:
+        raise ErrorDeDominio(422, "Esa sede no existe")
+
+
 def create_holiday(payload_dict: dict, db: Session) -> Holiday:
+    _sede_valida(db, payload_dict)
     item = Holiday(**payload_dict)
     db.add(item); db.commit(); db.refresh(item)
     return item
@@ -285,6 +295,7 @@ def update_holiday(item_id: str, payload_dict: dict, db: Session) -> Holiday:
     item = db.query(Holiday).filter(Holiday.id == item_id).first()
     if not item:
         raise ValueError("not_found")
+    _sede_valida(db, payload_dict)
     for k, v in payload_dict.items():
         setattr(item, k, v)
     db.commit(); db.refresh(item)

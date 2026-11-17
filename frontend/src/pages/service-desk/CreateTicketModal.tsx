@@ -15,7 +15,7 @@ import { useToast } from '../../context/ToastContext'
 import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { Sparkles } from 'lucide-react'
-import { Button, Modal, Select } from '../../components/ui'
+import { Button, Modal, Select, useErroresDeCampo } from '../../components/ui'
 import AIInlineEditor from '../../components/AIInlineEditor'
 import DateInput from '../../components/ui/DateInput'
 import { useFormValidation } from '../../hooks/useFormValidation'
@@ -144,6 +144,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
   const [csvText, setCsvText] = useState('')
   const [generatedFields, setGeneratedFields] = useState<SdCampoDinamico[]>([])
   const validation = useFormValidation(getCreateTicketSchema(t))
+  const campos = useErroresDeCampo()
 
   const suggestedPrio = useMemo<TicketPriority>(() => {
     const matrix: Record<string, TicketPriority> = {
@@ -158,6 +159,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
   const set = <K extends keyof CreateTicketForm>(k: K) => (e: { target: { value: string } }) => {
     setForm(f => ({ ...f, [k]: e.target.value }))
     validation.clearFieldError(k)
+    campos.limpiar(k)
   }
 
   const visibleDynamicFields = useMemo<DynamicField[]>(() => {
@@ -226,6 +228,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
 
   const { mutate, isPending } = useMutation({
     mutationFn: (data: CreateTicketPayload) => ticketsApi.create(data),
+    onMutate: () => campos.limpiar(),
     onSuccess: res => {
       validation.setErrors({})
       qc.invalidateQueries({ queryKey: ['sd-tickets'] })
@@ -233,7 +236,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
       onCreated?.(res.data)
       onClose()
     },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: e => { if (!campos.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
   })
 
   const previewImport = useMutation({
@@ -305,7 +308,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
               ['change', t('service_desk.type_change')], ['problem', t('service_desk.type_problem')], ['question', t('service_desk.type_question')]
             ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </Select>
-          {validation.errors.ticket_type && <div className="u-field-error">{validation.errors.ticket_type}</div>}
+          {(validation.errors.ticket_type ?? campos.de('ticket_type')) && <div className="u-field-error">{validation.errors.ticket_type ?? campos.de('ticket_type')}</div>}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-service-item`} className="campo-etiqueta">{traducir('createticket.servicio')}</label>
@@ -315,6 +318,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
               <option key={s.id} value={String(s.id)}>{cat.name} → {s.name}</option>
             )) || [])}
           </Select>
+          {campos.de('service_item_id') && <div className="u-field-error">{campos.de('service_item_id')}</div>}
         </div>
         <div className="u-col-full">
           <CatalogoInteligente texto={`${form.title} ${form.description}`.trim()} servicioId={form.service_item_id}
@@ -329,7 +333,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
           <label id={`${idPrefix}-title-et`} htmlFor={`${idPrefix}-title`} className="campo-etiqueta">{t('service_desk.ticket_title')} *</label>
           <input id={`${idPrefix}-title`} aria-labelledby={`${idPrefix}-title-et`} value={form.title} onChange={set('title')}
             className={validation.inputClass('campo-form', 'title')} placeholder={t('service_desk.ticket_title')} />
-          {validation.errors.title && <div className="u-field-error">{validation.errors.title}</div>}
+          {(validation.errors.title ?? campos.de('title')) && <div className="u-field-error">{validation.errors.title ?? campos.de('title')}</div>}
         </div>
         <div className="u-col-full">
           <label htmlFor={`${idPrefix}-description`} className="campo-etiqueta">{t('common.description')} *</label>
@@ -343,7 +347,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
             rows={4}
             className={validation.inputClass('campo-form create-ticket-modal-vertical', 'description')}
           />
-          {validation.errors.description && <div className="u-field-error">{validation.errors.description}</div>}
+          {(validation.errors.description ?? campos.de('description')) && <div className="u-field-error">{validation.errors.description ?? campos.de('description')}</div>}
         </div>
 
         <div>
@@ -353,7 +357,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
               ['medium', t('service_desk.urgency_medium')], ['low', t('service_desk.urgency_low')]
             ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </Select>
-          {validation.errors.urgency && <div className="u-field-error">{validation.errors.urgency}</div>}
+          {(validation.errors.urgency ?? campos.de('urgency')) && <div className="u-field-error">{validation.errors.urgency ?? campos.de('urgency')}</div>}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-impact`} className="campo-etiqueta">{t('service_desk.edit_impact')}</label>
@@ -362,7 +366,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
               ['user', t('service_desk.impact_user')], ['minimal', t('service_desk.impact_minimal')]
             ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </Select>
-          {validation.errors.impact && <div className="u-field-error">{validation.errors.impact}</div>}
+          {(validation.errors.impact ?? campos.de('impact')) && <div className="u-field-error">{validation.errors.impact ?? campos.de('impact')}</div>}
         </div>
 
         <div className="crtimo-row-1">
@@ -382,6 +386,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
               {['p1_critical', 'p2_high', 'p3_medium', 'p4_low'].map(p =>
                 <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}
             </Select>
+          {campos.de('priority') && <div className="u-field-error">{campos.de('priority')}</div>}
           </div>
         </div>
 
@@ -458,6 +463,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
             <option value="">{t('service_desk.ticket_auto_routing')}</option>
             {users.map(u => <option key={u.id} value={String(u.id)}>{u.full_name}</option>)}
           </Select>
+          {campos.de('assigned_to_user_id') && <div className="u-field-error">{campos.de('assigned_to_user_id')}</div>}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-client`} className="campo-etiqueta">{traducir('createticket.cliente')}</label>
@@ -466,6 +472,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
             {clients.map(c =>
               <option key={c.id} value={String(c.id)}>{c.name}</option>)}
           </Select>
+          {campos.de('client_id') && <div className="u-field-error">{campos.de('client_id')}</div>}
         </div>
         {form.client_id && contactos.length > 0 && (
           <div>
@@ -480,11 +487,13 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
         )}
         <div>
           <label htmlFor={`${idPrefix}-req-name`} className="campo-etiqueta">{traducir('sd_cfg.req_name')}</label>
-          <input id={`${idPrefix}-req-name`} aria-label={traducir('sd_cfg.req_name')} value={solicitante.nombre} onChange={e => setSolicitante(s => ({ ...s, nombre: e.target.value }))} className="campo-form" />
+          <input id={`${idPrefix}-req-name`} aria-label={traducir('sd_cfg.req_name')} value={solicitante.nombre} onChange={e => { campos.limpiar('requester_name'); setSolicitante(s => ({ ...s, nombre: e.target.value })) }} className="campo-form" />
+          {campos.de('requester_name') && <div className="u-field-error">{campos.de('requester_name')}</div>}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-req-email`} className="campo-etiqueta">{traducir('sd_cfg.req_email')}</label>
-          <input id={`${idPrefix}-req-email`} aria-label={traducir('sd_cfg.req_email')} type="email" value={solicitante.correo} onChange={e => setSolicitante(s => ({ ...s, correo: e.target.value }))} className="campo-form" />
+          <input id={`${idPrefix}-req-email`} aria-label={traducir('sd_cfg.req_email')} type="email" value={solicitante.correo} onChange={e => { campos.limpiar('requester_email'); setSolicitante(s => ({ ...s, correo: e.target.value })) }} className="campo-form" />
+          {campos.de('requester_email') && <div className="u-field-error">{campos.de('requester_email')}</div>}
         </div>
         {!solicitante.correo.trim() && (
           <div className="crtimo-box-3">{traducir('sd_cfg.req_hint')}</div>

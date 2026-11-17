@@ -26,6 +26,7 @@ MODULOS_DE_IA = {
     "ask_the_data": "Preguntas sobre los datos (SQL)",
     "semantic_assign": "Asignación semántica (desempate)",
     "client_portal": "Chat del portal de cliente",
+    "portal_assistant": "Asistente del portal: entender y actuar (tickets, KB, catálogo)",
     "voice": "Comandos de voz",
     "v16": "Módulos de IA (RCA, KB, previsiones)",
     "lessons_learned": "Lecciones aprendidas: borrador desde los hechos",

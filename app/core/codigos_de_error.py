@@ -96,6 +96,10 @@ MENSAJES: dict[str, str] = {
     "demasiados_mensajes": "Portal message rate limit exceeded. Retry in {segundos}s",
     # Campana del portal (16-11-2026)
     "notificacion_no_encontrada": "Notificación no encontrada",
+    # Validacion de la peticion (17-11-2026, `app/core/validacion.py`): el
+    # detalle por campo va en `params.errores`; la interfaz pinta cada error
+    # junto a su campo (`validacion.<tipo>`).
+    "validacion": "Revisa los datos",
 }
 
 

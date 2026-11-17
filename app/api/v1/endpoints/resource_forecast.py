@@ -90,7 +90,9 @@ def _capacidad(base: float, hw: dict) -> float:
     de vacaciones salia libre.
     """
     # Revisión 2026-11: también los festivos de la empresa.
-    return max(0.0, base - hw.get("absence_hours", 0.0) - hw.get("holiday_hours", 0.0))
+    # Rev. 180: la base es el horario efectivo de esa semana (turnos, jornada), no la semanal fija.
+    from app.services.resource_analytics import capacidad_de_semana
+    return capacidad_de_semana(hw, base)
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────────────
@@ -445,11 +447,14 @@ def utilization_trend(
         series = []
         for wk in all_weeks:
             is_future = wk >= _monday(today)
+            cap_w = cap_h
             if is_future:
                 fw = _compute_user_week_hours(user.id, wk, db)
                 planned_h  = float(fw.get("committed_hours", 0) + fw.get("booking_hours", 0))
                 actual_h   = None
-                pct        = round(planned_h / cap_h * 100, 1) if cap_h > 0 else 0
+                # Rev. 180: la capacidad de la semana sale de su horario efectivo.
+                cap_w      = _capacidad(cap_h, fw)
+                pct        = round(planned_h / cap_w * 100, 1) if cap_w > 0 else 0
                 team_by_week[wk]["planned_h"] += planned_h
             else:
                 actual_h   = actual.get(user.id, {}).get(wk, 0.0)
@@ -457,12 +462,12 @@ def utilization_trend(
                 pct        = round(actual_h / cap_h * 100, 1) if cap_h > 0 else 0
                 team_by_week[wk]["actual_h"] += actual_h
 
-            team_by_week[wk]["cap_h"] += cap_h
+            team_by_week[wk]["cap_h"] += cap_w
             series.append({
                 "week":      _week_label(wk),
                 "pct":       pct,
                 "hours":     actual_h if not is_future else planned_h,
-                "capacity":  cap_h,
+                "capacity":  cap_w,
                 "is_future": is_future,
             })
 

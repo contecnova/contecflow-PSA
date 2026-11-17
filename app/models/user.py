@@ -65,6 +65,11 @@ class User(Base):
     job_title = Column(String(150))
     # Rev. 166 (#27): grado o categoría profesional (ámbito y condiciones de las políticas).
     grade = Column(String(60), nullable=True)
+    # Rev. 180: sede (festivos y jornada de su sede), fecha de alta (antigüedad,
+    # prorrateo de saldos) y tipo de contrato (condiciones de las políticas).
+    office_id = Column(String(36), ForeignKey("offices.id", ondelete="SET NULL"), nullable=True, index=True)
+    hire_date = Column(Date, nullable=True)
+    employment_type = Column(String(40), nullable=True)
     avatar_url = Column(String(500))
     phone = Column(String(50))
 

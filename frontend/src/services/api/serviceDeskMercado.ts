@@ -256,19 +256,29 @@ export interface Conversacion {
   id: string; channel: 'whatsapp' | 'livechat' | 'slack' | 'teams'; status: 'bot' | 'waiting_agent' | 'agent' | 'closed'
   visitor_name: string | null; external_id: string | null; ticket_id: string | null; ticket_number: string | null
   assigned_user_id: string | null; language: string | null; last_message_at: string | null; created_at: string | null
+  /** 17-11-2026: hasta cuándo ha leído cada lado y la ventana de 24 h de WhatsApp. */
+  client_read_at?: string | null; agent_read_at?: string | null
+  whatsapp_window?: { open: boolean; expires_at: string | null; template: boolean }
 }
 export interface MensajeDeCanal { id: string; direction: 'in' | 'out'; author_type: 'customer' | 'agent' | 'bot' | 'system'; body: string; created_at: string | null
   /** Traducción en tiempo real (16-11-2026): idioma del mensaje. */
-  language?: string | null }
+  language?: string | null
+  /** 17-11-2026: cómo se entregó (sent | template | failed | outside_window) y el adjunto que lleva. */
+  delivery_status?: string | null; attachment_document_id?: string | null; attachment_name?: string | null }
+/** Documento del ticket que se puede enviar por el canal (17-11-2026). */
+export interface AdjuntoDelTicket { id: string; title: string; file_name: string; mime_type: string | null; size: number | null }
 
 export const canalesApi = {
   conversaciones: (params: { status?: string; page?: number; page_size?: number }) =>
     api.get('/sd/channels/conversations', { params }).then(r => ({ items: r.data as Conversacion[], meta: (r as { meta?: { total?: number } }).meta })),
-  conversacion: (id: string, after?: string) => D<{ conversation: Conversacion; messages: MensajeDeCanal[] }>(api.get(`/sd/channels/conversations/${id}`, { params: { after } })),
+  conversacion: (id: string, after?: string) => D<{ conversation: Conversacion; messages: MensajeDeCanal[]; attachments?: AdjuntoDelTicket[] }>(api.get(`/sd/channels/conversations/${id}`, { params: { after } })),
+  /** Envía un documento del ticket por el canal (WhatsApp o el hilo de Slack), 17-11-2026. */
+  enviarAdjunto: (id: string, documentId: string, caption?: string) =>
+    D<MensajeDeCanal>(api.post(`/sd/channels/conversations/${id}/attachments`, { document_id: documentId, caption: caption || undefined })),
   tomar: (id: string) => D<Conversacion>(api.post(`/sd/channels/conversations/${id}/take`)),
   /** `salida`: la vista previa revisada (`client_text`/`client_language`); es lo que recibe el cliente (16-11-2026). */
   responder: (id: string, body: string, salida?: { client_text: string; client_language: string } | null) =>
     D<MensajeDeCanal>(api.post(`/sd/channels/conversations/${id}/reply`, { body, ...(salida ?? {}) })),
   cerrar: (id: string) => D<Conversacion>(api.post(`/sd/channels/conversations/${id}/close`)),
-  estado: () => D<{ slack: boolean; teams: boolean; whatsapp: boolean; livechat: boolean; endpoints: Record<string, string> }>(api.get('/sd/channels/status')),
+  estado: () => D<{ slack: boolean; slack_threads?: boolean; teams: boolean; whatsapp: boolean; livechat: boolean; endpoints: Record<string, string> }>(api.get('/sd/channels/status')),
 }

@@ -141,6 +141,11 @@ class ChannelConversation(Base):
     status = Column(String(20), nullable=False, default="bot", server_default="bot", index=True)
     assigned_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     last_message_at = Column(DateTime(timezone=True), nullable=True)
+    # Migracion 179 (canales en tiempo real): «leido» de cada lado y ultimo
+    # mensaje del cliente (ventana de 24 h de WhatsApp).
+    client_read_at = Column(DateTime(timezone=True), nullable=True)
+    agent_read_at = Column(DateTime(timezone=True), nullable=True)
+    last_inbound_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -158,6 +163,13 @@ class ChannelMessage(Base):
     external_message_id = Column(String(255), nullable=True)
     # Traduccion en tiempo real (migracion 175): idioma de `body` (lo que vio el cliente).
     language = Column(String(16), nullable=True)
+    # Migracion 179: el comentario del ticket que es o que lo origino (sin
+    # bucles ni duplicados entre canal y ticket), el adjunto que lleva y como
+    # se entrego (sent | template | failed | outside_window).
+    ticket_comment_id = Column(String(36), ForeignKey("sd_ticket_comments.id", ondelete="SET NULL"),
+                               nullable=True, index=True)
+    attachment_document_id = Column(String(36), ForeignKey("documents.id", ondelete="SET NULL"), nullable=True)
+    delivery_status = Column(String(20), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 
@@ -188,5 +200,7 @@ class PortalAssistantAction(Base):
     # proposed -> executed | cancelled | failed | expired
     status = Column(String(12), nullable=False, default="proposed", server_default="proposed")
     result_json = Column(Text, nullable=True)
+    # Migracion 179: quien entendio la peticion (ai | rules).
+    engine = Column(String(10), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     decided_at = Column(DateTime(timezone=True), nullable=True)

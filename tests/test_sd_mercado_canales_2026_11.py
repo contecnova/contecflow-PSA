@@ -37,6 +37,19 @@ def llamadas(monkeypatch):
         return _Respuesta({"messages": [{"id": "wamid.SALIDA"}]})
     import httpx
     monkeypatch.setattr(httpx, "post", falso_post)
+
+    # 17-11-2026: WhatsApp sale por `cliente_httpx` (proteccion SSRF).
+    class Cliente:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def post(self, url, **kw):
+            return falso_post(url, **kw)
+    from app.services.service_desk import canal_whatsapp
+    monkeypatch.setattr(canal_whatsapp, "_cliente", lambda timeout: Cliente())
     return hechas
 
 

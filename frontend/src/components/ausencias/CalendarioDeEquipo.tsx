@@ -7,10 +7,13 @@
  * leyenda (antes barras grises iguales); un solo navegador de mes para el
  * calendario y la cobertura (antes dos, uno con «Noviembre De 2026»); un solo
  * título de cobertura; todo a lo ancho.
+ *
+ * Rev. 180: una ausencia por horas sale como parcial (marca de reloj, no el
+ * día entero) con su franja y sus horas en el detalle.
  */
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { CalendarDays } from 'lucide-react'
+import { CalendarDays, Clock } from 'lucide-react'
 import { ausenciasApi } from '../../services/api/ausencias'
 import type { AusenciaServida } from '../../services/api/tipos-ausencias'
 import { EmptyState, NavegadorDeMes, RejillaPersonaDia, Spinner, columnasDeDias, rangoDelMes } from '../ui'
@@ -18,7 +21,7 @@ import type { EntradaDeLeyenda, TonoDeRejilla } from '../ui'
 import { COLOR_DATO_POR_DEFECTO } from '../../constants/theme'
 import { AvisoDeError } from './admin/comun'
 import { PanelDeCobertura } from './admin/MapaDeCobertura'
-import { useTa } from './comun'
+import { num, useTa } from './comun'
 
 /** Tonos del tema para los tipos que no traen color propio (o traen el gris por defecto). */
 const TONOS_DE_TIPO: TonoDeRejilla[] = ['accent', 'purple', 'success', 'warning', 'info', 'orange', 'danger']
@@ -58,6 +61,7 @@ export default function CalendarioDeEquipo({ onAbrir }: { onAbrir: (id: string) 
     return [...tipos.values()]
   }, [vivas, ta])
   const conPendientes = vivas.some(a => a.status !== 'approved')
+  const conParciales = vivas.some(a => a.modo === 'horas')
   const columnas = useMemo(() => columnasDeDias(desde, hasta), [desde, hasta])
   return (
     <div className="aus-calendario">
@@ -76,17 +80,32 @@ export default function CalendarioDeEquipo({ onAbrir }: { onAbrir: (id: string) 
           filas={personas}
           columnas={columnas}
           celda={(p, col) => {
-            const a = p.items.find(x => x.start_date <= col.clave && x.end_date >= col.clave)
+            const delDia = p.items.filter(x => x.start_date <= col.clave && x.end_date >= col.clave)
+            // Manda la de día completo; si solo hay por horas, la celda es parcial.
+            const a = delDia.find(x => x.modo !== 'horas') ?? delDia[0]
             if (!a) return null
             const tipo = a.private ? ta('privada') : a.type_label
+            const parcial = a.modo === 'horas'
+            const franjas = delDia.filter(x => x.modo === 'horas' && x.start_time && x.end_time)
+              .map(x => `${x.private ? ta('privada') : x.type_label} ${x.start_time}–${x.end_time}`)
             return {
               estado: a.private ? CLAVE_PRIVADA : (a.absence_type_id ?? a.type),
               tentativa: a.status !== 'approved',
-              detalle: `${p.nombre} · ${tipo} · ${ta(`estado_${a.status}`)}`,
+              contenido: parcial ? <Clock size={10} aria-hidden /> : undefined,
+              detalle: [
+                `${p.nombre} · ${tipo} · ${ta(`estado_${a.status}`)}`,
+                parcial ? ta('parcial_por_horas') : '',
+                franjas.length ? franjas.join(', ') : '',
+                parcial && a.scheduled_hours != null ? ta('unidad_horas', { n: num(a.scheduled_hours) }) : '',
+              ].filter(Boolean).join(' · '),
               boton: { onClick: () => onAbrir(a.id) },
             }
           }}
-          leyenda={conPendientes ? [...leyenda, { clave: '__pendiente', etiqueta: ta('estado_pending'), tono: 'vacio', tentativa: true }] : leyenda}
+          leyenda={[
+            ...leyenda,
+            ...(conPendientes ? [{ clave: '__pendiente', etiqueta: ta('estado_pending'), tono: 'vacio' as const, tentativa: true }] : []),
+          ]}
+          notaLeyenda={conParciales ? ta('leyenda_parcial') : undefined}
         />
       )}
       <PanelDeCobertura mes={ref} />

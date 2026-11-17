@@ -159,8 +159,8 @@ def get_load_map_payload(db: Session, current_user, week_start: Optional[date] =
         # todo el mundo libre.
         from app.services.resource_analytics import get_user_week_hours
         hw = get_user_week_hours(db, user.id, week_start)
-        capacity = max(0.0, (user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS)
-                       - hw["absence_hours"] - hw["holiday_hours"])
+        from app.services.resource_analytics import capacidad_de_semana
+        capacity = capacidad_de_semana(hw, user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS)
         carga = max(hours_week, hw["committed_hours"])
         load_pct = round((carga / capacity) * 100, 1) if capacity > 0 else (100.0 if carga else 0)
         result.append(UserLoad(

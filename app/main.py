@@ -683,12 +683,13 @@ async def http_exception_sanitizer(_request: Request, exc: HTTPException):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_sanitizer(_request: Request, exc: RequestValidationError):
-    # Keep standard validation structure; sanitize only if it unexpectedly contains a string payload.
-    # jsonable_encoder mirrors FastAPI's default handler: pydantic v2 error dicts may carry a
-    # non-serializable ValueError under `ctx` (raised by custom field validators), which would
-    # otherwise blow up json.dumps and turn a 422 into a 500.
-    safe_detail = sanitize_http_detail(422, jsonable_encoder(exc.errors()))
-    return JSONResponse(status_code=422, content={"detail": safe_detail})
+    # 17-11-2026: con codigo traducible (`app/core/validacion.py`): `detail` en
+    # castellano, `code="validacion"` y `params.errores` = [{campo, tipo, ...}]
+    # con tipos normalizados, para que cada formulario pinte el error junto a su
+    # campo en el idioma de quien lo ve. Ya no se devuelve el valor enviado
+    # (`input`), que podia ser una contrasena.
+    from app.core.validacion import cuerpo as _cuerpo_de_validacion
+    return JSONResponse(status_code=422, content=jsonable_encoder(_cuerpo_de_validacion(exc.errors())))
 
 app.add_middleware(
     CORSMiddleware,

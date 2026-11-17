@@ -341,6 +341,14 @@ class Settings(
         default=80.0, env="DEFAULT_SIMULATION_HOURLY_RATE"
     )
     DEFAULT_VACATION_DAYS_PER_YEAR: int = Field(default=23, env="DEFAULT_VACATION_DAYS_PER_YEAR")
+    # Rev. 180 (horario efectivo y ausencias por horas): hora a la que empieza la
+    # jornada de la empresa de quien no tiene turno ni jornada asignada (sus horas
+    # por día salen de su jornada semanal); periodos hacia atrás que se miran
+    # para arrastrar saldo sobrante; días hacia atrás que la pasada diaria
+    # recalcula de la bolsa de horas (imputaciones tardías o corregidas).
+    DEFAULT_WORKDAY_START: str = Field(default="09:00", env="DEFAULT_WORKDAY_START")
+    ABSENCE_BALANCE_CARRY_PERIODS: int = Field(default=2, env="ABSENCE_BALANCE_CARRY_PERIODS")
+    HOUR_BANK_RECALC_DAYS: int = Field(default=35, env="HOUR_BANK_RECALC_DAYS")
 
     # NOTE: SLA defaults & breach prediction live in SLASettingsMixin
     # (app/core/config_groups/sla_config.py).

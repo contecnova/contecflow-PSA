@@ -3,7 +3,8 @@
  * Espejo de `app/services/politicas/*` y `app/services/approval_engine/diagrama.py`.
  */
 
-export type TipoDeCampo = 'importe' | 'numero' | 'texto' | 'enum' | 'entidad' | 'fecha' | 'pais' | 'ciudad' | 'booleano' | 'periodo'
+/** Rev. 180: `hora` ('HH:MM'; eq, ne, lt, lte, gt, gte, between). */
+export type TipoDeCampo = 'importe' | 'numero' | 'texto' | 'enum' | 'entidad' | 'fecha' | 'pais' | 'ciudad' | 'booleano' | 'periodo' | 'hora'
 export type Operador =
   | 'eq' | 'ne' | 'lt' | 'lte' | 'gt' | 'gte' | 'between' | 'in' | 'not_in' | 'contains' | 'not_contains'
   | 'empty' | 'not_empty' | 'pct_over' | 'weekday_in' | 'weekday_not_in' | 'overlaps' | 'not_overlaps'
@@ -87,6 +88,8 @@ export interface Regla {
 
 export interface AmbitoDePolitica {
   departamentos: string[]; equipos: string[]; roles: string[]; ubicaciones: string[]; personas: string[]
+  /** Rev. 180: grupos (ids) a los que se aplica, y personas y grupos que quedan fuera. */
+  grupos: string[]; excepto_personas: string[]; excepto_grupos: string[]
 }
 
 export type EstadoDePolitica = 'borrador' | 'publicada' | 'retirada'

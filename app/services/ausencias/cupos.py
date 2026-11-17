@@ -80,9 +80,17 @@ def huecos_de(cupo: dict, ausencia: dict) -> list[tuple]:
     `ausencia` es `ctx["_ausencia"]` del dominio: usuario, equipo,
     departamento, rol, grupos y los días que cuentan con su turno y oficina.
     Agrupar por «grupo» solo aplica a quien está en ese grupo (si no, ninguna).
+
+    Rev. 180 — cupo por FRANJA HORARIA (`franja_minutos` > 0): cada día se
+    cuenta por franjas de ese tamaño; una ausencia ocupa solo las franjas que
+    toca de su horario (`minutos` del día: [[inicio, fin], …]), así que dos
+    personas con permiso de 9 a 11 y de 15 a 17 no compiten por la misma plaza.
+    La franja viaja en el grupo («grupo@HH:MM»): la clave única no cambia.
     """
+    from app.services.horario import tramos as tr
     agrupar = cupo.get("agrupar_por") or "empresa"
     por_turno = bool(cupo.get("por_turno")) or agrupar == "turno"
+    tam = int(cupo.get("franja_minutos") or 0)
     if agrupar == "grupo" and cupo.get("grupo_id") not in (ausencia.get("grupos") or []):
         return []
     salida: list[tuple] = []
@@ -91,10 +99,24 @@ def huecos_de(cupo: dict, ausencia: dict) -> list[tuple]:
         grupo = {"empresa": "", "turno": "", "grupo": cupo.get("grupo_id") or "",
                  "equipo": ausencia.get("equipo") or "", "departamento": ausencia.get("departamento") or "",
                  "rol": ausencia.get("rol") or "", "ubicacion": d.get("office_id") or ""}[agrupar]
-        clave = (_fecha(d["fecha"]), turno, str(grupo)[:160])
-        if clave not in salida:
-            salida.append(clave)
+        grupo = str(grupo)[:150]
+        claves = [grupo]
+        if tam > 0 and d.get("minutos"):
+            ocupa = [tr.Tramo(int(a), int(b)) for a, b in d["minutos"] if int(b) > int(a)]
+            claves = [f"{grupo}@{tr.hhmm(f)}" for f in tr.franjas(ocupa, tam)] or [grupo]
+        for g in claves:
+            clave = (_fecha(d["fecha"]), turno, g[:160])
+            if clave not in salida:
+                salida.append(clave)
     return salida
+
+
+def separar_grupo(g: str) -> tuple[Optional[str], Optional[str]]:
+    """«grupo@HH:MM» → (grupo, franja)."""
+    if not g:
+        return None, None
+    base, _, franja = g.partition("@")
+    return (base or None), (franja or None)
 
 
 def _filtro(clave: str, huecos: list[tuple]):
@@ -118,7 +140,8 @@ def ocupacion(db: Session, clave: str, huecos: list[tuple], excluir: Optional[st
     salida = []
     for f, t, g in huecos:
         h = filas.get((f, t, g))
-        salida.append({"fecha": f.isoformat(), "turno": t or None, "grupo": g or None,
+        grupo, franja = separar_grupo(g)
+        salida.append({"fecha": f.isoformat(), "turno": t or None, "grupo": grupo, "franja": franja,
                        "ocupadas": cuentas.get((h.id, "ocupa"), 0) if h else 0,
                        "espera": cuentas.get((h.id, "espera"), 0) if h else 0})
     return salida

@@ -68,6 +68,20 @@ class TipoDeAusencia(Base):
     activo = Column(Boolean, nullable=False, default=True)
     orden = Column(Integer, nullable=False, default=100)
     de_sistema = Column(Boolean, nullable=False, default=False)         # vino del enum antiguo
+    # Rev. 180: modos de petición, retribución, periodo del saldo, arrastre,
+    # caducidad, prorrateo por fecha de alta, derecho desde una tabla de
+    # referencia (país/convenio) y reglas de la bolsa de horas.
+    modos = Column(Text, nullable=True)                                  # JSON ["dias","medio_dia","horas"]
+    retribuido = Column(Boolean, nullable=False, default=True)
+    periodo_saldo = Column(String(12), nullable=False, default="anual")  # anual|semestral|trimestral|mensual|sin_periodo
+    inicio_periodo_mes = Column(Integer, nullable=False, default=1)
+    arrastre_max = Column(Float, nullable=True)                          # sin valor: no se arrastra
+    arrastre_caduca_meses = Column(Integer, nullable=True)
+    caduca_meses = Column(Integer, nullable=True)                        # apuntes (bolsa, ajustes) caducan a los N meses
+    prorratear_alta = Column(Boolean, nullable=False, default=False)
+    derecho_tabla_id = Column(String(36), ForeignKey("tablas_de_referencia.id", ondelete="SET NULL"), nullable=True,
+                              index=True)
+    bolsa = Column(Text, nullable=True)                                  # JSON reglas de la bolsa de horas
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -120,6 +134,9 @@ class Turno(Base):
     color = Column(String(9), nullable=False, default="#4f8cff")
     hora_inicio = Column(Time, nullable=False)
     hora_fin = Column(Time, nullable=False)                    # <= inicio: cruza la medianoche
+    # Rev. 180: turno partido (JSON [[inicio, fin], …]; vacío = inicio–fin) y pausa no retribuida.
+    tramos = Column(Text, nullable=True)
+    pausa_minutos = Column(Integer, nullable=False, default=0)
     dias_semana = Column(Text, nullable=True)                  # JSON [1..7] (ISO); vacío = todos
     equipo = Column(String(120), nullable=True)
     departamento = Column(String(100), nullable=True)

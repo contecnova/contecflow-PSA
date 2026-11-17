@@ -11,20 +11,26 @@
   día y manda sobre la rotación y sobre el festivo.
 
 `efectivo` calcula el turno de cada persona y día. Quien no tiene cuadrante en
-un periodo trabaja de lunes a viernes salvo festivos (lo de siempre,
-`absence_service.count_working_days`).
+un periodo trabaja según su jornada (rev. 180: `app/services/horario`, la única
+fuente del horario efectivo de una persona en un día).
+
+Rev. 180: un turno puede ser PARTIDO (`tramos`: [[inicio, fin], …]) y tener una
+pausa no retribuida (`pausa_minutos`); sus horas son las de los tramos menos la
+pausa. Los festivos valen por SEDE: los de la empresa, los de la sede de la
+persona (o la del turno) y los de su país/ciudad.
 """
 from __future__ import annotations
 
 import json
 import uuid
-from datetime import date, datetime, time, timedelta
+from datetime import date, time, timedelta
 from typing import Iterable, Optional
 
 from sqlalchemy.orm import Session
 
 from app.core.errores import ErrorDeDominio
 from app.models.ausencias import AsignacionDeTurno, MiembroDePatron, PatronDeTurnos, Turno
+from app.services.horario import tramos as tr
 
 MAX_DIAS_DE_CUADRANTE = 120
 MAX_CICLO = 366
@@ -73,17 +79,29 @@ def _rango(desde: date, hasta: date) -> None:
 
 # ── Turnos ───────────────────────────────────────────────────────────────────
 
+def tramos_de_turno(t: Turno) -> tuple:
+    """Los tramos del turno (partido: los suyos; si no, inicio–fin, cruzando la medianoche si toca)."""
+    lista = _json(getattr(t, "tramos", None), [])
+    if lista:
+        try:
+            return tr.de_lista(lista)
+        except ValueError:
+            pass
+    return (tr.desde_texto(t.hora_inicio, t.hora_fin),)
+
+
 def duracion_horas(t: Turno) -> float:
-    ini = datetime.combine(date.min, t.hora_inicio)
-    fin = datetime.combine(date.min, t.hora_fin)
-    if fin <= ini:
-        fin += timedelta(days=1)
-    return round((fin - ini).total_seconds() / 3600, 2)
+    """Horas de trabajo del turno: sus tramos menos la pausa no retribuida."""
+    bruto = tr.total_horas(tramos_de_turno(t))
+    return round(max(0.0, bruto - (int(getattr(t, "pausa_minutos", 0) or 0)) / 60), 2)
 
 
 def turno_dict(t: Turno) -> dict:
+    tramos = tramos_de_turno(t)
     return {"id": t.id, "nombre": t.nombre, "color": t.color, "hora_inicio": t.hora_inicio.strftime("%H:%M"),
-            "hora_fin": t.hora_fin.strftime("%H:%M"), "cruza_medianoche": t.hora_fin <= t.hora_inicio,
+            "hora_fin": t.hora_fin.strftime("%H:%M"), "cruza_medianoche": any(x.fin > tr.DIA for x in tramos),
+            "tramos": tr.a_lista(tramos), "partido": len(tramos) > 1,
+            "pausa_minutos": int(getattr(t, "pausa_minutos", 0) or 0),
             "duracion_horas": duracion_horas(t), "dias_semana": _json(t.dias_semana, []), "equipo": t.equipo,
             "departamento": t.departamento, "office_id": t.office_id,
             "personas_requeridas": t.personas_requeridas, "trabaja_festivos": bool(t.trabaja_festivos),
@@ -113,9 +131,23 @@ def guardar_turno(db: Session, usuario, datos: dict, turno_id: Optional[str] = N
     dias_semana = sorted({int(d) for d in datos.get("dias_semana") or []})
     if any(d < 1 or d > 7 for d in dias_semana):
         raise ErrorDeDominio(422, "Días de la semana del 1 (lunes) al 7 (domingo)")
-    inicio, fin = _hora(datos.get("hora_inicio"), "inicio"), _hora(datos.get("hora_fin"), "fin")
-    if inicio == fin:
-        raise ErrorDeDominio(422, "El turno empieza y acaba a la misma hora")
+    tramos_in = [x for x in (datos.get("tramos") or []) if x and (x[0] or x[1])]
+    if tramos_in:
+        try:
+            tramos = tr.de_lista(tramos_in)
+        except (ValueError, TypeError, IndexError) as exc:
+            raise ErrorDeDominio(422, f"Tramos del turno no válidos: {exc}")
+        if tramos[-1].fin - tramos[0].inicio > tr.DIA:
+            raise ErrorDeDominio(422, "Un turno no puede durar más de un día")
+        inicio, fin = _hora(tr.hhmm(tramos[0].inicio), "inicio"), _hora(tr.hhmm(tramos[-1].fin), "fin")
+    else:
+        inicio, fin = _hora(datos.get("hora_inicio"), "inicio"), _hora(datos.get("hora_fin"), "fin")
+        if inicio == fin:
+            raise ErrorDeDominio(422, "El turno empieza y acaba a la misma hora")
+        tramos = (tr.desde_texto(inicio, fin),)
+    pausa = int(datos.get("pausa_minutos") or 0)
+    if pausa < 0 or pausa >= tr.total_horas(tramos) * 60:
+        raise ErrorDeDominio(422, "La pausa tiene que ser menor que la duración del turno")
     requeridas = int(datos.get("personas_requeridas") or 0)
     if requeridas < 0:
         raise ErrorDeDominio(422, "Las personas requeridas no pueden ser negativas")
@@ -123,6 +155,8 @@ def guardar_turno(db: Session, usuario, datos: dict, turno_id: Optional[str] = N
         raise ErrorDeDominio(422, "Esa oficina no existe")
     t.nombre, t.color = nombre[:80], datos.get("color") or t.color or "#4f8cff"
     t.hora_inicio, t.hora_fin = inicio, fin
+    t.tramos = json.dumps(tr.a_lista(tramos)) if len(tramos) > 1 else None
+    t.pausa_minutos = pausa
     t.dias_semana = json.dumps(dias_semana) if dias_semana else None
     t.equipo = (datos.get("equipo") or None)
     t.departamento = (datos.get("departamento") or None)
@@ -175,14 +209,30 @@ def _paises_de_oficinas(db: Session) -> dict:
     return {o.id: (o.country or o.name or "") for o in db.query(Office).all()}
 
 
+def _oficinas(db: Session) -> dict:
+    from app.models.advanced_config import Office
+    return {o.id: o for o in db.query(Office).all()}
+
+
+def _festivo_de_sede(festivos_del_dia: list, oficina) -> bool:
+    """Festivo de la empresa, de esa sede o de su país/ciudad (rev. 180)."""
+    from app.services.horario.efectivo import _festivo
+    return _festivo(festivos_del_dia, oficina) is not None
+
+
 def opera(t: Turno, d: date, festivos_por_dia: dict, paises: dict) -> bool:
-    """Si el turno funciona ese día (días de la semana y festivos): cuenta su cobertura."""
+    """Si el turno funciona ese día (días de la semana y festivos): cuenta su cobertura.
+
+    `paises`: {office_id: Office} (rev. 180) o {office_id: país} (lo de antes)."""
     semana = _json(t.dias_semana, [])
     if semana and d.isoweekday() not in semana:
         return False
-    if not t.trabaja_festivos and _festivo_para(festivos_por_dia.get(d, []), paises.get(t.office_id)):
-        return False
-    return True
+    if t.trabaja_festivos:
+        return True
+    oficina = paises.get(t.office_id)
+    if oficina is not None and not isinstance(oficina, str):
+        return not _festivo_de_sede(festivos_por_dia.get(d, []), oficina)
+    return not _festivo_para(festivos_por_dia.get(d, []), oficina)
 
 
 # ── Rotaciones ───────────────────────────────────────────────────────────────
@@ -291,17 +341,54 @@ def asignar(db: Session, usuario, cambios: list[dict]) -> int:
 
 # ── El cuadrante efectivo ────────────────────────────────────────────────────
 
+def plan_crudo(db: Session, desde: date, hasta: date, user_ids: Optional[Iterable[str]] = None) -> dict:
+    """{(user_id, fecha): (turno_id | None, origen)} de rotaciones y cambios, SIN
+    mirar festivos (eso lo hace el horario efectivo). origen = rotacion | cambio."""
+    ids = set(user_ids) if user_ids is not None else None
+    todos = {t.id: t for t in turnos(db, incluir_inactivos=True)}
+    salida: dict = {}
+    q = db.query(MiembroDePatron, PatronDeTurnos).join(PatronDeTurnos, PatronDeTurnos.id == MiembroDePatron.patron_id) \
+        .filter(PatronDeTurnos.activo.is_(True), MiembroDePatron.desde <= hasta)
+    if ids is not None:
+        q = q.filter(MiembroDePatron.user_id.in_(ids))
+    for m, p in q.all():
+        if m.hasta and m.hasta < desde:
+            continue
+        ciclo = _json(p.ciclo, [])
+        if not ciclo:
+            continue
+        for d in dias(max(desde, m.desde), min(hasta, m.hasta or hasta)):
+            tid = ciclo[((d - p.inicio).days + (m.desfase or 0)) % len(ciclo)]
+            t = todos.get(tid) if tid else None
+            salida[(m.user_id, d)] = ((t.id if t is not None and t.activo else None), "rotacion")
+    q = db.query(AsignacionDeTurno).filter(AsignacionDeTurno.fecha >= desde, AsignacionDeTurno.fecha <= hasta)
+    if ids is not None:
+        q = q.filter(AsignacionDeTurno.user_id.in_(ids))
+    for a in q.all():
+        salida[(a.user_id, a.fecha)] = (a.turno_id, "cambio")
+    return salida
+
+
 def efectivo(db: Session, desde: date, hasta: date, user_ids: Optional[Iterable[str]] = None) -> dict:
     """{(user_id, fecha): (turno_id | None, origen)}; origen = rotacion | cambio | festivo.
 
-    Solo están las personas con cuadrante ese día (rotación o cambio).
+    Solo están las personas con cuadrante ese día (rotación o cambio). Un
+    festivo de la sede de la persona (o del turno) deja libre la rotación si el
+    turno no trabaja festivos.
     """
+    from app.models.user import User
     ids = set(user_ids) if user_ids is not None else None
     todos = {t.id: t for t in turnos(db, incluir_inactivos=True)}
     por_dia: dict = {}
     for h in festivos(db, desde, hasta):
         por_dia.setdefault(h.date, []).append(h)
-    paises = _paises_de_oficinas(db) if por_dia else {}
+    oficinas = _oficinas(db) if por_dia else {}
+    sedes: dict = {}
+    if por_dia:
+        q = db.query(User.id, User.office_id)
+        if ids is not None:
+            q = q.filter(User.id.in_(ids))
+        sedes = dict(q.all())
     salida: dict = {}
     q = db.query(MiembroDePatron, PatronDeTurnos).join(PatronDeTurnos, PatronDeTurnos.id == MiembroDePatron.patron_id) \
         .filter(PatronDeTurnos.activo.is_(True), MiembroDePatron.desde <= hasta)
@@ -318,7 +405,8 @@ def efectivo(db: Session, desde: date, hasta: date, user_ids: Optional[Iterable[
             t = todos.get(tid) if tid else None
             if t is None or not t.activo:
                 salida[(m.user_id, d)] = (None, "rotacion")
-            elif not t.trabaja_festivos and _festivo_para(por_dia.get(d, []), paises.get(t.office_id)):
+            elif not t.trabaja_festivos and _festivo_de_sede(por_dia.get(d, []),
+                                                             oficinas.get(sedes.get(m.user_id) or t.office_id)):
                 salida[(m.user_id, d)] = (None, "festivo")
             else:
                 salida[(m.user_id, d)] = (t.id, "rotacion")
@@ -331,32 +419,48 @@ def efectivo(db: Session, desde: date, hasta: date, user_ids: Optional[Iterable[
 
 
 def dias_que_cuentan(db: Session, user_id: str, inicio: date, fin: date, turno_id: Optional[str] = None) -> list[dict]:
-    """Los días de una ausencia que cuentan, con su turno y la oficina del turno.
+    """Los días de una ausencia que cuentan, con su turno, su sede y su horario.
 
-    Con cuadrante en el periodo: los días con turno (si se pide un turno, solo
-    los de ese turno). Sin cuadrante: lunes a viernes salvo festivos y, si se
-    pide un turno, los días en que ese turno opera.
+    Rev. 180: salen del horario efectivo (`app/services/horario`): los días en
+    que le toca trabajar (turno del cuadrante, jornada asignada o la de la
+    empresa), sin festivos de su sede ni días fuera de contrato. Si se pide un
+    turno, solo los de ese turno; sin cuadrante, los días en que ese turno opera
+    (con su horario). Cada día lleva `tramos` (horario teórico), `horas` (las
+    del horario menos la pausa) y `pausa_minutos`.
     """
-    plan = efectivo(db, inicio, fin, [user_id])
+    from app.services.horario import efectivo as hor
+    plan = hor.horario(db, user_id, inicio, fin, estados_ausencia=None)
     todos = {t.id: t for t in turnos(db, incluir_inactivos=True)}
-    salida: list[dict] = []
-    if plan:
-        for d in dias(inicio, fin):
-            tid, _origen = plan.get((user_id, d), (None, None))
-            if tid and (not turno_id or tid == turno_id):
-                salida.append({"fecha": d, "turno": tid, "office_id": todos[tid].office_id if tid in todos else None})
-        return salida
+    t_pedido = todos.get(turno_id) if turno_id else None
+    con_cuadrante = any(x.origen in ("rotacion", "cambio") for x in plan.values())
     por_dia: dict = {}
-    for h in festivos(db, inicio, fin):
-        por_dia.setdefault(h.date, []).append(h)
-    t = todos.get(turno_id) if turno_id else None
-    paises = _paises_de_oficinas(db) if t is not None and por_dia else {}
+    oficinas: dict = {}
+    if t_pedido is not None and not con_cuadrante:
+        for h in festivos(db, inicio, fin):
+            por_dia.setdefault(h.date, []).append(h)
+        oficinas = _oficinas(db)
+    from app.models.user import User
+    sede = db.query(User.office_id).filter(User.id == user_id).scalar()
+    salida: list[dict] = []
     for d in dias(inicio, fin):
-        if t is not None:
-            if opera(t, d, por_dia, paises):
-                salida.append({"fecha": d, "turno": t.id, "office_id": t.office_id})
-        elif d.weekday() < 5 and d not in por_dia:
-            salida.append({"fecha": d, "turno": None, "office_id": None})
+        x = plan.get(d)
+        if x is None:
+            continue
+        if t_pedido is not None and not con_cuadrante:
+            if not opera(t_pedido, d, por_dia, oficinas) or x.fuera_de_contrato:
+                continue
+            tramos = tramos_de_turno(t_pedido)
+            salida.append({"fecha": d, "turno": t_pedido.id, "office_id": sede or t_pedido.office_id,
+                           "tramos": tramos, "horas": duracion_horas(t_pedido),
+                           "pausa_minutos": int(t_pedido.pausa_minutos or 0)})
+            continue
+        if not x.laborable:
+            continue
+        if turno_id and x.turno_id != turno_id:
+            continue
+        oficina = sede or (todos[x.turno_id].office_id if x.turno_id in todos else None)
+        salida.append({"fecha": d, "turno": x.turno_id, "office_id": oficina, "tramos": x.tramos,
+                       "horas": round(x.horas_teoricas, 4), "pausa_minutos": x.pausa_minutos})
     return salida
 
 
@@ -406,19 +510,25 @@ def cobertura(db: Session, desde: date, hasta: date, *, equipo: Optional[str] = 
     por_dia: dict = {}
     for h in festivos(db, desde, hasta):
         por_dia.setdefault(h.date, []).append(h)
-    paises = _paises_de_oficinas(db)
-    ausencias = db.query(Absence.user_id, Absence.start_date, Absence.end_date, Absence.status).filter(
+    paises = _oficinas(db)
+    ausencias = db.query(Absence.user_id, Absence.start_date, Absence.end_date, Absence.status, Absence.start_time).filter(
         Absence.is_active.is_(True), Absence.user_id.in_(list(nombres)), Absence.start_date <= hasta,
         Absence.end_date >= desde,
         Absence.status.in_([AbsenceStatus.approved, AbsenceStatus.pending, AbsenceStatus.waitlisted])).all()
     estado_de: dict = {}
-    for uid, ini, fin, st in ausencias:
+    parciales: dict = {}
+    for uid, ini, fin, st, hora in ausencias:
+        st = getattr(st, "value", st)
         for d in dias(max(ini, desde), min(fin, hasta)):
+            if hora is not None:
+                # Rev. 180: una ausencia por horas no quita a la persona del turno entero.
+                parciales.setdefault((uid, d), set()).add(st)
+                continue
             previo = estado_de.get((uid, d))
-            st = getattr(st, "value", st)
             if previo != "approved":
                 estado_de[(uid, d)] = st
-    simulados = {(simular["user_id"], _fecha(x["fecha"], "fecha")) for x in (simular or {}).get("dias", [])}
+    simulados = {(simular["user_id"], _fecha(x["fecha"], "fecha")) for x in (simular or {}).get("dias", [])
+                 if not x.get("parcial")}
     celdas = []
     for d in dias(desde, hasta):
         for t in lista:
@@ -436,6 +546,7 @@ def cobertura(db: Session, desde: date, hasta: date, *, equipo: Optional[str] = 
                 "ausentes": len(aprobadas), "pendientes": len(pendientes), "en_espera": len(espera),
                 "disponibles": disponibles, "con_esta": con_esta if simular else None,
                 "estado": "falta" if disponibles < requeridas else ("justo" if disponibles == requeridas and requeridas else "ok"),
+                "parciales": sum(1 for u in asignados if (u, d) in parciales and u not in aprobadas),
                 "ausentes_nombres": [nombres[u] for u in aprobadas],
                 "pendientes_nombres": [nombres[u] for u in pendientes + espera],
             })

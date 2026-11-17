@@ -16,13 +16,20 @@
   añadan las políticas. Sin flujo ni pasos de política, la decisión es la de un
   responsable en Ausencias (la de siempre), registrada en la línea de tiempo.
 - Todo cambio deja un evento en `eventos_de_ausencia` (la línea de tiempo).
+
+Rev. 180 — por horas: una petición es por DÍAS (enteros o medio día) o por
+HORAS (franja `start_time`–`end_time` cada día, dentro de su horario efectivo),
+según los `modos` del tipo. Se guarda lo que cubre sobre su horario:
+`working_days` (días equivalentes), `scheduled_hours` (horas) y `amount` (en la
+unidad del tipo). Las políticas pueden redondear las horas (`redondeo`) y
+permitir que el saldo quede en negativo hasta un límite (`saldo_negativo`).
 """
 from __future__ import annotations
 
 import json
 import logging
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -77,6 +84,18 @@ def _fecha(v, nombre: str) -> date:
         raise ErrorDeDominio(422, f"Fecha no válida en «{nombre}»")
 
 
+def _hora(v, nombre: str) -> Optional[time]:
+    if v in (None, ""):
+        return None
+    if isinstance(v, time):
+        return v
+    try:
+        h, m = str(v).split(":")[:2]
+        return time(int(h), int(m))
+    except (TypeError, ValueError):
+        raise ErrorDeDominio(422, f"Hora no válida en «{nombre}» (HH:MM)")
+
+
 def construir(db: Session, usuario, datos: dict, a: Optional[Absence] = None) -> Absence:
     """Una ausencia (nueva y SIN guardar, o la existente con los cambios) desde
     los datos de la pantalla o del API antiguo (`type`, `start_date`, `end_date`, `reason`)."""
@@ -99,6 +118,25 @@ def construir(db: Session, usuario, datos: dict, a: Optional[Absence] = None) ->
     horas = datos.get("hours")
     if horas not in (None, "") and float(horas) <= 0:
         raise ErrorDeDominio(422, "Las horas tienen que ser más de 0")
+    h_ini, h_fin = _hora(datos.get("start_time"), "hora de inicio"), _hora(datos.get("end_time"), "hora de fin")
+    if (h_ini is None) != (h_fin is None):
+        raise ErrorDeDominio(422, "Indica la hora de inicio y la de fin")
+    if h_ini is not None and h_ini == h_fin:
+        raise ErrorDeDominio(422, "La franja empieza y acaba a la misma hora")
+    permitidos = catalogo.modos_de(tipo)
+    solo_horas = "dias" not in permitidos and "medio_dia" not in permitidos
+    modo = datos.get("modo") or ("horas" if (h_ini is not None or horas not in (None, "") or solo_horas) else "dias")
+    if modo not in ("dias", "horas"):
+        raise ErrorDeDominio(422, "El modo de la petición es «dias» u «horas»")
+    medio = bool(datos.get("half_day_start")) or bool(datos.get("half_day_end"))
+    if modo == "horas" and "horas" not in permitidos:
+        raise ErrorDeDominio(422, f"«{tipo.nombre}» no se puede pedir por horas")
+    if modo == "dias" and "dias" not in permitidos and not (medio and "medio_dia" in permitidos):
+        raise ErrorDeDominio(422, f"«{tipo.nombre}» se pide por horas")
+    if modo == "dias" and medio and "medio_dia" not in permitidos:
+        raise ErrorDeDominio(422, f"«{tipo.nombre}» no se puede pedir por medio día")
+    if modo == "horas" and h_ini is None and horas in (None, ""):
+        raise ErrorDeDominio(422, "Por horas: indica la franja (hora de inicio y de fin)")
     if a is None:
         a = Absence(id=None, user_id=usuario.id, organization_id=getattr(usuario, "organization_id", None),
                     status=AbsenceStatus.pending, is_active=True)
@@ -106,10 +144,44 @@ def construir(db: Session, usuario, datos: dict, a: Optional[Absence] = None) ->
     a.start_date, a.end_date = inicio, fin
     a.reason = datos.get("reason")
     a.shift_id, a.substitute_id = turno, sustituto
-    a.half_day_start, a.half_day_end = bool(datos.get("half_day_start")), bool(datos.get("half_day_end"))
-    a.hours = float(horas) if horas not in (None, "") else None
+    a.modo = modo
+    a.start_time, a.end_time = (h_ini, h_fin) if modo == "horas" else (None, None)
+    a.half_day_start = bool(datos.get("half_day_start")) and modo == "dias"
+    a.half_day_end = bool(datos.get("half_day_end")) and modo == "dias"
+    a.hours = float(horas) if horas not in (None, "") and modo == "horas" and h_ini is None else None
     a.unit = tipo.unidad
     return a
+
+
+def medidas_finales(ev: dict) -> dict:
+    """Lo que la petición descuenta tras las políticas: el `redondeo` de las
+    horas (si alguna lo pide, gana el de mayor prioridad) y el negativo que se
+    permite en el saldo (`saldo_negativo`: el mayor)."""
+    ctx = ev.get("contexto") or {}
+    propios = (ev.get("resultado") or {}).get("propios") or []
+    horas, dias, cantidad = float(ctx.get("horas") or 0), float(ctx.get("dias_laborables") or 0), \
+        float(ctx.get("cantidad") or 0)
+    redondeo = next((p for p in propios if p.get("tipo") == "redondeo"), None)
+    detalle = None
+    if redondeo is not None and horas > 0:
+        nuevas = reglas.redondear(horas, int(redondeo.get("minutos") or 0), redondeo.get("modo") or "arriba")
+        factor = nuevas / horas
+        detalle = {"antes": horas, "despues": nuevas, "minutos": int(redondeo.get("minutos") or 0),
+                   "modo": redondeo.get("modo"), "politica": redondeo.get("politica")}
+        horas, dias = nuevas, round(dias * factor, 4)
+        cantidad = round(cantidad * factor, 4)
+    negativo = max([float(p.get("hasta") or 0) for p in propios if p.get("tipo") == "saldo_negativo"] or [0.0])
+    restante = ctx.get("saldo_restante")
+    if restante is not None and detalle is not None:
+        unidad_h = ctx.get("_saldo_unidad") == "horas"
+        delta = (detalle["despues"] - detalle["antes"]) if unidad_h else dias - float(ctx.get("dias_laborables") or 0)
+        restante = round(restante - delta, 2)
+    return {"horas": round(horas, 4), "dias": round(dias, 4), "cantidad": round(cantidad, 4), "redondeo": detalle,
+            "negativo_permitido": negativo, "saldo_restante": restante}
+
+
+def _guardar_medidas(a: Absence, m: dict) -> None:
+    a.working_days, a.amount, a.scheduled_hours = m["dias"], m["cantidad"], m["horas"]
 
 
 def evaluar(db: Session, a: Absence) -> dict:
@@ -134,26 +206,39 @@ def _mensaje_de_bloqueo(cupo: Optional[dict]) -> str:
     return "No queda plaza en el cupo para esas fechas"
 
 
-def _exigencias(db: Session, a: Absence, tipo, ctx: dict) -> None:
-    """Lo que no depende de una política: sustituto si el tipo lo exige, saldo."""
+def _exigencias(db: Session, a: Absence, tipo, ctx: dict, m: Optional[dict] = None) -> None:
+    """Lo que no depende de una política: sustituto si el tipo lo exige, que
+    caiga en su horario y el saldo (con el negativo que permitan las políticas)."""
     if tipo.requiere_sustituto and not a.substitute_id:
         raise ErrorDeDominio(422, f"«{tipo.nombre}» necesita un sustituto")
     if not ctx.get("dias_laborables"):
+        if a.start_time is not None:
+            raise ErrorDeDominio(422, "Esa franja no cae dentro de tu horario (turno o jornada) en esas fechas")
         raise ErrorDeDominio(422, "En esas fechas no tienes ningún día de trabajo (cuadrante o calendario laboral)")
-    if tipo.descuenta_saldo and ctx.get("saldo_restante") is not None and ctx["saldo_restante"] < 0:
-        quedan = round(ctx["saldo_restante"] + (ctx["dias_laborables"] if tipo.saldo == "vacaciones" else ctx["cantidad"]), 2)
-        raise ErrorDeDominio(400, f"Pides {ctx['cantidad']:g} y te quedan {quedan:g} en {a.start_date.year}")
+    restante = (m or {}).get("saldo_restante", ctx.get("saldo_restante"))
+    permitido = float((m or {}).get("negativo_permitido") or 0)
+    if tipo.descuenta_saldo and restante is not None and restante < -permitido - 1e-9:
+        disponible = ctx.get("saldo_disponible")
+        texto = f"te quedan {disponible:g}" if disponible is not None else "no te queda saldo"
+        limite = f" (se permite hasta −{permitido:g})" if permitido else ""
+        raise ErrorDeDominio(400, f"Pides {(m or ctx).get('cantidad', ctx.get('cantidad')):g} y {texto}{limite}")
 
 
 def _solapada(db: Session, a: Absence) -> None:
+    """Otra ausencia viva de la persona que pisa esta. Dos por horas el mismo día
+    con franjas distintas no se pisan (rev. 180)."""
+    from app.services.horario import tramos as tr
     q = db.query(Absence).filter(
         Absence.user_id == a.user_id, Absence.is_active.is_(True),
         Absence.status.in_([AbsenceStatus.pending, AbsenceStatus.approved, AbsenceStatus.waitlisted]),
         Absence.start_date <= a.end_date, Absence.end_date >= a.start_date)
     if a.id:
         q = q.filter(Absence.id != a.id)
-    otra = q.first()
-    if otra is not None:
+    for otra in q.all():
+        if a.start_time is not None and otra.start_time is not None:
+            if not tr.interseccion([tr.desde_texto(a.start_time, a.end_time)],
+                                   [tr.desde_texto(otra.start_time, otra.end_time)]):
+                continue
         raise ErrorDeDominio(400, f"Ya tienes una ausencia solapada del {otra.start_date} al {otra.end_date}")
 
 
@@ -213,17 +298,24 @@ def vista_previa(db: Session, usuario, datos: dict) -> dict:
     ctx = ev["contexto"]
     tipo = a.absence_type
     r = ev["resultado"]
+    m = medidas_finales(ev)
     errores = []
     try:
-        _exigencias(db, a, tipo, ctx)
+        _exigencias(db, a, tipo, ctx, m)
         _solapada(db, a)
     except ErrorDeDominio as e:
         errores.append(e.detail if isinstance(e.detail, str) else str(e.detail))
-    cupos_detalle = [p for pol in ev["explicacion"] for regla in pol.get("reglas") or [] for p in regla.get("propios") or []]
-    saldo = saldos.de_tipo(db, a.user_id, a.start_date.year, tipo, excluir=a.id)
+    cupos_detalle = [p for pol in ev["explicacion"] for regla in pol.get("reglas") or [] for p in regla.get("propios") or []
+                     if p.get("tipo", "cupo") == "cupo" and "huecos" in p]
+    saldo = saldos.de_tipo(db, a.user_id, a.start_date, tipo, excluir=a.id)
+    aplican = [{"politica": p.get("politica"), "reglas": [x.get("regla") for x in p.get("reglas") or [] if x.get("cumple")]}
+               for p in ev["explicacion"] if p.get("aplica")]
     return {
-        "decision": ev["decision"], "dias": ctx["_ausencia"]["dias"], "dias_laborables": ctx["dias_laborables"],
-        "cantidad": ctx["cantidad"], "unidad": ctx["unidad"], "saldo": saldo, "saldo_restante": ctx["saldo_restante"],
+        "decision": ev["decision"], "dias": ctx["_ausencia"]["dias"], "dias_laborables": m["dias"],
+        "cantidad": m["cantidad"], "unidad": ctx["unidad"], "modo": ctx.get("modo"), "horas": m["horas"],
+        "horas_max_dia": ctx.get("horas_max_dia"), "horas_fuera_de_horario": ctx.get("horas_fuera_de_horario"),
+        "redondeo": m["redondeo"], "negativo_permitido": m["negativo_permitido"], "politicas_que_aplican": aplican,
+        "saldo": saldo, "saldo_restante": m["saldo_restante"], "saldo_restante_horas": ctx.get("saldo_restante_horas"),
         "cupos": cupos_detalle, "aprobaciones": _aprobaciones_previstas(db, a, tipo, ev),
         "documentos": _documentos_previstos(db, tipo, ev),
         "avisos": [x.get("mensaje") for x in r.get("avisos") or []],
@@ -247,15 +339,18 @@ def solicitar(db: Session, usuario, datos: dict) -> Absence:
     ev = evaluar(db, a)
     ctx = ev["contexto"]
     tipo = a.absence_type
-    _exigencias(db, a, tipo, ctx)
+    m = medidas_finales(ev)
+    _exigencias(db, a, tipo, ctx, m)
     _solapada(db, a)
     if ev["decision"] == "block":
         raise ErrorDeDominio(422, {"message": "; ".join(b.get("mensaje") or "" for b in ev["resultado"]["bloqueos"])
                                    or "Lo impide una política", "bloqueos": ev["resultado"]["bloqueos"]})
-    a.working_days, a.amount = ctx["dias_laborables"], ctx["cantidad"]
+    _guardar_medidas(a, m)
     db.add(a)
     db.flush()
-    evento(db, a, "pedida", usuario.id, dias=a.working_days, cantidad=a.amount, unidad=a.unit)
+    evento(db, a, "pedida", usuario.id, dias=a.working_days, cantidad=a.amount, unidad=a.unit, horas=a.scheduled_hours,
+           modo=a.modo, franja=f"{a.start_time:%H:%M}–{a.end_time:%H:%M}" if a.start_time else None,
+           redondeo=m["redondeo"])
     politicas.registrar_evaluacion(db, DOMINIO, a.id, ev, momento="solicitud", usuario_id=usuario.id,
                                    organization_id=a.organization_id)
     documentos.crear_requisitos(db, a, tipo, ev)
@@ -418,12 +513,13 @@ def editar(db: Session, usuario, a: Absence, datos: dict) -> Absence:
         a.requested_at = _ahora()
     ev = evaluar(db, a)
     ctx = ev["contexto"]
-    _exigencias(db, a, a.absence_type, ctx)
+    m = medidas_finales(ev)
+    _exigencias(db, a, a.absence_type, ctx, m)
     _solapada(db, a)
     if ev["decision"] == "block":
         db.rollback()
         raise ErrorDeDominio(422, "; ".join(b.get("mensaje") or "" for b in ev["resultado"]["bloqueos"]) or "Lo impide una política")
-    a.working_days, a.amount = ctx["dias_laborables"], ctx["cantidad"]
+    _guardar_medidas(a, m)
     a.status = AbsenceStatus.pending
     fuentes.cerrar(db, "leave", a.id, "cancelled", "Editada: se vuelve a pedir")
     evento(db, a, "editada", usuario.id, dias=a.working_days)
@@ -480,7 +576,8 @@ def ampliar(db: Session, usuario, a: Absence, nuevo_fin: date, nota: Optional[st
     tramo = Absence(id=a.id, user_id=a.user_id, organization_id=a.organization_id, type=a.type,
                     absence_type_id=a.absence_type_id, start_date=anterior + timedelta(days=1), end_date=nuevo_fin,
                     shift_id=a.shift_id, substitute_id=a.substitute_id, reason=a.reason, unit=a.unit,
-                    half_day_start=False, half_day_end=False, requested_at=_ahora(), status=AbsenceStatus.pending)
+                    half_day_start=False, half_day_end=False, requested_at=_ahora(), status=AbsenceStatus.pending,
+                    modo=a.modo, start_time=a.start_time, end_time=a.end_time)
     tramo.absence_type = a.absence_type
     ev = evaluar(db, tramo)
     if tramo in db:
@@ -502,8 +599,7 @@ def ampliar(db: Session, usuario, a: Absence, nuevo_fin: date, nota: Optional[st
     if r["resultado"] == "lleno":
         raise ErrorDeDominio(409, _mensaje_de_bloqueo(r.get("cupo")))
     a.end_date = nuevo_fin
-    ctx = reglas.contexto(db, a)
-    a.working_days, a.amount = ctx["dias_laborables"], ctx["cantidad"]
+    _guardar_medidas(a, medidas_finales(evaluar(db, a)))
     espera = r["resultado"] == "espera" or (r["resultado"] == "sin_cupo" and ev["decision"] == "waitlist")
     pendiente = espera or _requiere_aprobacion(db, a.absence_type, ev)
     evento(db, a, "ampliada", usuario.id, desde=anterior, hasta=nuevo_fin, nota=nota, pendiente=pendiente,
@@ -539,8 +635,7 @@ def _rechazar_ampliacion(db: Session, a: Absence, actor_id: Optional[str], nota:
     from app.services.approval_engine import fuentes
     anterior = date.fromisoformat(str(d["desde"])[:10])
     a.end_date, a.status = anterior, AbsenceStatus.approved
-    ctx = reglas.contexto(db, a)
-    a.working_days, a.amount = ctx["dias_laborables"], ctx["cantidad"]
+    _guardar_medidas(a, medidas_finales(evaluar(db, a)))
     fuentes.cerrar(db, "leave", a.id, "rejected", nota or "Ampliación rechazada")
     evento(db, a, "ampliacion_rechazada", actor_id, motivo=nota, vuelve_a=anterior)
     texto = _resumen(a, a.absence_type) + (f" — {nota}" if nota else "")
@@ -630,5 +725,5 @@ def promover_pendientes(db: Session) -> list[str]:
 
 def pasada_diaria(db: Session, org: Optional[str] = None) -> dict:
     """Lo que corre el worker cada día en cada empresa (`app.worker.ausencias_pasada_diaria`)."""
-    from app.services.ausencias import documentos
-    return {"documentos": documentos.pasada(db), "promovidas": len(promover_pendientes(db))}
+    from app.services.ausencias import bolsa, documentos
+    return {"documentos": documentos.pasada(db), "promovidas": len(promover_pendientes(db)), "bolsa": bolsa.pasada(db)}

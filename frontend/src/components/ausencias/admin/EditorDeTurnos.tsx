@@ -2,32 +2,30 @@
  * Turnos: nombre, color, horario (puede cruzar la medianoche), días de la
  * semana en que opera, equipo, departamento, oficina, personas requeridas
  * (cobertura mínima) y si trabaja en festivos.
+ *
+ * Rev. 180: turno partido (varios tramos inicio–fin, cada uno puede cruzar la
+ * medianoche) y pausa no trabajada en minutos; se ve la duración neta.
  */
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Clock, MoonStar, Plus, Trash2 } from 'lucide-react'
+import { Clock, MoonStar, Plus, Split, Trash2 } from 'lucide-react'
 import { ausenciasApi } from '../../../services/api/ausencias'
 import { advancedConfigApi } from '../../../services/settingsApi'
 import type { Turno, TurnoIn } from '../../../services/api/tipos-ausencias'
 import { Button, EmptyState, Modal, Spinner, Select, Pulsable, Checkbox } from '../../ui'
-import { CampoFecha } from '../../ui/SelectorDeFecha'
 import { confirmar } from '../../../context/ConfirmContext'
 import { useToast } from '../../../context/ToastContext'
 import { useOpciones } from '../../politicas/comun'
 import { AvisoDeError, colorPorDefecto, Casilla, DIAS_SEMANA, Muestra, errorDe, useT } from './comun'
+import { horasDeTramos, textoDeTramos, tramosDe } from '../comun'
+import EditorDeTramos from './EditorDeTramos'
 
 const nuevo = (): TurnoIn => ({
   nombre: '', color: colorPorDefecto(), hora_inicio: '08:00', hora_fin: '16:00', dias_semana: [1, 2, 3, 4, 5], equipo: null,
   departamento: null, office_id: null, personas_requeridas: 0, trabaja_festivos: false, activo: true, orden: 100,
+  tramos: [['08:00', '16:00']], pausa_minutos: 0,
 })
 interface Oficina { id: string; name: string }
-
-/** Si el turno acaba al día siguiente (fin ≤ inicio), y cuántas horas dura. */
-export function horario(inicio: string, fin: string): { cruza: boolean; horas: number } {
-  const m = (h: string) => { const [a, b] = h.split(':').map(Number); return a * 60 + (b || 0) }
-  const d = m(fin) - m(inicio)
-  return { cruza: d <= 0, horas: Math.round(((d <= 0 ? d + 1440 : d) / 60) * 100) / 100 }
-}
 
 export function useOficinas() {
   return useQuery({
@@ -45,8 +43,8 @@ export default function EditorDeTurnos() {
   if (q.isError) return <AvisoDeError error={q.error} defecto={ta('error_cargar')} />
   const turnos = q.data ?? []
   const abrir = (t: Turno) => {
-    const { id: _id, cruza_medianoche: _c, duracion_horas: _d, ...resto } = t
-    setAbierto({ id: t.id, datos: resto })
+    const { id: _id, cruza_medianoche: _c, duracion_horas: _d, partido: _p, ...resto } = t
+    setAbierto({ id: t.id, datos: { ...resto, tramos: tramosDe(t), pausa_minutos: t.pausa_minutos ?? 0 } })
   }
   return (
     <section aria-labelledby="ausadm-turnos-titulo">
@@ -65,9 +63,11 @@ export default function EditorDeTurnos() {
                 <Pulsable className={`ausadm-item${t.activo ? '' : ' ausadm-item--inactivo'}`} onClick={() => abrir(t)}>
                   <Muestra color={t.color} className="ausadm-muestra--punto" />
                   <span className="ausadm-item-nombre">{t.nombre}
-                    <span className="ausadm-ayuda"> {t.hora_inicio}–{t.hora_fin} · {ta('n_horas', { n: t.duracion_horas })}</span></span>
+                    <span className="ausadm-ayuda"> {textoDeTramos(tramosDe(t))} · {ta('n_horas', { n: t.duracion_horas })}</span></span>
                   <span className="ausadm-chips">
                     {t.cruza_medianoche && <span className="ausadm-chip"><MoonStar size={12} aria-hidden /> {ta('cruza_medianoche')}</span>}
+                    {t.partido && <span className="ausadm-chip"><Split size={12} aria-hidden /> {ta('turno_partido')}</span>}
+                    {t.pausa_minutos > 0 && <span className="ausadm-chip">{ta('pausa_n', { n: t.pausa_minutos })}</span>}
                     <span className="ausadm-chip">{t.dias_semana.length ? t.dias_semana.map(d => ta(`dia_corto_${d}`)).join(' ') : ta('todos_los_dias')}</span>
                     {t.personas_requeridas > 0 && <span className="ausadm-chip">{ta('requeridas_n', { n: t.personas_requeridas })}</span>}
                     {t.equipo && <span className="ausadm-chip">{t.equipo}</span>}
@@ -92,10 +92,12 @@ function Formulario({ id, inicial, oficinas, onCerrar }: { id: string | null; in
   const opciones = useOpciones().data
   const [d, setD] = useState(inicial)
   const cambiar = (c: Partial<TurnoIn>) => setD(x => ({ ...x, ...c }))
-  const h = horario(d.hora_inicio, d.hora_fin)
+  const h = horasDeTramos(d.tramos, d.pausa_minutos)
   const refrescar = () => qc.invalidateQueries({ queryKey: ['ausencias'] })
+  // Inicio y fin del turno: el principio del primer tramo y el final del último.
+  const aEnviar = (): TurnoIn => ({ ...d, hora_inicio: d.tramos[0]?.[0] ?? d.hora_inicio, hora_fin: d.tramos[d.tramos.length - 1]?.[1] ?? d.hora_fin })
   const guardar = useMutation({
-    mutationFn: () => (id ? ausenciasApi.guardarTurno(id, d) : ausenciasApi.crearTurno(d)),
+    mutationFn: () => (id ? ausenciasApi.guardarTurno(id, aEnviar()) : ausenciasApi.crearTurno(aEnviar())),
     onSuccess: () => { toast.success(ta('guardado')); refrescar(); onCerrar() },
   })
   const borrar = useMutation({
@@ -115,18 +117,16 @@ function Formulario({ id, inicial, oficinas, onCerrar }: { id: string | null; in
             <span className="ausadm-etiqueta">{ta('color')}</span>
             <input aria-label={ta('color')} type="color" className="ausadm-color" value={d.color} onChange={e => cambiar({ color: e.target.value })} />
           </label>
-          <label className="ausadm-campo-con-etiqueta">
-            <span className="ausadm-etiqueta">{ta('hora_inicio')}</span>
-            <CampoFecha modo="hora" aria-label={ta('hora_inicio')} className="ausadm-campo" required value={d.hora_inicio} onChange={v => cambiar({ hora_inicio: v })} />
-          </label>
-          <label className="ausadm-campo-con-etiqueta">
-            <span className="ausadm-etiqueta">{ta('hora_fin')}</span>
-            <CampoFecha modo="hora" aria-label={ta('hora_fin')} className="ausadm-campo" required value={d.hora_fin} aria-describedby="ausadm-horario"
-              onChange={v => cambiar({ hora_fin: v })} />
-          </label>
         </div>
+        <EditorDeTramos tramos={d.tramos} onChange={tramos => cambiar({ tramos })} leyenda={ta('tramos_del_turno')} />
+        <label className="ausadm-campo-con-etiqueta">
+          <span className="ausadm-etiqueta">{ta('pausa_minutos')}</span>
+          <input aria-label={ta('pausa_minutos')} type="number" min={0} step={5} className="ausadm-campo ausadm-campo--corto" value={d.pausa_minutos}
+            aria-describedby="ausadm-horario" onChange={e => cambiar({ pausa_minutos: Math.max(0, Number(e.target.value) || 0) })} />
+        </label>
         <p id="ausadm-horario" className="ausadm-ayuda" aria-live="polite">
           {h.cruza ? ta('horario_cruza', { n: h.horas }) : ta('horario_dura', { n: h.horas })}
+          {d.tramos.length > 1 ? ` · ${ta('turno_partido')}` : ''}
         </p>
         <fieldset className="ds-grupo-opciones ausadm-fieldset">
           <legend className="ausadm-etiqueta">{ta('dias_que_opera')}</legend>

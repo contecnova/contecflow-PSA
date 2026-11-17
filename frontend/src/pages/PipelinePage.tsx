@@ -18,7 +18,8 @@ import {
 import { useAppT } from '../i18n/AppLangContext'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Button, Card, EmptyState, IconButton, Input, KpiCard, Modal, Select, Spinner } from '../components/ui'
+import { Button, Card, EmptyState, IconButton, Input, KpiCard, Modal, Select, Spinner, useErroresDeCampo } from '../components/ui'
+import type { ErroresDeCampo } from '../components/ui'
 import { ClientSelect } from '../components/ui/EntitySelect'
 import {
   useCreateOpportunity, useDeleteOpportunity, usePipeline, useUpdateOpportunity,
@@ -116,26 +117,27 @@ function cuerpoDe(f: OppForm) {
 }
 
 /** Los campos de una oportunidad: en el alta y al editarla. */
-function CamposDeOportunidad({ form, setForm }: { form: OppForm; setForm: (f: (c: OppForm) => OppForm) => void }) {
+function CamposDeOportunidad({ form, setForm, campos }: { form: OppForm; setForm: (f: (c: OppForm) => OppForm) => void; campos: ErroresDeCampo }) {
   const t = useAppT()
-  const campo = (k: keyof OppForm) => (event: { target: { value: string } }) => setForm(c => ({ ...c, [k]: event.target.value }))
+  const campo = (k: keyof OppForm) => (event: { target: { value: string } }) => { campos.limpiar(k); setForm(c => ({ ...c, [k]: event.target.value })) }
   return (
     <div className="pipe-grid">
-      <Input label={t('pipeline.opportunity_name')} value={form.name} onChange={campo('name')} required placeholder={undefined} hint={undefined} />
+      <Input label={t('pipeline.opportunity_name')} value={form.name} onChange={campo('name')} required placeholder={undefined} hint={undefined} error={campos.de('name')} />
       <div>
         <label className="ds-field__label">{t('pipeline.cliente_existente')}</label>
         <ClientSelect value={form.client_id} placeholder={t('pipeline.cliente_nuevo')} className="campo-form"
-          onChange={(id, cliente) => setForm(c => ({ ...c, client_id: id, client_name: cliente ? cliente.name : c.client_name }))} />
+          onChange={(id, cliente) => { campos.limpiar('client_id'); setForm(c => ({ ...c, client_id: id, client_name: cliente ? cliente.name : c.client_name })) }} />
+        {campos.de('client_id') && <div className="u-field-error">{campos.de('client_id')}</div>}
       </div>
-      {!form.client_id && <Input label={t('pipeline.client_name')} value={form.client_name} onChange={campo('client_name')} required placeholder={undefined} hint={undefined} />}
-      <Input label={t('pipeline.value')} type="number" value={form.expected_revenue} onChange={campo('expected_revenue')} placeholder={undefined} required={undefined} hint={undefined} />
-      <Input label={t('pipeline.probability')} type="number" value={form.probability} onChange={campo('probability')} placeholder={undefined} required={undefined} hint={undefined} />
-      <Select label={t('pipeline.tipo_de_contrato')} value={form.contract_type} onChange={campo('contract_type')}
+      {!form.client_id && <Input label={t('pipeline.client_name')} value={form.client_name} onChange={campo('client_name')} required placeholder={undefined} hint={undefined} error={campos.de('client_name')} />}
+      <Input label={t('pipeline.value')} type="number" value={form.expected_revenue} onChange={campo('expected_revenue')} placeholder={undefined} required={undefined} hint={undefined} error={campos.de('expected_revenue')} />
+      <Input label={t('pipeline.probability')} type="number" value={form.probability} onChange={campo('probability')} placeholder={undefined} required={undefined} hint={undefined} error={campos.de('probability')} />
+      <Select label={t('pipeline.tipo_de_contrato')} value={form.contract_type} onChange={campo('contract_type')} error={campos.de('contract_type')}
         options={[{ value: '', label: '—' }, ...TIPOS_DE_CONTRATO.map(c => ({ value: c, label: t(`pipeline.contrato_${c}`) }))]} />
-      <Input label={t('pipeline.tarifa_hora')} type="number" value={form.hourly_rate} onChange={campo('hourly_rate')} placeholder={undefined} required={undefined} hint={undefined} />
-      <Input label={t('pipeline.inicio_previsto')} type="date" value={form.expected_start_date} onChange={campo('expected_start_date')} placeholder={undefined} required={undefined} hint={undefined} />
-      <Input label={t('pipeline.duracion_semanas')} type="number" value={form.expected_duration_weeks} onChange={campo('expected_duration_weeks')} placeholder={undefined} required={undefined} hint={undefined} />
-      <Input label={t('pipeline.expected_close')} type="date" value={form.expected_close_date} onChange={campo('expected_close_date')} placeholder={undefined} required={undefined} hint={undefined} />
+      <Input label={t('pipeline.tarifa_hora')} type="number" value={form.hourly_rate} onChange={campo('hourly_rate')} placeholder={undefined} required={undefined} hint={undefined} error={campos.de('hourly_rate')} />
+      <Input label={t('pipeline.inicio_previsto')} type="date" value={form.expected_start_date} onChange={campo('expected_start_date')} placeholder={undefined} required={undefined} hint={undefined} error={campos.de('expected_start_date')} />
+      <Input label={t('pipeline.duracion_semanas')} type="number" value={form.expected_duration_weeks} onChange={campo('expected_duration_weeks')} placeholder={undefined} required={undefined} hint={undefined} error={campos.de('expected_duration_weeks')} />
+      <Input label={t('pipeline.expected_close')} type="date" value={form.expected_close_date} onChange={campo('expected_close_date')} placeholder={undefined} required={undefined} hint={undefined} error={campos.de('expected_close_date')} />
     </div>
   )
 }
@@ -156,17 +158,19 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
   const [showProposal, setShowProposal] = useState(false)
   const [edicion, setEdicion] = useState<OppForm | null>(null)
   const updateOpportunity = useUpdateOpportunity()
+  const camposEdicion = useErroresDeCampo()
 
   async function guardarEdicion() {
     if (!edicion) return
     if (!edicion.name.trim() || !edicion.client_name.trim()) { toast.error(t('pagina_pipe.nombre_y_cliente_son_obligatorios')); return }
+    camposEdicion.limpiar()
     try {
       await updateOpportunity.mutateAsync({ id: opp.id, data: cuerpoDe(edicion) })
       toast.success(t('pagina_pipe.oportunidad_guardada'))
       setEdicion(null)
       onUpdate()
     } catch (e) {
-      toast.error(extractErr(e, t('pagina_pipe.no_se_pudo_guardar_la_oportunidad')))
+      if (!camposEdicion.recoger(e)) toast.error(extractErr(e, t('pagina_pipe.no_se_pudo_guardar_la_oportunidad')))
     }
   }
 
@@ -237,11 +241,12 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
 
           {edicion ? (
             <div className="pipe-grid-3">
-              <CamposDeOportunidad form={edicion} setForm={f => setEdicion(c => (c ? f(c) : c))} />
+              <CamposDeOportunidad form={edicion} setForm={f => setEdicion(c => (c ? f(c) : c))} campos={camposEdicion} />
               <div>
                 <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('pipeline.descripcion')}</label>
-                <textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={edicion.description} onChange={e => setEdicion(c => (c ? { ...c, description: e.target.value } : c))}
+                <textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={edicion.description} onChange={e => { camposEdicion.limpiar('description'); setEdicion(c => (c ? { ...c, description: e.target.value } : c)) }}
                   rows={3} className="ds-input pipe-textarea" />
+                {camposEdicion.de('description') && <div className="u-field-error">{camposEdicion.de('description')}</div>}
               </div>
               <div className="u-actions-8">
                 <Button variant="secondary" onClick={() => setEdicion(null)}>{t('pagina_pipe.cancelar')}</Button>
@@ -411,6 +416,7 @@ export default function PipelinePage() {
   const createOpportunity = useCreateOpportunity()
   const updateOpportunity = useUpdateOpportunity()
   const deleteOpportunity = useDeleteOpportunity()
+  const camposNueva = useErroresDeCampo()
 
   const stageLabels = useMemo<Record<string, string>>(() => ({
     lead: t(STAGE_TRANSLATION_KEYS.lead),
@@ -479,13 +485,14 @@ export default function PipelinePage() {
       return
     }
 
+    camposNueva.limpiar()
     try {
       await createOpportunity.mutateAsync({ ...cuerpoDe(form), stage: form.stage })
       toast.success(t('pagina_pipe.oportunidad_creada'))
       setForm(emptyForm())
       setShowCreate(false)
     } catch (mutationError) {
-      toast.error(extractErr(mutationError, t('pagina_pipe.no_se_pudo_crear_la_oportunidad')))
+      if (!camposNueva.recoger(mutationError)) toast.error(extractErr(mutationError, t('pagina_pipe.no_se_pudo_crear_la_oportunidad')))
     }
   }
 
@@ -672,11 +679,12 @@ export default function PipelinePage() {
       {/* Create modal */}
       <Modal open={showCreate} onClose={() => setShowCreate(false)} title={t('pipeline.new_opportunity')} size="md">
         <form onSubmit={handleCreate} className="pipe-grid-10">
-          <CamposDeOportunidad form={form} setForm={setForm} />
+          <CamposDeOportunidad form={form} setForm={setForm} campos={camposNueva} />
           <Select
             label={t('pipeline.stage')}
             value={form.stage}
-            onChange={(event: { target: { value: string } }) => setForm((current) => ({ ...current, stage: event.target.value }))}
+            onChange={(event: { target: { value: string } }) => { camposNueva.limpiar('stage'); setForm((current) => ({ ...current, stage: event.target.value })) }}
+            error={camposNueva.de('stage')}
             options={STAGES.map((stage) => ({ value: stage, label: stageLabels[stage] || stage }))}
           />
 
@@ -684,10 +692,11 @@ export default function PipelinePage() {
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('pipeline.descripcion')}</label>
             <textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
               value={form.description}
-              onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
+              onChange={(event) => { camposNueva.limpiar('description'); setForm((current) => ({ ...current, description: event.target.value })) }}
               rows={4}
               className="ds-input pipe-textarea"
             />
+            {camposNueva.de('description') && <div className="u-field-error">{camposNueva.de('description')}</div>}
           </div>
 
           <div className="u-actions-10">

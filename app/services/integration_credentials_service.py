@@ -113,6 +113,9 @@ PROVIDER_REGISTRY: dict[str, dict[str, Any]] = {
         "fields": [
             ("webhook_url",    "str", True, "Webhook URL",    "SLACK_WEBHOOK_URL"),
             ("signing_secret", "str", True, "Signing secret", "SLACK_SIGNING_SECRET"),
+            # Canales en tiempo real (17-11-2026): token del bot (xoxb-) de ESA
+            # empresa para publicar en hilos y bajar adjuntos. Sin respaldo del entorno.
+            ("bot_token",      "str", True, "Bot token (xoxb-): thread replies and files", None),
         ],
     },
     "twilio": {
@@ -134,6 +137,10 @@ PROVIDER_REGISTRY: dict[str, dict[str, Any]] = {
             ("app_secret",      "str", True,  "App secret (verifies X-Hub-Signature-256)", None),
             ("verify_token",    "str", True,  "Webhook verify token", None),
             ("api_version",     "str", False, "Graph API version (v20.0)", None),
+            # 17-11-2026: plantilla aprobada para escribir fuera de la ventana de
+            # 24 h (dos variables: numero del ticket y texto).
+            ("template_name",     "str", False, "Template outside the 24 h window (vars: ticket number, text)", None),
+            ("template_language", "str", False, "Template language code (es, en_US...)", None),
         ],
     },
     # Traduccion en tiempo real (16-11-2026). Sin respaldo del entorno ni de la

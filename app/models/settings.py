@@ -147,6 +147,8 @@ class Holiday(Base):
     date = Column(Date, nullable=False)
     type = Column(String(20), default="public")
     applies_to = Column(String(50), nullable=True)
+    # Rev. 180: festivo de una sede (sin sede ni `applies_to`: de toda la empresa).
+    office_id = Column(String(36), ForeignKey("offices.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 

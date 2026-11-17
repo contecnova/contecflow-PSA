@@ -118,16 +118,28 @@ def publicadas(db: Session, org: Optional[str], dominio: str) -> tuple[list, dic
 def en_ambito(ambito: dict, sujeto: dict) -> tuple[bool, str]:
     """Las dimensiones con valores se exigen TODAS (Y); dentro de una, basta
     una (O). `personas` suma: una persona listada entra aunque no cumpla el
-    resto. Sin nada, aplica a toda la empresa."""
+    resto. Sin nada, aplica a toda la empresa.
+
+    Rev. 180: `grupos` (grupos de aprobación de la persona) es una dimensión
+    más, y las EXCEPCIONES mandan sobre todo: una persona de `excepto_personas`
+    o de un grupo de `excepto_grupos` queda fuera aunque cumpla el resto."""
     ambito = ambito or {}
-    if sujeto.get("usuario_id") and sujeto["usuario_id"] in (ambito.get("personas") or []):
+    uid = sujeto.get("usuario_id")
+    grupos = {str(g) for g in (sujeto.get("grupos") or [])}
+    if uid and uid in (ambito.get("excepto_personas") or []):
+        return False, "excepción: persona"
+    if grupos & {str(g) for g in (ambito.get("excepto_grupos") or [])}:
+        return False, "excepción: grupo"
+    if uid and uid in (ambito.get("personas") or []):
         return True, "persona incluida"
     dims = {"departamentos": "departamento", "equipos": "equipo", "roles": "rol"}
-    exigidas = [k for k in ("departamentos", "equipos", "roles", "ubicaciones") if ambito.get(k)]
+    exigidas = [k for k in ("departamentos", "equipos", "roles", "ubicaciones", "grupos") if ambito.get(k)]
     if not exigidas:
         return (False, "solo para las personas indicadas") if ambito.get("personas") else (True, "toda la empresa")
     for k in exigidas:
-        if k == "ubicaciones":
+        if k == "grupos":
+            ok = bool(grupos & {str(g) for g in ambito[k]})
+        elif k == "ubicaciones":
             pais = (sujeto.get("pais") or "").upper()
             ciudad = (sujeto.get("ciudad") or "").strip().lower()
             ok = any((u.split("/", 1)[0].upper() == pais and

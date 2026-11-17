@@ -17,7 +17,6 @@ import {
   Truck, Moon, Stars, Square, Sun, Contrast, Monitor,
 } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
-import { apiWsUrl } from '../services/api/urls'
 import {
   CLIENT_API, LangContext, useLang, useClientAuth,
   ClientAuthProvider, LoginScreen, TextosDeInterfazDelPortal, useErrorDelPortal,
@@ -30,7 +29,7 @@ import {
   PortalInput, PortalSelect,
   PortalBadge, PortalBanner,
 } from './portal-client/PortalUI'
-import { STALE_DEFAULT_MS, STALE_SHORT_MS, UI_FEEDBACK_LONG_MS, WS_HEARTBEAT_MS } from '../constants/timings'
+import { STALE_DEFAULT_MS, STALE_SHORT_MS, UI_FEEDBACK_LONG_MS } from '../constants/timings'
 import { PORTAL_LANGUAGES } from '../i18n/portalTranslations'
 import { fijarIdiomaDeFormato } from '../utils/helpers'
 
@@ -74,8 +73,9 @@ import { PortalSupportDesk } from './portal-client/PortalSupportDesk'
 import { PortalSurveys } from './portal-client/PortalSurveys'
 import { PortalNotificaciones } from './portal-client/PortalNotificaciones'
 import { CLAVE_AVISOS_DEL_PORTAL } from './portal-client/CampanaDelPortal'
+import usePortalEnVivo from './portal-client/usePortalEnVivo'
 import PortalAIChatWidget from './portal-client/PortalAIChatWidget'
-import { Pulsable } from '../components/ui'
+import { Pulsable, useErroresDeCampo } from '../components/ui'
 import './PortalClientePage.css'
 
 // ── Inner app (con cliente autenticado) ──────────────────────────────────────
@@ -165,74 +165,15 @@ function PortalAppContenido({ changeLang }: { changeLang: ChangeLangFn }) {
     surveys:   pendingSurveys,
   }
 
-  // WebSocket portal-notifications con reconexión exponencial. `avisosEnVivo`:
-  // con el socket abierto la campana no sondea (16-11-2026).
-  const [avisosEnVivo, setAvisosEnVivo] = useState(false)
-  useEffect(() => {
-    if (!client) return
-    let socket: WebSocket | null = null
-    let pingInterval: ReturnType<typeof window.setInterval> | null = null
-    let reconnectTimer: ReturnType<typeof window.setTimeout> | null = null
-    let cancelled = false
-    let attempt = 0
-    const MAX_ATTEMPTS = 5
-
-    const connect = async () => {
-      if (cancelled || attempt >= MAX_ATTEMPTS) return
-      attempt++
-      try {
-        const ticketRes = await CLIENT_API.get('/ws/portal-ticket')
-        const ticket = ticketRes?.data?.ticket
-        if (!ticket || cancelled) return
-        const wsUrl = apiWsUrl(`/ws/portal-notifications?ticket=${encodeURIComponent(ticket)}`)
-        socket = new window.WebSocket(wsUrl)
-        socket.onopen = () => { attempt = 0; if (!cancelled) setAvisosEnVivo(true) }
-        socket.onmessage = (event) => {
-          try {
-            const msg = JSON.parse(event.data)
-            if (msg?.type === 'portal_notifications') {
-              qc.invalidateQueries({ queryKey: ['portal-dashboard'] })
-              qc.invalidateQueries({ queryKey: ['portal-messages-client'] })
-              qc.invalidateQueries({ queryKey: ['portal-conversations-client'] })
-              qc.invalidateQueries({ queryKey: ['portal-sd-tickets'] })
-              qc.invalidateQueries({ queryKey: ['portal-invoices'] })
-              qc.invalidateQueries({ queryKey: ['portal-docs-client'] })
-              qc.invalidateQueries({ queryKey: ['portal-frs-client'] })
-              qc.invalidateQueries({ queryKey: ['portal-uat'] })
-              qc.invalidateQueries({ queryKey: ['portal-surveys'] })
-              qc.invalidateQueries({ queryKey: [CLAVE_AVISOS_DEL_PORTAL] })
-            }
-          } catch { /* network garbage */ }
-        }
-        socket.onclose = (ev) => {
-          if (cancelled) return
-          setAvisosEnVivo(false)
-          if (ev.code === 1000 || ev.code === 1001) return
-          const delay = Math.min(1000 * 2 ** (attempt - 1), 30000)
-          reconnectTimer = window.setTimeout(connect, delay)
-        }
-        socket.onerror = () => { /* onclose follows */ }
-        if (pingInterval) window.clearInterval(pingInterval)
-        pingInterval = window.setInterval(() => {
-          if (socket && socket.readyState === window.WebSocket.OPEN) {
-            socket.send(JSON.stringify({ type: 'ping' }))
-          }
-        }, WS_HEARTBEAT_MS)
-      } catch {
-        if (!cancelled && attempt < MAX_ATTEMPTS) {
-          const delay = Math.min(1000 * 2 ** (attempt - 1), 30000)
-          reconnectTimer = window.setTimeout(connect, delay)
-        }
-      }
+  // WebSocket del portal, compartido (`usePortalEnVivo`, 17-11-2026: también lo
+  // usa el chat en vivo). `avisosEnVivo`: con el socket abierto la campana no sondea.
+  const avisosEnVivo = usePortalEnVivo(!!client, (msg) => {
+    if (msg?.type !== 'portal_notifications') return
+    for (const clave of ['portal-dashboard', 'portal-messages-client', 'portal-conversations-client', 'portal-sd-tickets',
+      'portal-invoices', 'portal-docs-client', 'portal-frs-client', 'portal-uat', 'portal-surveys', CLAVE_AVISOS_DEL_PORTAL]) {
+      qc.invalidateQueries({ queryKey: [clave] })
     }
-    connect()
-    return () => {
-      cancelled = true
-      if (reconnectTimer) window.clearTimeout(reconnectTimer)
-      if (pingInterval) window.clearInterval(pingInterval)
-      if (socket && socket.readyState === window.WebSocket.OPEN) socket.close()
-    }
-  }, [client, qc])
+  })
 
   return (
     <PortalShell section={section} onSection={setSection} branding={branding} badges={badges} avisosEnVivo={avisosEnVivo}>
@@ -284,6 +225,8 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
   const [pendingLang, setPendingLang] = useState(client?.language || 'es')
   const [pwdForm, setPwdForm] = useState({ current: '', new_pwd: '', confirm: '' })
   const [pwdError, setPwdError] = useState('')
+  const camposPerfil = useErroresDeCampo()
+  const camposPwd = useErroresDeCampo({ password: 'new_pwd', current_password: 'current' })
   const [savedProfile, setSavedProfile] = useState(false)
   const [savedLanguage, setSavedLanguage] = useState(false)
   const [themeMode, setThemeMode] = useState(temaGuardadoDelPortal)
@@ -319,12 +262,13 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
 
   const { mutate: saveProfile, isPending: saving } = useMutation({
     mutationFn: (d: Record<string, unknown>) => CLIENT_API.patch('/portal/auth/me', d).then(r => r.data),
+    onMutate: () => camposPerfil.limpiar(),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['portal-me'] })
       setSavedProfile(true)
       setTimeout(() => setSavedProfile(false), UI_FEEDBACK_LONG_MS)
     },
-    onError: (e: unknown) => toast.error(errorDe(e, traducir('portal_perfil.error_guardar'))),
+    onError: (e: unknown) => { if (!camposPerfil.recoger(e)) toast.error(errorDe(e, traducir('portal_perfil.error_guardar'))) },
   })
 
   const { mutate: saveLanguage, isPending: savingLanguage } = useMutation({
@@ -345,11 +289,12 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
   })
 
   const { mutate: savePwd, isPending: changingPwd } = useMutation({
+    onMutate: () => camposPwd.limpiar(),
     mutationFn: (d: { current: string; new_pwd: string; confirm: string }) => CLIENT_API.patch('/portal/auth/me', { password: d.new_pwd, current_password: d.current }).then(r => r.data),
     onSuccess: () => { setPwdForm({ current: '', new_pwd: '', confirm: '' }); toast.success(traducir('portal_perfil.contrasena_actualizada')) },
     onError: (e: unknown) => {
       // 16-11-2026: el error del servidor llega con código y se pinta en el idioma del portal.
-      setPwdError(errorDe(e, traducir('portal_perfil.error_contrasena')))
+      if (!camposPwd.recoger(e)) setPwdError(errorDe(e, traducir('portal_perfil.error_contrasena')))
     },
   })
 
@@ -404,14 +349,14 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
         <PortalCard>
           <PortalSection title={traducir('portalcliente.informacion_personal')}>
             <div className="pcl-grid">
-              <PortalField label={traducir('portal_perfil.nombre_visible')}>
-                <PortalInput value={form.full_name} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, full_name: e.target.value }))} />
+              <PortalField label={traducir('portal_perfil.nombre_visible')} error={camposPerfil.de('full_name')}>
+                <PortalInput value={form.full_name} onChange={(e: ChangeEvent<HTMLInputElement>) => { camposPerfil.limpiar('full_name'); setForm(f => ({ ...f, full_name: e.target.value })) }} />
               </PortalField>
-              <PortalField label={traducir('portal_perfil.cargo')}>
-                <PortalInput value={form.job_title} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, job_title: e.target.value }))} />
+              <PortalField label={traducir('portal_perfil.cargo')} error={camposPerfil.de('job_title')}>
+                <PortalInput value={form.job_title} onChange={(e: ChangeEvent<HTMLInputElement>) => { camposPerfil.limpiar('job_title'); setForm(f => ({ ...f, job_title: e.target.value })) }} />
               </PortalField>
-              <PortalField label={traducir('portalcliente.telefono')}>
-                <PortalInput value={form.phone} onChange={(e: ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, phone: e.target.value }))} />
+              <PortalField label={traducir('portalcliente.telefono')} error={camposPerfil.de('phone')}>
+                <PortalInput value={form.phone} onChange={(e: ChangeEvent<HTMLInputElement>) => { camposPerfil.limpiar('phone'); setForm(f => ({ ...f, phone: e.target.value })) }} />
               </PortalField>
             </div>
             <PortalBanner tone="info" icon={<KeyRound size={16} />}
@@ -490,13 +435,13 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
         <PortalCard>
           <PortalSection title={traducir('portalcliente.cambiar_contrasena')} hint={traducir('portal_perfil.minimo_8')}>
             <div className="u-stack-12">
-              <PortalField label={traducir('portal_perfil.contrasena_actual')}>
+              <PortalField label={traducir('portal_perfil.contrasena_actual')} error={camposPwd.de('current')}>
                 <PortalInput type="password" autoComplete="current-password" value={pwdForm.current}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setPwdForm(f => ({ ...f, current: e.target.value }))} placeholder={traducir('portal_perfil.contrasena_actual')} />
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => { camposPwd.limpiar('current'); setPwdForm(f => ({ ...f, current: e.target.value })) }} placeholder={traducir('portal_perfil.contrasena_actual')} />
               </PortalField>
-              <PortalField label={traducir('portalcliente.nueva_contrasena')}>
+              <PortalField label={traducir('portalcliente.nueva_contrasena')} error={camposPwd.de('new_pwd')}>
                 <PortalInput type="password" value={pwdForm.new_pwd}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setPwdForm(f => ({ ...f, new_pwd: e.target.value }))} placeholder={traducir('portalcliente.nueva_contrasena')} />
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => { camposPwd.limpiar('new_pwd'); setPwdForm(f => ({ ...f, new_pwd: e.target.value })) }} placeholder={traducir('portalcliente.nueva_contrasena')} />
               </PortalField>
               <PortalField label={traducir('portalcliente.confirmar_nueva_contrasena')}>
                 <PortalInput type="password" value={pwdForm.confirm}

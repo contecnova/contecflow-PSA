@@ -3,6 +3,9 @@
  * celda dice disponibles / requeridas y se colorea por estado (bien, justo,
  * falta gente). `MapaDeCobertura` pinta unos datos; `PanelDeCobertura` los
  * pide con su rango y filtros.
+ *
+ * Rev. 180: las personas con una ausencia por horas ese día siguen en el
+ * turno; se cuentan aparte («parciales», índice en la celda y en el detalle).
  */
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
@@ -12,6 +15,7 @@ import type { Cobertura, CeldaDeCobertura } from '../../../services/api/tipos-au
 import { EmptyState, NavegadorDeMes, RejillaPersonaDia, Spinner, columnasDeDias, Select } from '../../ui'
 import { useOpciones } from '../../politicas/comun'
 import { AvisoDeError, Muestra, isoDe, mesDe, useT } from './comun'
+import { textoDeTramos, tramosDe } from '../comun'
 
 /** 16-11-2026: pinta con la rejilla única del kit (RejillaPersonaDia). */
 export function MapaDeCobertura({ datos, resaltar }: { datos: Cobertura; resaltar?: Set<string> }) {
@@ -26,12 +30,14 @@ export function MapaDeCobertura({ datos, resaltar }: { datos: Cobertura; resalta
     c.ausentes_nombres.length ? `${ta('ausentes')}: ${c.ausentes_nombres.join(', ')}` : '',
     c.pendientes_nombres.length ? `${ta('pendientes_o_espera')}: ${c.pendientes_nombres.join(', ')}` : '',
     c.con_esta != null ? ta('con_esta', { n: c.con_esta }) : '',
+    c.parciales ? ta('parciales_n', { n: c.parciales }) : '',
   ].filter(Boolean).join('. ')
+  const hayParciales = datos.celdas.some(c => (c.parciales ?? 0) > 0)
   return (
     <RejillaPersonaDia
       titulo={ta('cobertura_caption')}
       cabeceraFilas={ta('turno')}
-      filas={datos.turnos.map(t => ({ id: t.id, nombre: t.nombre, sub: `${t.hora_inicio}–${t.hora_fin}`, marca: <Muestra color={t.color} className="ausadm-muestra--punto" /> }))}
+      filas={datos.turnos.map(t => ({ id: t.id, nombre: t.nombre, sub: textoDeTramos(tramosDe(t)), marca: <Muestra color={t.color} className="ausadm-muestra--punto" /> }))}
       columnas={columnasDeDias(datos.desde, datos.hasta, { festivos })}
       celda={(fila, col) => {
         const c = celdas.get(`${col.clave}|${fila.id}`)
@@ -39,12 +45,17 @@ export function MapaDeCobertura({ datos, resaltar }: { datos: Cobertura; resalta
         const mio = resaltar?.has(`${col.clave}|${fila.id}`)
         return {
           estado: c.estado, marcada: mio,
-          contenido: `${c.con_esta != null && mio ? c.con_esta : c.disponibles}/${c.requeridas}`,
+          contenido: (
+            <>
+              {`${c.con_esta != null && mio ? c.con_esta : c.disponibles}/${c.requeridas}`}
+              {(c.parciales ?? 0) > 0 && <sup className="ausadm-parciales" aria-hidden>{c.parciales}</sup>}
+            </>
+          ),
           detalle: texto(c, turnos.get(fila.id)?.nombre ?? fila.nombre),
         }
       }}
       leyenda={(['ok', 'justo', 'falta'] as const).map(e => ({ clave: e, etiqueta: ta(`estado_${e}`), tono: e === 'ok' ? 'success' : e === 'justo' ? 'warning' : 'danger' }))}
-      notaLeyenda={ta('leyenda_numeros')}
+      notaLeyenda={hayParciales ? `${ta('leyenda_numeros')} ${ta('leyenda_parciales')}` : ta('leyenda_numeros')}
     />
   )
 }

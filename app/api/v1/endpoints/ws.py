@@ -550,6 +550,11 @@ async def ws_notifications(
                             # mercado 16-11-2026): quien mira o escribe en un ticket.
                             await _presencia_en_ticket(db, cerrojo, usuario, str(msg["ticket_id"])[:36],
                                                        str(msg.get("mode") or "view"))
+                        else:
+                            # Bandeja de conversaciones en tiempo real (17-11-2026).
+                            from app.services.service_desk import canales_en_vivo
+                            await canales_en_vivo.mensaje_del_operador(
+                                lambda fn, *a: _en_sesion(cerrojo, fn, *a), db, usuario, msg)
                     except (json.JSONDecodeError, KeyError, TypeError) as e:
                         logging.getLogger(__name__).warning(f"WS notifications malformed message: {e}")
                     except Exception as e:
@@ -601,8 +606,9 @@ async def ws_portal_notifications(
                 "client_id": client_id,
                 "ts": datetime.now(timezone.utc).isoformat(),
             }))
+            cerrojo = asyncio.Lock()
             poll_task = asyncio.create_task(
-                _poll_and_send_client(websocket, client_id, db, asyncio.Lock()))
+                _poll_and_send_client(websocket, client_id, db, cerrojo))
 
             try:
                 while True:
@@ -611,6 +617,11 @@ async def ws_portal_notifications(
                         msg = json.loads(data)
                         if msg.get("type") == "ping":
                             await websocket.send_text(json.dumps({"type": "pong"}))
+                        else:
+                            # Chat en vivo inmediato (17-11-2026): escribiendo y leido.
+                            from app.services.service_desk import canales_en_vivo
+                            await canales_en_vivo.mensaje_del_portal(
+                                lambda fn, *a: _en_sesion(cerrojo, fn, *a), db, cliente, msg)
                     except Exception:
                         log.debug("Portal WS received non-JSON or malformed message", exc_info=True)
             except WebSocketDisconnect:

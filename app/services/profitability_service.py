@@ -131,20 +131,28 @@ def _totales_de_imputacion(
 
     internal_cost = 0.0
     for i in imps:
-        raw_cost = i.cost_amount or 0.0
-        if raw_cost:
-            user_currency = user_currency_map.get(i.user_id, org_currency) or org_currency
-            if user_currency != org_currency:
-                fx = get_fx_rate(db, user_currency, org_currency, i.date, _cache=_local_fx_cache)
-                raw_cost = raw_cost * fx
-            elif project_currency != org_currency:
-                # Respaldo: se convierte por la moneda del proyecto cuando no se
-                # conoce la del usuario.
-                fx = get_fx_rate(db, project_currency, org_currency, i.date, _cache=_local_fx_cache)
-                raw_cost = raw_cost * fx
-        internal_cost += raw_cost
+        internal_cost += coste_de_imputacion_en_moneda(
+            db, i.cost_amount, user_currency_map.get(i.user_id, org_currency), project_currency, org_currency,
+            i.date, _local_fx_cache)
 
     return total_hours, billable_hours, internal_cost
+
+
+def coste_de_imputacion_en_moneda(db: Session, coste, moneda_usuario: Optional[str], moneda_proyecto: str,
+                                  moneda_org: str, fecha, cache: dict) -> float:
+    """Coste de una imputacion en la moneda de la organizacion: por la moneda de
+    la persona y, si es la de la organizacion, por la del proyecto (respaldo
+    cuando no se conoce la de la persona). La usan la cuenta de resultados y la
+    evolucion del margen (`app/services/evolucion_del_margen.py`)."""
+    raw_cost = float(coste or 0.0)
+    if not raw_cost:
+        return 0.0
+    user_currency = moneda_usuario or moneda_org
+    if user_currency != moneda_org:
+        return raw_cost * get_fx_rate(db, user_currency, moneda_org, fecha, _cache=cache)
+    if moneda_proyecto != moneda_org:
+        return raw_cost * get_fx_rate(db, moneda_proyecto, moneda_org, fecha, _cache=cache)
+    return raw_cost
 
 
 def _hay_tarifas(db: Session, project: Project) -> bool:
@@ -184,6 +192,36 @@ def _ingreso_facturable(
             return sum(m.billing_amount or 0 for m in milestones)
         return float(billed_milestones_total or 0)
     return 0
+
+
+def partidas_de_ingreso(db: Session, project: Project, imputaciones: list, hitos: list,
+                        hay_tarifas: Optional[bool] = None) -> list[tuple]:
+    """El ingreso de `_ingreso_facturable` repartido por fecha: ``[(fecha, importe)]``.
+
+    Misma regla y mismo orden, decididos con las imputaciones y los hitos que se
+    pasan (los del periodo): con tablas de tarifas, cada hora facturable a su
+    tarifa de facturacion; si no sale nada, ``billing_rate`` por hora
+    facturable; si no, en proyectos a precio cerrado (`contract_amount`), los
+    hitos facturados en su ``billed_at``. Sumadas, dan lo mismo que
+    `_ingreso_facturable` sobre ese periodo. ``imputaciones``: objetos con
+    ``date``, ``hours``, ``is_billable`` y ``user`` (la persona, para la tarifa).
+    """
+    facturables = [i for i in imputaciones if i.is_billable and i.hours]
+    if facturables:
+        if hay_tarifas is None:
+            hay_tarifas = _hay_tarifas(db, project)
+        if hay_tarifas:
+            from app.services.rate_card_service import tarifa_de_facturacion
+            cache: dict = {}
+            partidas = [(i.date, i.hours * tarifa_de_facturacion(db, i.user, project, i.date, cache))
+                        for i in facturables if i.user]
+            if sum(v for _, v in partidas):
+                return partidas
+        if project.billing_rate:
+            return [(i.date, project.billing_rate * i.hours) for i in facturables]
+    if project.contract_amount:
+        return [(m.billed_at, float(m.billing_amount or 0)) for m in hitos if m.billed_at]
+    return []
 
 
 def _progreso_por_tareas(project: Project) -> float:

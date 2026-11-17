@@ -252,6 +252,55 @@ variables de entorno nuevas obligatorias. Los ajustes nuevos son en vivo
   - Hay una tarea nueva de beat, `purgar-cache-de-traducciones` (diaria a las 03:25).
 - **Migración 175**: tablas nuevas y columnas que admiten nulos; no mueve datos.
 
+**Canales en tiempo real (17-11-2026, migración 179).** Sin variables de
+entorno nuevas obligatorias. Ajustes en vivo nuevos (Configuración dinámica →
+Service Desk): `SD_SLACK_TICKET_CHANNEL`, `SD_SLACK_INTAKE_CHANNELS`,
+`SD_CHANNEL_MAX_ATTACHMENT_MB` (16), `SD_PORTAL_ASSISTANT_AI` (activado) y
+`SD_PORTAL_ASSISTANT_MAX_TOKENS` (700). Lo que hay que configurar fuera:
+
+- **Slack: hilos ↔ ticket (Events API).** En api.slack.com → *Your Apps* → la
+  app de la empresa:
+  - *OAuth & Permissions* → **Bot Token Scopes**: `chat:write` (tarjetas y
+    respuestas en hilos), `channels:history`, `groups:history` y
+    `mpim:history` (leer los mensajes de los canales públicos, privados y de
+    grupo donde esté el bot), `files:read` (bajar adjuntos), `files:write`
+    (subir adjuntos del ticket al hilo), `users:read` y `users:read.email`
+    (casar el autor por correo). Además de `commands`, que ya tenía. Reinstala
+    la app en el workspace y copia el **Bot User OAuth Token** (`xoxb-…`) en
+    la credencial cifrada **`slack.bot_token`** de la empresa (Ajustes →
+    Credenciales → Slack). No va en `.env`.
+  - *Event Subscriptions* → activado, Request URL
+    `https://<dominio>/api/v1/sd/channels/slack/events` (Slack la verifica con
+    un `url_verification` firmado: tiene que estar guardado antes el signing
+    secret). **Subscribe to bot events**: `message.channels`, `message.groups`
+    y `message.mpim`.
+  - Invita al bot (`/invite @app`) a los canales de avisos y de entrada y pon
+    sus ids en `SD_SLACK_TICKET_CHANNEL` / `SD_SLACK_INTAKE_CHANNELS`.
+  - Requisitos: `SLACK_TEAM_ID` de la empresa (sin él los eventos dan 403) y
+    salida https a `slack.com` y `files.slack.com`. Los eventos se procesan en
+    el worker (Celery); sin cola, en la propia petición.
+- **WhatsApp: adjuntos y plantilla.** El token ya configurado sirve para
+  bajar y subir medios (`whatsapp_business_messaging`). Para escribir pasadas
+  24 h del último mensaje del cliente, crea y aprueba en el *WhatsApp Manager*
+  una plantilla de categoría *Utility* con **dos variables de cuerpo**
+  (`{{1}}` número del ticket, `{{2}}` texto) y pon su nombre e idioma en
+  Credenciales → WhatsApp Business (`template_name`, `template_language`). El
+  servidor necesita salida https a `graph.facebook.com` y a los hosts de medios
+  de Meta (`*.fbsbx.com`, `*.whatsapp.net`, `*.fbcdn.net`). Para el antivirus
+  de los adjuntos, `CLAMAV_ENABLED=true` y clamd accesible (`CLAMAV_HOST`/
+  `CLAMAV_PORT` o `CLAMAV_SOCKET`).
+- **Chat inmediato**: con más de un proceso de API hace falta `REDIS_URL` (los
+  avisos del chat van por Redis, como los demás del WebSocket); el proxy tiene
+  que dejar pasar WebSocket a `/api/v1/ws/` (ya lo necesitaba).
+- **Asistente del portal con IA**: necesita un proveedor de IA de la empresa;
+  opcionalmente, en *Hub de IA → Por función*, la ruta «Asistente del portal»
+  (`portal_assistant`). Sin proveedor, el asistente sigue con el
+  reconocimiento por palabras y avisa al cliente.
+- **Migración 179**: columnas que admiten nulos en `sd_channel_conversations`,
+  `sd_channel_messages` y `sd_portal_assistant_actions`; rellena
+  `last_inbound_at` de las conversaciones existentes con su último mensaje
+  entrante.
+
 Las que son variables de entorno están en `.env.example`, con su comentario
 (`PROMETHEUS_MULTIPROC_DIR` comentada a propósito: basta con que exista, aunque
 vacía, para que `prometheus_client` entre en modo multiproceso).

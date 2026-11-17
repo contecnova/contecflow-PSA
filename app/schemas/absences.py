@@ -15,7 +15,10 @@ class AbsenceIn(BaseModel):
     substitute_id: Optional[str] = Field(None, description="Sustituto")
     half_day_start: bool = Field(False, description="Medio día el primer día")
     half_day_end: bool = Field(False, description="Medio día el último día")
-    hours: Optional[float] = Field(None, gt=0, description="Horas (tipos por horas)")
+    hours: Optional[float] = Field(None, gt=0, description="Horas sin franja (compatibilidad; mejor start_time/end_time)")
+    modo: Optional[str] = Field(None, description="dias | horas (rev. 180); por defecto, según la franja o la unidad del tipo")
+    start_time: Optional[str] = Field(None, description="Por horas: hora de inicio de la franja de cada día (HH:MM)")
+    end_time: Optional[str] = Field(None, description="Por horas: hora de fin (HH:MM; menor que el inicio = cruza la medianoche)")
     id: Optional[str] = Field(None, description="Solo en la vista previa de una edición")
 
     @model_validator(mode="after")
@@ -48,6 +51,17 @@ class TipoDeAusenciaIn(BaseModel):
     activo: bool = True
     orden: Optional[int] = None
     requisitos: Optional[list[dict[str, Any]]] = None
+    # Rev. 180: modos de petición, retribución, periodo, arrastre, caducidad, prorrateo, tabla y bolsa.
+    modos: list[str] = Field(default_factory=list)
+    retribuido: bool = True
+    periodo_saldo: Optional[str] = None
+    inicio_periodo_mes: Optional[int] = None
+    arrastre_max: Optional[float] = None
+    arrastre_caduca_meses: Optional[int] = None
+    caduca_meses: Optional[int] = None
+    prorratear_alta: bool = False
+    derecho_tabla_id: Optional[str] = None
+    bolsa: Optional[dict[str, Any]] = None
 
 
 class TipoDeDocumentoIn(BaseModel):
@@ -62,8 +76,10 @@ class TipoDeDocumentoIn(BaseModel):
 class TurnoIn(BaseModel):
     nombre: str
     color: Optional[str] = None
-    hora_inicio: str
-    hora_fin: str
+    hora_inicio: Optional[str] = None
+    hora_fin: Optional[str] = None
+    tramos: list[list[str]] = Field(default_factory=list, description="Turno partido: [[inicio, fin], …]")
+    pausa_minutos: int = Field(0, ge=0)
     dias_semana: list[int] = Field(default_factory=list)
     equipo: Optional[str] = None
     departamento: Optional[str] = None
@@ -118,3 +134,48 @@ class AmpliarIn(BaseModel):
 
 class AccesoEspecialIn(BaseModel):
     user_id: str
+
+
+# ── Rev. 180: jornadas, ficha laboral, ajustes de saldo, bolsa ───────────────
+
+class JornadaIn(BaseModel):
+    nombre: Optional[str] = None
+    nombres: dict[str, str] = Field(default_factory=dict)
+    color: Optional[str] = None
+    semana: dict[str, list[list[str]]] = Field(default_factory=dict, description='{"1": [["09:00","14:00"], …], …, "7": []}')
+    pausa_minutos: int = Field(0, ge=0)
+    activo: bool = True
+    orden: Optional[int] = None
+
+
+class AsignacionDeJornadaIn(BaseModel):
+    jornada_id: str
+    ambito: str = Field("empresa", description="empresa | sede | departamento | equipo | grupo | persona")
+    valor: Optional[str] = None
+    desde: Optional[date] = None
+    hasta: Optional[date] = None
+    recurrente_anual: bool = False
+    prioridad: int = 0
+    nota: Optional[str] = None
+
+
+class FichaLaboralIn(BaseModel):
+    office_id: Optional[str] = None
+    hire_date: Optional[date] = None
+    employment_type: Optional[str] = Field(None, max_length=40)
+
+
+class MovimientoDeSaldoIn(BaseModel):
+    user_id: str
+    saldo_clave: str = Field(..., description="«vacaciones» o el id del tipo con saldo propio o bolsa")
+    cantidad: float
+    unidad: Optional[str] = None
+    fecha: Optional[date] = None
+    caduca: Optional[date] = None
+    nota: str = Field(..., min_length=1, max_length=500)
+
+
+class RecalcularBolsaIn(BaseModel):
+    desde: date
+    hasta: date
+    user_ids: Optional[list[str]] = None

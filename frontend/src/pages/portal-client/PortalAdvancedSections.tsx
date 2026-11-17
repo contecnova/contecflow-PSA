@@ -32,7 +32,7 @@ import {
 } from './PortalUI'
 import { POLL_FAST_MS, POLL_FREQUENT_MS } from '../../constants/timings'
 import './PortalAdvancedSections.css'
-import { Pulsable } from '../../components/ui'
+import { Pulsable, useErroresDeCampo } from '../../components/ui'
 
 // ── Status helpers ───────────────────────────────────────────────────────────
 const STATUS_TONE: Record<string, string> = {
@@ -498,17 +498,20 @@ export function PortalFeatureRequests() {
     queryFn: () => CLIENT_API.get('/portal/feature-requests').then(r => r.data),
   })
 
+  const campos = useErroresDeCampo()
   const resetForm = () => setForm({ title: '', description: '', business_justification: '', affected_area: '', priority: 'medium', project_id: '' })
 
   const { mutate: createFR } = useMutation({
     mutationFn: (d: FeatureRequestForm) => CLIENT_API.post('/portal/feature-requests', d),
+    onMutate: () => campos.limpiar(),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-frs-client'] }); setShowNew(false); resetForm(); toast.success(traducir('intake_form.success_title')) },
-    onError: (e: unknown) => toast.error(errorDe(e, t('pas_err_generic'))),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(errorDe(e, t('pas_err_generic'))) },
   })
   const { mutate: updateFR, isPending: updatingFr } = useMutation({
     mutationFn: ({ id, data }: { id: string; data: FeatureRequestForm }) => CLIENT_API.patch(`/portal/feature-requests/${id}`, data),
+    onMutate: () => campos.limpiar(),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-frs-client'] }); setEditingFr(null); setShowNew(false); resetForm(); toast.success(traducir('portaladvanced.actualizada')) },
-    onError: (e: unknown) => toast.error(errorDe(e, t('pas_err_generic'))),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(errorDe(e, t('pas_err_generic'))) },
   })
   const { mutate: withdrawFR, isPending: withdrawingFr } = useMutation({
     mutationFn: ({ id }: { id: string }) => CLIENT_API.post(`/portal/feature-requests/${id}/withdraw`, {}),
@@ -658,29 +661,29 @@ export function PortalFeatureRequests() {
       >
         <div className="u-stack-14">
           {requiresProject && (
-            <PortalField label={traducir('gas.proyecto')} required>
+            <PortalField label={traducir('gas.proyecto')} error={campos.de('project_id')} required>
               <PortalSelect id={`${formIdPrefix}-project`} value={form.project_id}
-                onChange={e => setForm(f => ({ ...f, project_id: e.target.value }))}>
+                onChange={e => { campos.limpiar('project_id'); setForm(f => ({ ...f, project_id: e.target.value })) }}>
                 <option value="">{traducir('invoices.select')}</option>
                 {clientProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </PortalSelect>
             </PortalField>
           )}
-          <PortalField label={traducir('portaladvanced.titulo')} required>
-            <PortalInput value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder={traducir('portaladvanced.resumen_breve')} />
+          <PortalField label={traducir('portaladvanced.titulo')} error={campos.de('title')} required>
+            <PortalInput value={form.title} onChange={e => { campos.limpiar('title'); setForm(f => ({ ...f, title: e.target.value })) }} placeholder={traducir('portaladvanced.resumen_breve')} />
           </PortalField>
-          <PortalField label={traducir('portaladvanced.descripcion')} required>
-            <PortalTextarea rows={3} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder={traducir('portaladvanced.que_necesitas')} />
+          <PortalField label={traducir('portaladvanced.descripcion')} error={campos.de('description')} required>
+            <PortalTextarea rows={3} value={form.description} onChange={e => { campos.limpiar('description'); setForm(f => ({ ...f, description: e.target.value })) }} placeholder={traducir('portaladvanced.que_necesitas')} />
           </PortalField>
-          <PortalField label={traducir('portaladvanced.justificacion_de_negocio')} hint={t('pas_fr_justification_hint')}>
-            <PortalTextarea rows={2} value={form.business_justification} onChange={e => setForm(f => ({ ...f, business_justification: e.target.value }))} />
+          <PortalField label={traducir('portaladvanced.justificacion_de_negocio')} error={campos.de('business_justification')} hint={t('pas_fr_justification_hint')}>
+            <PortalTextarea rows={2} value={form.business_justification} onChange={e => { campos.limpiar('business_justification'); setForm(f => ({ ...f, business_justification: e.target.value })) }} />
           </PortalField>
           <div className="u-grid2-12">
-            <PortalField label={traducir('portaladvanced.area_afectada')}>
-              <PortalInput value={form.affected_area} onChange={e => setForm(f => ({ ...f, affected_area: e.target.value }))} placeholder={traducir('portaladvanced.ej_reporting_login')} />
+            <PortalField label={traducir('portaladvanced.area_afectada')} error={campos.de('affected_area')}>
+              <PortalInput value={form.affected_area} onChange={e => { campos.limpiar('affected_area'); setForm(f => ({ ...f, affected_area: e.target.value })) }} placeholder={traducir('portaladvanced.ej_reporting_login')} />
             </PortalField>
-            <PortalField label={traducir('common.priority')}>
-              <PortalSelect value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}>
+            <PortalField label={traducir('common.priority')} error={campos.de('priority')}>
+              <PortalSelect value={form.priority} onChange={e => { campos.limpiar('priority'); setForm(f => ({ ...f, priority: e.target.value })) }}>
                 <option value="low">{traducir('lec.sev_baja')}</option>
                 <option value="medium">{traducir('lec.sev_media')}</option>
                 <option value="high">{traducir('lec.sev_alta')}</option>

@@ -17,7 +17,7 @@
  * filtros de la URL en ESTA barra —una sola `BarraDeFiltros`— y van al servidor;
  * entonces no se pintan los selects de estado y persona propios.
  */
-import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { Suspense, lazy, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarDays, Columns3, GanttChartSquare, Save, Table2, Trash2, Users } from 'lucide-react'
 import { planificacionApi, tasksApi, usersApi, type TaskListItem, type VistaGuardada } from '../../services/api'
@@ -32,6 +32,9 @@ import { extractErr, fmtDate, fmtNumber, formateadorDeFecha } from '../../utils/
 import { SCHEDULE_TASKS_LIST_SIZE } from '../../constants/pagination'
 import { STALE_DEFAULT_MS } from '../../constants/timings'
 import './planificador.css'
+
+// Rev. 180: el modo «Horario» de la carga por persona reutiliza el horario efectivo de ausencias (carga diferida).
+const PanelDeHorario = lazy(() => import('../ausencias/HorarioEfectivo'))
 
 export const VISTAS_DE_TRABAJO = ['table', 'timeline', 'calendar', 'workload'] as const
 export type VistaDeTrabajo = typeof VISTAS_DE_TRABAJO[number]
@@ -403,14 +406,31 @@ function Calendario({ tareas }: { tareas: TaskListItem[] }) {
 
 function CargaPorPersona({ projectId }: { projectId?: string }) {
   const t = useAppT()
+  // Rev. 180: «Semanas» (carga) u «Horario» (turno o jornada de cada persona por día).
+  const [modo, setModo] = useState<'semanas' | 'horario'>('semanas')
   const { data, isLoading } = useQuery({
     queryKey: ['carga', projectId ?? ''],
     queryFn: () => planificacionApi.carga({ ...(projectId ? { project_id: projectId } : {}) }),
   })
   const semanas = useMemo(() => new Map((data?.people ?? []).map(p => [p.user_id, new Map(p.weeks.map(w => [w.week, w]))])), [data])
+  const personas = useMemo(() => (data?.people ?? []).map(p => p.user_id), [data])
   if (isLoading) return <Spinner />
   if (!data || data.people.length === 0) return <EmptyState title={t('planificador.sin_carga')} />
+  const selector = (
+    <Segmentado aria-label={t('planificador.modo_de_carga')} valor={modo} onChange={v => setModo(v as typeof modo)}
+      opciones={[{ valor: 'semanas', etiqueta: t('planificador.carga_semanas') }, { valor: 'horario', etiqueta: t('planificador.carga_horario') }]} />
+  )
+  if (modo === 'horario') {
+    return (
+      <div className="u-stack-10">
+        {selector}
+        <Suspense fallback={<Spinner />}><PanelDeHorario userIds={personas} titulo={t('planificador.carga_horario')} /></Suspense>
+      </div>
+    )
+  }
   return (
+    <div className="u-stack-10">
+    {selector}
     <RejillaPersonaDia
       titulo={t('planificador.vista_workload')}
       cabeceraFilas={t('planificador.col_persona')}
@@ -433,5 +453,6 @@ function CargaPorPersona({ projectId }: { projectId?: string }) {
       ]}
       notaLeyenda={t('planificador.carga_leyenda')}
     />
+    </div>
   )
 }

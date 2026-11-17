@@ -87,9 +87,19 @@ class UploadProfile(enum.Enum):
     PDF_ONLY = "pdf_only"          # análisis de contratos
     CSV_IMPORT = "csv_import"      # importación de datos
     ATTACHMENT = "attachment"      # adjuntos de chat: catálogo aprobado
+    # Adjuntos que llegan por los canales del service desk (WhatsApp, Slack):
+    # el catálogo aprobado sin SVG (puede llevar script) y con los formatos de
+    # voz y vídeo de los móviles (17-11-2026).
+    CHANNEL = "channel"
 
+
+_CHANNEL_MIME = (ALLOWED_MIME_TYPES - {"image/svg+xml"}) | {
+    "audio/ogg", "audio/opus", "audio/aac", "audio/amr", "audio/wav", "video/3gpp", "video/quicktime",
+}
+_CHANNEL_EXT = (ALLOWED_EXTENSIONS - {".svg"}) | {".ogg", ".opus", ".aac", ".amr", ".wav", ".3gp", ".mov"}
 
 _PROFILE_MIME: dict[UploadProfile, set[str]] = {
+    UploadProfile.CHANNEL: _CHANNEL_MIME,
     UploadProfile.DOCUMENT: ALLOWED_MIME_TYPES,
     UploadProfile.ATTACHMENT: ALLOWED_MIME_TYPES,
     UploadProfile.RECEIPT: _IMAGE_MIME | {"application/pdf"},
@@ -98,6 +108,7 @@ _PROFILE_MIME: dict[UploadProfile, set[str]] = {
 }
 
 _PROFILE_EXT: dict[UploadProfile, set[str]] = {
+    UploadProfile.CHANNEL: _CHANNEL_EXT,
     UploadProfile.DOCUMENT: ALLOWED_EXTENSIONS,
     UploadProfile.ATTACHMENT: ALLOWED_EXTENSIONS,
     UploadProfile.RECEIPT: _IMAGE_EXT | {".pdf"},
@@ -110,6 +121,7 @@ _PROFILE_EXT: dict[UploadProfile, set[str]] = {
 _PROFILE_MAX_MB: dict[UploadProfile, int] = {
     UploadProfile.DOCUMENT: 0,      # 0 → usa el global
     UploadProfile.ATTACHMENT: 0,
+    UploadProfile.CHANNEL: 0,
     UploadProfile.RECEIPT: 10,
     UploadProfile.PDF_ONLY: 10,
     UploadProfile.CSV_IMPORT: 5,

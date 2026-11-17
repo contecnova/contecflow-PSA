@@ -241,6 +241,30 @@ export type MargenMensualOlap = {
   t?: string
   clave?: string
   granularidad?: 'day' | 'week' | 'month'
+  /** 17-11-2026: ingreso, margen y horas del tramo (reglas de la rentabilidad, moneda de la empresa). */
+  revenue?: number
+  margin?: number
+  /** `null` sin ingreso en el tramo. */
+  margin_pct?: number | null
+  hours?: number
+}
+
+/** Filtros de la evolución del margen: un proyecto o los de un cliente. */
+export type FiltroDeMargen = { proyecto_id?: string; cliente_id?: string }
+
+/** GET /analytics/olap/margin-evolution/breakdown: totales del periodo por proyecto o cliente. */
+export type DesgloseDeMargen = {
+  /** Id del proyecto o del cliente (`null`: proyectos sin cliente). */
+  id: string | null
+  codigo: string | null
+  nombre: string | null
+  revenue: number
+  total_cost: number
+  margin: number
+  margin_pct: number | null
+  hours: number
+  /** Solo por cliente. */
+  proyectos?: number
 }
 
 /** get_utilization_by_user (GET /analytics/olap/utilization). */

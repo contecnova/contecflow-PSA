@@ -1441,6 +1441,67 @@ rechazar, bloqueo si lleno, carrera por la última plaza con 8 hilos, documento 
 recordatorio y escalado, parte médico: acceso y auditoría, retención, migración 167, API
 antiguo, flujo multinivel, aislamiento por empresa, ejemplos).
 
+
+## Turnos en el planificador y ausencias por horas (17-11-2026, revisión 180)
+
+### Horario efectivo: una sola fuente
+`app/services/horario/efectivo.py` calcula, para cada persona y día, `DiaEfectivo`:
+tramos teóricos, pausa, origen (`cambio` > `rotacion` > `jornada` > `empresa`),
+turno o jornada, festivo, fuera de contrato y ausencias con los tramos que quitan.
+Horas teóricas = tramos − pausa; horas disponibles = lo que queda tras festivo
+(salvo turno que trabaja festivos), contrato y ausencias (la pausa se descuenta en
+proporción). Turno partido (`turnos.tramos`) y que cruza la medianoche (cuenta el
+día en que empieza). Jornadas (`jornadas_laborales`) por día de la semana, asignadas
+(`asignaciones_de_jornada`) a empresa, sede, departamento, equipo, grupo o persona,
+con vigencia o cada año (verano); gana prioridad, luego concreción, luego la temporal.
+Festivos por sede: `holidays.office_id`; `applies_to` sigue valiendo para país/ciudad.
+`users.office_id` es la sede de la persona.
+
+Lo usan: `planificador/calendario.py` (`Calendario.horas_por_fecha` y `horas(d)`;
+horizonte `PLANNING_SCHEDULE_HORIZON_DAYS`, más allá el patrón con la jornada media),
+`nivelacion.py` (capacidad diaria = horas de ese día; reparto proporcional),
+`carga.py` (capacidad semanal = suma de horas), `resource_analytics.get_user_week_hours`
+(`scheduled_hours`, `available_hours`; `capacidad_de_semana`), reservas
+(`comprobar_capacidad` cuenta los días que trabaja), previsión (`_capacidad`),
+`ausencias/turnos.dias_que_cuentan`, cobertura (`parciales`), saldos y bolsa.
+
+### Ausencias por horas
+`absences.modo` (dias|horas), `start_time`/`end_time` (franja de cada día) y
+`scheduled_hours`. `reglas.medida` mide sobre el horario: días equivalentes,
+horas, máximo por día y horas fuera de horario. `solicitudes.medidas_finales`
+aplica `redondeo` y `saldo_negativo` de las políticas. `_solapada` deja dos
+franjas distintas el mismo día. Cupos por franja: `franja_minutos` (la franja va en
+el grupo, «grupo@HH:MM»; sin cambiar la tabla).
+
+### Saldos, permisos y bolsa
+`saldos.py`: periodo (`periodo_saldo`, `inicio_periodo_mes`), unidad (días u horas;
+conversión con la jornada media de la persona), lotes (derecho —ficha de
+vacaciones, tabla de referencia `derecho_tabla_id`, cupo, ajuste por defecto—,
+arrastre `arrastre_max`/`arrastre_caduca_meses` hasta `ABSENCE_BALANCE_CARRY_PERIODS`
+periodos atrás, movimientos con caducidad `caduca_meses`), consumo por orden de
+caducidad (`repartir`, puro), prorrateo por alta. `movimientos.py`: ajustes de RRHH
+(auditados). `bolsa.py`: exceso imputado − horario con factores, umbral y topes;
+un movimiento idempotente por persona/tipo/día; pasada diaria `HOUR_BANK_RECALC_DAYS`.
+Tipos: `modos`, `retribuido`, `saldo` = vacaciones|propio|bolsa.
+
+### Motor de políticas
+Campos nuevos del dominio `ausencias` (ver su cabecera), tipo de campo `hora`,
+campos con varios valores (grupos, tipos que solapan: «es/está en» = alguno),
+resultados propios `saldo_negativo` y `redondeo`, uso de tabla `derecho`, y en el
+ámbito `grupos`, `excepto_personas`, `excepto_grupos` (las excepciones mandan).
+
+### Pantallas
+Formulario con modo días/horas y vista previa; administración: Jornadas, Festivos
+(por sede), Personas (ficha laboral, saldos en días y horas, ajustes, recalcular
+bolsa) y Horario (rejilla persona×día); turnos partidos y pausa; tipos con modos,
+periodo, arrastre, caducidad, tabla y reglas de bolsa; calendario, cuadrante y
+cobertura con ausencias parciales; planificador con modo «Horario»; políticas con
+condiciones de hora, grupos y excepciones.
+
+Migración `180_turnos_y_ausencias_por_horas`. Tests:
+`tests/test_turnos_y_ausencias_por_horas.py`,
+`frontend/src/__tests__/FormularioDeAusenciaHoras.test.tsx`.
+
 ## Licencias y hardware — fases 1 y 3 (16-11-2026)
 
 Base sólida (fase 1) y costes y trazabilidad (fase 3) del módulo ALM. Migración
@@ -2011,6 +2072,28 @@ Petición: los informes ofrecían 1 semana, 30 días y 90 días; ahora se puede 
 **No migrado, con motivo.** Ventanas de algoritmo (correlación de alertas `window_hours`), retención (`keep_days`, `clear-old`, `data_retention_days`), navegación de calendario (imputar por semana, calendario, ausencias por mes, carga de una semana, planificador visual de recursos), listados CRUD con filtro de fecha (gastos, partes, imputaciones, ausencias), el ejercicio contable del reconocimiento de ingresos, campos de factura (`period_from/to`), detección de anomalías y previsión (series mensuales fijas, horizonte de N puntos) y la agenda futura del chat (`/calendar/events`).
 
 **Tests.** `tests/test_periodo_libre.py` (dependencia, alias, agrupación SQLite = Python, límites), `tests/test_periodo_{seguridad,service_desk,finanzas,tiempo}.py`, `tests/test_periodo_restos.py` (margen OLAP en el respaldo y en DuckDB, horizontes de previsión y demanda, BI timesheets con zona y empresa del token, cifras de la exportación BI, 403 antes que 422), `frontend/src/__tests__/SelectorDePeriodo.test.tsx`, `SelectorDeFecha.test.tsx`, `ResourceHeatmap.test.tsx` y `ResourceForecastPage.periodo.test.tsx`.
+
+## Canales en tiempo real (17-11-2026)
+
+Revisión de base de datos **179** (`alembic/versions/179_canales_tiempo_real.py`, sobre `178_externos_como_internos`, con downgrade). Uso en `docs/SERVICE_DESK.md` (misma sección); despliegue y permisos de la app de Slack en `docs/DESPLIEGUE.md` (B.1).
+
+- **Slack, hilos ↔ ticket** (`canal_slack.py`): Events API en `POST /sd/channels/slack/events` (`leer_evento`: `url_verification` firmado con cualquier signing secret conocido; `event_callback` con el de la empresa del `team_id`; `procesar_evento` va por `encolar`, en el worker). El vínculo es una `ChannelConversation` `slack` con `external_id = <canal>:<ts raíz>` (`vincular_hilo`); nace con `/contecflow ticket` (el receptor deja `channel_id` en `db.info["slack_canal"]` y `crear` publica la tarjeta con el token del bot), con el aviso del ticket nuevo en `SD_SLACK_TICKET_CHANNEL` (`publicar_aviso_de_ticket`, evento `created` de la bandeja) o con un mensaje raíz en `SD_SLACK_INTAKE_CHANNELS`. Respuesta en el hilo → comentario público (`conversaciones.mensaje_del_cliente` con `autor_usuario`/`autor_nombre`; autor por correo con `users.info`: usuario, contacto del portal o «Cliente externo»), ficheros bajados de `files.slack.com` con el token. Sin bucles: `bot_id`, subtipos distintos de `file_share`/`thread_broadcast`, el usuario del bot (`authorizations`); y cada mensaje guarda su `ticket_comment_id`. Token: credencial cifrada `slack.bot_token` (sin respaldo global). API con `cliente_httpx` y `outbound_http_timeout`.
+- **Salida por los canales** (`salida_por_canales.py`): `entregar` (texto de la bandeja), `entregar_adjunto` (documento del ticket a WhatsApp o al hilo) y `al_comentar` (respuesta pública de un agente en el ticket → cada conversación abierta de WhatsApp/Slack del ticket; la llama `ticket_event_processor._por_los_canales` al final del evento, sin lanzar). `delivery_status` en cada mensaje.
+- **WhatsApp** (`canal_whatsapp.py`): medios entrantes (`_medio`: `GET /{media_id}` y descarga solo de hosts de Meta, con tope); salientes (`enviar_adjunto`: `POST /{phone_number_id}/media` + mensaje por id). Ventana de 24 h (`ventana_abierta`, `sd_channel_conversations.last_inbound_at`); fuera, plantilla (`whatsapp.template_name`/`template_language`, variables sin saltos de línea) o 409 antes de guardar. Todo con `cliente_httpx`.
+- **Adjuntos de canal** (`adjuntos_de_canal.py`): tope `SD_CHANNEL_MAX_ATTACHMENT_MB`, `validate_upload` con el perfil nuevo `UploadProfile.CHANNEL` (`app/core/uploads.py`: sin SVG; con ogg/opus/aac/amr/3gp/mov), `scan_with_av` (infectado → `UPLOAD_BLOCKED` en auditoría) y documento del ticket (`Document` + `DocumentVersion`, dueño como en el correo entrante). `GET /sd/channels/conversations/{id}` trae `attachments` (documentos del ticket) y `POST /sd/channels/conversations/{id}/attachments` los envía (auditado `SEND channel_attachment`).
+- **Tiempo real** (`canales_en_vivo.py`): empuja `livechat` al cliente (`client:<id>`) y `sd_channel` a los operadores con la bandeja abierta (`channel_watch`, registro por empresa en Redis o memoria, 90 s), siempre después de `commit`. Entrada: `ws.py` delega `channel_typing`/`channel_read` (operador, conversación de su empresa) y `livechat_typing`/`livechat_read` (cliente, conversación suya) en `mensaje_del_operador`/`mensaje_del_portal`. «Leído»: `client_read_at`/`agent_read_at`. Frontend: `usePortalEnVivo.ts` (socket del portal compartido; `PortalClientePage` lo usa), `enviarPorAvisosEnVivo` en `useAvisosEnVivo.ts`, `PortalChatEnVivo` y `BandejaDeCanales` sin sondeo mientras hay socket.
+- **Asistente del portal con IA** (`asistente_del_portal_ia.py`): `call_ai` con el módulo `portal_assistant` (nuevo en `MODULOS_DE_IA`: ruta por función y tope de gasto), salida JSON con una herramienta de `POLITICAS_DEL_PORTAL` (nueva `portal_kb_search` → `/sd/kb/suggest`), validada en el servidor; las de escritura solo proponen (`PortalAssistantAction.engine`). Las de lectura se redactan con una segunda llamada SOLO con los datos. Idioma: el del portal (`language` en `POST /sd/portal-assistant/intent`, más `history`). Sin IA → `_interpretar` por palabras con `notice: ai_unavailable`. Auditoría `PORTAL_ASSISTANT` en cada acción, confirmación y descarte.
+- **Ajustes** (grupo Service Desk): `SD_SLACK_TICKET_CHANNEL`, `SD_SLACK_INTAKE_CHANNELS`, `SD_CHANNEL_MAX_ATTACHMENT_MB`, `SD_PORTAL_ASSISTANT_AI`, `SD_PORTAL_ASSISTANT_MAX_TOKENS`.
+- **Pruebas**: `tests/test_canales_tiempo_real_2026_11.py` (dobles de Slack, Meta, LLM y almacén), `tests/test_sd_mercado_canales_2026_11.py` (doble de `cliente_httpx` para WhatsApp), `frontend/src/pages/portal-client/__tests__/usePortalEnVivo.test.tsx`. Resultados: ver el informe de la entrega.
+
+## Margen, versiones de avisos y catálogo, errores de validación (17-11-2026)
+
+Revisión de base de datos **181** (`alembic/versions/181_versiones_avisos_y_catalogo.py`, sobre `180_turnos_y_ausencias_por_horas`, con downgrade).
+
+- **Evolución del margen** (Rentabilidad, `/profitability`): sección «Evolución del margen» (`frontend/src/pages/profitability/EvolucionDelMargen.tsx`) con `SelectorDePeriodo` (día, semana o mes; prefijo `mev_` en la URL), gráfico de ingreso, coste, margen % y proyectos activos, y desglose del periodo por proyecto o por cliente; al pulsar una fila el gráfico se filtra a ese proyecto o cliente. API (solo admin y PM, como la rentabilidad): `GET /analytics/olap/margin-evolution` (ahora con `revenue`, `margin`, `margin_pct` (null sin ingreso) y `hours`, filtros `proyecto_id`/`cliente_id`; `months` sigue valiendo) y `GET /analytics/olap/margin-evolution/breakdown?por=proyecto|cliente&limit=`. Lo calcula `app/services/evolucion_del_margen.py` sobre la base transaccional con las reglas de la rentabilidad repartidas por fecha: ingreso por `profitability_service.partidas_de_ingreso` (tablas de tarifas, luego tarifa del proyecto, luego hitos facturados en `billed_at`); coste de personal con cambio de moneda (`coste_de_imputacion_en_moneda`), gastos y subcontrata (`costes_de_proyecto.partidas_externas`) y ALM por tramo. La suma de los tramos es la rentabilidad del periodo. No usa DuckDB: su esquema estrella no tiene ingreso (`query_engine.get_margin_evolution` sigue, sin ruta que la llame). Proyecto o cliente de otra empresa: 404 con código.
+- **Versiones revisables de avisos y catálogo** (`app/services/traduccion/versiones_del_portal.py`, modelo `PortalContentTranslation`, tabla `portal_content_translations`): como las de la KB, para avisos (`announcement`: título y cuerpo) y nombre y descripción de categorías y servicios del catálogo (`catalog_category`, `catalog_service`). Nacen en revisión (`generar`, a los idiomas de `TRANSLATION_KB_LANGUAGES`), se corrigen (`editar`: vuelven a revisión y toman el original de ahora como base) y las publica o rechaza (con motivo) un revisor: administrador o miembro de la cola `SD_KB_REVIEWER_GROUP_ID` (la de la KB); generar, corregir y borrar, administrador o revisor. El portal (`GET /sd/announcements`, `GET /sd/catalog`) sirve la publicada en su idioma (`translation_reviewed: true`) y, si no la hay, la traducción automática en caché de siempre (`translated_from` + `original`: la marca «Traducido automáticamente»), en una sola llamada al proveedor para categorías y servicios. Desactualizada: `source_hash` (huella de los textos originales) distinta de la actual; la publicada se sigue sirviendo. Al guardar un cambio del original (`PATCH /sd/catalog/categories/{id}`, `PATCH /sd/catalog/services/{id}` y el nuevo `PATCH /sd/announcements/{id}`) la respuesta trae `translations_outdated` y, si hay alguna, se avisa a los revisores (campana) y se audita. API: `GET /translation/portal-content` (pantalla de revisión: cada aviso, categoría y servicio activos con sus versiones por estado y desactualizadas) y `GET|POST generate|PATCH|POST review|DELETE /translation/portal-content/{tipo}/{id}[/{idioma}]`. Auditoría `TRANSLATE`/`UPDATE`/`APPROVE`/`REJECT`/`DELETE` sobre `portal_content_translation`. Frontend: el panel de la KB pasa a ser genérico (`components/traduccion/VersionesPanel.tsx`, con un adaptador por uso; `VersionesKbPanel` es el de la KB) y `VersionesDeContenidoPanel` el de avisos y catálogo; botón «Idiomas» en cada categoría, servicio y aviso de Service Desk → Configuración; subpestaña «Traducciones del portal» (`RevisionDeContenidoDelPortal.tsx`) con lo pendiente primero. Los avisos se pueden editar.
+- **Errores de validación con código** (`app/core/validacion.py`, manejador en `app/main.py`): un 422 de `RequestValidationError` sale como `{detail: "Revisa los datos: campo (tipo)…", code: "validacion", params: {errores: [{campo, tipo, origen, min?, max?, permitidos?}]}}`, con tipos normalizados (`obligatorio`, `formato`, `numero`, `entero`, `fecha`, `booleano`, `minimo`, `mayor_que`, `maximo`, `menor_que`, `longitud_minima`, `longitud_maxima`, `elementos_minimos`, `elementos_maximos`, `valor_no_permitido`, `campo_no_permitido`, `tipo_incorrecto`, `json_invalido`, `no_valido`). Ya no se devuelve el valor enviado (`input`), que podía ser una contraseña. `validacion` está en el catálogo de códigos (`err_srv.validacion` en los 8 idiomas del portal) y cada tipo en `validacion.<tipo>` (operador es/en/zh y portal 8). Frontend: `utils/erroresDeValidacion.ts`; `extractErr` resume el error ya traducido; hook del kit `useErroresDeCampo` (`recoger(e)` en `onError`, `de(campo)` en el `error` de `Input`/`Select`/`FormField`, `limpiar`). Formularios con error por campo: ticket del service desk, proyecto, cliente (alta y edición), usuario, tarea (alta), imputación, gasto, oportunidad, contrato, factura (alta), categoría, servicio y aviso del catálogo; en el portal, nuevo ticket, solicitud de cambio, perfil y cambio de contraseña (`PortalField` admite `error`).
+- **Pruebas**: `tests/test_evolucion_del_margen.py`, `tests/test_versiones_avisos_y_catalogo.py`, `tests/test_validacion_con_codigo.py`, `frontend/src/__tests__/erroresDeValidacion.test.ts`.
 
 ## 23. PRD MVP — Chat interno back office
 

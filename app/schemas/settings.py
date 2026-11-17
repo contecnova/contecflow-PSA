@@ -87,6 +87,7 @@ class HolidayIn(BaseModel):
     date: date_type = Field(..., description="Fecha del festivo")
     type: str = Field("public", description="Tipo de festivo (public, regional, company)")
     applies_to: Optional[str] = Field(None, description="Ámbito al que aplica (organización, departamento, etc.)")
+    office_id: Optional[str] = Field(None, description="Sede a la que aplica (rev. 180); sin sede ni ámbito, a toda la empresa")
 
 
 class HolidayOut(HolidayIn):

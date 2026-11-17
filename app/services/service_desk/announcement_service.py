@@ -5,7 +5,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import Announcement
-from app.schemas.service_desk import AnnouncementIn
+from app.schemas.service_desk import AnnouncementIn, AnnouncementUpdate
 from app.services.pagination_service import ConCabeceras, paginate_query
 import logging
 from app.core.errores import ErrorDeDominio
@@ -63,4 +63,15 @@ def deactivate_announcement_record(db: Session, ann_id: str) -> Announcement:
     if not announcement:
         raise ErrorDeDominio(404)
     announcement.is_active = False
+    return announcement
+
+
+def update_announcement_record(db: Session, ann_id: str, payload: AnnouncementUpdate) -> Announcement:
+    announcement = get_announcement_by_id(db, ann_id)
+    if not announcement or not announcement.is_active:
+        raise ErrorDeDominio(404)
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        if key in ("title", "body") and (value is None or not str(value).strip()):
+            raise ErrorDeDominio(422, f"{key} es obligatorio")
+        setattr(announcement, key, value)
     return announcement

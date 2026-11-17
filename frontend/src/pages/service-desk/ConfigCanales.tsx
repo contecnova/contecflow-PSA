@@ -23,7 +23,7 @@ export default function ConfigCanales() {
   if (!esAdmin) return <EmptyState icon={<Lock size={28} />} title={t('sd_mercado.solo_admin')} />
   if (isLoading || !data) return <Spinner />
   const canales: [string, boolean, string[]][] = [
-    ['slack', data.slack, [data.endpoints.slack_commands, data.endpoints.slack_interactions]],
+    ['slack', data.slack, [data.endpoints.slack_commands, data.endpoints.slack_interactions, data.endpoints.slack_events].filter(Boolean)],
     ['teams', data.teams, [data.endpoints.teams_messages]],
     ['whatsapp', data.whatsapp, [data.endpoints.whatsapp_webhook]],
     ['livechat', data.livechat, []],

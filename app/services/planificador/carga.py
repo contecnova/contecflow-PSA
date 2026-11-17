@@ -4,7 +4,8 @@ La vista «Carga por persona» de Tareas y la pantalla de disponibilidad la
 leen de aquí, con el mismo reparto que la nivelación (`nivelacion._horas_por_dia`):
 las horas que quedan de cada tarea pendiente se reparten por igual entre sus
 días laborables en el calendario de su persona (festivos y ausencias), y la
-capacidad de cada semana es la jornada de la persona por sus días laborables.
+capacidad de cada semana es la suma de las horas de su horario efectivo
+(rev. 180: turnos, jornada, festivos de su sede, ausencias también por horas).
 """
 from __future__ import annotations
 
@@ -80,7 +81,7 @@ def carga_por_semana(db: Session, user, project_id: Optional[str] = None,
         filas = []
         for i in range(semanas):
             lunes = inicio + timedelta(weeks=i)
-            capacidad = c.laborables_en(lunes, lunes + timedelta(days=6)) * c.horas_por_dia
+            capacidad = c.horas_en(lunes, lunes + timedelta(days=6))
             h = horas[uid][lunes]
             pct = round(h / capacidad * 100, 1) if capacidad else None
             filas.append({"week": lunes.isoformat(), "capacity": round(capacidad, 1), "hours": round(h, 1),

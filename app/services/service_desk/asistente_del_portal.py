@@ -19,6 +19,13 @@ politica comun de herramientas de IA
 Lo que se propone queda en `sd_portal_assistant_actions` y caduca a los
 `SD_PORTAL_ASSISTANT_ACTION_TTL_MINUTES`. El servidor devuelve codigos (intencion,
 estado) y datos; los textos los pone el portal en su idioma.
+
+17-11-2026: primero entiende la IA (`asistente_del_portal_ia`, con la busqueda
+en la base de conocimiento y una respuesta redactada en el idioma del cliente);
+este reconocimiento por palabras queda como respaldo cuando la IA no esta
+disponible (`notice: ai_unavailable`) o la empresa la apaga
+(`SD_PORTAL_ASSISTANT_AI`). Cada accion se audita (`PORTAL_ASSISTANT`) con su
+motor (`engine`: `ai` | `rules`), tambien la confirmacion y el descarte.
 """
 from __future__ import annotations
 
@@ -56,7 +63,22 @@ def _norm(texto: str) -> str:
 
 def _ajuste(db: Session, clave: str, org_id, tipo: str = "str"):
     from app.services import settings_service as s
-    return {"str": s.get_runtime_str, "int": s.get_runtime_int, "float": s.get_runtime_float}[tipo](db, clave, org_id)
+    return {"str": s.get_runtime_str, "int": s.get_runtime_int, "float": s.get_runtime_float,
+            "bool": s.get_runtime_bool}[tipo](db, clave, org_id)
+
+
+def _auditar(db: Session, cliente, accion: str, datos: dict) -> None:
+    from app.services.audit import audit_log
+    audit_log(db, None, "PORTAL_ASSISTANT", "portal_assistant", cliente.id, accion,
+              metadata={"client_user_id": cliente.id, "organization_id": cliente.organization_id, **datos})
+
+
+def _servicio_de_contrasenas(db: Session, org_id) -> Optional[ServiceItem]:
+    servicio_id = _ajuste(db, "SD_PASSWORD_RESET_SERVICE_ID", org_id)
+    if not servicio_id:
+        return None
+    return db.query(ServiceItem).filter(ServiceItem.id == servicio_id, ServiceItem.organization_id == org_id,
+                                        ServiceItem.is_active.is_(True)).first()
 
 
 def _exigir(db: Session, cliente, herramienta: str) -> None:
@@ -88,10 +110,10 @@ def _estado(db: Session, cliente, numero: Optional[str]) -> dict:
                         for t in tickets], "asked_number": numero}
 
 
-def _proponer(db: Session, cliente, accion: str, params: dict) -> dict:
+def _proponer(db: Session, cliente, accion: str, params: dict, engine: str = "rules") -> dict:
     minutos = int(_ajuste(db, "SD_PORTAL_ASSISTANT_ACTION_TTL_MINUTES", cliente.organization_id, "int") or 0) or 15
     fila = PortalAssistantAction(organization_id=cliente.organization_id, client_user_id=cliente.id,
-                                 action=accion, params_json=json.dumps(params))
+                                 action=accion, params_json=json.dumps(params), engine=engine)
     db.add(fila)
     db.commit()
     return {"id": fila.id, "action": accion, "params": params,
@@ -114,32 +136,62 @@ def _en_idioma_de_la_empresa(db: Session, cliente, texto: str) -> Optional[str]:
     return r.texto if r.estado == TRADUCIDO else None
 
 
-def _al_idioma_del_cliente(db: Session, cliente, textos: list[str]) -> list[str]:
+def _al_idioma_del_cliente(db: Session, cliente, textos: list[str], idioma: Optional[str] = None) -> list[str]:
     """Titulos de tickets y nombres de servicios en el idioma del cliente (o tal cual)."""
     from app.services.traduccion.idiomas import normalizar
     from app.services.traduccion.servicio import TRADUCIDO, traducir
-    destino = normalizar(getattr(cliente, "language", None))
+    destino = normalizar(idioma) or normalizar(getattr(cliente, "language", None))
     if not destino or not textos:
         return textos
     resultados = traducir(db, cliente.organization_id, textos, destino, canal="portal_assistant")
     return [r.texto if r.estado == TRADUCIDO else t for t, r in zip(textos, resultados)]
 
 
-def interpretar(db: Session, cliente, mensaje: str) -> dict:
+def idioma_de_la_respuesta(cliente, pedido: Optional[str]) -> str:
+    """El idioma del portal en que se contesta: el que pide el portal, el del
+    contacto o el primero del portal."""
+    from app.services.traduccion.idiomas import IDIOMAS_DEL_PORTAL, normalizar
+    for candidato in (pedido, getattr(cliente, "language", None)):
+        codigo = normalizar(candidato)
+        if codigo in IDIOMAS_DEL_PORTAL:
+            return codigo
+    return IDIOMAS_DEL_PORTAL[0]
+
+
+def interpretar(db: Session, cliente, mensaje: str, idioma: Optional[str] = None,
+                historial: Optional[list] = None) -> dict:
     """Que quiere el cliente: contesta (lectura) o propone (escritura).
 
-    Con la traduccion activa, el mensaje se entiende tambien en el idioma de la
+    Primero la IA (`asistente_del_portal_ia.entender`); sin ella, el
+    reconocimiento por palabras con el aviso `ai_unavailable`. Con la
+    traduccion activa, el mensaje se entiende tambien en el idioma de la
     empresa y los titulos y servicios que se devuelven van en el del cliente.
     """
-    respuesta = _interpretar(db, cliente, mensaje)
+    if not (mensaje or "").strip():
+        raise error_con_codigo(422, "mensaje_vacio")
+    idioma = idioma_de_la_respuesta(cliente, idioma)
+    respuesta, aviso = None, None
+    if _ajuste(db, "SD_PORTAL_ASSISTANT_AI", cliente.organization_id, "bool"):
+        from app.services.service_desk import asistente_del_portal_ia
+        respuesta = asistente_del_portal_ia.entender(db, cliente, mensaje, idioma, historial)
+        if respuesta is None:
+            aviso = "ai_unavailable"
+    if respuesta is None:
+        respuesta = _interpretar(db, cliente, mensaje)
+        respuesta["engine"] = "rules"
+        _auditar(db, cliente, respuesta["intent"], {"engine": "rules", "proposed_action": (
+            respuesta.get("action") or {}).get("id")})
+        if aviso:
+            respuesta["notice"] = aviso
+    respuesta["language"] = idioma
     tickets = (respuesta.get("result") or {}).get("tickets") or []
     if tickets:
-        for t, titulo in zip(tickets, _al_idioma_del_cliente(db, cliente, [t["title"] for t in tickets])):
+        for t, titulo in zip(tickets, _al_idioma_del_cliente(db, cliente, [t["title"] for t in tickets], idioma)):
             t["title"] = titulo
     params = (respuesta.get("action") or {}).get("params") or {}
     if params.get("service_name"):
         respuesta["action"]["params"] = {**params, "service_name": _al_idioma_del_cliente(
-            db, cliente, [params["service_name"]])[0]}
+            db, cliente, [params["service_name"]], idioma)[0]}
     db.commit()
     return respuesta
 
@@ -159,9 +211,7 @@ def _interpretar(db: Session, cliente, mensaje: str) -> dict:
     org = cliente.organization_id
 
     if any(k in n for k in _CLAVES["password_reset"]):
-        servicio_id = _ajuste(db, "SD_PASSWORD_RESET_SERVICE_ID", org)
-        item = db.query(ServiceItem).filter(ServiceItem.id == servicio_id, ServiceItem.organization_id == org,
-                                            ServiceItem.is_active.is_(True)).first() if servicio_id else None
+        item = _servicio_de_contrasenas(db, org)
         if item is None:
             return {"intent": "password_reset_unavailable"}
         _exigir(db, cliente, "portal_password_reset")
@@ -225,6 +275,8 @@ def confirmar(db: Session, cliente, accion_id: str) -> dict:
     fila.status = "executed"
     fila.decided_at = datetime.now(timezone.utc)
     fila.result_json = json.dumps({"ticket_id": ticket.id, "ticket_number": ticket.number})
+    _auditar(db, cliente, "confirm", {"action_id": fila.id, "action": fila.action, "engine": fila.engine,
+                                      "ticket_id": ticket.id, "ticket_number": ticket.number})
     db.commit()
     return {"id": fila.id, "status": fila.status, "ticket_id": ticket.id, "ticket_number": ticket.number,
             "approval_status": ticket.approval_status}
@@ -234,5 +286,6 @@ def cancelar(db: Session, cliente, accion_id: str) -> dict:
     fila = _accion_del_cliente(db, cliente, accion_id)
     fila.status = "cancelled"
     fila.decided_at = datetime.now(timezone.utc)
+    _auditar(db, cliente, "cancel", {"action_id": fila.id, "action": fila.action, "engine": fila.engine})
     db.commit()
     return {"id": fila.id, "status": fila.status}

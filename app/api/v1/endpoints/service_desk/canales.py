@@ -1,6 +1,8 @@
 """Canales conversacionales del service desk (mejoras de mercado 16-11-2026).
 
-- Slack: botones de la tarjeta del ticket (firma de Slack).
+- Slack: botones de la tarjeta del ticket (firma de Slack) y Events API
+  (17-11-2026): los mensajes de un hilo atado a un ticket entran como
+  comentarios; un canal de entrada abre tickets.
 - WhatsApp Business (Meta Cloud API): alta del webhook y mensajes (firma
   `X-Hub-Signature-256` con el secreto de la empresa del numero).
 - Chat en vivo del portal: el cliente habla con el asistente y pide una
@@ -41,6 +43,11 @@ class RespuestaIn(MensajeIn):
     client_language: Optional[str] = Field(None, max_length=16)
 
 
+class AdjuntoIn(BaseModel):
+    document_id: str = Field(..., min_length=1, max_length=36)
+    caption: Optional[str] = Field(None, max_length=1024)
+
+
 class ChatIn(BaseModel):
     body: Optional[str] = Field(None, max_length=conversaciones.MAX_MENSAJE)
     language: Optional[str] = Field(None, max_length=8)
@@ -58,6 +65,23 @@ async def slack_interactions(request: Request, db: Session = Depends(get_db)):
     if mensaje:
         await run_db(canal_slack.responder_por_url, db, payload.get("response_url"), mensaje)
     # Slack solo necesita un 200 rapido; la tarjeta se actualiza por response_url.
+    return {}
+
+
+@router.post("/slack/events", include_in_schema=False, summary="Events API de Slack (mensajes de hilos y canales)")
+async def slack_events(request: Request, db: Session = Depends(get_db)):
+    """`url_verification` contesta el `challenge`; `event_callback` se verifica y se
+    procesa fuera de la peticion (Slack reintenta si no hay 200 en 3 s)."""
+    from app.core.segundo_plano import encolar
+    cuerpo = await request.body()
+    payload, org = await run_db(canal_slack.leer_evento, db, cuerpo,
+                                request.headers.get("X-Slack-Request-Timestamp", ""),
+                                request.headers.get("X-Slack-Signature", ""))
+    if payload.get("type") == "url_verification":
+        return PlainTextResponse(str(payload.get("challenge") or "")[:200])
+    if payload.get("type") == "event_callback":
+        db.info["organization_id"], db.info["is_superadmin"] = org, False
+        await run_db(encolar, canal_slack.procesar_evento, payload, _organizacion=org, _sesion=db)
     return {}
 
 
@@ -122,18 +146,24 @@ def livechat_agent(conv_id: str, db: Session = Depends(get_db), client=Depends(g
 
 @router.get("/conversations", summary="Conversaciones de los canales de la empresa")
 def list_conversations(status: Optional[str] = Query(None, pattern="^(bot|waiting_agent|agent|closed)$"),
+                       channel: Optional[str] = Query(None, pattern="^(whatsapp|livechat|slack|teams)$"),
                        page: int = Query(1, ge=1), page_size: int = Query(25, ge=1, le=MAX_TAMANO_DE_PAGINA),
                        db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
-    r = conversaciones.listar(db, current_user.organization_id, status, page, page_size)
+    r = conversaciones.listar(db, current_user.organization_id, status, page, page_size, channel)
     return APIListResponse.ok(items=r["items"], total=r["total"], page=page, page_size=page_size)
 
 
 @router.get("/conversations/{conv_id}", summary="Una conversación con sus mensajes")
 def get_conversation(conv_id: str, after: Optional[str] = Query(None, max_length=36), db: Session = Depends(get_db),
                      current_user: User = Depends(require_internal_user)):
+    from app.models.service_desk import Ticket
+    from app.services.service_desk.adjuntos_de_canal import listar as adjuntos_del_ticket
     conv = conversaciones._de_la_empresa(db, conv_id, current_user.organization_id)
+    ticket = db.get(Ticket, conv.ticket_id) if conv.ticket_id else None
     return APIResponse.ok(data={"conversation": conversaciones.serializar(db, conv),
-                                "messages": conversaciones.mensajes(db, conv, after)})
+                                "messages": conversaciones.mensajes(db, conv, after),
+                                # Lo que se puede enviar por el canal (17-11-2026).
+                                "attachments": adjuntos_del_ticket(db, ticket)})
 
 
 @router.post("/conversations/{conv_id}/take", summary="Tomar la conversación (traspaso a agente)")
@@ -147,6 +177,13 @@ def reply_conversation(conv_id: str, payload: RespuestaIn, db: Session = Depends
     m = conversaciones.responder(db, conv_id, current_user, payload.body, client_text=payload.client_text,
                                  client_language=payload.client_language)
     return APIResponse.ok(data=conversaciones.serializar_mensaje(m))
+
+
+@router.post("/conversations/{conv_id}/attachments", summary="Enviar un adjunto del ticket por el canal")
+def send_attachment(conv_id: str, payload: AdjuntoIn, db: Session = Depends(get_db),
+                    current_user: User = Depends(require_internal_user)):
+    m = conversaciones.enviar_adjunto(db, conv_id, current_user, payload.document_id, payload.caption)
+    return APIResponse.ok(data=conversaciones.serializar_mensaje(m, db))
 
 
 @router.post("/conversations/{conv_id}/close", summary="Cerrar la conversación")
@@ -163,12 +200,14 @@ def channels_status(db: Session = Depends(get_db), current_user: User = Depends(
         canal_whatsapp._secreto(db, "app_secret", org)) and bool(canal_whatsapp._secreto(db, "access_token", org))
     return APIResponse.ok(data={
         "slack": bool(secreto_de_firma_de_slack(db, org)),
+        "slack_threads": bool(canal_slack.token_del_bot(db, org)),
         "teams": bool(app_settings.TEAMS_BOT_APP_ID),
         "whatsapp": whatsapp,
         "livechat": True,
         "endpoints": {
             "slack_commands": "/api/v1/integrations-hub/slack/commands",
             "slack_interactions": "/api/v1/sd/channels/slack/interactions",
+            "slack_events": "/api/v1/sd/channels/slack/events",
             "whatsapp_webhook": "/api/v1/sd/channels/whatsapp/webhook",
             "teams_messages": "/api/v1/integrations-hub/teams/commands",
         },

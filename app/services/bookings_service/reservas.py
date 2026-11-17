@@ -90,8 +90,8 @@ def get_bookings_heatmap(weeks: int, org_id, db, semanas=None) -> dict:
             # igual que la comprobación al reservar (antes el mapa no los veía).
             from app.services.resource_analytics import get_user_week_hours
             hw = get_user_week_hours(db, user.id, week_start)
-            capacity = max(0.0, (user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS)
-                           - hw["absence_hours"] - hw["holiday_hours"])
+            from app.services.resource_analytics import capacidad_de_semana
+            capacity = capacidad_de_semana(hw, user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS)
             hard_hours = 0
             soft_hours = 0
             for b in bookings:
@@ -134,11 +134,14 @@ def get_bookings_heatmap(weeks: int, org_id, db, semanas=None) -> dict:
     }
 
 
-def _horas_en_semana(inicio, fin, horas_dia, lunes) -> float:
+def _horas_en_semana(inicio, fin, horas_dia, lunes, trabaja=None) -> float:
+    """Horas de una reserva en una semana. `trabaja` (rev. 180): los días en
+    que la persona trabaja según su horario efectivo; sin él, de lunes a viernes."""
     from datetime import timedelta
     domingo = lunes + timedelta(days=6)
     a, b = max(inicio, lunes), min(fin, domingo)
-    return sum(1 for i in range(max(0, (b - a).days + 1)) if (a + timedelta(days=i)).weekday() < 5) * horas_dia
+    dias = [a + timedelta(days=i) for i in range(max(0, (b - a).days + 1))]
+    return sum(1 for d in dias if (d in trabaja if trabaja is not None else d.weekday() < 5)) * horas_dia
 
 
 def comprobar_capacidad(db, user_id, inicio, fin, horas_dia, tipo, excluir=None) -> None:
@@ -155,8 +158,14 @@ def comprobar_capacidad(db, user_id, inicio, fin, horas_dia, tipo, excluir=None)
     # Externos (migracion 178): ni firme ni tentativa fuera de su ventana de
     # contrato ni por encima de sus horas contratadas restantes.
     from app.services.externos.disponibilidad import comprobar_reserva
+    # Rev. 180: los días que cuentan son los de su horario efectivo (turnos, jornada, festivos de su sede).
+    from app.services.horario import efectivo as hor
+    d0 = min(inicio, excluir.start_date) if excluir is not None else inicio
+    d1 = max(fin, excluir.end_date) if excluir is not None else fin
+    trabaja = {d for d, x in hor.horario(db, user_id, d0 - timedelta(days=d0.weekday()),
+                                          d1 + timedelta(days=6), estados_ausencia=None).items() if x.laborable}
     total = sum(1 for i in range(max(0, (fin - inicio).days + 1))
-                if (inicio + timedelta(days=i)).weekday() < 5) * (horas_dia or 0)
+                if (inicio + timedelta(days=i)) in trabaja) * (horas_dia or 0)
     comprobar_reserva(db, user_id, inicio, fin, total)
     if str(getattr(tipo, "value", tipo)) == "soft":
         return
@@ -167,9 +176,10 @@ def comprobar_capacidad(db, user_id, inicio, fin, horas_dia, tipo, excluir=None)
         hw = get_user_week_hours(db, user_id, lunes)
         ya = hw["committed_hours"]
         if excluir is not None and str(getattr(excluir.booking_type, "value", excluir.booking_type)) != "soft":
-            ya -= _horas_en_semana(excluir.start_date, excluir.end_date, excluir.hours_per_day or 0, lunes)
-        capacidad = max(0.0, base - hw["absence_hours"] - hw["holiday_hours"])
-        nuevas = _horas_en_semana(inicio, fin, horas_dia, lunes)
+            ya -= _horas_en_semana(excluir.start_date, excluir.end_date, excluir.hours_per_day or 0, lunes, trabaja)
+        from app.services.resource_analytics import capacidad_de_semana
+        capacidad = capacidad_de_semana(hw, base)
+        nuevas = _horas_en_semana(inicio, fin, horas_dia, lunes, trabaja)
         if nuevas and ya + nuevas > capacidad + 1e-6:
             raise ErrorDeDominio(400, (
                 f"Semana del {lunes}: ya tiene {ya:g} h comprometidas y esta reserva suma {nuevas:g} h; "

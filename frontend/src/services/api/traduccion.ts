@@ -123,6 +123,49 @@ export interface VersionesKb {
 
 export interface GeneracionKb { generated: VersionKb[]; failed: { language: string; reason: string }[] }
 
+/** Avisos y catálogo del portal con versiones revisables (17-11-2026). */
+export type TipoDeContenidoDelPortal = 'announcement' | 'catalog_category' | 'catalog_service'
+
+export interface VersionDeContenido {
+  id: string
+  content_type: TipoDeContenidoDelPortal
+  content_id: string
+  language: string
+  fields: Record<string, string>
+  status: EstadoDeVersionKb
+  provider: string | null
+  /** El original cambió después de generar o corregir esta versión. */
+  outdated: boolean
+  review_comment: string | null
+  reviewed_at: string | null
+  updated_at: string | null
+}
+
+export interface VersionesDeContenido {
+  content_type: TipoDeContenidoDelPortal
+  content_id: string
+  label: string
+  fields: string[]
+  required_field: string
+  original: Record<string, string>
+  source_language: string | null
+  languages: string[]
+  enabled: boolean
+  can_review: boolean
+  items: VersionDeContenido[]
+}
+
+export interface FilaDeRevisionDeContenido {
+  content_type: TipoDeContenidoDelPortal
+  content_id: string
+  label: string
+  counts: Record<EstadoDeVersionKb, number>
+  outdated: number
+  languages: string[]
+}
+
+export interface ResumenDeContenidoDelPortal { can_review: boolean; enabled: boolean; items: FilaDeRevisionDeContenido[] }
+
 export const traduccionApi = {
   config: () => D<ConfigDeTraduccion>(api.get('/translation/config')),
   mensajes: (items: { type: TipoDeMensaje; id: string }[], target_language?: string) =>
@@ -149,4 +192,15 @@ export const traduccionApi = {
   revisarKb: (articleId: string, language: string, d: { publish: boolean; comment?: string }) =>
     D<VersionKb>(api.post(`/translation/kb/${articleId}/${language}/review`, d)),
   borrarKb: (articleId: string, language: string) => D<{ ok: boolean }>(api.delete(`/translation/kb/${articleId}/${language}`)),
+
+  resumenDeContenido: () => D<ResumenDeContenidoDelPortal>(api.get('/translation/portal-content')),
+  versionesDeContenido: (tipo: TipoDeContenidoDelPortal, id: string) => D<VersionesDeContenido>(api.get(`/translation/portal-content/${tipo}/${id}`)),
+  generarContenido: (tipo: TipoDeContenidoDelPortal, id: string, languages?: string[]) =>
+    D<{ generated: VersionDeContenido[]; failed: { language: string; reason: string }[] }>(api.post(`/translation/portal-content/${tipo}/${id}/generate`, { languages })),
+  editarContenido: (tipo: TipoDeContenidoDelPortal, id: string, language: string, fields: Record<string, string>) =>
+    D<VersionDeContenido>(api.patch(`/translation/portal-content/${tipo}/${id}/${language}`, { fields })),
+  revisarContenido: (tipo: TipoDeContenidoDelPortal, id: string, language: string, d: { publish: boolean; comment?: string }) =>
+    D<VersionDeContenido>(api.post(`/translation/portal-content/${tipo}/${id}/${language}/review`, d)),
+  borrarContenido: (tipo: TipoDeContenidoDelPortal, id: string, language: string) =>
+    D<{ ok: boolean }>(api.delete(`/translation/portal-content/${tipo}/${id}/${language}`)),
 }

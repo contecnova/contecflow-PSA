@@ -184,3 +184,15 @@
   gap: 12px;
   align-items: end;
 }
+
+/* ── Evolución del margen (17-11-2026) ───────────────────────────────────── */
+.prof-evo__filtro {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: var(--text-sm);
+  color: var(--text-2);
+}
+.prof-evo__codigo { color: var(--text-3); font-size: var(--text-xs); }
+.prof-evo__negativo { color: var(--danger); }

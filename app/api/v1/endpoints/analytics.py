@@ -1141,30 +1141,62 @@ def get_olap_portfolio_health(
     return APIListResponse.ok(items=get_portfolio_health(org_id))
 
 
-@router.get("/olap/margin-evolution", summary="Evolución del margen (OLAP) por mes, semana o día")
+def _periodo_de_margen(p: Periodo, months: Optional[int], db: Session, org_id) -> Periodo:
+    """Sin periodo, los últimos ``months`` (12) meses naturales por mes, como antes."""
+    from app.core.periodo import AUTO, MES, SIN_HORA as _SIN_HORA, resolver_periodo, limites_de_periodo
+    from app.services.olap.query_engine import periodo_de_meses
+    if p.origen != "defecto":
+        return p
+    base = periodo_de_meses(months or 12, p.zona)
+    if p.pedida != AUTO and p.pedida != MES:
+        # Granularidad pedida explícitamente sobre la ventana por meses.
+        base = resolver_periodo(desde=base.desde.isoformat(), hasta=base.hasta.isoformat(),
+                                granularidad=p.pedida, admitidas=_SIN_HORA, zona=p.zona,
+                                limites=limites_de_periodo(db, org_id))
+    return base
+
+
+@router.get("/olap/margin-evolution", summary="Evolución del margen: ingreso, coste y margen por mes, semana o día")
 def get_olap_margin_evolution(
     months: Optional[int] = Query(None, ge=1, le=36, description="Compatibilidad: últimos N meses naturales, por mes (si no llegan `desde` ni `days`)."),
+    proyecto_id: Optional[str] = Query(None, max_length=36, description="Solo este proyecto."),
+    cliente_id: Optional[str] = Query(None, max_length=36, description="Solo los proyectos de este cliente."),
     p: Periodo = Depends(periodo(dias_por_defecto=365, granularidades=SIN_HORA)),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin_or_pm),
 ):
-    """Periodo libre (16-11-2026): ``desde``/``hasta``/``granularidad`` (día,
-    semana o mes: la tabla de hechos es diaria, sin hora). Sin periodo, los
-    últimos ``months`` (12) meses naturales por mes, como antes. Cada punto
-    lleva ``t``, ``clave``, ``total_cost``, ``active_projects`` y ``month``
-    (``YYYY-MM`` del tramo, compatibilidad)."""
-    from app.core.periodo import AUTO, MES, SIN_HORA as _SIN_HORA, resolver_periodo, limites_de_periodo
-    from app.services.olap.query_engine import get_margin_evolution, periodo_de_meses
+    """Periodo libre: ``desde``/``hasta``/``granularidad`` (día, semana o mes).
+    Sin periodo, los últimos ``months`` (12) meses naturales por mes. Cada punto:
+    ``t``, ``clave``, ``month``, ``granularidad``, ``revenue``, ``total_cost``,
+    ``margin``, ``margin_pct`` (null sin ingreso), ``hours`` y
+    ``active_projects``. 17-11-2026: con ingreso y margen, calculados con las
+    reglas de la rentabilidad sobre la base transaccional
+    (``app/services/evolucion_del_margen.py``); dato financiero: admin y PM."""
+    from app.services import evolucion_del_margen as _em
     org_id = getattr(current_user, "organization_id", None)
-    if p.origen == "defecto":
-        base = periodo_de_meses(months or 12, p.zona)
-        if p.pedida != AUTO and p.pedida != MES:
-            # Granularidad pedida explícitamente sobre la ventana por meses.
-            base = resolver_periodo(desde=base.desde.isoformat(), hasta=base.hasta.isoformat(),
-                                    granularidad=p.pedida, admitidas=_SIN_HORA, zona=p.zona,
-                                    limites=limites_de_periodo(db, org_id))
-        p = base
-    return APIListResponse.ok(items=get_margin_evolution(org_id, p=p, db=db))
+    p = _periodo_de_margen(p, months, db, org_id)
+    return APIListResponse.ok(items=_em.serie(db, org_id, p, proyecto_id=proyecto_id, cliente_id=cliente_id))
+
+
+@router.get("/olap/margin-evolution/breakdown", summary="Evolución del margen: totales del periodo por proyecto o cliente")
+def get_olap_margin_breakdown(
+    por: str = Query("proyecto", pattern="^(proyecto|cliente)$"),
+    limit: int = Query(50, ge=1, le=500),
+    months: Optional[int] = Query(None, ge=1, le=36),
+    proyecto_id: Optional[str] = Query(None, max_length=36),
+    cliente_id: Optional[str] = Query(None, max_length=36),
+    p: Periodo = Depends(periodo(dias_por_defecto=365, granularidades=SIN_HORA)),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin_or_pm),
+):
+    """Mismo periodo y filtros que la serie. Filas: ``id``, ``codigo``,
+    ``nombre``, ``revenue``, ``total_cost``, ``margin``, ``margin_pct``,
+    ``hours`` (y ``proyectos`` por cliente), de más a menos margen."""
+    from app.services import evolucion_del_margen as _em
+    org_id = getattr(current_user, "organization_id", None)
+    p = _periodo_de_margen(p, months, db, org_id)
+    return APIListResponse.ok(items=_em.desglose(db, org_id, p, por, limite=limit,
+                                                 proyecto_id=proyecto_id, cliente_id=cliente_id))
 
 
 @router.get("/olap/utilization", summary="Utilización por usuario (OLAP)")

@@ -22,6 +22,10 @@ class ProyectosSettingsMixin:
     # horas por día salen de DEFAULT_WORKING_HOURS_PER_DAY y los festivos de la
     # tabla `holidays` (los que no llevan `applies_to`).
     PLANNING_WORKDAYS: str = Field(default="1,2,3,4,5", env="PLANNING_WORKDAYS")
+    # Rev. 180: días hacia delante con el horario efectivo de cada persona (turnos,
+    # jornadas, festivos de su sede, ausencias) en su calendario; más allá, el
+    # patrón de la empresa con su jornada media.
+    PLANNING_SCHEDULE_HORIZON_DAYS: int = Field(default=400, env="PLANNING_SCHEDULE_HORIZON_DAYS")
 
     # ── Camino crítico ────────────────────────────────────────────────────────
     # Una tarea es crítica con holgura total <= este valor (días laborables).

@@ -31,7 +31,9 @@ from app.models.politicas import (EvaluacionDePolitica, FilaDeTablaDeReferencia,
 from app.services.politicas import catalogo, motor, resultados as res
 from app.services.politicas.condiciones import validar_arbol
 
-AMBITO_CLAVES = ("departamentos", "equipos", "roles", "ubicaciones", "personas")
+AMBITO_CLAVES = ("departamentos", "equipos", "roles", "ubicaciones", "personas",
+                 # Rev. 180: grupos y excepciones (personas o grupos que quedan fuera).
+                 "grupos", "excepto_personas", "excepto_grupos")
 MAX_REGLAS = 200
 MAX_FILAS = 5000
 

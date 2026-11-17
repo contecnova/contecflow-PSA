@@ -10,7 +10,7 @@ import { projectsApi, usersApi, portalApi, templatesApi, taskDependenciesApi, ta
 import type { PlantillaDeProyecto } from '../services/api/tipos-proyectos'
 import type { MemberAddPayload, ProjectCreatePayload, ProjectStatus } from '../services/api'
 import { settingsApi } from '../services/settingsApi'
-import { Badge, LoadBar, Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH, MarcaExterno, etiquetaDePersona, Pulsable, Select } from '../components/ui'
+import { Badge, LoadBar, Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH, MarcaExterno, etiquetaDePersona, Pulsable, Select, useErroresDeCampo } from '../components/ui'
 import ProjectRiskBadge from '../components/ui/ProjectRiskBadge'
 import { SkeletonProjects } from '../components/ui/Skeletons'
 import PageHeader from '../components/layout/PageHeader'
@@ -312,6 +312,8 @@ function ProjectFormModal({ open, onClose, project = null }: { open: boolean; on
     retainer_amount: '', retainer_day: '',
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const campos = useErroresDeCampo()
+  const err = (k: string) => errors[k] ?? campos.de(k)
 
   // Actualizar el form cuando lleguen los datos completos
   useEffect(() => {
@@ -343,6 +345,7 @@ function ProjectFormModal({ open, onClose, project = null }: { open: boolean; on
 
 
   const { mutate, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: (data: ProjectForm) => {
       if (isEdit) {
         // En edición: convertir strings vacíos a null para poder borrar valores,
@@ -378,10 +381,10 @@ function ProjectFormModal({ open, onClose, project = null }: { open: boolean; on
       }
       onClose()
     },
-    onError: e => toast.error(extractErr(e, t('proyectos_ui.error_guardar'))),
+    onError: e => { if (!campos.recoger(e)) toast.error(extractErr(e, t('proyectos_ui.error_guardar'))) },
   })
 
-  const set = (k: keyof ProjectForm) => (e: CambioDeCampo) => setForm(f => ({ ...f, [k]: e.target.value }))
+  const set = (k: keyof ProjectForm) => (e: CambioDeCampo) => { campos.limpiar(k); setForm(f => ({ ...f, [k]: e.target.value })) }
   const validateForm = () => {
     const parsed = projectFormSchema.safeParse(form)
     if (parsed.success) {
@@ -398,7 +401,7 @@ function ProjectFormModal({ open, onClose, project = null }: { open: boolean; on
         <div className="u-col-full">
           <label className="prj-ls-2" htmlFor={`${idCampo}-nombre`}>{t('proyectos_ui.nombre_req')}</label>
           <input className="prj-fs-2" id={`${idCampo}-nombre`} value={form.name} onChange={set('name')} placeholder={traducir('projects.nombre_del_proyecto')} aria-label={traducir('projects.nombre_del_proyecto')} />
-          {errors.name && <div className="u-field-error">{errors.name}</div>}
+          {err('name') && <div className="u-field-error">{err('name')}</div>}
         </div>
         <div>
           <label className="prj-ls-2" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{t('proyectos_ui.tipo_req')}</label>
@@ -406,19 +409,21 @@ function ProjectFormModal({ open, onClose, project = null }: { open: boolean; on
             <option value="">{t('proyectos_ui.seleccionar')}</option>
             {PROJECT_TYPES.map(o => <option key={o.value} value={o.value}>{etiquetaCodigo(traducir, 'tipo_proyecto', o.value, TYPE_LABELS[o.value])}</option>)}
           </Select>
-          {errors.project_type && <div className="u-field-error">{errors.project_type}</div>}
+          {err('project_type') && <div className="u-field-error">{err('project_type')}</div>}
         </div>
         <div>
           <label className="prj-ls-2" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{t('proyectos_ui.col_estado')}</label>
           <Select suelto placeholder={false} className="prj-fs-2" id={`${idCampo}-2`} value={form.status} onChange={set('status')}>
             {PROJECT_STATUSES.map(o => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
           </Select>
+          {err('status') && <div className="u-field-error">{err('status')}</div>}
         </div>
         <div>
           <label className="prj-ls-2" id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`}>{t('proyectos_ui.col_riesgo')}</label>
           <Select suelto placeholder={false} className="prj-fs-2" id={`${idCampo}-3`} value={form.risk_level} onChange={set('risk_level')}>
             {RISK_LEVELS.map(o => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
           </Select>
+          {err('risk_level') && <div className="u-field-error">{err('risk_level')}</div>}
         </div>
         <div>
           <label className="prj-ls-2" id={`${idCampo}-etcliente`} htmlFor={`${idCampo}-cliente`}>{t('proyectos_ui.cliente')}</label>
@@ -426,10 +431,11 @@ function ProjectFormModal({ open, onClose, project = null }: { open: boolean; on
             id={`${idCampo}-cliente`}
             aria-labelledby={`${idCampo}-etcliente`}
             value={form.client_id}
-            onChange={(id, client) => setForm(f => ({ ...f, client_id: id, client_name: client ? client.name : '' }))}
+            onChange={(id, client) => { campos.limpiar('client_id'); setForm(f => ({ ...f, client_id: id, client_name: client ? client.name : '' })) }}
             placeholder={traducir('projects.selecciona_un_cliente')}
             className="projects-page-e1"
           />
+          {err('client_id') && <div className="u-field-error">{err('client_id')}</div>}
         </div>
         <div>
           <label className="prj-ls-2" id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`}>{t('proyectos_ui.departamento')}</label>
@@ -437,6 +443,7 @@ function ProjectFormModal({ open, onClose, project = null }: { open: boolean; on
             <option value="">{traducir('projects.no_department')}</option>
             {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
           </Select>
+          {err('department') && <div className="u-field-error">{err('department')}</div>}
         </div>
         <div>
           <label className="prj-ls-2" id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`}>{traducir('projects.label_billing')}</label>
@@ -444,37 +451,41 @@ function ProjectFormModal({ open, onClose, project = null }: { open: boolean; on
             <option value="">{traducir('projects.no_billing')}</option>
             {(BILLING_TYPES as { value: string; label: string }[]).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </Select>
+          {err('billing_type') && <div className="u-field-error">{err('billing_type')}</div>}
         </div>
         <div>
           <label className="prj-ls-2" htmlFor={`${idCampo}-presupuesto`}>{t('proyectos_ui.presupuesto_moneda', { moneda: fmtMoneda.simbolo })}</label>
           <input className="prj-fs-2" id={`${idCampo}-presupuesto`} type="number" value={form.budget_amount} onChange={set('budget_amount')} placeholder={t('proyectos_ui.presupuesto_total')} aria-label={t('proyectos_ui.presupuesto_total')} />
-          {errors.budget_amount && <div className="u-field-error">{errors.budget_amount}</div>}
+          {err('budget_amount') && <div className="u-field-error">{err('budget_amount')}</div>}
         </div>
         {form.billing_type === 'recurring_retainer' && (
           <>
             <div>
               <label className="prj-ls-2" htmlFor={`${idCampo}-retainer`}>{t('proyectos_ui.retainer_moneda', { moneda: fmtMoneda.simbolo })}</label>
               <input className="prj-fs-2" id={`${idCampo}-retainer`} type="number" value={form.retainer_amount} onChange={set('retainer_amount')} placeholder={t('proyectos_ui.importe_mensual')} aria-label={t('proyectos_ui.importe_mensual')} />
+          {err('retainer_amount') && <div className="u-field-error">{err('retainer_amount')}</div>}
             </div>
             <div>
               <label className="prj-ls-2">{traducir('projects.label_retainer_day')}</label>
               <input className="prj-fs-2" type="number" min="1" max="28" value={form.retainer_day} onChange={set('retainer_day')} placeholder={traducir('projects.dia_de_corte')} aria-label={traducir('projects.dia_de_corte')} />
-              {errors.retainer_day && <div className="u-field-error">{errors.retainer_day}</div>}
+              {err('retainer_day') && <div className="u-field-error">{err('retainer_day')}</div>}
             </div>
           </>
         )}
         <div>
           <label className="prj-ls-2" id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`}>{t('proyectos_ui.fecha_inicio')}</label>
           <DateInput id={`${idCampo}-6`} value={form.start_date} onChange={set('start_date')} className="prj-fs-2" />
+          {err('start_date') && <div className="u-field-error">{err('start_date')}</div>}
         </div>
         <div>
           <label className="prj-ls-2" id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`}>{t('proyectos_ui.fecha_fin_planificada')}</label>
           <DateInput id={`${idCampo}-7`} value={form.end_date_planned} onChange={set('end_date_planned')} className="prj-fs-2" />
-          {errors.end_date_planned && <div className="u-field-error">{errors.end_date_planned}</div>}
+          {err('end_date_planned') && <div className="u-field-error">{err('end_date_planned')}</div>}
         </div>
         <div className="u-col-full">
           <label className="prj-ls-2">{traducir('projects.label_description')}</label>
           <textarea className="prj-fs-2 prj-input" value={form.description} onChange={set('description')} rows={3} placeholder={traducir('projects.descripcion_del_proyecto')} aria-label={traducir('projects.descripcion_del_proyecto')} />
+          {err('description') && <div className="u-field-error">{err('description')}</div>}
         </div>
         {/* Revisión 2026-11: antes de crear, lo que aprendimos en proyectos parecidos. */}
         {!isEdit && (form.client_id || form.project_type) && (

@@ -289,6 +289,17 @@ class AnnouncementIn(BaseModel):
     ends_at: Optional[datetime] = Field(None, description="Fin de la vigencia del anuncio")
 
 
+class AnnouncementUpdate(BaseModel):
+    """Cambio parcial de un aviso (17-11-2026)."""
+    title: Optional[str] = Field(None, min_length=1, max_length=255, description="Título del anuncio")
+    body: Optional[str] = Field(None, min_length=1, description="Contenido del anuncio")
+    type: Optional[str] = Field(None, max_length=20, description="Tipo del anuncio (info, warning, outage, maintenance)")
+    show_to_clients: Optional[bool] = Field(None, description="Indica si es visible para clientes")
+    ci_id: Optional[str] = Field(None, description="ID del CI afectado por el anuncio")
+    starts_at: Optional[datetime] = Field(None, description="Inicio de la vigencia del anuncio")
+    ends_at: Optional[datetime] = Field(None, description="Fin de la vigencia del anuncio")
+
+
 # ── Escalation Rules ──────────────────────────────────────────────────────────
 
 class EscalationRuleIn(BaseModel):

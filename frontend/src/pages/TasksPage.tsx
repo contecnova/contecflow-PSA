@@ -19,7 +19,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { tasksApi, projectsApi, customFieldsApi, semanticApi, projectWorkflowsApi, issueTypesApi, sprintsApi, cmdbApi, usersApi } from '../services/api'
 import type { CampoPersonalizado, ConfigDelTablero, EstimacionDeEsfuerzo, FlujoDelProyecto, SugerenciaDeAsignacion, TipoDeIncidencia, ValorDeCampoPersonalizado } from '../services/api/tipos-rendimiento'
 import type { ApiError, ProjectListItem, TaskCreatePayload, TaskUpdatePayload, TaskBulkUpdatePayload, TaskListParams, PersonaVisible, MovementLogEntry } from '../services/api'
-import { Badge, Button, Modal, EmptyState, Avatar, useSort, SortableTH, Tabs, Drawer, Select, Checkbox, Chip, BarraDeFiltros, IconButton, Pulsable } from '../components/ui'
+import { Badge, Button, Modal, EmptyState, Avatar, useSort, SortableTH, Tabs, Drawer, Select, Checkbox, Chip, BarraDeFiltros, IconButton, Pulsable, useErroresDeCampo } from '../components/ui'
 import { SkeletonTable } from '../components/ui/Skeletons'
 import VistasDeTrabajo, { VISTAS_DE_TRABAJO, type FiltrosDeVistas, type VistaDeTrabajo } from '../components/planificador/VistasDeTrabajo'
 import VirtualList from '../components/ui/VirtualList'
@@ -1519,6 +1519,8 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
     title: '', project_id: '', status: 'todo', priority: 'medium',
     estimated_hours: '', start_date: '', due_date: '', description: '', assignee_id: '',
   })
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const [semSuggestion, setSemSuggestion] = useState<SemSuggestion | null>(null)
   const [semEffort, setSemEffort] = useState<SemEffort | null>(null)
   const [suggesting, setSuggesting] = useState(false)
@@ -1535,6 +1537,7 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
   const statusOptions = useWorkflowStatusOptions(form.project_id, t)
 
   const { mutate, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: async ({ taskData, cfValues, cfFields }: { taskData: TaskBody; cfValues: CustomValues; cfFields: CustomField[] }) => {
       const res = await tareas.create(taskData)
       const task = res.data
@@ -1569,9 +1572,9 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
       setCustomValues({})
       setSemSuggestion(null); setSemEffort(null); setPendingSuggestion(null)
     },
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
   })
-  const set = (k: keyof NewTaskForm) => (e: { target: { value: string } }) => setForm(f => ({ ...f, [k]: e.target.value }))
+  const set = (k: keyof NewTaskForm) => (e: { target: { value: string } }) => { campos.limpiar(k); setForm(f => ({ ...f, [k]: e.target.value })) }
 
   const analyzeWithAI = async () => {
     if (!form.title) return
@@ -1605,6 +1608,7 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
         <div className="u-col-full">
           <label id={`${idCampo}-1-et`} htmlFor={`${idCampo}-1`} className="tsk-label tsk-label--lg">{t('tasks.title_required')}</label>
           <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-1-et`} value={form.title} onChange={set('title')} className="tsk-input tsk-input--lg" placeholder={t('tasks.task_title')} />
+          {msg('title')}
         </div>
         <div className="u-col-full">
           <label id={`${idCampo}-2-et`} htmlFor={`${idCampo}-2`} className="tsk-label tsk-label--lg">{t('tasks.project_required')}</label>
@@ -1612,6 +1616,7 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
             <option value="">{t('tasks.select_project_option')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </Select>
+          {msg('project_id')}
         </div>
         <div>
           <label id={`${idCampo}-3-et`} htmlFor={`${idCampo}-3`} className="tsk-label tsk-label--lg">{t('common.status')}</label>
@@ -1620,6 +1625,7 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
               <option key={o.value} value={o.value}>{o.icon} {o.label}</option>
             ))}
           </Select>
+          {msg('status')}
         </div>
         <div>
           <label id={`${idCampo}-4-et`} htmlFor={`${idCampo}-4`} className="tsk-label tsk-label--lg">{t('common.priority')}</label>
@@ -1629,6 +1635,7 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
             <option value="high">{t('tasks.priority_high')}</option>
             <option value="critical">{t('tasks.priority_critical')}</option>
           </Select>
+          {msg('priority')}
         </div>
         {/* Asignación + estimación con IA */}
         <div className="u-col-full">
@@ -1642,6 +1649,7 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
             <option value="">{t('tasks.no_assignee')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </Select>
+          {msg('assignee_id')}
         </div>
         {/* Banner de sugerencia IA */}
         {(semSuggestion || semEffort) && !semSuggestion?.error && (
@@ -1683,18 +1691,22 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
         <div>
           <label id={`${idCampo}-horas-et`} htmlFor={`${idCampo}-horas`} className="tsk-label tsk-label--lg">{t('tasks.estimated_hours')}</label>
           <input id={`${idCampo}-horas`} aria-labelledby={`${idCampo}-horas-et`} type="number" min="0" step="0.5" value={form.estimated_hours} onChange={set('estimated_hours')} className="tsk-input tsk-input--lg" placeholder={t('tasks.estimated_hours')} />
+          {msg('estimated_hours')}
         </div>
         <div>
           <label id={`${idCampo}-5-et`} htmlFor={`${idCampo}-5`} className="tsk-label tsk-label--lg">{t('tasks.date_start')}</label>
           <DateInput id={`${idCampo}-5`} aria-labelledby={`${idCampo}-5-et`} value={form.start_date} onChange={set('start_date')} className="tsk-input tsk-input--lg" />
+          {msg('start_date')}
         </div>
         <div>
           <label id={`${idCampo}-6-et`} htmlFor={`${idCampo}-6`} className="tsk-label tsk-label--lg">{t('tasks.due_date')}</label>
           <DateInput id={`${idCampo}-6`} aria-labelledby={`${idCampo}-6-et`} value={form.due_date} onChange={set('due_date')} className="tsk-input tsk-input--lg" />
+          {msg('due_date')}
         </div>
         <div className="u-col-full">
           <label id={`${idCampo}-descripcion-et`} htmlFor={`${idCampo}-descripcion`} className="tsk-label tsk-label--lg">{t('common.description')} <span className="tsk-label-hint">{t('tasks.description_hint')}</span></label>
           <AIInlineEditor inputId={`${idCampo}-descripcion`} value={form.description} onChange={val => set('description')({ target: { value: val } })} rows={3} placeholder={t('common.description')} style={ESTILO_EDITOR_ALTA} />
+          {msg('description')}
         </div>
         {/* Campos personalizados del proyecto */}
         {customFields.length > 0 && (

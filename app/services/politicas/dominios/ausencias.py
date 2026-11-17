@@ -20,6 +20,29 @@ Reglas típicas que se escriben en la pantalla, sin código:
   · cobertura mínima: «Cobertura que queda < 0» → bloquear o avisar;
   · sustituto obligatorio: «Sustituto está vacío» → bloquear;
   · saldo: «Saldo que queda < 0» → bloquear.
+
+Rev. 180 (turnos y ausencias por horas) — más campos y resultados, para que
+cualquier regla de un convenio se escriba sin código:
+
+  · unidad y modo (días / horas), horas de la petición, máximo de horas en un
+    día, hora de inicio y de fin (tipo «hora»), si es día completo, horas de la
+    franja fuera de su horario;
+  · mínimos y máximos por petición, día, mes y año: horas/días/peticiones del
+    mismo tipo en el mes y el año contando esta;
+  · antelación en días y preaviso en horas;
+  · solapes con compañeros de equipo, turno, rol, sede y departamento;
+  · antigüedad (meses desde el alta), tipo de contrato, sede, grupos;
+  · saldo: el disponible, el que queda en su unidad y en horas; retribuido;
+  · dependencias entre tipos: tipos que solapan, que van pegados (día
+    laborable anterior o siguiente) y los usados en el año;
+  · resultados propios: `saldo_negativo` (permite quedar en negativo hasta N)
+    y `redondeo` (redondea las horas a múltiplos de 15/30/60 minutos); el
+    `cupo` puede contar por franja horaria (`franja_minutos`).
+
+Ejemplos: «Modo es horas Y Horas < 1» → bloquear («mínimo una hora»); «Horas
+en el mes > 16» → +1 nivel; «Tipos que solapan está en [baja]» → bloquear;
+«Antigüedad < 12 Y Tipo es asuntos_propios» → bloquear; «Días seguidos > 10»
+→ exigir justificante; «Preaviso (horas) < 48» → avisar.
 """
 from __future__ import annotations
 
@@ -59,6 +82,43 @@ CAMPOS = [
     Campo("datos_especiales", "Datos de categoría especial (salud)", "booleano"),
     Campo("motivo", "Motivo", "texto"),
     Campo("documentos", "Documentos adjuntos", "numero", operadores=_NUMERO_ENTERO),
+    # ── Rev. 180: horas, acumulados, solapes, persona, saldo, dependencias ──
+    Campo("modo", "Se pide por", "enum", opciones=(Opcion("dias", "Días"), Opcion("horas", "Horas"))),
+    Campo("horas", "Horas de la petición (de su horario)", "numero", operadores=_NUMERO_ENTERO,
+          ayuda="Las horas de su turno o jornada que cubre; un día entero cuenta las de ese día"),
+    Campo("horas_max_dia", "Máximo de horas en un mismo día", "numero", operadores=_NUMERO_ENTERO),
+    Campo("hora_inicio", "Hora de inicio (por horas)", "hora"),
+    Campo("hora_fin", "Hora de fin (por horas)", "hora"),
+    Campo("dia_completo", "Todos los días completos", "booleano"),
+    Campo("horas_fuera_de_horario", "Horas de la franja fuera de su horario", "numero", operadores=_NUMERO_ENTERO),
+    Campo("horas_en_mes", "Horas del mismo tipo en el mes (con esta)", "numero", operadores=_NUMERO_ENTERO),
+    Campo("dias_en_mes", "Días del mismo tipo en el mes (con esta)", "numero", operadores=_NUMERO_ENTERO),
+    Campo("horas_en_anio", "Horas del mismo tipo en el año (con esta)", "numero", operadores=_NUMERO_ENTERO),
+    Campo("dias_en_anio", "Días del mismo tipo en el año (con esta)", "numero", operadores=_NUMERO_ENTERO),
+    Campo("peticiones_en_mes", "Peticiones del mismo tipo en el mes (con esta)", "numero", operadores=_NUMERO_ENTERO),
+    Campo("peticiones_en_anio", "Peticiones del mismo tipo en el año (con esta)", "numero", operadores=_NUMERO_ENTERO),
+    Campo("antelacion_horas", "Preaviso (horas)", "numero", operadores=_NUMERO_ENTERO,
+          ayuda="Horas entre la petición y el comienzo de la ausencia en su horario"),
+    Campo("ausentes_mismo_turno", "Ausentes de su mismo turno (máx. en un día)", "numero", operadores=_NUMERO_ENTERO),
+    Campo("ausentes_mismo_rol", "Ausentes de su mismo rol (máx. en un día)", "numero", operadores=_NUMERO_ENTERO),
+    Campo("ausentes_misma_sede", "Ausentes de su misma sede (máx. en un día)", "numero", operadores=_NUMERO_ENTERO),
+    Campo("ausentes_mismo_departamento", "Ausentes de su departamento (máx. en un día)", "numero",
+          operadores=_NUMERO_ENTERO),
+    Campo("sede", "Sede de la persona", "enum"),
+    Campo("grupos", "Grupos de la persona", "entidad", entidad="grupo",
+          operadores=("eq", "ne", "in", "not_in", "empty", "not_empty")),
+    Campo("tipo_de_contrato", "Tipo de contrato", "enum"),
+    Campo("antiguedad_meses", "Antigüedad (meses)", "numero", operadores=_NUMERO_ENTERO,
+          ayuda="Desde la fecha de alta hasta el primer día; vacío si no hay fecha de alta"),
+    Campo("saldo_disponible", "Saldo antes de la petición", "numero", operadores=_NUMERO_ENTERO),
+    Campo("saldo_restante_horas", "Saldo que queda, en horas", "numero", operadores=_NUMERO_ENTERO),
+    Campo("retribuido", "Permiso retribuido", "booleano"),
+    Campo("tipos_solapados", "Tipos de sus otras ausencias que solapan", "enum",
+          operadores=("in", "not_in", "empty", "not_empty"), ayuda="Para dependencias: no pedir X si hay Y"),
+    Campo("tipos_contiguos", "Tipos de sus ausencias pegadas (día laborable antes o después)", "enum",
+          operadores=("in", "not_in", "empty", "not_empty")),
+    Campo("tipos_en_el_anio", "Tipos que ya ha usado en el año", "enum",
+          operadores=("in", "not_in", "empty", "not_empty")),
 ]
 
 CUPO = ResultadoPropio(
@@ -73,6 +133,8 @@ CUPO = ResultadoPropio(
             Opcion("grupo", "Grupo personalizado"))),
         Parametro("grupo_id", "Grupo", "entidad", entidad="grupo", visible_si=("agrupar_por", ("grupo",))),
         Parametro("por_turno", "Contar cada turno por separado", "booleano", defecto=True, obligatorio=False),
+        Parametro("franja_minutos", "Contar por franja horaria de (minutos)", "numero", defecto=0, minimo=0,
+                  obligatorio=False, ayuda="0 = el día entero; 60 = por horas: un permiso por horas solo ocupa sus franjas"),
         Parametro("momento", "La plaza se asigna", "enum", defecto="solicitud", opciones=(
             Opcion("solicitud", "Al pedirla (por orden de llegada)"), Opcion("aprobacion", "Al aprobarla"))),
         Parametro("si_lleno", "Si está lleno", "resultados", defecto=[{"tipo": "waitlist", "mensaje": ""}],
@@ -80,6 +142,24 @@ CUPO = ResultadoPropio(
         Parametro("avisar_al_promover", "Al dar la plaza a quien espera, avisar a", "destinatarios",
                   defecto=[{"tipo": "solicitante"}], obligatorio=False),
         Parametro("canales", "Por", "canales", defecto=["app"], obligatorio=False),
+    ),
+)
+
+
+SALDO_NEGATIVO = ResultadoPropio(
+    clave="saldo_negativo", etiqueta="Permitir saldo negativo",
+    ayuda="La petición puede dejar el saldo en negativo hasta este límite (en la unidad del saldo)",
+    parametros=(Parametro("hasta", "Hasta (en negativo)", "numero", defecto=0, minimo=0),),
+)
+
+REDONDEO = ResultadoPropio(
+    clave="redondeo", etiqueta="Redondear las horas",
+    ayuda="Las horas que descuenta la petición se redondean a múltiplos de estos minutos",
+    parametros=(
+        Parametro("minutos", "Múltiplos de (minutos)", "enum", defecto="30", opciones=(
+            Opcion("15", "15"), Opcion("30", "30"), Opcion("60", "60"), Opcion("240", "240"))),
+        Parametro("modo", "Redondeo", "enum", defecto="arriba", opciones=(
+            Opcion("arriba", "Hacia arriba"), Opcion("abajo", "Hacia abajo"), Opcion("cercano", "Al más cercano"))),
     ),
 )
 
@@ -130,6 +210,12 @@ def resolver_propio(db, ctx: dict, resultado: dict) -> tuple:
     from app.services.ausencias import reglas
     if resultado.get("tipo") == "cupo":
         return reglas.resolver_cupo(db, ctx, resultado)
+    if resultado.get("tipo") == "saldo_negativo":
+        return [], reglas.resolver_saldo_negativo(ctx, resultado)
+    if resultado.get("tipo") == "redondeo":
+        h = float(ctx.get("horas") or 0)
+        return [], {"horas": h, "redondeadas": reglas.redondear(h, int(resultado.get("minutos") or 0),
+                                                               resultado.get("modo") or "arriba")}
     return [], {}
 
 
@@ -140,10 +226,15 @@ def tipos_de_documento(db) -> list:
 
 def opciones_dinamicas(db) -> dict:
     from app.models.advanced_config import Office
+    from app.models.user import User
     from app.services.ausencias import catalogo, turnos
-    return {"tipo": [Opcion(t.clave, t.nombre) for t in catalogo.tipos(db, incluir_inactivos=True)],
+    tipos = [Opcion(t.clave, t.nombre) for t in catalogo.tipos(db, incluir_inactivos=True)]
+    sedes = [Opcion(o.id, o.name) for o in db.query(Office).order_by(Office.name).all()]
+    contratos = sorted({c for (c,) in db.query(User.employment_type).filter(User.employment_type.isnot(None)).distinct()
+                        if c})
+    return {"tipo": tipos, "tipos_solapados": tipos, "tipos_contiguos": tipos, "tipos_en_el_anio": tipos,
             "turno": [Opcion(t.id, t.nombre) for t in turnos.turnos(db, incluir_inactivos=True)],
-            "ubicacion": [Opcion(o.id, o.name) for o in db.query(Office).order_by(Office.name).all()]}
+            "ubicacion": sedes, "sede": sedes, "tipo_de_contrato": [Opcion(c, c) for c in contratos]}
 
 
 def al_publicar(db, politica: dict) -> None:
@@ -160,6 +251,7 @@ registrar(Dominio(
     clave="ausencias", etiqueta="Ausencias", campos=CAMPOS, contexto=contexto, cargar=cargar,
     historicos=historicos, propietario=lambda a: a.user_id, resumen=resumen,
     tipo_de_aprobacion="leave", cumple_requisito=cumple_requisito, ejemplos=ejemplos,
-    resultados_propios=(CUPO,), resolver_propio=resolver_propio, admite_lista_de_espera=True,
+    resultados_propios=(CUPO, SALDO_NEGATIVO, REDONDEO), resolver_propio=resolver_propio, admite_lista_de_espera=True,
+    usos_de_tabla=(Opcion("derecho", "Derecho de un saldo de ausencias (por país, ciudad y tipo o contrato)"),),
     tipos_de_documento=tipos_de_documento, opciones_dinamicas=opciones_dinamicas, al_publicar=al_publicar,
 ))

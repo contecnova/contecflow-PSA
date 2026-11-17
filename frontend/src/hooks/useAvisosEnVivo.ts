@@ -153,6 +153,16 @@ export default function useAvisosEnVivo(activo: boolean, alRecibir?: Oyente): bo
   return useSyncExternalStore(suscribirEstado, () => conectado, () => false)
 }
 
+/**
+ * Manda un mensaje por la conexión compartida (17-11-2026: la bandeja de
+ * conversaciones avisa de que está abierta, de que se escribe y de lo leído).
+ * Devuelve `false` si el socket no está abierto (quien llama sigue con su sondeo).
+ */
+export function enviarPorAvisosEnVivo(mensaje: Record<string, unknown>): boolean {
+  if (!socket || socket.readyState !== WebSocket.OPEN) return false
+  try { socket.send(JSON.stringify(mensaje)); return true } catch { return false }
+}
+
 /** Sólo para pruebas: deja el módulo como recién cargado. */
 export function _reiniciarAvisosEnVivo() {
   generacion += 1

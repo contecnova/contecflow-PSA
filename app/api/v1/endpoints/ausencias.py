@@ -13,6 +13,15 @@ Guardas:
   · ejemplos: administración;
   · detalle y documentos de una ausencia: el servicio comprueba persona,
     responsable, quien aprueba, RRHH o administración (y la categoría especial).
+
+Rev. 180 (horario efectivo y ausencias por horas):
+  · jornadas y a quién se aplican, ficha laboral (sede, alta, contrato),
+    ajustes de saldo y recalcular la bolsa de horas: administración o RRHH;
+  · horario efectivo (rejilla persona×día): quien trabaja; un responsable ve a
+    quien ve, un empleado a su equipo, un externo a sí mismo y a quien
+    comparte proyecto con él;
+  · saldos por persona: responsables (las personas que ven); los movimientos
+    de un saldo: la persona, RRHH o administración.
 """
 from datetime import date, timedelta
 from typing import Optional
@@ -26,9 +35,12 @@ from app.core.errores import ErrorDeDominio
 from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.absences import (AbsenceIn, AccesoEspecialIn, AmpliarIn, CuadranteIn, NotaIn, PatronIn,
-                                  PedirDocumentoIn, TipoDeAusenciaIn, TipoDeDocumentoIn, TurnoIn)
-from app.services.ausencias import catalogo, consultas, documentos, ejemplos, saldos, solicitudes, turnos
+from app.schemas.absences import (AbsenceIn, AccesoEspecialIn, AmpliarIn, AsignacionDeJornadaIn, CuadranteIn,
+                                  FichaLaboralIn, JornadaIn, MovimientoDeSaldoIn, NotaIn, PatronIn, PedirDocumentoIn,
+                                  RecalcularBolsaIn, TipoDeAusenciaIn, TipoDeDocumentoIn, TurnoIn)
+from app.services.ausencias import (bolsa, catalogo, consultas, documentos, ejemplos, movimientos, saldos, solicitudes,
+                                    turnos)
+from app.services.horario import jornadas
 
 router = APIRouter()
 
@@ -185,11 +197,136 @@ def vista_previa(payload: AbsenceIn, db: Session = Depends(get_db), current_user
     return APIResponse.ok(data=solicitudes.vista_previa(db, current_user, payload.model_dump()))
 
 
-@router.get("/my/balances", summary="Mis saldos (vacaciones y cupos propios)")
-def mis_saldos(year: Optional[int] = None, db: Session = Depends(get_db),
+@router.get("/my/balances", summary="Mis saldos (vacaciones, cupos propios y bolsa), en días y horas")
+def mis_saldos(year: Optional[int] = None, fecha: Optional[date] = None, db: Session = Depends(get_db),
                current_user: User = Depends(get_current_user)):
     from app.core import timeutil
-    return APIResponse.ok(data=saldos.todos(db, current_user.id, year or timeutil.today().year))
+    return APIResponse.ok(data=saldos.todos(db, current_user.id, fecha or year or timeutil.today()))
+
+
+@router.get("/my/schedule", summary="Mi horario efectivo por día (turno o jornada, festivos, ausencias)")
+def mi_horario(desde: Optional[date] = None, hasta: Optional[date] = None, db: Session = Depends(get_db),
+               current_user: User = Depends(require_worker)):
+    d0, d1 = _rango(desde, hasta)
+    return APIResponse.ok(data=jornadas.rejilla(db, current_user, d0, d1, user_ids=[current_user.id]))
+
+
+# ── Rev. 180: horario efectivo, jornadas, ficha laboral ──────────────────────
+
+def _personas_que_ve(db: Session, viewer: User, user_ids: Optional[list[str]]) -> Optional[list[str]]:
+    """Un empleado (ni responsable ni RRHH) ve su equipo (o a sí mismo); el resto, lo que diga la visibilidad."""
+    rol = str(getattr(viewer.role, "value", viewer.role))
+    if rol in ("admin", "hr", "pm", "team_lead", "subcontractor") or getattr(viewer, "is_superadmin", False):
+        return user_ids
+    q = db.query(User.id).filter(User.is_active.is_(True))
+    q = q.filter(User.team == viewer.team) if viewer.team else q.filter(User.id == viewer.id)
+    propios = {u for (u,) in q.all()}
+    return [u for u in (user_ids or propios) if u in propios] or [viewer.id]
+
+
+@router.get("/effective-schedule", summary="Horario efectivo persona×día (turno o jornada, festivos de su sede, ausencias)")
+def horario_efectivo(desde: Optional[date] = None, hasta: Optional[date] = None, equipo: Optional[str] = None,
+                     departamento: Optional[str] = None, user_ids: Optional[list[str]] = Query(None),
+                     db: Session = Depends(get_db), current_user: User = Depends(require_worker)):
+    d0, d1 = _rango(desde, hasta)
+    ids = _personas_que_ve(db, current_user, user_ids)
+    return APIResponse.ok(data=jornadas.rejilla(db, current_user, d0, d1, equipo=equipo, departamento=departamento,
+                                                user_ids=ids))
+
+
+@router.get("/work-schedules", summary="Jornadas laborales (normal, verano, reducida…) con sus asignaciones")
+def listar_jornadas(incluir_inactivas: bool = False, db: Session = Depends(get_db),
+                    current_user: User = Depends(require_any_manager)):
+    return APIResponse.ok(data=[jornadas.jornada_dict(j) for j in jornadas.jornadas(db, incluir_inactivas=incluir_inactivas)])
+
+
+@router.post("/work-schedules", summary="Crear jornada laboral")
+def crear_jornada(payload: JornadaIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_hr)):
+    return APIResponse.ok(data=jornadas.guardar_jornada(db, current_user, payload.model_dump()))
+
+
+@router.put("/work-schedules/{jornada_id}", summary="Editar jornada laboral")
+def editar_jornada(jornada_id: str, payload: JornadaIn, db: Session = Depends(get_db),
+                   current_user: User = Depends(require_admin_or_hr)):
+    return APIResponse.ok(data=jornadas.guardar_jornada(db, current_user, payload.model_dump(), jornada_id))
+
+
+@router.delete("/work-schedules/{jornada_id}", summary="Borrar (o desactivar si está asignada) una jornada")
+def borrar_jornada(jornada_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_hr)):
+    return APIResponse.ok(data=jornadas.borrar_jornada(db, current_user, jornada_id))
+
+
+@router.post("/work-schedule-assignments", summary="Aplicar una jornada (empresa, sede, departamento, equipo, grupo o persona)")
+def crear_asignacion(payload: AsignacionDeJornadaIn, db: Session = Depends(get_db),
+                     current_user: User = Depends(require_admin_or_hr)):
+    return APIResponse.ok(data=jornadas.guardar_asignacion(db, current_user, payload.model_dump()))
+
+
+@router.put("/work-schedule-assignments/{asignacion_id}", summary="Editar a quién y cuándo se aplica una jornada")
+def editar_asignacion(asignacion_id: str, payload: AsignacionDeJornadaIn, db: Session = Depends(get_db),
+                      current_user: User = Depends(require_admin_or_hr)):
+    return APIResponse.ok(data=jornadas.guardar_asignacion(db, current_user, payload.model_dump(), asignacion_id))
+
+
+@router.delete("/work-schedule-assignments/{asignacion_id}", summary="Quitar una asignación de jornada")
+def borrar_asignacion(asignacion_id: str, db: Session = Depends(get_db),
+                      current_user: User = Depends(require_admin_or_hr)):
+    jornadas.borrar_asignacion(db, current_user, asignacion_id)
+    return APIResponse.ok(data={"ok": True})
+
+
+@router.get("/work-profiles", summary="Ficha laboral de cada persona (sede, fecha de alta, tipo de contrato)")
+def listar_fichas(db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_hr)):
+    return APIResponse.ok(data=jornadas.fichas(db))
+
+
+@router.put("/work-profiles/{user_id}", summary="Editar la ficha laboral de una persona")
+def editar_ficha(user_id: str, payload: FichaLaboralIn, db: Session = Depends(get_db),
+                 current_user: User = Depends(require_admin_or_hr)):
+    return APIResponse.ok(data=jornadas.guardar_ficha(db, current_user, user_id, payload.model_dump(exclude_unset=True)))
+
+
+# ── Rev. 180: saldos por persona, ajustes y bolsa de horas ───────────────────
+
+@router.get("/balances", summary="Saldos por persona, en días y horas (responsables: las personas que ven)")
+def saldos_por_persona(fecha: Optional[date] = None, equipo: Optional[str] = None, departamento: Optional[str] = None,
+                       user_ids: Optional[list[str]] = Query(None), db: Session = Depends(get_db),
+                       current_user: User = Depends(require_any_manager)):
+    return APIResponse.ok(data=movimientos.saldos_de_personas(db, current_user, fecha, user_ids, equipo, departamento))
+
+
+@router.get("/balances/{user_id}/movements", summary="Ajustes y horas de bolsa de un saldo")
+def movimientos_de_saldo(user_id: str, saldo_clave: Optional[str] = None, db: Session = Depends(get_db),
+                         current_user: User = Depends(require_worker)):
+    rol = str(getattr(current_user.role, "value", current_user.role))
+    if user_id != current_user.id and rol not in ("admin", "hr") and not getattr(current_user, "is_superadmin", False):
+        raise ErrorDeDominio(403, "Solo la persona, RRHH o administración")
+    return APIResponse.ok(data=movimientos.listar(db, user_id, saldo_clave))
+
+
+@router.post("/balance-adjustments", summary="Ajustar un saldo (sumar o restar, con motivo y caducidad)")
+def ajustar_saldo(payload: MovimientoDeSaldoIn, db: Session = Depends(get_db),
+                  current_user: User = Depends(require_admin_or_hr)):
+    return APIResponse.ok(data=movimientos.crear(db, current_user, payload.model_dump()))
+
+
+@router.delete("/balance-adjustments/{movimiento_id}", summary="Quitar un ajuste de saldo")
+def quitar_ajuste(movimiento_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_hr)):
+    movimientos.borrar(db, current_user, movimiento_id)
+    return APIResponse.ok(data={"ok": True})
+
+
+@router.post("/hour-bank/recalculate", summary="Recalcular la bolsa de horas desde las imputaciones")
+def recalcular_bolsa(payload: RecalcularBolsaIn, db: Session = Depends(get_db),
+                     current_user: User = Depends(require_admin_or_hr)):
+    if payload.hasta < payload.desde or (payload.hasta - payload.desde).days > 400:
+        raise ErrorDeDominio(422, "Un rango de 1 a 400 días")
+    from app.services.audit import audit_log
+    r = bolsa.recalcular(db, payload.desde, payload.hasta, payload.user_ids, current_user.id)
+    audit_log(db, current_user, "RECALCULATE", "hour_bank", None, None,
+              new_values={**r, "desde": str(payload.desde), "hasta": str(payload.hasta)})
+    db.commit()
+    return APIResponse.ok(data=r)
 
 
 @router.get("/inbox", summary="Ausencias que me toca decidir, con explicación e impacto en la cobertura")

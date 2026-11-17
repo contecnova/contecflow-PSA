@@ -25,6 +25,7 @@ import CalendarioDeEquipo from '../components/ausencias/CalendarioDeEquipo'
 import AdminDeAusencias from '../components/ausencias/admin/AdminDeAusencias'
 import { AvisoDeError } from '../components/ausencias/admin/comun'
 import { EstadoDeAusenciaChip, TipoChip, cantidad, fecha, useTa } from '../components/ausencias/comun'
+import TarjetasDeSaldo from '../components/ausencias/Saldos'
 
 export default function AbsencesPage(): JSX.Element {
   const { ta } = useTa()
@@ -64,7 +65,7 @@ function MisAusencias({ onAbrir, onEditar, onPedir }: {
 }) {
   const { ta } = useTa()
   const qc = useQueryClient()
-  const saldos = useQuery({ queryKey: ['ausencias', 'saldos'], queryFn: ausenciasApi.saldos })
+  const saldos = useQuery({ queryKey: ['ausencias', 'saldos'], queryFn: () => ausenciasApi.saldos() })
   const mias = useQuery({ queryKey: ['ausencias', 'mias'], queryFn: ausenciasApi.mias })
   const cancelar = useMutation({
     mutationFn: (id: string) => ausenciasApi.cancelar(id),
@@ -76,17 +77,7 @@ function MisAusencias({ onAbrir, onEditar, onPedir }: {
   return (
     <div className="aus-mias">
       {saldos.isError && <AvisoDeError error={saldos.error} defecto={ta('error_cargar')} />}
-      {(saldos.data ?? []).length > 0 && (
-        <ul className="aus-saldos" aria-label={ta('saldos')}>
-          {(saldos.data ?? []).map(s => (
-            <li key={`${s.saldo}-${s.tipo_id ?? ''}`} className="aus-saldo">
-              <span className="aus-ayuda">{ta(`saldo_${s.saldo}`)}</span>
-              <strong>{ta(`unidad_${s.unidad}`, { n: s.restante })}</strong>
-              <span className="aus-ayuda">{ta('saldo_detalle', { usado: s.usado, pedido: s.pedido, total: s.disponible })}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <TarjetasDeSaldo saldos={saldos.data ?? []} />
       {mias.isLoading && <Spinner label={ta('cargando')} />}
       {mias.isError && <AvisoDeError error={mias.error} defecto={ta('error_cargar')} />}
       {mias.data && mias.data.length === 0 && (

@@ -6,7 +6,7 @@ import { z } from 'zod'
 import { projectsApi, contractsApi } from '../services/api'
 import type { ContratoDeServicio } from '../services/api/tipos-finanzas'
 import DocumentosDeFicha from '../components/conectores/DocumentosDeFicha'
-import { Button, Modal, Spinner, EmptyState, ClientSelect, KpiCard, useSort, SortableTH, Pulsable, Select } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, ClientSelect, KpiCard, useSort, SortableTH, Pulsable, Select, useErroresDeCampo } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Building2, CalendarClock, ClipboardList, Coins, LayoutGrid, List, Pencil, Plus, ScrollText, Wrench } from 'lucide-react'
@@ -137,18 +137,21 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
   })
   const contractSchema = useMemo(() => crearEsquemaContrato(t), [t])
   const validation = useFormValidation(contractSchema)
-  const errs = validation.errors as Record<string, string | undefined>
+  const campos = useErroresDeCampo()
+  const errs = { ...campos.errores, ...(validation.errors as Record<string, string | undefined>) }
   const err = (k: string) => propsDeError(errs, k, idCampo)
   const msg = (k: string) => <MensajeError errors={errs} campo={k} idBase={idCampo} />
   const set = (k: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setForm(f => ({ ...f, [k]: e.target.value }))
     validation.clearFieldError(k)
+    campos.limpiar(k)
   }
 
   const { mutate, isPending } = useMutation({
     mutationFn: (data: Record<string, unknown>) => isEdit ? contractsApi.update(contract!.id, data) : contractsApi.create(data),
+    onMutate: () => campos.limpiar(),
     onSuccess: () => { validation.setErrors({}); qc.invalidateQueries({ queryKey: ['contracts'] }); qc.invalidateQueries({ queryKey: ['client-detail'] }); qc.invalidateQueries({ queryKey: ['clients'] }); onClose() },
-    onError: (e: ApiErr) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: ApiErr) => { if (!campos.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
   })
 
   const submit = () => {
@@ -189,6 +192,7 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
             onChange={(id, client) => {
               setForm(f => ({ ...f, client_id: id, client_name: client ? client.name : '' }))
               validation.clearFieldError('client_id')
+              campos.limpiar('client_id')
             }}
             placeholder={t('contractspage.seleccionar_cliente')}
             className={validation.inputClass('contracts-page-cliente', 'client_id')}
@@ -207,6 +211,7 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
           <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.status} onChange={set('status')} className="ctr-input">
             {Object.keys(STATUS_COLOR).map(v => <option key={v} value={v}>{t(`contractspage.estado_${v}`)}</option>)}
           </Select>
+          {msg('status')}
         </div>
         {form.contract_type === 'fixed_price' && (
           <div>
@@ -236,6 +241,7 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
         <div>
           <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="ctr-label">{t('contractspage.fecha_inicio')}</label>
           <DateInput id={`${idCampo}-4`} value={form.start_date} onChange={set('start_date')} className="ctr-input" {...err('start_date')} />
+          {msg('start_date')}
         </div>
         <div>
           <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="ctr-label">{t('contractspage.fecha_fin')}</label>
@@ -245,14 +251,17 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
         <div>
           <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="ctr-label">{t('contractspage.fecha_firma')}</label>
           <DateInput id={`${idCampo}-6`} value={form.signed_date} onChange={set('signed_date')} className="ctr-input" />
+          {msg('signed_date')}
         </div>
         <div>
           <label htmlFor={`${idCampo}-pago`} className="ctr-label">{t('contracts.condiciones_de_pago')}</label>
           <input id={`${idCampo}-pago`} value={form.payment_terms} onChange={set('payment_terms')} className="ctr-input" aria-label={t('contracts.condiciones_de_pago')} placeholder={t('contractspage.ph_condiciones_pago')} />
+          {msg('payment_terms')}
         </div>
         <div className="u-col-full">
           <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="ctr-label">{t('contractspage.notas')}</label>
           <textarea id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.notes} onChange={set('notes')} rows={2} className="ctr-input" />
+          {msg('notes')}
         </div>
         <div className="ctr-form-actions">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>

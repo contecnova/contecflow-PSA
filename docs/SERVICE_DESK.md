@@ -742,14 +742,11 @@ portal.
 
 ### Límites
 
-- WhatsApp: solo texto (los demás tipos se anotan como «[tipo]»); una
-  conversación por número mientras su ticket siga abierto.
-- Slack: sin Events API (los mensajes de un hilo no van al ticket); los
-  botones no abren formularios (comentar y resolver van por comando). Los
-  textos de la tarjeta de Slack están en castellano, como el resto del bot.
-- El chat en vivo del portal se refresca cada 5 s (sondeo), no por WebSocket.
-- El asistente del portal reconoce por palabras (en los idiomas del portal) y
-  por parecido con los servicios; no usa un modelo de lenguaje para decidir.
+- WhatsApp: una conversación por número mientras su ticket siga abierto.
+  (Adjuntos y ventana de 24 h: ver «Canales en tiempo real», 17-11-2026.)
+- Slack: los botones no abren formularios (comentar y resolver van por
+  comando). Los textos de la tarjeta de Slack están en castellano, como el
+  resto del bot. (Hilos ↔ ticket: ver «Canales en tiempo real».)
 - Los widgets de *Mi panel* (salvo la cola) se pintan como datos
   estructurados, sin gráficos.
 
@@ -787,3 +784,125 @@ portal.
 4. Decidir si se envía también el original y si se traducen solas las respuestas sin vista previa.
 
 Por defecto está **activado** en cada empresa; un administrador puede apagarlo en Ajustes → Sistema → Traducción y entonces no sale ningún texto a un traductor. El gasto cuenta para el tope diario de IA de la empresa.
+
+## Canales en tiempo real (17-11-2026)
+
+Probado **solo con dobles** (Slack, Meta y el LLM simulados en
+`tests/test_canales_tiempo_real_2026_11.py`): nada contra un Slack, un WhatsApp
+o un proveedor de IA reales.
+
+### Hilos de Slack ↔ ticket
+
+- **Cómo se ata un hilo a un ticket** (la conversación del canal `slack`, con
+  `external_id = <canal>:<ts del mensaje raíz>`):
+  - `/contecflow ticket <asunto>`: con el token del bot, la tarjeta del ticket
+    se publica en el canal donde se escribió el comando y su hilo queda atado
+    (sin token, la tarjeta sale como respuesta del comando, sin hilo).
+  - **Canal de avisos** (`SD_SLACK_TICKET_CHANNEL`, id del canal): cada ticket
+    nuevo publica allí su tarjeta y el hilo queda atado.
+  - **Canales de entrada** (`SD_SLACK_INTAKE_CHANNELS`, ids separados por
+    comas): cada mensaje raíz abre un ticket (con sus adjuntos) y el bot cuelga
+    la tarjeta en su hilo.
+- **Lo que se escribe en el hilo** entra como **comentario público** del
+  ticket. Autor: el usuario de Contecflow con el mismo correo que en Slack
+  (`users.info`); si no, el contacto del portal con ese correo; si no,
+  «Cliente externo (nombre)». Una respuesta del cliente saca el ticket de
+  «pendiente de cliente» (y reanuda el SLA).
+- **Adjuntos de Slack**: se descargan con el token del bot (solo de
+  `files.slack.com`, con tope) y pasan por las mismas comprobaciones que los de
+  WhatsApp (abajo).
+- **Respuestas del ticket al hilo**: la respuesta pública de un agente en el
+  ticket (o desde la bandeja de conversaciones) sale al hilo, con su nombre, en
+  el idioma del cliente si la traducción lo hace (las notas internas nunca).
+- **Sin bucles ni duplicados**: se ignoran los mensajes de bots (también el
+  nuestro), las ediciones y los borrados; un reintento de Slack no duplica; lo
+  que entró por el hilo no vuelve al hilo.
+- **Seguridad**: Events API en `POST /api/v1/sd/channels/slack/events`, firma
+  de Slack (HMAC-SHA256, 5 minutos) con el signing secret de la empresa dueña
+  del workspace (`SLACK_TEAM_ID`); un workspace sin empresa o con varias, 403.
+  El evento se procesa fuera de la petición (Slack pide respuesta en 3 s). El
+  token del bot es la credencial **cifrada** `slack.bot_token` de cada empresa.
+  Todas las llamadas salen por `cliente_httpx` (IP final y redirecciones
+  validadas) con la espera saliente. Permisos de la app: `docs/DESPLIEGUE.md`.
+
+### WhatsApp: adjuntos y ventana de 24 h
+
+- **Recibir**: imagen, documento, audio (incluidas notas de voz), vídeo y
+  sticker. Se descargan por su id con el token de la empresa (solo HTTPS y de
+  los hosts de Meta), con tope `SD_CHANNEL_MAX_ATTACHMENT_MB` (16). Se valida
+  el tipo (extensión, tipo declarado, bytes mágicos; sin SVG, ejecutables ni
+  comprimidos) y pasa el **antivirus** (clamd si `CLAMAV_ENABLED`; si no, la
+  firma de prueba EICAR). Lo que pasa queda como **documento del ticket**; lo
+  que no, se anota en el mensaje con el motivo, y lo bloqueado por el antivirus
+  queda en la auditoría.
+- **Enviar desde el ticket**: en la bandeja de conversaciones, *Enviar
+  adjunto* manda un documento del ticket (se sube a los medios de WhatsApp; en
+  Slack, al hilo).
+- **Ventana de 24 h** (regla de Meta): pasado un día desde el último mensaje
+  del cliente solo salen **plantillas aprobadas**. Con plantilla configurada
+  (Credenciales → WhatsApp: `template_name`, `template_language`; la plantilla
+  tiene dos variables: número del ticket y texto) la respuesta sale dentro de
+  ella; sin plantilla, el agente recibe un aviso y no se guarda nada. Los
+  adjuntos solo salen dentro de la ventana. La bandeja enseña la ventana y cómo
+  salió cada mensaje (con plantilla, no entregado, fuera de ventana).
+- Las respuestas públicas que un agente escribe **en el ticket** también salen
+  por WhatsApp si el ticket tiene una conversación abierta.
+
+### Chat del portal y bandeja, inmediatos
+
+- Van por los WebSocket que ya había: el del portal
+  (`/ws/portal-notifications`) y el de avisos de los operadores
+  (`/ws/notifications`). Mensaje nuevo, «escribiendo…», «leído» y traspaso a
+  agente llegan al momento. Una sola conexión por pestaña (el portal la
+  comparte entre la página y el chat).
+- **Acotado**: el cliente solo recibe y toca sus conversaciones; un operador
+  recibe las de su empresa mientras tiene la bandeja abierta (latido cada
+  30 s).
+- **Reconexión** con espera creciente; al volver, se recupera lo que llegó sin
+  socket. **Sondeo** (5 s) solo si el socket no está.
+- Con varios procesos hace falta Redis (`REDIS_URL`): los avisos van por el
+  canal de cada destinatario.
+
+### Asistente del portal con IA
+
+- **Entiende con la IA de la empresa** (módulo `portal_assistant`: su
+  proveedor y modelo se eligen en *Hub de IA → Por función*; cuenta para el
+  tope de gasto diario y pasa los guardarraíles de gobierno). Elige una
+  herramienta del portal: estado de **sus** tickets, **buscar en la base de
+  conocimiento** publicada (solo artículos públicos, en su idioma si hay
+  versión), **pedir del catálogo** o **restablecer la contraseña**. Las dos
+  últimas solo se **proponen**: se crean cuando el cliente pulsa *Sí, pedirlo*.
+- El servidor valida todo lo que dice el modelo (herramienta en
+  `POLITICAS_DEL_PORTAL`, ticket del cliente, servicio de su catálogo
+  visible); una herramienta desconocida no se ejecuta.
+- Contesta en el **idioma del portal** (los 8) y conserva los últimos turnos
+  como contexto.
+- **Sin IA** (sin proveedor, error, tope de gasto alcanzado o respuesta
+  ilegible) o con `SD_PORTAL_ASSISTANT_AI` apagado: el reconocimiento por
+  palabras de siempre, con el aviso «La IA no está disponible ahora».
+- **Auditoría**: cada acción (consulta, búsqueda, propuesta, confirmación,
+  descarte) queda como `PORTAL_ASSISTANT` con su motor (`ai` | `rules`).
+
+### Ajustes nuevos (Service Desk)
+
+| Ajuste | Por defecto | Qué hace |
+|---|---|---|
+| `SD_SLACK_TICKET_CHANNEL` | vacío | Canal donde se publica la tarjeta de cada ticket nuevo (hilo atado) |
+| `SD_SLACK_INTAKE_CHANNELS` | vacío | Canales de entrada: cada mensaje raíz abre un ticket |
+| `SD_CHANNEL_MAX_ATTACHMENT_MB` | 16 | Tope de los adjuntos de WhatsApp y Slack |
+| `SD_PORTAL_ASSISTANT_AI` | sí | El asistente del portal entiende con la IA |
+| `SD_PORTAL_ASSISTANT_MAX_TOKENS` | 700 | Tope de tokens por respuesta del asistente |
+
+Credenciales nuevas: `slack.bot_token` (cifrada), `whatsapp.template_name` y
+`whatsapp.template_language`. Migración `179_canales_tiempo_real`.
+
+### Límites
+
+- Slack: no se sincronizan ediciones ni borrados de mensajes del hilo; la
+  tarjeta y el prefijo del autor van en castellano.
+- WhatsApp: fuera de la ventana no salen adjuntos (Meta solo admite
+  plantillas); la plantilla debe tener exactamente dos variables de cuerpo.
+- Los adjuntos que llegan por un canal no se envían de vuelta al cliente del
+  chat del portal (el portal ve los documentos de su ticket).
+- El asistente del portal no ejecuta nada por su cuenta: toda petición pasa por
+  la confirmación del cliente.

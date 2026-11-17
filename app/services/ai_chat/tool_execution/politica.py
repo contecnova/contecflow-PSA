@@ -108,6 +108,9 @@ class PoliticaDelPortal:
 
 POLITICAS_DEL_PORTAL: dict[str, PoliticaDelPortal] = {
     "portal_ticket_status":   PoliticaDelPortal(_GET, "/sd/tickets/client/my", False),
+    # 17-11-2026: el asistente con IA busca en la base de conocimiento publicada
+    # (solo articulos publicos, en el idioma del cliente si hay version).
+    "portal_kb_search":       PoliticaDelPortal(_GET, "/sd/kb/suggest", False),
     "portal_catalog_request": PoliticaDelPortal(_POST, "/sd/tickets/client", True),
     "portal_password_reset":  PoliticaDelPortal(_POST, "/sd/tickets/client", True),
 }

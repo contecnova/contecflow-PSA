@@ -352,6 +352,20 @@ Rules enforced in `imputation_service.py`:
 - Code: `app/services/ausencias/` (`catalogo`, `turnos`, `cupos`, `saldos`, `reglas`, `solicitudes`, `documentos`, `consultas`, `ejemplos`), domain `app/services/politicas/dominios/ausencias.py`, endpoints `app/api/v1/endpoints/ausencias.py` (+ `absences.py`). Worker: `app.worker.ausencias_pasada_diaria` (07:10, per organization).
 - UI: `pages/AbsencesPage.tsx`, `components/ausencias/*` (request form, detail, inbox, team calendar) and `components/ausencias/admin/*` (types, documents, shifts, roster, rotations, coverage, special access, example).
 
+#### Shifts in the planner and absences by the hour (revision 180)
+
+**One source of truth: the effective schedule of a person on a day** (`app/services/horario/`). For every person and day: the roster change of that day (shift or day off) > their rotation > the **work schedule** assigned to them (Absences › Administration › *Work schedules*: per-weekday time ranges, split days, unpaid break; applied to the company, a site, a department, a team, an approval group or a person, permanently, between dates or **every year** between two dates —summer hours—, highest priority wins, then the most specific, then the temporary one) > the company default (`PLANNING_WORKDAYS` from `DEFAULT_WORKDAY_START`, with the person's weekly hours). From it are removed: company holidays, **holidays of the person's site** (`holidays.office_id`, Absences › Administration › *Holidays*) or of its country/city (`applies_to`) unless the shift works holidays, days outside an external's contract, and the person's absences —full day, half day or **by the hour** (only the requested time range inside their schedule). A shift may be **split** (several ranges) and cross midnight (its hours count on the day it starts).
+
+It drives the planner calendar of each person (CPM, per-person load, levelling: a day's capacity is the hours of that day's shift; task hours are spread in proportion to them), bookings (a booking counts on the days the person works), capacity, forecast (`get_user_week_hours` now returns `scheduled_hours` and `available_hours`; capacity = scheduled − absences − holidays), the person × day grid (*Schedule* tab of Absences administration and the *Schedule* mode of the planner's load view, both on `RejillaPersonaDia`) and absences.
+
+**Absences by the hour.** A type allows *days*, *half days* and/or *hours* (`modos`). By the hour the person gives a start and end time valid for each day of the range; only the part inside their schedule counts. Every request stores the days equivalent (`working_days`: 2 h of an 8 h day = 0.25), the hours of their schedule it covers (`scheduled_hours`) and the amount in the type's unit. A vacation day is the hours of **that person's** shift that day, not 8. Two hour-absences the same day with different ranges do not overlap. The request form previews hours per day, days equivalent, hours outside the schedule, rounding, balance before/after in both units, allowed negative, upcoming expiries and the rules that apply.
+
+**Balances, paid/unpaid leave and hour bank** (`app/services/ausencias/saldos.py`, `bolsa.py`, `movimientos.py`). A type discounts from the shared *vacation* balance, its own quota or an **hour bank**, measured in days or hours (hours: days × the person's average daily hours of their effective schedule), per **period** (yearly, half-year, quarter, month or none, starting in any month), with **carry-over** (max, expiring after N months), **expiry** of entries (bank hours, adjustments), **pro-rata by hire date**, and an **entitlement table** per country/agreement (a numeric reference table of the policies engine: site country and city, category = type key or contract type). Consumption is first-expiring-first. HR adjusts any balance with a reason (audited). The **hour bank** is fed day by day from time entries: excess = entries − schedule hours that day, with per-type rules (factor for working day, holiday and day off, threshold in minutes, daily and yearly cap, approved entries only); recalculation is idempotent (daily pass `HOUR_BANK_RECALC_DAYS`, or *Recalculate* in Absences › People).
+
+**Rules** (policies domain `ausencias`; every one editable in Policies and checkable with the simulator). New fields: mode (days/hours), hours of the request, max hours in a day, start/end time (new field type `hora`), whole days, hours outside the schedule, hours/days/requests of the same type in the month and in the year (including this one), notice in hours, people absent in the same shift/role/site/department, site, groups, contract type, seniority (months since hire date), balance before, balance left in hours, paid, and type dependencies (types of other absences overlapping, adjacent on the previous/next working day, used this year). New outcomes: `saldo_negativo` (allow the balance down to −N), `redondeo` (round hours to 15/30/60/240 minutes up, down or nearest); the `cupo` outcome counts per **time slot** (`franja_minutos`). Policy scope gains approval **groups** and **exceptions** (people or groups left out).
+
+**API** (`/api/v1/absences`): `GET /effective-schedule`, `GET /my/schedule`, `GET|POST /work-schedules`, `PUT|DELETE /work-schedules/{id}`, `POST /work-schedule-assignments`, `PUT|DELETE /work-schedule-assignments/{id}`, `GET /work-profiles`, `PUT /work-profiles/{user_id}` (site, hire date, contract type), `GET /balances`, `GET /balances/{user_id}/movements`, `POST /balance-adjustments`, `DELETE /balance-adjustments/{id}`, `POST /hour-bank/recalculate`; `/settings/holidays` takes `office_id`. Requests take `modo`, `start_time`, `end_time`. Writes: admin or HR; the grid: a manager sees whom they see, an employee their team, an external themself. Migration `180_turnos_y_ausencias_por_horas`. Settings (hot, per company): `PLANNING_SCHEDULE_HORIZON_DAYS`, `DEFAULT_WORKDAY_START`, `ABSENCE_BALANCE_CARRY_PERIODS`, `HOUR_BANK_RECALC_DAYS`. Tests: `tests/test_turnos_y_ausencias_por_horas.py`, `frontend/src/__tests__/FormularioDeAusenciaHoras.test.tsx`.
+
 **Limitations (measured).**
 - A request with no working day in its dates (weekend, all off in the roster) is rejected (422); before, it was accepted with 0 days.
 - The policy simulator replays absences but the quota part only reads current occupancy (it does not replay the queue as it was).
@@ -4267,7 +4281,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **30 groups, 334 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **30 groups, 343 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4353,6 +4367,7 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **30 gr
 | health | EVM_INDEX_GREEN_MIN | float | 0.9 | EVM — CPI/SPI green from (TCPI: its inverse) | rt (`project_service`) |
 | health | EVM_INDEX_RED_BELOW | float | 0.85 | EVM — CPI/SPI red below (TCPI: its inverse) | rt (`project_service`) |
 | proyectos | PLANNING_WORKDAYS | str | `1,2,3,4,5` | Planner — company workdays (ISO, CSV); holidays come from Settings › Holidays | rt (`planificador.calendario`) |
+| proyectos | PLANNING_SCHEDULE_HORIZON_DAYS | int | 400 | Planner — days ahead computed with each person's effective schedule | rt (`planificador.calendario`) |
 | proyectos | PLANNING_CRITICAL_FLOAT_DAYS | float | 0.0 | Planner — a task is critical with total float up to (working days) | rt (`planificador.servicio`) |
 | proyectos | PLANNING_NEAR_CRITICAL_FLOAT_DAYS | float | 3.0 | Planner — near-critical with total float up to (working days) | rt (`planificador.servicio`) |
 | proyectos | PLANNING_AUTO_RECALCULATE | bool | true | Planner — recalculate the critical path when dates, dependencies or estimates change | rt (`planificador.servicio`) |
@@ -4392,6 +4407,9 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **30 gr
 | locale | DEFAULT_WEEKLY_CAPACITY_HOURS | float | 40.0 | Weekly capacity (h) | rt only in `/org-defaults`; static in ~25 files (e.g. `alert_service`) |
 | locale | DEFAULT_PRODUCTIVE_HOURS_YEAR | float | 1700.0 | Staff cost: productive hours per year when the cost profile and the country preset say nothing | rt (company; `cost_service.costes_por_defecto`) |
 | locale | DEFAULT_EMPLOYER_COST_PCT | float | 0.32 | Staff cost: employer cost on gross salary (0.32 = 32 %) when the profile and the country preset say nothing | rt (company; `cost_service.costes_por_defecto`) |
+| locale | DEFAULT_WORKDAY_START | str | `09:00` | Company workday start (HH:MM) for people without a shift or work schedule | rt (`horario.efectivo`) |
+| locale | ABSENCE_BALANCE_CARRY_PERIODS | int | 2 | Absences — previous balance periods looked at to carry over leftovers | rt (`ausencias.saldos`) |
+| locale | HOUR_BANK_RECALC_DAYS | int | 35 | Absences — days back the daily pass recomputes the hour bank | rt (`ausencias.bolsa`) |
 | locale | DEFAULT_VACATION_DAYS_PER_YEAR | int | 23 | Vacation days per year | rt only in `/org-defaults`; policy/balance column defaults are static |
 | locale | DEFAULT_IMPUTATION_LOCKOUT_DAYS | int | 14 | Days before time entries lock | rt (`imputation_service/_comun._dias_de_bloqueo`, per company) |
 | locale | DEFAULT_PROJECT_TYPE | str | `consulting` | Default project type | rt |
@@ -5580,7 +5598,7 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 475 fields (measured 2026-11-16): 244 in `config.py` and 231 in ten mixins under `app/core/config_groups/` (`ai_config` 41, `sla_config` 20, `health_config` 25, `semantic_config` 10, `service_desk_config` 36, `automations_config` 13, `proceso_config` 74, `escalas_config` 5, `empresa_config` 4, `politicas_config` 3). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; a `JWT_ALGORITHM` other than HS256/HS384/HS512; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
 2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service/`::RUNTIME_FLAG_GROUPS declares **256 keys in 24 groups** (measured 2026-11-16 in `_catalogo.py`): `sla`, `service_desk`, `automations`, `tenants`, `audit`, `risk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `conectores`, `lecciones`, `gastos`, `politicas`, `presupuestos`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Two keys exist only there and have no `Settings` field: `SLACK_TEAM_ID` and `TEAMS_TENANT_ID` (they link a Slack workspace or Teams tenant to one company). Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the keys listed there are editable.
 
-#### 4.2 Settings fields (`Settings`, 555)
+#### 4.2 Settings fields (`Settings`, 564)
 
 Defaults are the code defaults, never values from `.env`. Meanings are taken from the field name, its inline comment and the code that reads it; behaviour described in bold was checked in the code that consumes the variable.
 
@@ -5687,6 +5705,10 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `DEFAULT_EMPLOYER_COST_PCT` | `0.32` | Staff cost: employer cost on gross salary fallback; runtime key `locale`. |
 | `DEFAULT_SIMULATION_HOURLY_RATE` | `80.0` | Rate used in what-if simulations. |
 | `DEFAULT_VACATION_DAYS_PER_YEAR` | `23` | Absence default. |
+| `DEFAULT_WORKDAY_START` | `09:00` | Start of the company workday for people without shift or work schedule (rev. 180); runtime key `locale`. |
+| `ABSENCE_BALANCE_CARRY_PERIODS` | `2` | Balance periods looked back to carry over leftovers (rev. 180); runtime key `locale`. |
+| `HOUR_BANK_RECALC_DAYS` | `35` | Days back the daily pass recomputes the hour bank (rev. 180); runtime key `locale`. |
+| `PLANNING_SCHEDULE_HORIZON_DAYS` | `400` | Planner days ahead with each person's effective schedule (rev. 180); runtime key `proyectos`. |
 | `REDIS_URL` | `None` | Celery broker **and** result backend, rate-limit storage, WS tickets, settings pub/sub. Unset = in-process fallbacks. |
 | `RATE_LIMIT_REQUIRE_REDIS_IN_PRODUCTION` | `True` | Refuse to boot in production if Redis is unreachable for the limiter. |
 | `SENTRY_DSN` | `None` | Enable Sentry. |

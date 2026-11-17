@@ -16,6 +16,16 @@ conversacion (`sd_channel_conversations`) y sus mensajes
 
 Todo se acota a la empresa de la conversacion; las listas para el agente, a la
 de quien mira.
+
+Canales en tiempo real (17-11-2026):
+
+- Cada mensaje, traspaso y cierre se empuja por WebSocket al cliente y a los
+  operadores con la bandeja abierta (`canales_en_vivo`), despues de confirmar.
+- Slack (hilos) y WhatsApp salen por `salida_por_canales`; el mensaje guarda
+  el comentario del ticket que es (`ticket_comment_id`) para que la bandeja de
+  eventos del ticket no lo vuelva a enviar.
+- Un mensaje entrante puede traer un adjunto (`adjuntos_de_canal.Fichero`): se
+  guarda como documento del ticket con sus comprobaciones.
 """
 from __future__ import annotations
 
@@ -86,6 +96,8 @@ def anotar(db: Session, conv: ChannelConversation, direction: str, author_type: 
                        external_message_id=external_message_id)
     db.add(m)
     conv.last_message_at = _ahora()
+    if direction == "in":
+        conv.last_inbound_at = conv.last_message_at
     db.flush()
     return m
 
@@ -108,10 +120,45 @@ def _asegurar_ticket(db: Session, conv: ChannelConversation, primer_texto: str, 
     return ticket
 
 
+def _reactivar(ticket: Ticket) -> None:
+    """Responde el cliente a un ticket que esperaba por el: vuelve a curso y el SLA sigue
+    (lo mismo que `comment_service.add_client_comment`)."""
+    from app.models.service_desk import TicketStatus
+    if ticket.status != TicketStatus.pending_client:
+        return
+    ticket.status = TicketStatus.in_progress
+    if ticket.sla_paused_at:
+        pausa = ticket.sla_paused_at if ticket.sla_paused_at.tzinfo else ticket.sla_paused_at.replace(tzinfo=timezone.utc)
+        ticket.sla_pause_minutes = (ticket.sla_pause_minutes or 0) + int((_ahora() - pausa).total_seconds() / 60)
+        ticket.sla_paused_at = None
+
+
+def _guardar_adjuntos(db: Session, conv: ChannelConversation, ticket: Ticket, m: ChannelMessage, adjuntos) -> str:
+    """Guarda el adjunto (o la lista) en el ticket y devuelve la nota que se anade al texto.
+    El mensaje apunta al primero que se guarda."""
+    from app.services.service_desk import adjuntos_de_canal
+    notas = []
+    for adjunto in (adjuntos if isinstance(adjuntos, list) else [adjuntos]):
+        r = adjuntos_de_canal.guardar(db, ticket, nombre=adjunto.nombre, tipo=adjunto.tipo,
+                                      contenido=adjunto.contenido, origen=conv.channel,
+                                      descripcion=f"{conv.channel}: {conv.visitor_name or ''}".strip())
+        if r.document_id:
+            m.attachment_document_id = m.attachment_document_id or r.document_id
+            notas.append(f"[adjunto: {r.nombre}]")
+        else:
+            notas.append(f"[adjunto rechazado ({r.motivo}): {r.nombre}]")
+    return "\n".join(notas)
+
+
 def mensaje_del_cliente(db: Session, conv: ChannelConversation, texto: str, *, client_user=None,
                         telefono: Optional[str] = None, external_message_id: Optional[str] = None,
-                        con_bot: bool = False) -> dict:
+                        con_bot: bool = False, autor_usuario=None, autor_nombre: Optional[str] = None,
+                        adjunto=None, nota_de_adjunto: Optional[str] = None) -> dict:
     """Lo que escribe el cliente: se guarda, va al ticket y, en modo `bot`, se contesta.
+
+    `autor_usuario` / `autor_nombre` (hilos de Slack): quien escribio, si no es
+    el cliente de la conversacion. `adjunto` (`adjuntos_de_canal.Fichero`): se
+    guarda en el ticket; `nota_de_adjunto`: lo que se anota si no se pudo bajar.
 
     Devuelve `{"message": ..., "bot": [...articulos...] | None, "duplicate": bool}`.
     """
@@ -119,6 +166,7 @@ def mensaje_del_cliente(db: Session, conv: ChannelConversation, texto: str, *, c
     if m is None:
         return {"message": None, "bot": None, "duplicate": True}
     sugerencias = None
+    respuesta_del_bot = None
     if con_bot and conv.status == "bot":
         from app.services.service_desk.kb_sugerencias import sugerir
         sugerencias = sugerir(db, texto, solo_publico=True, limite=MAX_SUGERENCIAS_DEL_BOT)
@@ -128,17 +176,35 @@ def mensaje_del_cliente(db: Session, conv: ChannelConversation, texto: str, *, c
             from app.services.traduccion.kb import localizar
             from app.services.traduccion.salida import idioma_del_cliente
             sugerencias = localizar(db, sugerencias, idioma_del_cliente(db, conv=conv)[0])
-            anotar(db, conv, "out", "bot", "\n".join(f"{s.get('number') or ''} {s.get('title')}".strip()
-                                                     for s in sugerencias))
+            respuesta_del_bot = anotar(db, conv, "out", "bot", "\n".join(
+                f"{s.get('number') or ''} {s.get('title')}".strip() for s in sugerencias))
     else:
         nuevo = conv.ticket_id is None
         ticket = _asegurar_ticket(db, conv, texto, client_user=client_user, telefono=telefono)
-        if not nuevo:
+        notas = [n for n in (nota_de_adjunto, _guardar_adjuntos(db, conv, ticket, m, adjunto) if adjunto else None) if n]
+        if notas:
+            m.body = (m.body + "\n" + "\n".join(notas))[:MAX_MENSAJE]
+        if nuevo:
             # El primer mensaje ya es la descripcion del ticket; los demas, comentarios.
-            db.add(TicketComment(ticket_id=ticket.id, body=texto, is_public=True,
-                                 author_client_id=client_user.id if client_user is not None else None,
-                                 author_name=conv.visitor_name if client_user is None else None))
+            if notas:
+                ticket.description = (ticket.description or "") + "\n" + "\n".join(notas)
+        else:
+            es_interno = autor_usuario is not None
+            comentario = TicketComment(
+                ticket_id=ticket.id, body=m.body, is_public=True,
+                author_user_id=autor_usuario.id if es_interno else None,
+                author_client_id=client_user.id if (client_user is not None and not es_interno) else None,
+                author_name=None if (es_interno or client_user is not None) else (autor_nombre or conv.visitor_name))
+            db.add(comentario)
+            db.flush()
+            m.ticket_comment_id = comentario.id
+            if not es_interno:
+                _reactivar(ticket)
     db.commit()
+    from app.services.service_desk import canales_en_vivo
+    canales_en_vivo.avisar_mensaje(db, conv, m)
+    if respuesta_del_bot is not None:
+        canales_en_vivo.avisar_mensaje(db, conv, respuesta_del_bot)
     return {"message": serializar_mensaje(m), "bot": sugerencias, "duplicate": False}
 
 
@@ -152,7 +218,11 @@ def pedir_agente(db: Session, conv: ChannelConversation, client_user=None) -> Ch
             .order_by(ChannelMessage.created_at).all()]
         _asegurar_ticket(db, conv, "\n".join(primeros) or conv.channel, client_user=client_user)
         conv.status = "waiting_agent"
-        anotar(db, conv, "out", "system", "waiting_agent")
+        aviso = anotar(db, conv, "out", "system", "waiting_agent")
+        db.commit()
+        from app.services.service_desk import canales_en_vivo
+        canales_en_vivo.avisar_mensaje(db, conv, aviso)
+        canales_en_vivo.avisar_estado(db, conv)
     db.commit()
     return conv
 
@@ -200,8 +270,11 @@ def tomar(db: Session, conv_id: str, agente) -> ChannelConversation:
         t = db.get(Ticket, conv.ticket_id)
         if t is not None and not t.assigned_to_user_id:
             t.assigned_to_user_id = agente.id
-    anotar(db, conv, "out", "system", "agent_joined", author_user_id=agente.id)
+    aviso = anotar(db, conv, "out", "system", "agent_joined", author_user_id=agente.id)
     db.commit()
+    from app.services.service_desk import canales_en_vivo
+    canales_en_vivo.avisar_mensaje(db, conv, aviso)
+    canales_en_vivo.avisar_estado(db, conv)
     return conv
 
 
@@ -213,12 +286,18 @@ def responder(db: Session, conv_id: str, agente, texto: str, *, client_text: Opt
     (`traduccion.salida`): la vista previa (`client_text`) o, sin ella, la
     traduccion automatica si la empresa la quiere. Se traduce UNA vez: el
     comentario del ticket lleva la misma version.
+
+    17-11-2026: WhatsApp y Slack salen por `salida_por_canales` (ventana de 24 h
+    y plantilla en WhatsApp; el hilo del ticket en Slack). Fuera de la ventana y
+    sin plantilla no se guarda nada: 409.
     """
+    from app.services.service_desk import canales_en_vivo, salida_por_canales
     from app.services.traduccion import salida as _salida
 
     conv = _de_la_empresa(db, conv_id, agente.organization_id)
     if conv.status == "closed":
         raise error_con_codigo(409, "conversacion_cerrada")
+    salida_por_canales.exigir_que_se_pueda_enviar(db, conv)
     if conv.status != "agent":
         conv.status, conv.assigned_user_id = "agent", agente.id
     canal = conv.channel if conv.channel in CANALES else "livechat"
@@ -231,28 +310,55 @@ def responder(db: Session, conv_id: str, agente, texto: str, *, client_text: Opt
         from app.services.service_desk.comment_service import add_internal_comment
         t = db.get(Ticket, conv.ticket_id)
         if t is not None:
-            add_internal_comment(db, t, t.id, texto, True, agente, salida=prep)
-    if conv.channel == "whatsapp" and conv.external_id:
-        from app.services.service_desk.canal_whatsapp import enviar
-        db.flush()
-        ext = enviar(db, conv.organization_id, conv.external_id,
-                     _salida.texto_para_cliente(db, conv.organization_id, "channel_message", m.id, prep.cuerpo))
-        if ext:
-            m.external_message_id = ext
+            comentario = add_internal_comment(db, t, t.id, texto, True, agente, salida=prep)
+            db.flush()
+            m.ticket_comment_id = comentario.id
+    db.flush()
+    salida_por_canales.entregar(db, conv, m, _salida.texto_para_cliente(
+        db, conv.organization_id, "channel_message", m.id, prep.cuerpo), autor=agente.full_name)
     db.commit()
+    canales_en_vivo.avisar_mensaje(db, conv, m)
+    return m
+
+
+def enviar_adjunto(db: Session, conv_id: str, agente, document_id: str,
+                   caption: Optional[str] = None) -> ChannelMessage:
+    """El agente envia un documento del ticket por el canal (WhatsApp o el hilo de Slack)."""
+    from app.services.audit import audit_log
+    from app.services.service_desk import adjuntos_de_canal, canales_en_vivo, salida_por_canales
+
+    conv = _de_la_empresa(db, conv_id, agente.organization_id)
+    if conv.status == "closed":
+        raise error_con_codigo(409, "conversacion_cerrada")
+    ticket = db.get(Ticket, conv.ticket_id) if conv.ticket_id else None
+    if ticket is None:
+        raise ErrorDeDominio(409, "La conversación no tiene ticket")
+    fichero = adjuntos_de_canal.leer(db, ticket, document_id)
+    m = salida_por_canales.entregar_adjunto(db, conv, fichero, document_id, (caption or "").strip()[:1024], agente)
+    audit_log(db, agente, "SEND", "channel_attachment", document_id, fichero.nombre,
+              metadata={"conversation_id": conv.id, "channel": conv.channel, "ticket_id": ticket.id,
+                        "delivery_status": m.delivery_status})
+    db.commit()
+    canales_en_vivo.avisar_mensaje(db, conv, m)
     return m
 
 
 def cerrar(db: Session, conv_id: str, agente) -> ChannelConversation:
     conv = _de_la_empresa(db, conv_id, agente.organization_id)
     conv.status = "closed"
-    anotar(db, conv, "out", "system", "closed", author_user_id=agente.id)
+    aviso = anotar(db, conv, "out", "system", "closed", author_user_id=agente.id)
     db.commit()
+    from app.services.service_desk import canales_en_vivo
+    canales_en_vivo.avisar_mensaje(db, conv, aviso)
+    canales_en_vivo.avisar_estado(db, conv)
     return conv
 
 
-def listar(db: Session, org_id, estado: Optional[str], page: int, page_size: int) -> dict:
+def listar(db: Session, org_id, estado: Optional[str], page: int, page_size: int,
+           canal: Optional[str] = None) -> dict:
     q = db.query(ChannelConversation).filter(ChannelConversation.organization_id == org_id)
+    if canal:
+        q = q.filter(ChannelConversation.channel == canal)
     if estado:
         q = q.filter(ChannelConversation.status == estado)
     else:
@@ -274,27 +380,47 @@ def mensajes(db: Session, conv: ChannelConversation, desde: Optional[str] = None
             q = q.filter(ChannelMessage.created_at > ultimo.created_at)
     filas = q.order_by(ChannelMessage.created_at).limit(tope).all()
     if not para_cliente:
-        return [serializar_mensaje(m) for m in filas]
+        return [serializar_mensaje(m, db) for m in filas]
     from app.services.traduccion.salida import texto_para_cliente
     salida = []
     for m in filas:
-        datos = serializar_mensaje(m)
+        datos = serializar_mensaje(m, db)
         if m.author_type == "agent":
             datos["body"] = texto_para_cliente(db, conv.organization_id, "channel_message", m.id, m.body)
         salida.append(datos)
     return salida
 
 
-def serializar_mensaje(m: ChannelMessage) -> dict:
-    return {"id": m.id, "direction": m.direction, "author_type": m.author_type, "body": m.body,
-            "language": m.language, "created_at": m.created_at.isoformat() if m.created_at else None}
+def _nombre_del_adjunto(db: Session, document_id: str) -> Optional[str]:
+    from app.models.documents import DocumentVersion
+    fila = (db.query(DocumentVersion.file_name).filter(DocumentVersion.document_id == document_id)
+            .order_by(DocumentVersion.version_num.desc()).first())
+    return fila[0] if fila else None
+
+
+def serializar_mensaje(m: ChannelMessage, db: Optional[Session] = None) -> dict:
+    datos = {"id": m.id, "direction": m.direction, "author_type": m.author_type, "body": m.body,
+             "language": m.language, "delivery_status": m.delivery_status,
+             "attachment_document_id": m.attachment_document_id,
+             "created_at": m.created_at.isoformat() if m.created_at else None}
+    if db is not None and m.attachment_document_id:
+        datos["attachment_name"] = _nombre_del_adjunto(db, m.attachment_document_id)
+    return datos
+
+
+def _iso(dt) -> Optional[str]:
+    return dt.isoformat() if dt else None
 
 
 def serializar(db: Session, c: ChannelConversation) -> dict:
     numero = db.query(Ticket.number).filter(Ticket.id == c.ticket_id).scalar() if c.ticket_id else None
-    return {"id": c.id, "channel": c.channel, "status": c.status, "visitor_name": c.visitor_name,
-            "external_id": c.external_id if c.channel != "livechat" else None,
-            "ticket_id": c.ticket_id, "ticket_number": numero, "assigned_user_id": c.assigned_user_id,
-            "language": c.language,
-            "last_message_at": c.last_message_at.isoformat() if c.last_message_at else None,
-            "created_at": c.created_at.isoformat() if c.created_at else None}
+    datos = {"id": c.id, "channel": c.channel, "status": c.status, "visitor_name": c.visitor_name,
+             "external_id": c.external_id if c.channel != "livechat" else None,
+             "ticket_id": c.ticket_id, "ticket_number": numero, "assigned_user_id": c.assigned_user_id,
+             "language": c.language,
+             "client_read_at": _iso(c.client_read_at), "agent_read_at": _iso(c.agent_read_at),
+             "last_message_at": _iso(c.last_message_at), "created_at": _iso(c.created_at)}
+    if c.channel == "whatsapp":
+        from app.services.service_desk.canal_whatsapp import estado_de_la_ventana
+        datos["whatsapp_window"] = estado_de_la_ventana(db, c)
+    return datos

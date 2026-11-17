@@ -10,7 +10,7 @@ export { useAlerts, useReadAlert, useResolveAlert, useRunAlerts } from './useAle
 export {
 	useAnalyticsQuery, useAnalyticsFilterOptions, useHoursWeek, useUtilization, useMetricBreaches,
 	useAnalyticsNarrative, useOlapKpis, useOlapPipelineFunnel, useOlapPortfolioHealth,
-	useOlapMarginEvolution, useOlapUtilization, useAnalyticsCatalogue,
+	useOlapMarginEvolution, useOlapMarginBreakdown, useOlapUtilization, useAnalyticsCatalogue,
 } from './useAnalytics'
 export {
 	useApprovalWorkflows, useApprovalWorkflow, useApprovalTemplates, useCreateApprovalWorkflow,

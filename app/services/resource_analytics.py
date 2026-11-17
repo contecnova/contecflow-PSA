@@ -436,9 +436,27 @@ def acknowledge_alert_record(db: Session, alert_id: str, current_user: User) -> 
 
 
 def get_user_week_hours(db: Session, user_id: str, week_start: date) -> dict:
-    """Returns committed/booking/capacity/absence hours for a user in a given week."""
+    """Horas comprometidas, de reservas, de capacidad, de ausencia y de festivo de una semana.
+
+    Rev. 180: todo sale del HORARIO EFECTIVO de la persona
+    (`app/services/horario`): `scheduled_hours` son las horas de su turno o
+    jornada en esa semana (no las 40 fijas); `holiday_hours` las de los
+    festivos de la empresa y de su sede que caen en día de trabajo;
+    `absence_hours` las que quitan sus ausencias aprobadas (también por horas)
+    más las de fuera de contrato de un externo; `available_hours` lo que queda.
+    Una reserva ocupa sus horas/día en los días en que la persona trabaja.
+    La capacidad de la semana es `capacidad_de_semana(hw)`.
+    """
+    from app.services.horario import efectivo as hor
 
     week_end = week_start + timedelta(days=6)
+    dias_semana = hor.horario(db, user_id, week_start, week_end)
+    desglose = {"teoricas": 0.0, "festivo": 0.0, "fuera_de_contrato": 0.0, "ausencia": 0.0, "disponibles": 0.0}
+    for x in dias_semana.values():
+        for k, v in x.desglose().items():
+            desglose[k] += v
+    # Días en que la reserva cuenta: los de su horario (laborables, no festivos ni fuera de contrato).
+    trabaja = {d for d, x in dias_semana.items() if x.laborable}
 
     bookings = db.query(ResourceBooking).filter(
         ResourceBooking.user_id == user_id,
@@ -456,10 +474,7 @@ def get_user_week_hours(db: Session, user_id: str, week_start: date) -> dict:
         overlap_start = max(b.start_date, week_start)
         overlap_end = min(b.end_date, week_end)
         days = max(0, (overlap_end - overlap_start).days + 1)
-        work_days = sum(
-            1 for i in range(days)
-            if (overlap_start + timedelta(days=i)).weekday() < 5
-        )
+        work_days = sum(1 for i in range(days) if (overlap_start + timedelta(days=i)) in trabaja)
         h = work_days * (b.hours_per_day or settings.DEFAULT_WORKING_HOURS_PER_DAY)
         # Revisión 2026-11: una reserva `soft` (tentativa) se enseña aparte y no
         # ocupa capacidad; antes contaba igual que una firme.
@@ -480,59 +495,32 @@ def get_user_week_hours(db: Session, user_id: str, week_start: date) -> dict:
         pid = str(c.project_id) if c.project_id else "unassigned"
         booking_projects[pid] = booking_projects.get(pid, 0) + c.planned_hours
 
-    try:
-        from app.models.resources import Absence as AbsenceModel
-        absences = db.query(AbsenceModel).filter(
-            AbsenceModel.user_id == user_id,
-            AbsenceModel.status == "approved",
-            AbsenceModel.start_date <= week_end,
-            AbsenceModel.end_date >= week_start,
-        ).all()
-        dias_fuera: set = set()
-        for a in absences:
-            ov_start = max(a.start_date, week_start)
-            ov_end = min(a.end_date, week_end)
-            for i in range(max(0, (ov_end - ov_start).days + 1)):
-                d = ov_start + timedelta(days=i)
-                if d.weekday() < 5:
-                    dias_fuera.add(d)
-        absence_hours = len(dias_fuera) * settings.DEFAULT_WORKING_HOURS_PER_DAY
-    except Exception:
-        logger.warning("Error calculando absence_hours, se usa 0.0", exc_info=True)
-        absence_hours = 0.0
-        dias_fuera = set()
-
-    # Externos (migracion 178): los laborables fuera de su ventana de contrato
-    # no son capacidad. Cuentan como `absence_hours` (todos los consumidores
-    # —reservas, mapa de calor, prevision— ya la restan) y se ven aparte.
-    from app.services.externos.disponibilidad import ventana
-    v = ventana(db, user_id)
-    out_of_contract_hours = 0.0
-    if v is not None:
-        fuera_contrato = {week_start + timedelta(days=i) for i in range(5)
-                          if not v.contiene(week_start + timedelta(days=i))} - dias_fuera
-        out_of_contract_hours = len(fuera_contrato) * settings.DEFAULT_WORKING_HOURS_PER_DAY
-        absence_hours += out_of_contract_hours
-        dias_fuera |= fuera_contrato
-
-    # Revisión 2026-11: los festivos de la empresa en día laborable restan
-    # capacidad (sin contar dos veces un día que ya es ausencia).
-    from app.services.absence_service import get_holidays_for_period
-    festivos = {h.date for h in get_holidays_for_period(db, week_start, week_end)
-                if h.date.weekday() < 5 and h.date not in dias_fuera}
-    holiday_hours = len(festivos) * settings.DEFAULT_WORKING_HOURS_PER_DAY
-
     total = booking_hours + capacity_hours
+    out_of_contract_hours = desglose["fuera_de_contrato"]
     return {
         "committed_hours": round(total, 1),
         "booking_hours": round(booking_hours, 1),
         "capacity_hours": round(capacity_hours, 1),
-        "absence_hours": round(absence_hours, 1),
-        "holiday_hours": round(holiday_hours, 1),
+        "scheduled_hours": round(desglose["teoricas"], 1),
+        # Fuera de contrato cuenta como ausencia (todos los consumidores ya la restan) y se ve aparte.
+        "absence_hours": round(desglose["ausencia"] + out_of_contract_hours, 1),
+        "holiday_hours": round(desglose["festivo"], 1),
+        "available_hours": round(desglose["disponibles"], 1),
         "tentative_hours": round(tentative_hours, 1),
         "out_of_contract_hours": round(out_of_contract_hours, 1),
+        "working_days": len(trabaja),
         "projects": {k: round(h, 1) for k, h in booking_projects.items()},
     }
+
+
+def capacidad_de_semana(hw: dict, base: Optional[float] = None) -> float:
+    """La capacidad neta de una semana de `get_user_week_hours`: las horas de su
+    horario menos ausencias y festivos (rev. 180). `base` solo si `hw` no trae
+    `scheduled_hours` (respuestas antiguas)."""
+    bruto = hw.get("scheduled_hours")
+    if bruto is None:
+        bruto = base or 0.0
+    return max(0.0, float(bruto) - hw.get("absence_hours", 0.0) - hw.get("holiday_hours", 0.0))
 
 
 def get_forecast_active_users(

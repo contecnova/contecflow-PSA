@@ -644,7 +644,7 @@ def aplicar_retencion():
 
 @celery_app.task(name="app.worker.ausencias_pasada_diaria")
 def ausencias_pasada_diaria():
-    """Documentos de ausencias (repetir, recordar, vencer, escalar) y lista de espera, por empresa."""
+    """Documentos de ausencias (repetir, recordar, vencer, escalar), lista de espera y bolsa de horas, por empresa."""
     from app.services.ausencias.solicitudes import pasada_diaria
     return _por_organizacion("ausencias_pasada_diaria", pasada_diaria)
 

@@ -12,12 +12,15 @@
   administracion (administradores).
 - `/translation/kb/{article_id}`: versiones de un articulo en los idiomas del
   portal, con revision.
+- `/translation/portal-content[/{tipo}/{id}]`: lo mismo para avisos y
+  categorias y servicios del catalogo (17-11-2026,
+  `traduccion/versiones_del_portal.py`).
 
 Los errores de negocio son codigos `trad_*` que la interfaz traduce.
 """
 from typing import Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Path
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -27,6 +30,7 @@ from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.services.traduccion import ajustes, glosario, kb, mensajes, salida, servicio
+from app.services.traduccion import versiones_del_portal as versiones
 from app.services.traduccion.idiomas import IDIOMAS, IDIOMAS_DE_OPERADOR, IDIOMAS_DEL_PORTAL, normalizar
 
 router = APIRouter()
@@ -83,6 +87,10 @@ class VersionIn(BaseModel):
     title: Optional[str] = Field(None, max_length=500)
     summary: Optional[str] = Field(None, max_length=500)
     body: Optional[str] = Field(None, max_length=200000)
+
+
+class VersionDeContenidoIn(BaseModel):
+    fields: dict[str, Optional[str]] = Field(..., max_length=4)
 
 
 class RevisionIn(BaseModel):
@@ -216,4 +224,51 @@ def revisar_kb(article_id: str, language: str, payload: RevisionIn, db: Session 
 def borrar_kb(article_id: str, language: str, db: Session = Depends(get_db),
               current_user: User = Depends(require_internal_user)):
     kb.borrar(db, current_user, article_id, language)
+    return APIResponse.ok(data={"ok": True})
+
+
+# ── Avisos y catalogo del portal (17-11-2026) ────────────────────────────────
+# `tipo`: announcement | catalog_category | catalog_service. Permisos en el
+# servicio: editor (admin o revisor) y revisor (admin o cola de revisores).
+_TIPO = "^(announcement|catalog_category|catalog_service)$"
+
+
+@router.get("/portal-content", summary="Traducción: avisos y catálogo con sus versiones (pantalla de revisión)")
+def resumen_de_contenido(db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+    return APIResponse.ok(data=versiones.resumen(db, current_user))
+
+
+@router.get("/portal-content/{tipo}/{content_id}", summary="Traducción: versiones de un aviso o elemento del catálogo")
+def versiones_de_contenido(tipo: str = Path(..., pattern=_TIPO), content_id: str = Path(..., max_length=36),
+                           db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+    return APIResponse.ok(data=versiones.listar(db, current_user, tipo, content_id))
+
+
+@router.post("/portal-content/{tipo}/{content_id}/generate", summary="Traducción: generar versiones (quedan en revisión)")
+def generar_contenido(payload: GenerarIn, tipo: str = Path(..., pattern=_TIPO),
+                      content_id: str = Path(..., max_length=36),
+                      db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+    return APIResponse.ok(data=versiones.generar(db, current_user, tipo, content_id, payload.languages))
+
+
+@router.patch("/portal-content/{tipo}/{content_id}/{language}", summary="Traducción: corregir una versión (vuelve a revisión)")
+def editar_contenido(payload: VersionDeContenidoIn, tipo: str = Path(..., pattern=_TIPO),
+                     content_id: str = Path(..., max_length=36), language: str = Path(..., max_length=16),
+                     db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+    return APIResponse.ok(data=versiones.editar(db, current_user, tipo, content_id, language, payload.fields))
+
+
+@router.post("/portal-content/{tipo}/{content_id}/{language}/review", summary="Traducción: publicar o rechazar una versión")
+def revisar_contenido(payload: RevisionIn, tipo: str = Path(..., pattern=_TIPO),
+                      content_id: str = Path(..., max_length=36), language: str = Path(..., max_length=16),
+                      db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+    return APIResponse.ok(data=versiones.revisar(db, current_user, tipo, content_id, language, payload.publish,
+                                                 payload.comment))
+
+
+@router.delete("/portal-content/{tipo}/{content_id}/{language}", summary="Traducción: borrar una versión")
+def borrar_contenido(tipo: str = Path(..., pattern=_TIPO), content_id: str = Path(..., max_length=36),
+                     language: str = Path(..., max_length=16),
+                     db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
+    versiones.borrar(db, current_user, tipo, content_id, language)
     return APIResponse.ok(data={"ok": True})

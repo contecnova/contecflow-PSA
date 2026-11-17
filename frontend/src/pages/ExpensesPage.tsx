@@ -16,7 +16,7 @@ import { useToast } from '../context/ToastContext'
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, expensesApi, gastosApi } from '../services/api'
 import type { FiltrosDeGastos, GastoConPoliticas } from '../services/api/gastos'
-import { Button, Modal, Spinner, EmptyState, useSort, SortableTH, SearchInput, FilterSelect, KpiCard, Tabs, IconButton, Pulsable, Select, Checkbox } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, useSort, SortableTH, SearchInput, FilterSelect, KpiCard, Tabs, IconButton, Pulsable, Select, Checkbox, useErroresDeCampo } from '../components/ui'
 import Pagination from '../components/ui/Pagination'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -211,15 +211,18 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
     .flatMap(([, d]) => d?.items ?? [])
   const ciudades = [...new Set(previos.filter(e => e.city && (!form.country || e.country === form.country)).map(e => e.city as string))].sort()
   const viajes = [...new Set(previos.map(e => e.trip).filter(Boolean) as string[])].sort()
-  const set = (k: string) => (e: { target: { value: string } }) => setForm(f => ({ ...f, [k]: e.target.value }))
+  const campos = useErroresDeCampo()
+  const set = (k: string) => (e: { target: { value: string } }) => { campos.limpiar(k); setForm(f => ({ ...f, [k]: e.target.value })) }
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
 
   const { data: projRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list().then(r => r.data) })
   const projects: Array<{ id?: string; code?: string; name?: string }> = Array.isArray(projRaw) ? projRaw : []
 
   const { mutate, isPending } = useMutation({
     mutationFn: (d: Record<string, unknown>) => isEdit ? expensesApi.updateMy(expense!.id, d) : expensesApi.create(d),
+    onMutate: () => campos.limpiar(),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['expenses-my'] }); qc.invalidateQueries({ queryKey: ['expenses-pending'] }); onClose() },
-    onError: (e: unknown) => toast.error(extractErr(e, t('expenses.error_guardar'))),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, t('expenses.error_guardar'))) },
   })
   const id = (k: string) => `${idCampo}-${k}`
 
@@ -267,12 +270,14 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
         <div className="u-col-full ds-field">
           <label htmlFor={id('desc')} className="ds-field__label">{t('expenses.descripcion')}</label>
           <input id={id('desc')} value={form.description} onChange={set('description')} className="ds-input" placeholder={t('expenses.descripcion_del_gasto')} />
+          {msg('description')}
         </div>
         <div className="ds-field">
           <label htmlFor={id('cat')} className="ds-field__label">{t('expenses.category')}</label>
           <Select suelto placeholder={false} id={id('cat')} value={form.category} onChange={set('category')} className="ds-input">
             {Object.keys(CATEGORIES).map(v => <option key={v} value={v}>{categoria(v)}</option>)}
           </Select>
+          {msg('category')}
         </div>
         <div className="ds-field">
           <label htmlFor={id('proy')} className="ds-field__label">{t('expenses.proyecto')}</label>
@@ -280,25 +285,30 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
             <option value="">{t('expenses.sin_proyecto')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </Select>
+          {msg('project_id')}
         </div>
         <div className="ds-field">
           <label htmlFor={id('imp')} className="ds-field__label">{t('expenses.importe_obligatorio')}</label>
           <input id={id('imp')} type="number" step="0.01" value={form.km ? '' : form.amount} disabled={!!form.km} onChange={set('amount')} className="ds-input"
             placeholder={form.km ? t('gas.importe_por_km') : t('expenses.amount')} />
+          {msg('amount')}
         </div>
         <div className="ds-field">
           <label htmlFor={id('km')} className="ds-field__label">{t('gas.km')}</label>
           <input id={id('km')} type="number" step="0.1" min={0} value={form.km} onChange={set('km')} className="ds-input" placeholder={t('gas.km_ayuda')} />
+          {msg('km')}
         </div>
         <div className="ds-field">
           <label htmlFor={id('mon')} className="ds-field__label">{t('expenses.currency')}</label>
           <Select suelto placeholder={false} id={id('mon')} value={form.currency} onChange={set('currency')} className="ds-input">
             {monedasDeLaEmpresa.map(c => <option key={c} value={c}>{c}</option>)}
           </Select>
+          {msg('currency')}
         </div>
         <div className="ds-field">
           <label htmlFor={id('fecha')} className="ds-field__label">{t('expenses.fecha_del_gasto')}</label>
           <DateInput id={id('fecha')} value={form.expense_date} onChange={set('expense_date')} className="ds-input" />
+          {msg('expense_date')}
         </div>
         <div className="ds-field">
           <label htmlFor={id('pais')} className="ds-field__label">{t('gas.pais')}</label>
@@ -306,10 +316,12 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
             <option value="">{t('gas.sin_pais')}</option>
             {paises.map(c => <option key={c} value={c}>{nombreDePais(c, lang)} ({c})</option>)}
           </Select>
+          {msg('country')}
         </div>
         <div className="ds-field">
           <label htmlFor={id('ciudad')} className="ds-field__label">{t('gas.ciudad')}</label>
           <input id={id('ciudad')} list={id('ciudades')} value={form.city} onChange={set('city')} className="ds-input" maxLength={120} />
+          {msg('city')}
           <datalist id={id('ciudades')}>{ciudades.map(c => <option key={c} value={c} aria-label={c} />)}</datalist>
         </div>
         {form.category === 'meals' && (
@@ -317,6 +329,7 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
             <label htmlFor={id('asis')} className="ds-field__label">{t('gas.asistentes')}</label>
             <input id={id('asis')} type="number" min={1} step={1} value={form.attendees} onChange={set('attendees')} className="ds-input"
               aria-describedby={id('asis-ayuda')} />
+          {msg('attendees')}
             <span id={id('asis-ayuda')} className="ds-field__hint">{t('gas.asistentes_ayuda')}</span>
           </div>
         )}
@@ -324,6 +337,7 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
           <label htmlFor={id('viaje')} className="ds-field__label">{t('gas.viaje')}</label>
           <input id={id('viaje')} list={id('viajes')} value={form.trip} onChange={set('trip')} className="ds-input" maxLength={120}
             aria-describedby={id('viaje-ayuda')} />
+          {msg('trip')}
           <datalist id={id('viajes')}>{viajes.map(c => <option key={c} value={c} aria-label={c} />)}</datalist>
           <span id={id('viaje-ayuda')} className="ds-field__hint">{t('gas.viaje_ayuda')}</span>
         </div>
@@ -334,6 +348,7 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
         <div className="u-col-full ds-field">
           <label htmlFor={id('notas')} className="ds-field__label">{t('expenses.notas_adicionales')}</label>
           <textarea id={id('notas')} value={form.notes} onChange={set('notes')} rows={2} className="ds-input exp-textarea" placeholder={t('expenses.notas_adicionales')} />
+          {msg('notes')}
         </div>
         <div className="exp-nota">{t('gas.justificantes_en_el_detalle')}</div>
         <div className="exp-pie">

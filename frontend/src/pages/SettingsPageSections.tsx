@@ -11,7 +11,8 @@ import { usersApi, organizationsApi, biSmartAlertsApi, esignApi, apiUrl, esFicha
 import type { ClaveDeFirma, ConfigDeFirma } from '../services/api/tipos-finanzas'
 import type { Organizacion } from '../services/api/tipos-plataforma'
 import type { MetricasDeAlertaBi } from '../services/api/tipos-bi'
-import { Button, Checkbox, GrupoDeOpciones, IconButton, Modal, Pulsable, Select, Spinner, EmptyState, MarcaExterno, Switch } from '../components/ui'
+import { Button, Checkbox, GrupoDeOpciones, IconButton, Modal, Pulsable, Select, Spinner, EmptyState, MarcaExterno, Switch, useErroresDeCampo } from '../components/ui'
+import type { ErroresDeCampo } from '../components/ui'
 import { Search, Layers, Sparkles, Building2, Pencil, Trash2, Check, X, Plus, Pause, Play, Settings, KeyRound, Bell, Euro, Palmtree, Hash, Puzzle, LayoutTemplate, Tag, Compass, BarChart3, PenLine, Lock, Type, Calendar, List, CheckSquare, Link2, ClipboardList, FileSignature, CheckCircle2 } from 'lucide-react'
 /*
  * 16-11-2026: pasada de diseño de /settings. Iconos lucide en lugar de emojis
@@ -264,8 +265,10 @@ function UsersSection() {
   // texto; pydantic los convierte). Un '' en la tarifa o la zona horaria es «sin valor»:
   // en el alta se omite y al editar viaja como null (un '' en la tarifa daba 422).
   // Auditoría 2026-11 (#25).
-  const { mutate: createUser, isPending: creating } = useMutation({ mutationFn: (data: UserFormPayload) => usersApi.create(limpiarUsuario(data, 'omitir') as unknown as UserCreatePayload), onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); setShowCreate(false) } , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
-  const { mutate: updateUser, isPending: updating } = useMutation({ mutationFn: ({ id, data }: { id: string; data: UserFormPayload }) => usersApi.update(id, limpiarUsuario(data, 'anular') as UserUpdatePayload), onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); qc.invalidateQueries({ queryKey: ['user-detail'] }); setEditUser(null) } , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  const camposAlta = useErroresDeCampo()
+  const camposEdicion = useErroresDeCampo()
+  const { mutate: createUser, isPending: creating } = useMutation({ onMutate: () => camposAlta.limpiar(), mutationFn: (data: UserFormPayload) => usersApi.create(limpiarUsuario(data, 'omitir') as unknown as UserCreatePayload), onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); setShowCreate(false) } , onError: e => { if (!camposAlta.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) }})
+  const { mutate: updateUser, isPending: updating } = useMutation({ onMutate: () => camposEdicion.limpiar(), mutationFn: ({ id, data }: { id: string; data: UserFormPayload }) => usersApi.update(id, limpiarUsuario(data, 'anular') as UserUpdatePayload), onSuccess: () => { qc.invalidateQueries({ queryKey: ['users'] }); qc.invalidateQueries({ queryKey: ['user-detail'] }); setEditUser(null) } , onError: e => { if (!camposEdicion.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) }})
   // `GET /users` (`UserPublic`) no lleva la tarifa, que es confidencial: la ficha la
   // pide a `GET /users/{id}` (`UserWithRate`) al abrirse.
   const { data: editUserDetail, isFetched: editUserFetched } = useQuery({
@@ -364,9 +367,9 @@ function UsersSection() {
           )})}
         </div>
       )}
-      <UserFormModal open={showCreate} roles={roles} departments={departments} organizations={organizations} esSuperadmin={esSuperadmin} onClose={() => setShowCreate(false)} onSave={createUser} isPending={creating} />
+      <UserFormModal open={showCreate} roles={roles} departments={departments} organizations={organizations} esSuperadmin={esSuperadmin} campos={camposAlta} onClose={() => setShowCreate(false)} onSave={createUser} isPending={creating} />
       {bajaDe && <ConfirmarBajaModal userId={bajaDe.id} nombre={bajaDe.nombre} onClose={() => setBajaDe(null)} />}
-      {editUser && editUserFetched && <UserFormModal open roles={roles} departments={departments} organizations={organizations} esSuperadmin={esSuperadmin} user={editUserDetail ? { ...editUser, ...editUserDetail } : editUser} onClose={() => setEditUser(null)} onSave={data => updateUser({ id: editUser.id, data })} isPending={updating} />}
+      {editUser && editUserFetched && <UserFormModal open roles={roles} departments={departments} organizations={organizations} esSuperadmin={esSuperadmin} campos={camposEdicion} user={editUserDetail ? { ...editUser, ...editUserDetail } : editUser} onClose={() => setEditUser(null)} onSave={data => updateUser({ id: editUser.id, data })} isPending={updating} />}
     </SeccionDeAjustes>
   )
 }
@@ -409,9 +412,10 @@ interface UserFormModalProps {
   departments?: DepartmentOut[]
   organizations?: Organizacion[]
   esSuperadmin?: boolean
+  campos: ErroresDeCampo
 }
 
-function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], departments = [], organizations = [], esSuperadmin = false }: UserFormModalProps) {
+function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], departments = [], organizations = [], esSuperadmin = false, campos }: UserFormModalProps) {
   const fmtMoneda = useFormatoMoneda()
   const idCampo = React.useId()
   const { t } = useAppLang()
@@ -438,6 +442,7 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
   const set = (k: keyof UserFormValues) => (e: InputChange) => {
     setForm(f => ({ ...f, [k]: e.target.value }))
     validation.clearFieldError(k)
+    campos.limpiar(k)
   }
   const setOrganizations = (values: string[]) => {
     setForm((f) => {
@@ -447,9 +452,11 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
       return { ...f, organization_ids: values, organization_id: nextPrimary }
     })
     validation.clearFieldError('organization_ids')
+    campos.limpiar('organization_ids')
   }
-  const errField = (key: string) => validation.errors[key] && (
-    <div className="u-field-error" role="alert">{t(validation.errors[key])}</div>
+  const textoError = (key: string) => (validation.errors[key] ? t(validation.errors[key]) : campos.de(key))
+  const errField = (key: string) => textoError(key) && (
+    <div className="u-field-error" role="alert">{textoError(key)}</div>
   )
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -473,12 +480,12 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
         </Select>{errField('role')}</div>
         <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="set-label">{t('settings_sections.rol_personalizado')}</label><Select suelto placeholder={t('settings_sections.ninguno_rol_base')} id={`${idCampo}-5`} value={form.custom_role_id} onChange={set('custom_role_id')} className="set-input">
           {roles.filter(r => !r.is_system).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-        </Select></div>
+        </Select>{errField('custom_role_id')}</div>
         <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="set-label">{t('settings_sections.departamento')}</label><Select suelto placeholder={t('settings.sin_departamento')} id={`${idCampo}-6`} value={form.department} onChange={set('department')} className="set-input">
           {departments.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-        </Select></div>
-        <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="set-label">{t('settings_sections.cargo')}</label><input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.job_title} onChange={set('job_title')} className="set-input" /></div>
-        <div><label htmlFor={`${idCampo}-grado`} className="set-label">{t('settings_sections.grado')}</label><input id={`${idCampo}-grado`} aria-label={t('settings_sections.grado')} value={form.grade} onChange={set('grade')} maxLength={60} className="set-input" aria-describedby={`${idCampo}-grado-ayuda`} /><span id={`${idCampo}-grado-ayuda`} className="u-text3-xs">{t('settings_sections.grado_ayuda')}</span></div>
+        </Select>{errField('department')}</div>
+        <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="set-label">{t('settings_sections.cargo')}</label><input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.job_title} onChange={set('job_title')} className="set-input" />{errField('job_title')}</div>
+        <div><label htmlFor={`${idCampo}-grado`} className="set-label">{t('settings_sections.grado')}</label><input id={`${idCampo}-grado`} aria-label={t('settings_sections.grado')} value={form.grade} onChange={set('grade')} maxLength={60} className="set-input" aria-describedby={`${idCampo}-grado-ayuda`} />{errField('grade')}<span id={`${idCampo}-grado-ayuda`} className="u-text3-xs">{t('settings_sections.grado_ayuda')}</span></div>
         <div><label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="set-label">{t('settings_sections.horas_semanales')}</label><input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} type="number" value={form.weekly_capacity_hours} onChange={set('weekly_capacity_hours')} className="set-input" aria-invalid={!!validation.errors.weekly_capacity_hours} />{errField('weekly_capacity_hours')}</div>
         <div><label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="set-label">{t('settings_sections.tarifa_hora', { simbolo: fmtMoneda.simbolo })}</label><input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} type="number" value={form.hourly_rate} onChange={set('hourly_rate')} className="set-input" aria-invalid={!!validation.errors.hourly_rate} />{errField('hourly_rate')}</div>
         {esSuperadmin && <>
@@ -493,14 +500,14 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
               const org = organizations.find(o => o.id === orgId)
               return <option key={orgId} value={orgId}>{org?.name || orgId}</option>
             })}
-          </Select>
+          </Select>{errField('organization_id')}
         </div>
         </>}
         <div className="u-col-full">
           <label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} className="set-label">{t('settings.timezone')}</label>
           <Select suelto placeholder={t('settings.usa_la_zona_de_la_organizacion')} id={`${idCampo}-12`} value={form.timezone} onChange={set('timezone')} className="set-input">
             {timezoneOptions(form.timezone).map(tz => <option key={tz} value={tz}>{tz}</option>)}
-          </Select>
+          </Select>{errField('timezone')}
         </div>
         {!isEdit && <div className="u-col-full"><label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} className="set-label">{t('settings.contrasena')}</label><input id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} type="password" value={form.password} onChange={set('password')} className="set-input" aria-invalid={!!validation.errors.password} />{errField('password')}</div>}
         <div className="set-form-actions">

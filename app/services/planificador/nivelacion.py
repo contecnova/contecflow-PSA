@@ -52,16 +52,23 @@ def _dias(cal: Calendario, inicio: date, fin: date) -> list[date]:
 
 
 def _horas_por_dia(t: Task, cal: Calendario, inicio: date, fin: date) -> dict[date, float]:
+    """Las horas que quedan de la tarea repartidas entre sus días laborables en
+    proporción a las horas que la persona trabaja cada día (rev. 180: un día de
+    turno de 10 h recibe más que uno de jornada reducida de 5 h)."""
     dias = _dias(cal, inicio, fin)
     if not dias or not t.estimated_hours:
         return {}
-    restante = t.estimated_hours * (1 - (t.progress_pct or 0) / 100)
-    reparto = max(restante, 0) / len(dias)
-    return {d: reparto for d in dias}
+    restante = max(t.estimated_hours * (1 - (t.progress_pct or 0) / 100), 0)
+    pesos = {d: cal.horas(d) for d in dias}
+    total = sum(pesos.values())
+    if total <= 0:
+        return {d: restante / len(dias) for d in dias}
+    return {d: restante * h / total for d, h in pesos.items()}
 
 
-def _sobrecarga(carga: dict, capacidad: float, dias: Iterable[date]) -> float:
-    return sum(max(0.0, carga.get(d, 0.0) - capacidad) for d in dias)
+def _sobrecarga(carga: dict, capacidad, dias: Iterable[date]) -> float:
+    """Horas por encima de la capacidad de cada día (`capacidad(d)`)."""
+    return sum(max(0.0, carga.get(d, 0.0) - capacidad(d)) for d in dias)
 
 
 def _umbral(db: Session, org_id: Optional[str]) -> tuple[float, int]:
@@ -112,15 +119,18 @@ def _calcular(db: Session, user, project_id: str) -> dict:
         reparto[t.id] = r
         for d, h in r.items():
             carga[t.assignee_id][d] += h
-    capacidad = {uid: cal(uid).horas_por_dia * factor for uid in personas}
+    def capacidad_de(uid: str):
+        c = cal(uid)
+        return lambda d: c.horas(d) * factor
+    capacidad = {uid: capacidad_de(uid) for uid in personas}
 
     def sobrecargas() -> list[dict]:
         out = []
         for uid, dias in carga.items():
             for d, h in sorted(dias.items()):
-                if hoy <= d <= hasta and h > capacidad[uid] + 1e-9:
+                if hoy <= d <= hasta and h > capacidad[uid](d) + 1e-9:
                     out.append({"user_id": uid, "date": d.isoformat(), "hours": round(h, 2),
-                                "capacity": round(capacidad[uid], 2)})
+                                "capacity": round(capacidad[uid](d), 2)})
         return out
 
     antes = sobrecargas()

@@ -486,6 +486,9 @@ async def slack_inbound_command(
     from app.services.integrations import find_user_by_slack_name
     contecflow_user = await run_db(find_user_by_slack_name, db, params.get("user_name", ""),
                                    params.get("team_id"))
+    # Canales en tiempo real (17-11-2026): `ticket` publica su tarjeta en este
+    # canal con el token del bot y ata el hilo al ticket (`canal_slack.crear`).
+    db.info["slack_canal"] = (params.get("channel_id") or "")[:40] or None
 
     return await _ejecutar_comando_del_bot(
         params.get("text", "").strip(), contecflow_user, db, canal="Slack")

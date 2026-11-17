@@ -7,9 +7,15 @@ se planifica con el calendario de quien la hace:
   · **empresa**: días laborables del ajuste `PLANNING_WORKDAYS`, jornada de
     `DEFAULT_WORKING_HOURS_PER_DAY` y los festivos de Configuración › Festivos
     que valen para todos (los que no llevan `applies_to`);
-  · **persona**: el de la empresa, menos sus ausencias **aprobadas** (las
-    pendientes no quitan días: aún pueden rechazarse) y con su jornada
-    (`weekly_capacity_hours` / días laborables).
+  · **persona** (rev. 180): su HORARIO EFECTIVO día a día
+    (`app/services/horario`): el turno del cuadrante o de su rotación (mañana,
+    tarde, noche, partido, que cruza la medianoche), su jornada asignada
+    (verano, reducida… con vigencia) o la de la empresa; menos los festivos de
+    la empresa y de SU SEDE, sus ausencias **aprobadas** (también por horas:
+    un día con dos horas de permiso tiene dos horas menos) y los días fuera de
+    contrato de un externo. Se calcula para `PLANNING_SCHEDULE_HORIZON_DAYS`
+    días desde el inicio; más allá, el patrón de la empresa con su jornada
+    media.
 
 La clase es pura —sin base de datos— para que el CPM y sus tests no dependan de
 nada; `cargar_calendarios` es lo único que lee tablas.
@@ -18,7 +24,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date, timedelta
-from typing import Iterable, Optional
+from typing import Iterable, Mapping, Optional
 
 from sqlalchemy.orm import Session
 
@@ -43,11 +49,18 @@ def interpretar_dias_laborables(texto: Optional[str]) -> frozenset[int]:
 
 @dataclass(frozen=True)
 class Calendario:
-    """Días laborables (ISO), días sueltos que no se trabajan y jornada."""
+    """Días laborables (ISO), días sueltos que no se trabajan y jornada.
+
+    `horas_por_fecha` (rev. 180) manda en los días que trae: las horas que se
+    trabajan ESE día (0 = no laborable), del horario efectivo de la persona.
+    Fuera de ellos, el patrón (`dias_laborables`, `no_laborables`,
+    `horas_por_dia`). `horas_por_dia` es la jornada media (estimaciones en días).
+    """
 
     dias_laborables: frozenset[int]
     no_laborables: frozenset[date] = field(default_factory=frozenset)
     horas_por_dia: float = 8.0
+    horas_por_fecha: Mapping[date, float] = field(default_factory=dict, compare=False, hash=False)
 
     def __post_init__(self) -> None:
         if not self.dias_laborables:
@@ -57,7 +70,25 @@ class Calendario:
 
     # ── Consultas de un día ──────────────────────────────────────────────────
     def es_laborable(self, d: date) -> bool:
+        h = self.horas_por_fecha.get(d)
+        if h is not None:
+            return h > 0
         return d.isoweekday() in self.dias_laborables and d not in self.no_laborables
+
+    def horas(self, d: date) -> float:
+        """Horas de trabajo de ese día (0 si no es laborable)."""
+        h = self.horas_por_fecha.get(d)
+        if h is not None:
+            return h
+        return self.horas_por_dia if self.es_laborable(d) else 0.0
+
+    def horas_en(self, desde: date, hasta: date) -> float:
+        """Horas de trabajo en [desde, hasta], ambos incluidos."""
+        total, d = 0.0, desde
+        while d <= hasta:
+            total += self.horas(d)
+            d += timedelta(days=1)
+        return total
 
     def siguiente(self, d: date) -> date:
         """`d` si es laborable; si no, el primer laborable después."""
@@ -132,10 +163,21 @@ class Calendario:
 
     def con_ausencias(self, dias: Iterable[date], horas_por_dia: Optional[float] = None) -> "Calendario":
         """El mismo calendario quitando más días (las ausencias de una persona)."""
+        quitar = frozenset(dias)
         return Calendario(
             dias_laborables=self.dias_laborables,
-            no_laborables=frozenset(self.no_laborables) | frozenset(dias),
+            no_laborables=frozenset(self.no_laborables) | quitar,
             horas_por_dia=horas_por_dia or self.horas_por_dia,
+            horas_por_fecha={**self.horas_por_fecha, **{d: 0.0 for d in quitar if d in self.horas_por_fecha}},
+        )
+
+    def con_horario(self, horas_por_fecha: Mapping[date, float], horas_por_dia: Optional[float] = None) -> "Calendario":
+        """El mismo patrón con las horas de cada día del horario efectivo de una persona."""
+        return Calendario(
+            dias_laborables=self.dias_laborables,
+            no_laborables=self.no_laborables,
+            horas_por_dia=horas_por_dia or self.horas_por_dia,
+            horas_por_fecha=dict(horas_por_fecha),
         )
 
 
@@ -162,59 +204,28 @@ def calendario_de_empresa(db: Session, org_id: Optional[str]) -> Calendario:
 def cargar_calendarios(
     db: Session, org_id: Optional[str], user_ids: Iterable[str], desde: Optional[date] = None,
 ) -> tuple[Calendario, dict[str, Calendario]]:
-    """El de la empresa y uno por persona, en dos consultas.
+    """El de la empresa y uno por persona.
 
-    `desde` acota las ausencias: las que terminaron antes no cambian nada.
+    El de cada persona sale de su horario efectivo (`app/services/horario`,
+    rev. 180) día a día en [desde, desde + PLANNING_SCHEDULE_HORIZON_DAYS]:
+    turnos, jornada, festivos de su sede, ausencias aprobadas (también por
+    horas) y ventana de contrato de un externo. Fuera de ese horizonte, el
+    patrón de la empresa con su jornada media.
     """
-    from app.models.resources import Absence, AbsenceStatus
-    from app.models.user import User
+    from app.services.horario import efectivo as hor
+    from app.services.settings_service import get_runtime_int
 
     empresa = calendario_de_empresa(db, org_id)
     ids = {u for u in user_ids if u}
     if not ids:
         return empresa, {}
-
-    jornadas = {}
-    for uid, semanales in db.query(User.id, User.weekly_capacity_hours).filter(User.id.in_(ids)).all():
-        jornadas[uid] = (semanales / len(empresa.dias_laborables)) if semanales else None
-
-    q = db.query(Absence.user_id, Absence.start_date, Absence.end_date).filter(
-        Absence.user_id.in_(ids), Absence.status == AbsenceStatus.approved,
-    )
-    if desde is not None:
-        q = q.filter(Absence.end_date >= desde)
-    ausencias: dict[str, set[date]] = {}
-    for uid, ini, fin in q.all():
-        if not ini or not fin:
-            continue
-        d = ini
-        while d <= fin:
-            ausencias.setdefault(uid, set()).add(d)
-            d += timedelta(days=1)
-
-    # Externos (migracion 178): fuera de su ventana de contrato no trabajan.
-    # Se quitan los dias de antes de `available_from` y de despues de
-    # `available_until` dentro de un horizonte finito (un año antes de `desde`
-    # y dos despues del fin): el calendario sigue siendo usable (ninguna
-    # busqueda de «siguiente laborable» se queda sin fin).
-    from app.services.externos.disponibilidad import ventanas
     base = desde or timeutil.today()
-    for uid, v in ventanas(db, ids).items():
-        fuera = ausencias.setdefault(uid, set())
-        if v.desde and v.desde > base - timedelta(days=365):
-            d = base - timedelta(days=365)
-            while d < v.desde:
-                fuera.add(d)
-                d += timedelta(days=1)
-        if v.hasta:
-            d = v.hasta + timedelta(days=1)
-            tope = max(v.hasta, base) + timedelta(days=730)
-            while d <= tope:
-                fuera.add(d)
-                d += timedelta(days=1)
-
-    personas = {
-        uid: empresa.con_ausencias(ausencias.get(uid, ()), jornadas.get(uid))
-        for uid in ids
-    }
+    horizonte = max(1, int(get_runtime_int(db, "PLANNING_SCHEDULE_HORIZON_DAYS", org_id) or 730))
+    inicio, fin = base - timedelta(days=31), base + timedelta(days=horizonte)
+    todos = hor.horarios(db, ids, inicio, fin, org=org_id)
+    personas = {}
+    for uid in ids:
+        dias_persona = todos.get(uid) or {}
+        media = hor.media_diaria(dias_persona, empresa.horas_por_dia) if dias_persona else empresa.horas_por_dia
+        personas[uid] = empresa.con_horario({d: round(x.horas, 4) for d, x in dias_persona.items()}, media)
     return empresa, personas

@@ -16,7 +16,7 @@ from app.models.user import User
 from app.services.service_desk.ticket_ops_service import commit_or_rollback as _commit_or_rollback
 from app.schemas.service_desk import (
     ProblemUpdateIn, ServiceCategoryIn, ServiceItemIn, ServiceItemUpdate, AgentGroupIn,
-    AnnouncementIn, StatusComponentIn, StatusIncidentIn,
+    AnnouncementIn, AnnouncementUpdate, StatusComponentIn, StatusIncidentIn,
     StatusIncidentUpdateIn,
 )
 from app.services.service_desk.problem_service import (
@@ -34,6 +34,7 @@ from app.services.service_desk.agent_group_service import (
 from app.services.service_desk.workload_service import get_group_workload_payload
 from app.services.service_desk.announcement_service import (
     list_active_announcements, serialize_announcements, build_announcement, deactivate_announcement_record,
+    update_announcement_record,
 )
 from app.services.service_desk.routing_rule_service import (
     list_routing_rules as _list_routing_rules, serialize_routing_rule,
@@ -82,13 +83,16 @@ def get_catalog(public_only: bool = False, lang: Optional[str] = Query(None, max
     """Catalogo para un agente (todo) o para un cliente del portal (lo visible de su organizacion).
 
     16-11-2026: al cliente, nombres y descripciones en el idioma de su pantalla
-    (`lang`) o de su ficha, si la empresa traduce (`traduccion.contenido_del_portal`)."""
+    (`lang`) o de su ficha, si la empresa traduce (`traduccion.contenido_del_portal`).
+    17-11-2026: primero la version revisada y publicada en ese idioma
+    (`traduccion.versiones_del_portal`); sin ella, la automatica (marcada)."""
     items = list_catalog_payload(db, public_only or lector.solo_publico)
     if lector.cliente is not None:
         from app.services.traduccion import contenido_del_portal as _contenido
-        _contenido.localizar(db, lector.cliente.organization_id, items, ("name", "description"),
-                             _contenido.idioma_del_lector(lector.cliente, lang),
-                             hijos="services", campos_hijos=("name", "description"))
+        from app.services.traduccion import versiones_del_portal as _versiones
+        _versiones.localizar_para_el_portal(db, lector.cliente.organization_id, "catalog_category", items,
+                                            _contenido.idioma_del_lector(lector.cliente, lang),
+                                            clave_hijos="catalog_service", hijos="services")
     return APIListResponse.ok(items=items)
 
 @router.post("/catalog/categories", summary="Crear categoría")
@@ -98,10 +102,13 @@ def create_category(payload: ServiceCategoryIn, db: Session = Depends(get_db), _
     return APIResponse.ok(data={"id": c.id, "name": c.name})
 
 @router.patch("/catalog/categories/{cat_id}", summary="Actualizar categoría")
-def update_category(cat_id: str, payload: ServiceCategoryIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def update_category(cat_id: str, payload: ServiceCategoryIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    from app.services.traduccion.versiones_del_portal import avisar_si_desactualizadas
     c = update_category_record(db, cat_id, payload)
     _commit_or_rollback(db)
-    return APIResponse.ok(data={"id": c.id, "name": c.name})
+    # 17-11-2026: si cambia el texto, sus versiones en otros idiomas quedan desactualizadas (y se avisa).
+    n = avisar_si_desactualizadas(db, current_user, "catalog_category", c)
+    return APIResponse.ok(data={"id": c.id, "name": c.name, "translations_outdated": n})
 
 @router.delete("/catalog/categories/{cat_id}", summary="Desactivar categoría")
 def delete_category(cat_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
@@ -117,10 +124,12 @@ def create_service(payload: ServiceItemIn, db: Session = Depends(get_db), _: Use
     return APIResponse.ok(data={"id": s.id, "name": s.name})
 
 @router.patch("/catalog/services/{service_id}", summary="Actualizar servicio")
-def update_service(service_id: str, payload: ServiceItemUpdate, db: Session = Depends(get_db), _: User = Depends(require_admin)):
-    update_service_record(db, service_id, payload)
+def update_service(service_id: str, payload: ServiceItemUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+    from app.services.traduccion.versiones_del_portal import avisar_si_desactualizadas
+    s = update_service_record(db, service_id, payload)
     _commit_or_rollback(db)
-    return APIResponse.ok(data={"ok": True})
+    n = avisar_si_desactualizadas(db, current_user, "catalog_service", s)
+    return APIResponse.ok(data={"ok": True, "translations_outdated": n})
 
 @router.delete("/catalog/services/{service_id}", summary="Desactivar servicio")
 def delete_service(service_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
@@ -224,9 +233,11 @@ def list_announcements(page: int = Query(1, ge=1), page_size: int = Query(50, ge
         db, page, page_size, response, solo_clientes=lector.solo_publico))
     if lector.cliente is not None:
         # 16-11-2026: el cliente los lee en el idioma de su pantalla, si la empresa traduce.
+        # 17-11-2026: la version publicada por un revisor; si no la hay, la automatica (marcada).
         from app.services.traduccion import contenido_del_portal as _contenido
-        _contenido.localizar(db, lector.cliente.organization_id, items, ("title", "body"),
-                             _contenido.idioma_del_lector(lector.cliente, lang))
+        from app.services.traduccion import versiones_del_portal as _versiones
+        _versiones.localizar_para_el_portal(db, lector.cliente.organization_id, "announcement", items,
+                                            _contenido.idioma_del_lector(lector.cliente, lang))
     return APIListResponse.ok(items=items, page=page, page_size=page_size)
 
 @router.post("/announcements", summary="Crear anuncio")
@@ -234,6 +245,18 @@ def create_announcement(payload: AnnouncementIn, db: Session = Depends(get_db), 
     a = build_announcement(db, payload, current_user.id)
     _commit_or_rollback(db); db.refresh(a)
     return APIResponse.ok(data={"id": a.id})
+
+@router.patch("/announcements/{ann_id}", summary="Actualizar anuncio")
+def update_announcement(ann_id: str, payload: AnnouncementUpdate, db: Session = Depends(get_db),
+                        current_user: User = Depends(require_admin)):
+    """17-11-2026: un aviso se puede corregir. Si cambian titulo o cuerpo, sus
+    versiones en otros idiomas quedan desactualizadas y se avisa a los revisores."""
+    from app.services.traduccion.versiones_del_portal import avisar_si_desactualizadas
+    enforce_abac(db, current_user, "sd_announcement", ann_id, action="update")
+    a = update_announcement_record(db, ann_id, payload)
+    _commit_or_rollback(db)
+    n = avisar_si_desactualizadas(db, current_user, "announcement", a)
+    return APIResponse.ok(data={"id": a.id, "translations_outdated": n})
 
 @router.delete("/announcements/{ann_id}", summary="Desactivar anuncio")
 def deactivate_announcement(ann_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):

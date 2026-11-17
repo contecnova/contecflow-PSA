@@ -24,7 +24,14 @@ from app.models.ausencias import (AccesoEspecialAusencias, RequisitoDocumentalDe
 
 UNIDADES = ("dias", "medios_dias", "horas")
 VISIBILIDADES = ("todos", "equipo", "privada")
-SALDOS = ("vacaciones", "propio")
+SALDOS = ("vacaciones", "propio", "bolsa")
+#: Rev. 180: cómo se puede pedir un tipo (días enteros, medio día, horas con franja).
+MODOS = ("dias", "medio_dia", "horas")
+PERIODOS = ("anual", "semestral", "trimestral", "mensual", "sin_periodo")
+#: Reglas de la bolsa de horas (todas números ≥ 0; ver `ausencias/bolsa.py`).
+BOLSA_CLAVES = ("factor", "factor_festivo", "factor_no_laborable", "umbral_minutos", "tope_diario", "tope_periodo")
+BOLSA_DEFECTO = {"factor": 1.0, "factor_festivo": 1.0, "factor_no_laborable": 1.0, "umbral_minutos": 0,
+                 "tope_diario": None, "tope_periodo": None, "solo_aprobadas": False}
 PLAZO_DESDE = ("solicitud", "inicio", "fin")
 #: Iconos que la pantalla sabe pintar (nombres de lucide en `IconoDeAusencia`).
 ICONOS = ("umbrella", "sun", "stethoscope", "user", "graduation", "baby", "circle", "plane", "heart", "home",
@@ -120,13 +127,30 @@ def requisito_dict(r: RequisitoDocumentalDeTipo) -> dict:
             "escalar_a": _json(r.escalar_a, []), "orden": r.orden}
 
 
+def modos_de(t: TipoDeAusencia) -> list[str]:
+    """Los modos de petición del tipo (por defecto, según su unidad)."""
+    m = [x for x in _json(getattr(t, "modos", None), []) if x in MODOS]
+    if m:
+        return m
+    return ["horas"] if t.unidad == "horas" else ["dias", "medio_dia"]
+
+
+def bolsa_de(t: TipoDeAusencia) -> dict:
+    return {**BOLSA_DEFECTO, **(_json(getattr(t, "bolsa", None), {}) or {})}
+
+
 def tipo_dict(t: TipoDeAusencia, *, con_requisitos: bool = True) -> dict:
     d = {"id": t.id, "clave": t.clave, "nombre": t.nombre, "nombres": _json(t.nombres, {}), "color": t.color,
          "icono": t.icono, "descuenta_saldo": bool(t.descuenta_saldo), "saldo": t.saldo, "cupo_anual": t.cupo_anual,
          "unidad": t.unidad, "visibilidad": t.visibilidad, "workflow_id": t.workflow_id,
          "requiere_aprobacion": bool(t.requiere_aprobacion), "requiere_sustituto": bool(t.requiere_sustituto),
          "datos_especiales": bool(t.datos_especiales), "activo": bool(t.activo), "orden": t.orden,
-         "de_sistema": bool(t.de_sistema)}
+         "de_sistema": bool(t.de_sistema), "modos": modos_de(t), "retribuido": bool(getattr(t, "retribuido", True)),
+         "periodo_saldo": getattr(t, "periodo_saldo", None) or "anual",
+         "inicio_periodo_mes": int(getattr(t, "inicio_periodo_mes", None) or 1), "arrastre_max": t.arrastre_max,
+         "arrastre_caduca_meses": t.arrastre_caduca_meses, "caduca_meses": t.caduca_meses,
+         "prorratear_alta": bool(t.prorratear_alta), "derecho_tabla_id": t.derecho_tabla_id,
+         "bolsa": bolsa_de(t) if t.saldo == "bolsa" else None}
     if con_requisitos:
         d["requisitos"] = [requisito_dict(r) for r in t.requisitos or []]
     return d
@@ -167,10 +191,32 @@ def _validar_tipo(db: Session, datos: dict, actual: Optional[TipoDeAusencia]) ->
     saldo = datos.get("saldo") if descuenta else None
     if descuenta and saldo not in SALDOS:
         errores.append("elige de qué saldo descuenta")
-    if saldo == "vacaciones" and unidad == "horas":
-        errores.append("el saldo de vacaciones va en días: un tipo por horas descuenta de un cupo propio")
-    if saldo == "propio" and (datos.get("cupo_anual") is None or float(datos.get("cupo_anual") or 0) <= 0):
-        errores.append("indica el cupo anual propio")
+    if saldo == "propio" and (datos.get("cupo_anual") is None or float(datos.get("cupo_anual") or 0) <= 0) \
+            and not datos.get("derecho_tabla_id"):
+        errores.append("indica el cupo por periodo (o la tabla de referencia de la que sale)")
+    modos = [m for m in (datos.get("modos") or []) if m]
+    if any(m not in MODOS for m in modos):
+        errores.append("modo de petición desconocido")
+    if (datos.get("periodo_saldo") or "anual") not in PERIODOS:
+        errores.append("periodo de saldo desconocido")
+    if not 1 <= int(datos.get("inicio_periodo_mes") or 1) <= 12:
+        errores.append("el periodo empieza en un mes del 1 al 12")
+    for campo in ("arrastre_max", "arrastre_caduca_meses", "caduca_meses"):
+        if datos.get(campo) not in (None, "") and float(datos[campo]) < 0:
+            errores.append(f"{campo} no puede ser negativo")
+    if datos.get("derecho_tabla_id"):
+        from app.models.politicas import TablaDeReferencia
+        tabla = db.query(TablaDeReferencia).filter(TablaDeReferencia.id == datos["derecho_tabla_id"]).first()
+        if tabla is None or tabla.tipo_de_valor != "numero":
+            errores.append("la tabla del derecho tiene que existir y ser de números")
+    if saldo == "bolsa":
+        for k, v in (datos.get("bolsa") or {}).items():
+            if k == "solo_aprobadas":
+                continue
+            if k not in BOLSA_CLAVES:
+                errores.append(f"regla de bolsa desconocida: {k}")
+            elif v not in (None, "") and float(v) < 0:
+                errores.append(f"bolsa: {k} no puede ser negativo")
     if datos.get("workflow_id"):
         from app.models.billing_reports import ApprovalWorkflow
         wf = db.query(ApprovalWorkflow).filter(ApprovalWorkflow.id == datos["workflow_id"]).first()
@@ -192,6 +238,8 @@ def _validar_tipo(db: Session, datos: dict, actual: Optional[TipoDeAusencia]) ->
 
 
 def guardar_tipo(db: Session, usuario, datos: dict, tipo_id: Optional[str] = None) -> dict:
+    # Los de sistema antes del primer tipo propio: `asegurar` solo siembra una empresa sin ninguno.
+    asegurar(db, _org(db, usuario))
     actual = tipo(db, tipo_id) if tipo_id else None
     nombres = _nombres(datos)
     v = _validar_tipo(db, datos, actual)
@@ -203,7 +251,24 @@ def guardar_tipo(db: Session, usuario, datos: dict, tipo_id: Optional[str] = Non
     t.icono = datos.get("icono") or t.icono or "umbrella"
     t.descuenta_saldo = v["descuenta"]
     t.saldo = v["saldo"]
-    t.cupo_anual = float(datos["cupo_anual"]) if v["saldo"] == "propio" else None
+    t.cupo_anual = float(datos["cupo_anual"]) if v["saldo"] == "propio" and datos.get("cupo_anual") not in (None, "") \
+        else None
+    modos = [m for m in (datos.get("modos") or []) if m in MODOS]
+    t.modos = json.dumps(modos) if modos else None
+    t.retribuido = bool(datos.get("retribuido", True))
+    t.periodo_saldo = datos.get("periodo_saldo") or ("sin_periodo" if v["saldo"] == "bolsa" else "anual")
+    t.inicio_periodo_mes = int(datos.get("inicio_periodo_mes") or 1)
+
+    def _num(clave, entero=False):
+        x = datos.get(clave)
+        return None if x in (None, "") else (int(x) if entero else float(x))
+    t.arrastre_max = _num("arrastre_max")
+    t.arrastre_caduca_meses = _num("arrastre_caduca_meses", True)
+    t.caduca_meses = _num("caduca_meses", True)
+    t.prorratear_alta = bool(datos.get("prorratear_alta"))
+    t.derecho_tabla_id = datos.get("derecho_tabla_id") or None
+    t.bolsa = json.dumps({k: datos["bolsa"][k] for k in (*BOLSA_CLAVES, "solo_aprobadas") if k in (datos.get("bolsa") or {})}) \
+        if v["saldo"] == "bolsa" else None
     t.unidad = v["unidad"]
     t.visibilidad = datos.get("visibilidad") or "equipo"
     t.workflow_id = datos.get("workflow_id") or None

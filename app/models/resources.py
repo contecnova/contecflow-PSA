@@ -1,4 +1,4 @@
-from sqlalchemy import Index, Column, String, Float, DateTime, ForeignKey, Text, Date, Boolean, Integer, Enum
+from sqlalchemy import Index, Column, String, Float, DateTime, ForeignKey, Text, Date, Boolean, Integer, Enum, Time
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -132,6 +132,12 @@ class Absence(Base):
     half_day_end = Column(Boolean, nullable=False, default=False)
     hours = Column(Float, nullable=True)
     requested_at = Column(DateTime(timezone=True), nullable=True)
+    # Revisión 180: ausencias por horas (franja de cada día, dentro de su
+    # horario), modo de la petición y horas de horario que cubre (saldo en horas).
+    modo = Column(String(10), nullable=True)                 # dias | horas
+    start_time = Column(Time, nullable=True)
+    end_time = Column(Time, nullable=True)
+    scheduled_hours = Column(Float, nullable=True)
 
     # Decisión final (quién cerró el flujo). El historial completo está en
     # approval_decisions y en eventos_de_ausencia.

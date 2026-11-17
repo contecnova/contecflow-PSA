@@ -124,6 +124,7 @@ from app.models.ausencias import (  # noqa: F401
     AsignacionDeTurno, HuecoDeCupo, ReservaDeCupo, DocumentoDeAusencia, RequisitoDeAusencia, EventoDeAusencia,
     AccesoEspecialAusencias,
 )
+from app.models.horario import JornadaLaboral, AsignacionDeJornada, MovimientoDeSaldo  # noqa: F401 — rev. 180
 from app.models.alm_uso import (  # noqa: F401  — licencias y hardware, fase 2: uso real
     ALMUsoConexion, ALMUsoSincronizacion, ALMUsoEvidencia, ALMUsoMapeo, ALMUsoDerecho, ALMUsoNivel,
     ALMUsoAjusteDecision, ALMUsoRecuperacion, ALMSoftwareNoControlado,
@@ -218,4 +219,5 @@ from app.models.planificacion import EvmSnapshot  # noqa: F401,E402
 # Traduccion en tiempo real (rev. 175)
 from app.models.traduccion import (  # noqa: F401,E402
     TranslationCacheEntry, MessageTranslation, TranslationGlossaryTerm, KBArticleTranslation,
+    PortalContentTranslation,  # rev. 181: avisos y catalogo
 )

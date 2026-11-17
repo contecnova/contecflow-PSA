@@ -13,8 +13,11 @@ import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useToast } from '../../context/ToastContext'
 import { useAppT } from '../../i18n/AppLangContext'
-import { CalendarDays, Eye, FileText, Folder, Lock, Megaphone, MessageSquareText, Pencil, Plus, Star, Timer, Trash2, Users, X } from 'lucide-react'
-import { Button, Spinner, EmptyState, Modal, StatusBadge, Tabs, Pulsable, Select, TablaSimple, Checkbox } from '../../components/ui'
+import { CalendarDays, Eye, FileText, Folder, Languages, Lock, Megaphone, MessageSquareText, Pencil, Plus, Star, Timer, Trash2, Users, X } from 'lucide-react'
+import { Button, Spinner, EmptyState, Modal, StatusBadge, Tabs, Pulsable, Select, TablaSimple, Checkbox, Input, FormField, useErroresDeCampo } from '../../components/ui'
+import { DialogoDeVersionesDeContenido } from '../../components/traduccion/VersionesDeContenidoPanel'
+import RevisionDeContenidoDelPortal from '../../components/traduccion/RevisionDeContenidoDelPortal'
+import type { TipoDeContenidoDelPortal } from '../../services/api/traduccion'
 import type { StatusBadgeKind } from '../../components/ui/StatusBadge'
 import { COLOR_DATO_POR_DEFECTO } from '../../constants/theme'
 import { sdCatalogApi, sdSlaPoliciesApi, sdGroupsApi, sdTemplatesApi, sdCannedApi, sdAnnouncementsApi, usersApi, approvalsApi, slaCalendarsApi, clientsApi, contractsApi, type SlaCalendar, type UserListItem } from '../../services/api'
@@ -52,6 +55,16 @@ const PRIORITY_LABEL_MAP = PRIORITY_LABEL as Record<string, string>
 const IS_BASE = 'ds-input sdcfg-input'
 const LS_BASE = 'sdcfg-label'
 
+/** Lo que se está traduciendo (versiones en los idiomas del portal, 17-11-2026). */
+type Traduciendo = { tipo: TipoDeContenidoDelPortal; id: string; etiqueta: string }
+
+/** Tras guardar un original con versiones: cuántas han quedado desactualizadas. */
+function useAvisoDeDesactualizadas() {
+  const t = useAppT()
+  const toast = useToast()
+  return (n?: number) => { if (n && n > 0) toast.warning(t('traduccion_admin.portal_quedan_desactualizadas', { n })) }
+}
+
 // ── Catalog Config ────────────────────────────────────────────────────────────
 function CatalogConfig() {
   const t = useAppT()
@@ -67,16 +80,23 @@ function CatalogConfig() {
 
   const [editingCat, setEditingCat] = useState<Cat | null>(null)
   const [editingSvc, setEditingSvc] = useState<Svc | null>(null)
+  const [traduciendo, setTraduciendo] = useState<Traduciendo | null>(null)
+  // 17-11-2026: errores de validación del servidor junto a cada campo.
+  const camposCat = useErroresDeCampo()
+  const camposSvc = useErroresDeCampo()
+  const avisarDesactualizadas = useAvisoDeDesactualizadas()
 
   const { mutate: createCat, isPending: creatingCat } = useMutation({
     mutationFn: (d: Record<string, unknown>) => sdCatalogApi.createCategory(d),
+    onMutate: () => camposCat.limpiar(),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setShowNewCat(false); toast.success(t('sd_cfg.cfg_cat_created')) },
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
+    onError: (e: unknown) => { if (!camposCat.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) }
   })
   const { mutate: updateCat } = useMutation({
     mutationFn: ({id, ...d}: { id: string } & Record<string, unknown>) => sdCatalogApi.updateCategory(id, d),
-    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setEditingCat(null); toast.success(t('sd_cfg.cfg_cat_updated')) },
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onMutate: () => camposCat.limpiar(),
+    onSuccess: r => { qc.invalidateQueries({queryKey:['sd-catalog']}); setEditingCat(null); toast.success(t('sd_cfg.cfg_cat_updated')); avisarDesactualizadas(r.data?.translations_outdated) },
+    onError: (e: unknown) => { if (!camposCat.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
   })
   const { mutate: deleteCat } = useMutation({
     mutationFn: (id: string) => sdCatalogApi.deleteCategory(id),
@@ -85,13 +105,15 @@ function CatalogConfig() {
   })
   const { mutate: createSvc, isPending: creatingSvc } = useMutation({
     mutationFn: (d: Record<string, unknown>) => sdCatalogApi.createService(d),
+    onMutate: () => camposSvc.limpiar(),
     onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setShowNewSvc(false); toast.success(t('sd_cfg.cfg_svc_created')) },
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
+    onError: (e: unknown) => { if (!camposSvc.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) }
   })
   const { mutate: updateSvc } = useMutation({
     mutationFn: ({id, ...d}: { id: string } & Record<string, unknown>) => sdCatalogApi.updateService(id, d),
-    onSuccess: () => { qc.invalidateQueries({queryKey:['sd-catalog']}); setEditingSvc(null); toast.success(t('sd_cfg.cfg_svc_updated')) },
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onMutate: () => camposSvc.limpiar(),
+    onSuccess: r => { qc.invalidateQueries({queryKey:['sd-catalog']}); setEditingSvc(null); toast.success(t('sd_cfg.cfg_svc_updated')); avisarDesactualizadas(r.data?.translations_outdated) },
+    onError: (e: unknown) => { if (!camposSvc.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
   })
   const { mutate: deleteSvc } = useMutation({
     mutationFn: (id: string) => sdCatalogApi.deleteService(id),
@@ -124,6 +146,8 @@ function CatalogConfig() {
               <span className="sdcfg-cat-count">{t('config.n_servicios', { n: cat.services?.length || 0 })}</span>
               <div className="sdcfg-cat-actions">
                 <Button size="xs" variant="secondary" icon={<Pencil size={12} />} onClick={() => setEditingCat(cat)}>{t('common.edit')}</Button>
+                <Button size="xs" variant="ghost" icon={<Languages size={12} />} title={t('traduccion_admin.portal_versiones_de', { nombre: cat.name })}
+                  onClick={() => setTraduciendo({ tipo: 'catalog_category', id: cat.id, etiqueta: cat.name })}>{t('traduccion_admin.portal_idiomas')}</Button>
                 <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} onClick={() => { openConfirmGlobal({ message: t('config.confirmar_eliminar_categoria'), onConfirm: () => deleteCat(cat.id), danger: true }) }}>{t('common.delete')}</Button>
               </div>
             </div>
@@ -140,6 +164,8 @@ function CatalogConfig() {
                       <td className="sdcfg-td--actions">
                         <div className="sdcfg-row-actions">
                           <Button size="xs" variant="ghost" icon={<Pencil size={12} />} title={`${t('common.edit')} ${svc.name}`} onClick={() => setEditingSvc({...svc, category_id: cat.id})} />
+                          <Button size="xs" variant="ghost" icon={<Languages size={12} />} title={t('traduccion_admin.portal_versiones_de', { nombre: svc.name })}
+                            onClick={() => setTraduciendo({ tipo: 'catalog_service', id: svc.id, etiqueta: svc.name })} />
                           <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} title={`${t('common.delete')} ${svc.name}`} onClick={() => { openConfirmGlobal({ message: t('config.confirmar_eliminar_servicio'), onConfirm: () => deleteSvc(svc.id), danger: true }) }} />
                         </div>
                       </td>
@@ -153,32 +179,35 @@ function CatalogConfig() {
       </div>}
 
       {showNewCat && (
-        <NewCategoryModal onClose={() => setShowNewCat(false)}
-          onSave={d => createCat(d)} isPending={creatingCat} IS={IS} LS={LS} />
+        <NewCategoryModal onClose={() => { setShowNewCat(false); camposCat.limpiar() }}
+          onSave={d => createCat(d)} isPending={creatingCat} IS={IS} LS={LS} errorDe={camposCat.de} />
       )}
       {editingCat && (
         <NewCategoryModal
           initial={editingCat}
-          onClose={() => setEditingCat(null)}
+          onClose={() => { setEditingCat(null); camposCat.limpiar() }}
           onSave={d => updateCat({id: editingCat.id, ...d})}
-          isPending={false} IS={IS} LS={LS} />
+          isPending={false} IS={IS} LS={LS} errorDe={camposCat.de} />
       )}
       {showNewSvc && (
-        <NewServiceModal catalog={catalog} onClose={() => setShowNewSvc(false)}
-          onSave={d => createSvc(d)} isPending={creatingSvc} IS={IS} LS={LS} />
+        <NewServiceModal catalog={catalog} onClose={() => { setShowNewSvc(false); camposSvc.limpiar() }}
+          onSave={d => createSvc(d)} isPending={creatingSvc} IS={IS} LS={LS} errorDe={camposSvc.de} />
       )}
       {editingSvc && (
         <NewServiceModal
           catalog={catalog} initial={editingSvc}
-          onClose={() => setEditingSvc(null)}
+          onClose={() => { setEditingSvc(null); camposSvc.limpiar() }}
           onSave={d => updateSvc({id: editingSvc.id, ...d})}
-          isPending={false} IS={IS} LS={LS} />
+          isPending={false} IS={IS} LS={LS} errorDe={camposSvc.de} />
+      )}
+      {traduciendo && (
+        <DialogoDeVersionesDeContenido tipo={traduciendo.tipo} id={traduciendo.id} etiqueta={traduciendo.etiqueta} onClose={() => setTraduciendo(null)} />
       )}
     </div>
   )
 }
 
-function NewCategoryModal({ onClose, onSave, isPending, IS, LS, initial }: { onClose: () => void; onSave: (d: Record<string, unknown>) => void; isPending: boolean; IS: string; LS: string; initial?: Cat | null }) {
+function NewCategoryModal({ onClose, onSave, isPending, IS, LS, initial, errorDe }: { onClose: () => void; onSave: (d: Record<string, unknown>) => void; isPending: boolean; IS: string; LS: string; initial?: Cat | null; errorDe?: (campo: string) => string | undefined }) {
   const idCampo = useId()
   const t = useAppT()
   const [form, setForm] = useState({
@@ -190,7 +219,7 @@ function NewCategoryModal({ onClose, onSave, isPending, IS, LS, initial }: { onC
     <Modal open title={initial ? t('sd_cfg.cfg_cat_edit') : t('sd_cfg.cfg_cat_new')} onClose={onClose}>
       <div className="u-stack-14">
         <div className="sdcfg-cat-grid">
-          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('common.name')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={set('name')} className={IS} /></div>
+          <Input id={`${idCampo}-1`} label={t('common.name')} required value={form.name} onChange={set('name')} error={errorDe?.('name')} />
           <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('config.icono')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.icon} onChange={set('icon')} className={`${IS} sdcfg-input--icon`} /></div>
           <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={LS}>{t('config.color')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={set('color')} className={`${IS} sdcfg-input--color`} /></div>
         </div>
@@ -203,7 +232,7 @@ function NewCategoryModal({ onClose, onSave, isPending, IS, LS, initial }: { onC
   )
 }
 
-function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial }: { catalog: Cat[]; onClose: () => void; onSave: (d: Record<string, unknown>) => void; isPending: boolean; IS: string; LS: string; initial?: Svc | null }) {
+function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial, errorDe }: { catalog: Cat[]; onClose: () => void; onSave: (d: Record<string, unknown>) => void; isPending: boolean; IS: string; LS: string; initial?: Svc | null; errorDe?: (campo: string) => string | undefined }) {
   const idCampo = useId()
   const t = useAppT()
   const { data: usuarios = [] } = useQuery<User[]>({
@@ -240,7 +269,7 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial 
   return (
     <Modal open title={initial ? t('sd_cfg.cfg_svc_edit') : t('sd_cfg.cfg_svc_new')} onClose={onClose}>
       <div className="u-grid2-14">
-        <div className="u-col-full"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('common.name')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={set('name')} className={IS} /></div>
+        <div className="u-col-full"><Input id={`${idCampo}-1`} label={t('common.name')} required value={form.name} onChange={set('name')} error={errorDe?.('name')} /></div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('service_desk.tab_catalog')}</label>
           <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.category_id} onChange={set('category_id')} className="sdcfg-sel">
@@ -260,8 +289,8 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial 
           </Select>
         </div>
         <div className="sdcfg-grid2-8">
-          <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className={LS}>{t('service_desk.sla_response_h')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" value={form.sla_response_hours} onChange={set('sla_response_hours')} className={IS} /></div>
-          <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className={LS}>{t('service_desk.sla_resolution_h')}</label><input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="number" value={form.sla_resolution_hours} onChange={set('sla_resolution_hours')} className={IS} /></div>
+          <Input id={`${idCampo}-5`} label={t('service_desk.sla_response_h')} type="number" value={form.sla_response_hours} onChange={set('sla_response_hours')} error={errorDe?.('sla_response_hours')} />
+          <Input id={`${idCampo}-6`} label={t('service_desk.sla_resolution_h')} type="number" value={form.sla_resolution_hours} onChange={set('sla_resolution_hours')} error={errorDe?.('sla_resolution_hours')} />
         </div>
         <div className="u-row-center-10">
           <Checkbox id="svc_visible" aria-label={t('sd_cfg.svc_visible')} checked={!!form.is_visible_to_clients} onChange={v => setForm(f => ({...f, is_visible_to_clients: v}))} label={t('sd_cfg.svc_visible')} />
@@ -974,7 +1003,18 @@ export function AnnouncementsConfig() {
   const toast = useToast()
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
-  const [form, setForm] = useState({ title:'', body:'', type:'info', show_to_clients:true, starts_at:'', ends_at:'' })
+  const VACIO = { title:'', body:'', type:'info', show_to_clients:true, starts_at:'', ends_at:'' }
+  const [form, setForm] = useState(VACIO)
+  // 17-11-2026: un aviso se puede corregir (sus traducciones quedan desactualizadas) y traducir.
+  const [editando, setEditando] = useState<string | null>(null)
+  const [traduciendo, setTraduciendo] = useState<Traduciendo | null>(null)
+  const campos = useErroresDeCampo()
+  const avisarDesactualizadas = useAvisoDeDesactualizadas()
+  const cerrar = () => { setShowCreate(false); setEditando(null); setForm(VACIO); campos.limpiar() }
+  const editar = (a: Ann) => {
+    setForm({ title: a.title, body: a.body, type: a.type || 'info', show_to_clients: a.show_to_clients, starts_at: (a.starts_at ?? '').replace(' ', 'T'), ends_at: (a.ends_at ?? '').replace(' ', 'T') })
+    setEditando(a.id); setShowCreate(true)
+  }
 
   const IS = IS_BASE
   const LS = LS_BASE
@@ -987,8 +1027,15 @@ export function AnnouncementsConfig() {
   })
   const { mutate: create, isPending: creating } = useMutation({
     mutationFn: (d: Record<string, unknown>) => sdAnnouncementsApi.create(d),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sd-announcements'] }); setShowCreate(false); setForm({ title:'', body:'', type:'info', show_to_clients:true, starts_at:'', ends_at:'' }); toast.success(t('service_desk.ann_published')) },
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onMutate: () => campos.limpiar(),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sd-announcements'] }); cerrar(); toast.success(t('service_desk.ann_published')) },
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
+  })
+  const { mutate: update, isPending: updating } = useMutation({
+    mutationFn: ({ id, ...d }: { id: string } & Record<string, unknown>) => sdAnnouncementsApi.update(id, d),
+    onMutate: () => campos.limpiar(),
+    onSuccess: r => { qc.invalidateQueries({ queryKey: ['sd-announcements'] }); cerrar(); toast.success(t('traduccion_admin.portal_aviso_guardado')); avisarDesactualizadas(r.data?.translations_outdated) },
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
   })
   const { mutate: del } = useMutation({
     mutationFn: (id: string) => sdAnnouncementsApi.delete(id),
@@ -1023,6 +1070,9 @@ export function AnnouncementsConfig() {
                       </div>
                     )}
                   </div>
+                  <Button size="xs" variant="ghost" icon={<Pencil size={12} />} title={`${t('common.edit')} ${a.title}`} onClick={() => editar(a)} />
+                  <Button size="xs" variant="ghost" icon={<Languages size={12} />} title={t('traduccion_admin.portal_versiones_de', { nombre: a.title })}
+                    onClick={() => setTraduciendo({ tipo: 'announcement', id: a.id, etiqueta: a.title })} />
                   <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} title={t('config.desactivar_anuncio_x', { title: a.title })} onClick={() => { openConfirmGlobal({ message: t('config.confirmar_desactivar_anuncio'), onConfirm: () => del(a.id) }) }} />
                 </div>
               ))}
@@ -1030,9 +1080,9 @@ export function AnnouncementsConfig() {
           )
       }
       {showCreate && (
-        <Modal open title={t('sd_cfg.cfg_ann_new')} onClose={() => setShowCreate(false)}>
+        <Modal open title={editando ? t('traduccion_admin.portal_aviso_editar') : t('sd_cfg.cfg_ann_new')} onClose={cerrar}>
           <div className="sdcfg-ann-form">
-            <div className="u-col-full"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('sd_cfg.cfg_ann_title')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} className={IS} /></div>
+            <div className="u-col-full"><Input id={`${idCampo}-1`} label={t('sd_cfg.cfg_ann_title')} required value={form.title} onChange={e=>{ campos.limpiar('title'); setForm(f=>({...f,title:e.target.value})) }} error={campos.de('title')} /></div>
             <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('sd_mercado.tipo')}</label>
               <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} className="sdcfg-sel">
                 {ANN_TYPES.map(tp=><option key={tp} value={tp}>{t(`config.ann_tipo_${tp}`)}</option>)}
@@ -1043,13 +1093,18 @@ export function AnnouncementsConfig() {
             </div>
             <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={LS}>{t('service_desk.ann_starts')}</label><DateInput id={`${idCampo}-3`} withTime value={form.starts_at} onChange={e=>setForm(f=>({...f,starts_at:e.target.value}))} className={IS} /></div>
             <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className={LS}>{t('service_desk.ann_ends')}</label><DateInput id={`${idCampo}-4`} withTime value={form.ends_at} onChange={e=>setForm(f=>({...f,ends_at:e.target.value}))} className={IS} /></div>
-            <div className="u-col-full"><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className={LS}>{t('service_desk.ann_message')} *</label><textarea id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.body} onChange={e=>setForm(f=>({...f,body:e.target.value}))} rows={4} className={IS} /></div>
+            <div className="u-col-full"><FormField label={t('service_desk.ann_message')} required error={campos.de('body')}><textarea id={`${idCampo}-5`} value={form.body} onChange={e=>{ campos.limpiar('body'); setForm(f=>({...f,body:e.target.value})) }} rows={4} className={IS} /></FormField></div>
           </div>
           <div className="u-actions-10">
-            <Button variant="secondary" onClick={()=>setShowCreate(false)}>{t('common.cancel')}</Button>
-            <Button onClick={()=>create(form)} loading={creating} disabled={!form.title||!form.body||creating}>{t('sd_cfg.cfg_ann_publish')}</Button>
+            <Button variant="secondary" onClick={cerrar}>{t('common.cancel')}</Button>
+            {editando
+              ? <Button onClick={()=>update({ id: editando, ...form, starts_at: form.starts_at || null, ends_at: form.ends_at || null })} loading={updating} disabled={!form.title||!form.body||updating}>{t('common.save')}</Button>
+              : <Button onClick={()=>create(form)} loading={creating} disabled={!form.title||!form.body||creating}>{t('sd_cfg.cfg_ann_publish')}</Button>}
           </div>
         </Modal>
+      )}
+      {traduciendo && (
+        <DialogoDeVersionesDeContenido tipo={traduciendo.tipo} id={traduciendo.id} etiqueta={traduciendo.etiqueta} onClose={() => setTraduciendo(null)} />
       )}
     </div>
   )
@@ -1076,6 +1131,7 @@ export default function Config() {
     {id:'templates',label:t('sd_cfg.cfg_tab_templates')},
     {id:'canned',   label:t('sd_cfg.cfg_tab_canned')},
     {id:'announcements', label:t('service_desk.tab_announcements')},
+    {id:'portal_translations', label:t('traduccion_admin.portal_revision_tab')},
   ]
   return (
     <div>
@@ -1096,6 +1152,7 @@ export default function Config() {
       {sub === 'templates'     && <TemplatesConfig />}
       {sub === 'canned'        && <CannedResponsesManager />}
       {sub === 'announcements' && <AnnouncementsConfig />}
+      {sub === 'portal_translations' && <RevisionDeContenidoDelPortal />}
     </div>
   )
 }
