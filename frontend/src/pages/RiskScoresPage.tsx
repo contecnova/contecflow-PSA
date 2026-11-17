@@ -14,7 +14,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { predictionsApi } from '../services/api'
 import type { ModeloDePrediccion, RegistroDePrediccion, RiesgoDeLaCartera } from '../services/api/tipos-analitica'
-import { Spinner, EmptyState, Button, KpiCard, Tabs } from '../components/ui'
+import { Spinner, EmptyState, Button, KpiCard, Tabs, Select, Pulsable, IconButton } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AlertCircle, AlertOctagon, AlertTriangle, Brain, CheckCircle2, Lightbulb, RefreshCw, Search, ShieldAlert, ShieldCheck, X } from 'lucide-react'
@@ -338,11 +338,11 @@ export default function RiskScoresPage() {
       </div>
 
       <div className="ds-toolbar rsc-toolbar">
-        <select className="ds-input rsc-filtro" aria-label={t('risk_scores_page.filtrar_nivel')}
+        <Select suelto placeholder={false} className="rsc-filtro" aria-label={t('risk_scores_page.filtrar_nivel')}
           value={filterLevel} onChange={e => setFilterLevel(e.target.value as RiskLevel | 'all')}>
           <option value="all">{t('risk_scores_page.todos_niveles')}</option>
           {NIVELES.map(level => <option key={level} value={level}>{t(`risk_scores_page.riesgo_${level}`)}</option>)}
-        </select>
+        </Select>
         {filterLevel !== 'all' && (
           <Button variant="ghost" icon={<X size={14} />} onClick={() => setFilterLevel('all')}>
             {t('risk_scores_page.quitar_filtro')}
@@ -361,7 +361,7 @@ export default function RiskScoresPage() {
                 const level = p.level || 'low'
                 const isSelected = selected === p.project_id
                 return (
-                  <button key={p.project_id} type="button" aria-pressed={isSelected}
+                  <Pulsable key={p.project_id} type="button" aria-pressed={isSelected}
                     onClick={() => setSelected(isSelected ? null : p.project_id)}
                     className={`rsc-project rsc-lvl--${level}`}>
                     <div className="u-row-center-12">
@@ -406,7 +406,7 @@ export default function RiskScoresPage() {
                         <span className="u-text3">{t('risk_scores_page.calculado', { fecha: p.computed_at ? fmtDateTime(p.computed_at) : '—' })}</span>
                       </div>
                     )}
-                  </button>
+                  </Pulsable>
                 )
               })}
             </div>
@@ -418,10 +418,10 @@ export default function RiskScoresPage() {
           <aside className="rsc-detail" aria-label={detail.project_name}>
             <div className="u-row-between-mb16">
               <div className="rsc-detail__title">{detail.project_name}</div>
-              <button type="button" onClick={() => setSelected(null)} className="rsc-close"
-                aria-label={t('risk_scores_page.cerrar_detalle')} title={t('risk_scores_page.cerrar_detalle')}>
+              <IconButton type="button" onClick={() => setSelected(null)} className="rsc-close"
+                ariaLabel={t('risk_scores_page.cerrar_detalle')} title={t('risk_scores_page.cerrar_detalle')}>
                 <X size={16} aria-hidden />
-              </button>
+              </IconButton>
             </div>
 
             {/* Radar chart */}

@@ -10,7 +10,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Inbox, X } from 'lucide-react'
 import { ausenciasApi } from '../../services/api/ausencias'
 import type { ElementoDeBandeja } from '../../services/api/tipos-ausencias'
-import { Button, EmptyState, Spinner } from '../ui'
+import { Button, EmptyState, Spinner, TablaSimple, Pulsable } from '../ui'
 import { AvisoDeError } from './admin/comun'
 import { TipoChip, cantidad, fecha, useTa, useTurnos } from './comun'
 
@@ -39,7 +39,7 @@ function Elemento({ x, onAbrir }: { x: ElementoDeBandeja; onAbrir: (id: string) 
   return (
     <li className="aus-tarjeta">
       <header className="aus-fila">
-        <button type="button" className="aus-enlace" onClick={() => onAbrir(a.id)}>{a.user_name}</button>
+        <Pulsable className="aus-enlace" onClick={() => onAbrir(a.id)}>{a.user_name}</Pulsable>
         <TipoChip a={a} />
         <span>{fecha(a.start_date)} → {fecha(a.end_date)} · {cantidad(a, ta)}</span>
         {x.paso && <span className="aus-chip">{ta('paso')}: {x.paso}</span>}
@@ -59,7 +59,7 @@ function Elemento({ x, onAbrir }: { x: ElementoDeBandeja; onAbrir: (id: string) 
         </details>
       )}
       {x.impacto.length > 0 && (
-        <table className="aus-tabla aus-tabla--compacta">
+        <TablaSimple claseTabla="aus-tabla aus-tabla--compacta">
           <caption>{ta('impacto_en_cobertura')}</caption>
           <thead><tr><th scope="col">{ta('dia')}</th><th scope="col">{ta('turno')}</th><th scope="col">{ta('con_esta')}</th><th scope="col">{ta('requeridas')}</th></tr></thead>
           <tbody>
@@ -70,7 +70,7 @@ function Elemento({ x, onAbrir }: { x: ElementoDeBandeja; onAbrir: (id: string) 
               </tr>
             ))}
           </tbody>
-        </table>
+        </TablaSimple>
       )}
       {faltan.length > 0 && <p className="aus-aviso" role="status">{ta('dejaria_sin_cobertura', { n: faltan.length })}</p>}
       <div className="aus-fila">

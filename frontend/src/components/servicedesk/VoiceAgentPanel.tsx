@@ -35,7 +35,7 @@ import type { ConfigDelAgenteDeVoz, SesionDeVoz, TurnoDeVoz } from '../../servic
 import { useAppT } from '../../i18n/AppLangContext'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { Phone, Mic, PhoneOff, Plus, ExternalLink, Pencil, Trash2, Mail, Link2, X, Send, Ticket } from 'lucide-react'
-import { Card, Button, Tabs, Spinner, EmptyState, Modal, Section } from '../ui'
+import { Card, Button, IconButton, Pulsable, Select, Tabs, Spinner, EmptyState, Modal, Section } from '../ui'
 import StatusBadge from '../ui/StatusBadge'
 import type { StatusBadgeKind } from '../ui/StatusBadge'
 import { useToast } from '../../context/ToastContext'
@@ -149,9 +149,9 @@ function ActiveSessionCard({ session, onClose, onCreateTicket, onAddTurn, sendin
       {showCloseConfirm && (
         <div className="vap-cierre">
           <label className="u-text2-sm" htmlFor={`vap-cierre-${session.id}`}>{t('voiceagent.cerrar_como')}</label>
-          <select id={`vap-cierre-${session.id}`} value={resolution} onChange={e => setResolution(e.target.value)} className="ds-input">
+          <Select suelto placeholder={false} id={`vap-cierre-${session.id}`} value={resolution} onChange={e => setResolution(e.target.value)}>
             {RESOLUCIONES.map(id => <option key={id} value={id}>{etiquetaCodigo(t, 'voiceagent.resolucion', id)}</option>)}
-          </select>
+          </Select>
           <Button size="sm" loading={closing} onClick={() => onClose(resolution)}>{t('voiceagent.confirmar_cierre')}</Button>
           <Button size="sm" variant="ghost" onClick={() => setShowCloseConfirm(false)}>{t('common.cancel')}</Button>
         </div>
@@ -263,9 +263,9 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
       <div className="vap-dos">
         <div className="ui-field">
           <label htmlFor={`${id}-idioma`} className="campo-etiqueta">{t('voiceagent.idioma_bcp_47')}</label>
-          <select id={`${id}-idioma`} value={draft.language} onChange={e => setField('language', e.target.value)} className="campo-form">
+          <Select suelto placeholder={false} id={`${id}-idioma`} value={draft.language} onChange={e => setField('language', e.target.value)} className="campo-form">
             {VOICE_LANGUAGES.map(([code, nombre]) => <option key={code} value={code}>{nombre}</option>)}
-          </select>
+          </Select>
         </div>
         <div className="ui-field">
           <label htmlFor={`${id}-silencio`} className="campo-etiqueta">{t('voiceagent.silencio_maximo_segundos')}</label>
@@ -286,14 +286,14 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
             <input aria-label={t('voiceagent.etiqueta_de_tecla', { n: key })} type="text" value={val.label}
               onChange={e => setDraft(d => ({ ...(d as VoiceAgentConfig), dtmf_menu: { ...(d as VoiceAgentConfig).dtmf_menu, [key]: { ...val, label: e.target.value } } }))}
               className="ds-input vap-fila__campo" />
-            <select aria-label={t('voiceagent.motivo_de_tecla', { n: key })} value={val.intent}
+            <Select suelto placeholder={false} aria-label={t('voiceagent.motivo_de_tecla', { n: key })} value={val.intent}
               onChange={e => setDraft(d => ({ ...(d as VoiceAgentConfig), dtmf_menu: { ...(d as VoiceAgentConfig).dtmf_menu, [key]: { ...val, intent: e.target.value } } }))}
-              className="ds-input vap-select">
+              className="vap-select">
               {opcionesIntent}
-            </select>
-            <button type="button" aria-label={t('common.delete')} title={t('common.delete')} onClick={() => removeDtmf(key)} className="vap-icono-btn">
+            </Select>
+            <IconButton ariaLabel={t('common.delete')} title={t('common.delete')} onClick={() => removeDtmf(key)} className="vap-icono-btn">
               <Trash2 size={14} aria-hidden="true" />
-            </button>
+            </IconButton>
           </div>
         ))}
         <div className="vap-fila">
@@ -301,9 +301,9 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
             onChange={e => setNewKey(e.target.value)} maxLength={2} className="ds-input vap-tecla__nueva" />
           <input aria-label={t('voiceagent.etiqueta_visible')} type="text" placeholder={t('voiceagent.etiqueta_visible')} value={newLabel}
             onChange={e => setNewLabel(e.target.value)} className="ds-input vap-fila__campo" />
-          <select aria-label={t('voiceagent.motivo')} value={newIntent} onChange={e => setNewIntent(e.target.value)} className="ds-input vap-select">
+          <Select suelto placeholder={false} aria-label={t('voiceagent.motivo')} value={newIntent} onChange={e => setNewIntent(e.target.value)} className="vap-select">
             {opcionesIntent}
-          </select>
+          </Select>
           <Button size="sm" variant="secondary" icon={<Plus size={13} />} onClick={addDtmf} disabled={!newKey.trim() || !newLabel.trim()}>{t('voiceagent.anadir_tecla')}</Button>
         </div>
       </div>
@@ -331,10 +331,10 @@ function ConfigEditor({ config, onSave, saving }: ConfigEditorProps) {
                   <span key={kw} className="vap-palabra">
                     {kw}
                     {isEditing && (
-                      <button type="button" onClick={() => removeKeyword(intent, kw)} className="vap-palabra__quitar"
-                        aria-label={t('voiceagent.quitar_palabra', { p: kw })} title={t('voiceagent.quitar_palabra', { p: kw })}>
+                      <IconButton onClick={() => removeKeyword(intent, kw)} className="vap-palabra__quitar"
+                        ariaLabel={t('voiceagent.quitar_palabra', { p: kw })} title={t('voiceagent.quitar_palabra', { p: kw })}>
                         <X size={11} aria-hidden="true" />
-                      </button>
+                      </IconButton>
                     )}
                   </span>
                 ))}
@@ -516,9 +516,9 @@ export default function VoiceAgentPanel() {
                 </div>
                 <div className="ui-field">
                   <label htmlFor={`${id}-canal`} className="campo-etiqueta">{t('voiceagent.canal_lbl')}</label>
-                  <select id={`${id}-canal`} value={channel} onChange={e => setChannel(e.target.value)} className="campo-form vap-select">
+                  <Select suelto placeholder={false} id={`${id}-canal`} value={channel} onChange={e => setChannel(e.target.value)} className="campo-form vap-select">
                     {CANALES.map(c => <option key={c} value={c}>{etiquetaCodigo(t, 'voiceagent.canal', c)}</option>)}
-                  </select>
+                  </Select>
                 </div>
                 <Button
                   onClick={() => createSessionMutation.mutate({ caller_id: callerInput.trim(), channel })}
@@ -548,11 +548,11 @@ export default function VoiceAgentPanel() {
               <div className="ds-toolbar">
                 <div className="ds-eyebrow">{t('voiceagent.sesiones_recientes')}</div>
                 <span className="ds-toolbar__spacer" />
-                <select aria-label={t('voiceagent.filtrar')} value={historyFilter} onChange={e => setHistoryFilter(e.target.value)} className="ds-input vap-select">
+                <Select suelto placeholder={false} aria-label={t('voiceagent.filtrar')} value={historyFilter} onChange={e => setHistoryFilter(e.target.value)} className="vap-select">
                   <option value="">{t('voiceagent.todas')}</option>
                   <option value="active">{t('voiceagent.solo_activas')}</option>
                   <option value="closed">{t('voiceagent.solo_cerradas')}</option>
-                </select>
+                </Select>
               </div>
 
               {isLoading ? (
@@ -563,7 +563,7 @@ export default function VoiceAgentPanel() {
                 <ul className="vap-lista">
                   {lista.map((s: VoiceSession) => (
                     <li key={s.id}>
-                      <button type="button" className="vap-sesion"
+                      <Pulsable className="vap-sesion"
                         onClick={() => { if (s.status === 'active') setActiveSessionId(s.id); else setDetailSession(s) }}>
                         <span className="vap-sesion__datos">
                           <span className="vap-numero">{s.caller_id}</span>
@@ -574,7 +574,7 @@ export default function VoiceAgentPanel() {
                           <EtiquetasDeSesion session={s} />
                           {s.ticket_id && <StatusBadge kind="accent" caps={false}><Ticket size={11} aria-hidden="true" /> {t('voiceagent.ticket')}</StatusBadge>}
                         </span>
-                      </button>
+                      </Pulsable>
                     </li>
                   ))}
                 </ul>

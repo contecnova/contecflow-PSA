@@ -17,7 +17,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, BookA, CheckCircle2, Coins, FileClock, KeyRound, Languages, Lock, Pencil, Plus, Save, Sparkles, Trash2, Trash, XCircle, FlaskConical, Gauge } from 'lucide-react'
-import { Button, Confirm, DataTable, IconButton, KpiCard, Modal, Section, StatusBadge, Tabs, Spinner, EmptyState, type ColumnaDeTabla } from '../../components/ui'
+import { Button, Checkbox, Confirm, DataTable, IconButton, KpiCard, Modal, Section, Select, StatusBadge, Switch, Tabs, Spinner, EmptyState, type ColumnaDeTabla } from '../../components/ui'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { useAppLang } from '../../i18n/AppLangContext'
@@ -111,20 +111,19 @@ function IaQueTraduce() {
       <div className="trad-admin__fila">
         <div className="ds-field">
           <label className="ds-field__label" htmlFor="trad-admin-ia">{t('traduccion_admin.ia_proveedor')}</label>
-          <select id="trad-admin-ia" className="ds-input" value={proveedorId}
-            onChange={e => { setProveedorId(e.target.value); setModelo('') }}>
-            <option value="">{principal ? t('traduccion_admin.ia_principal_de', { nombre: principal.name }) : t('traduccion_admin.ia_principal')}</option>
+          <Select suelto id="trad-admin-ia" value={proveedorId}
+            onChange={e => { setProveedorId(e.target.value); setModelo('') }}
+            placeholder={principal ? t('traduccion_admin.ia_principal_de', { nombre: principal.name }) : t('traduccion_admin.ia_principal')}>
             {elegibles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
+          </Select>
           <span className="ds-field__hint">{t('traduccion_admin.ia_proveedor_ayuda')}</span>
         </div>
         <div className="ds-field">
           <label className="ds-field__label" htmlFor="trad-admin-ia-modelo">{t('traduccion_admin.ia_modelo')}</label>
-          <select id="trad-admin-ia-modelo" className="ds-input" value={modelo} disabled={!elegido}
-            onChange={e => setModelo(e.target.value)}>
-            <option value="">{t('traduccion_admin.ia_modelo_por_defecto')}</option>
+          <Select suelto id="trad-admin-ia-modelo" value={modelo} disabled={!elegido}
+            onChange={e => setModelo(e.target.value)} placeholder={t('traduccion_admin.ia_modelo_por_defecto')}>
             {modelos.map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
+          </Select>
         </div>
       </div>
       {elegibles.length === 0 && <p className="ds-field__hint">{t('traduccion_admin.ia_sin_proveedores')}</p>}
@@ -235,15 +234,9 @@ function AjustesDeTraduccion() {
           {BOOLEANOS.filter(k => porClave.has(k)).map(k => {
             const it = porClave.get(k) as RuntimeSetting
             return (
-              <label key={k} className="trad-admin__check">
-                <input type="checkbox" role="switch" checked={borrador[k] === 'true'}
-                  aria-checked={borrador[k] === 'true'}
-                  onChange={e => poner(k, e.target.checked ? 'true' : 'false')} />
-                <span>
-                  <span className="trad-admin__check-titulo">{etiqueta(it)}</span>
-                  {ayuda(k) && <span className="trad-admin__ayuda">{ayuda(k)}</span>}
-                </span>
-              </label>
+              <Switch key={k} className="trad-admin__check" checked={borrador[k] === 'true'}
+                onChange={m => poner(k, m ? 'true' : 'false')}
+                label={etiqueta(it)} ayuda={ayuda(k) || undefined} />
             )
           })}
         </div>
@@ -251,40 +244,36 @@ function AjustesDeTraduccion() {
         {porClave.has('TRANSLATION_PROVIDER') && (
           <div className="ds-field trad-admin__campo-corto">
             <label className="ds-field__label" htmlFor="trad-admin-proveedor">{t('traduccion_admin.ajuste.TRANSLATION_PROVIDER')}</label>
-            <select id="trad-admin-proveedor" className="ds-input" value={borrador.TRANSLATION_PROVIDER ?? 'ai'}
+            <Select suelto placeholder={false} id="trad-admin-proveedor" value={borrador.TRANSLATION_PROVIDER ?? 'ai'}
               onChange={e => poner('TRANSLATION_PROVIDER', e.target.value)}>
               {PROVEEDORES.map(p => <option key={p} value={p}>{t(`traduccion_admin.proveedor.${p}`)}</option>)}
-            </select>
+            </Select>
             <span className="ds-field__hint">{t('traduccion_admin.ayuda.TRANSLATION_PROVIDER')}</span>
           </div>
         )}
 
         {porClave.has('TRANSLATION_CHANNELS') && (
-          <fieldset className="trad-admin__grupo">
+          <fieldset className="ds-grupo-opciones trad-admin__grupo">
             <legend className="ds-field__label">{t('traduccion_admin.ajuste.TRANSLATION_CHANNELS')}</legend>
             <div className="trad-admin__casillas">
               {CANALES_DE_TRADUCCION.map(c => (
-                <label key={c} className="trad-admin__casilla">
-                  <input type="checkbox" checked={csv(borrador.TRANSLATION_CHANNELS ?? '').includes(c)}
-                    onChange={() => alternarEnLista('TRANSLATION_CHANNELS', c)} />
-                  <span>{t(`traduccion_admin.canal.${c}`)}</span>
-                </label>
+                <Checkbox key={c} className="trad-admin__casilla" checked={csv(borrador.TRANSLATION_CHANNELS ?? '').includes(c)}
+                  onChange={() => alternarEnLista('TRANSLATION_CHANNELS', c)}
+                  label={t(`traduccion_admin.canal.${c}`)} />
               ))}
             </div>
           </fieldset>
         )}
 
         {porClave.has('TRANSLATION_KB_LANGUAGES') && (
-          <fieldset className="trad-admin__grupo">
+          <fieldset className="ds-grupo-opciones trad-admin__grupo">
             <legend className="ds-field__label">{t('traduccion_admin.ajuste.TRANSLATION_KB_LANGUAGES')}</legend>
             <span className="ds-field__hint">{t('traduccion_admin.ayuda.TRANSLATION_KB_LANGUAGES')}</span>
             <div className="trad-admin__casillas">
               {Array.from(new Set([...idiomasKb, ...csv(borrador.TRANSLATION_KB_LANGUAGES ?? '')])).map(c => (
-                <label key={c} className="trad-admin__casilla">
-                  <input type="checkbox" checked={csv(borrador.TRANSLATION_KB_LANGUAGES ?? '').includes(c)}
-                    onChange={() => alternarEnLista('TRANSLATION_KB_LANGUAGES', c)} />
-                  <span>{nombreDeIdioma(c, lang)}</span>
-                </label>
+                <Checkbox key={c} className="trad-admin__casilla" checked={csv(borrador.TRANSLATION_KB_LANGUAGES ?? '').includes(c)}
+                  onChange={() => alternarEnLista('TRANSLATION_KB_LANGUAGES', c)}
+                  label={nombreDeIdioma(c, lang)} />
               ))}
             </div>
           </fieldset>
@@ -358,16 +347,16 @@ function ProbarProveedor() {
         <div className="trad-admin__numeros">
           <div className="ds-field">
             <label className="ds-field__label" htmlFor="trad-admin-probar-proveedor">{t('traduccion_admin.ajuste.TRANSLATION_PROVIDER')}</label>
-            <select id="trad-admin-probar-proveedor" className="ds-input" value={proveedor} onChange={e => setProveedor(e.target.value as Proveedor | '')}>
-              <option value="">{t('traduccion_admin.proveedor_actual')}</option>
+            <Select suelto id="trad-admin-probar-proveedor" value={proveedor} onChange={e => setProveedor(e.target.value as Proveedor | '')}
+              placeholder={t('traduccion_admin.proveedor_actual')}>
               {PROVEEDORES.map(p => <option key={p} value={p}>{t(`traduccion_admin.proveedor.${p}`)}</option>)}
-            </select>
+            </Select>
           </div>
           <div className="ds-field">
             <label className="ds-field__label" htmlFor="trad-admin-probar-idioma">{t('traduccion_admin.idioma_destino')}</label>
-            <select id="trad-admin-probar-idioma" className="ds-input" value={destino} onChange={e => setDestino(e.target.value)}>
+            <Select suelto placeholder={false} id="trad-admin-probar-idioma" value={destino} onChange={e => setDestino(e.target.value)}>
               {idiomas.map(i => <option key={i} value={i}>{nombreDeIdioma(i, lang)}</option>)}
-            </select>
+            </Select>
           </div>
         </div>
         <div className="ds-field">
@@ -526,15 +515,15 @@ export function ModalDeTermino({ termino, onClose, onGuardado }: { termino: Term
           <input id="trad-termino" className="ds-input" value={form.term} maxLength={200} onChange={e => setForm(f => ({ ...f, term: e.target.value }))} />
         </div>
 
-        <fieldset className="trad-admin__grupo">
+        <fieldset className="ds-grupo-opciones trad-admin__grupo">
           <legend className="ds-field__label">{t('traduccion_admin.col_traducciones')}</legend>
           <span className="ds-field__hint">{t('traduccion_admin.traducciones_ayuda')}</span>
           {form.filas.map((fila, i) => (
             <div key={i} className="trad-admin__fila-idioma">
-              <select aria-label={t('traduccion_admin.idioma_n', { n: i + 1 })} className="ds-input" value={fila.idioma}
+              <Select suelto placeholder={false} aria-label={t('traduccion_admin.idioma_n', { n: i + 1 })} value={fila.idioma}
                 onChange={e => cambiarFila(i, { idioma: e.target.value })}>
                 {[fila.idioma, ...libres].filter(Boolean).map(c => <option key={c} value={c}>{nombreDeIdioma(c, lang)}</option>)}
-              </select>
+              </Select>
               <input aria-label={t('traduccion_admin.texto_en', { idioma: nombreDeIdioma(fila.idioma, lang) })} className="ds-input"
                 value={fila.texto} onChange={e => cambiarFila(i, { texto: e.target.value })} />
               <IconButton ariaLabel={t('traduccion_admin.quitar_idioma', { idioma: nombreDeIdioma(fila.idioma, lang) })} onClick={() => quitarFila(i)}>
@@ -549,14 +538,10 @@ export function ModalDeTermino({ termino, onClose, onGuardado }: { termino: Term
           </div>
         </fieldset>
 
-        <label className="trad-admin__casilla">
-          <input type="checkbox" checked={form.case_sensitive} onChange={e => setForm(f => ({ ...f, case_sensitive: e.target.checked }))} />
-          <span>{t('traduccion_admin.distingue_mayusculas')}</span>
-        </label>
-        <label className="trad-admin__casilla">
-          <input type="checkbox" checked={form.is_active} onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))} />
-          <span>{t('traduccion_admin.activo')}</span>
-        </label>
+        <Checkbox className="trad-admin__casilla" checked={form.case_sensitive} onChange={m => setForm(f => ({ ...f, case_sensitive: m }))}
+          label={t('traduccion_admin.distingue_mayusculas')} />
+        <Checkbox className="trad-admin__casilla" checked={form.is_active} onChange={m => setForm(f => ({ ...f, is_active: m }))}
+          label={t('traduccion_admin.activo')} />
         <div className="ds-field">
           <label className="ds-field__label" htmlFor="trad-notas">{t('traduccion_admin.col_notas')}</label>
           <textarea id="trad-notas" className="ds-input" rows={2} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />

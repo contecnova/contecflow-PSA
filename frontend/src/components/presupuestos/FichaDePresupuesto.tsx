@@ -16,7 +16,7 @@ import { Bar, CartesianGrid, Legend, Line, ComposedChart, ResponsiveContainer, T
 import { Pencil, Trash2, MessageSquareText, AlertTriangle } from 'lucide-react'
 import { presupuestosApi, projectsApi } from '../../services/api'
 import type { ComparacionDePresupuestos, FichaPresupuesto, Partida } from '../../services/api'
-import { Button, Modal, Spinner, Tabs } from '../ui'
+import { Button, Modal, Spinner, Tabs, Select, TablaSimple, Pulsable } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr, fmtMonth, localeActivo } from '../../utils/helpers'
@@ -98,10 +98,9 @@ export default function FichaDePresupuesto({ id, onClose, onAbrir }: { id: strin
           {p.ambito === 'proyecto_previsto' && !p.project_id && (
             <div className="fidepr-row-4">
               <span className="u-text2">{t('pres.previsto_sin_real')}</span>
-              <select aria-label={t('pres.vincular')} value={vincular} onChange={e => setVincular(e.target.value)} className={`${CLASE_CAMPO} fodepa-campo--w260`}>
-                <option value="">{t('pres.elige_proyecto')}</option>
+              <Select suelto aria-label={t('pres.vincular')} value={vincular} onChange={e => setVincular(e.target.value)} className={`${CLASE_CAMPO} fodepa-campo--w260`} placeholder={t('pres.elige_proyecto')}>
                 {(proyectos.data ?? []).map(pr => <option key={pr.id} value={pr.id}>{pr.code ? `${pr.code} — ` : ''}{pr.name}</option>)}
-              </select>
+              </Select>
               <Button size="sm" variant="secondary" disabled={!vincular} loading={ocupado === 'vincular'} onClick={() => accion('vincular', () => presupuestosApi.vincular(p.id, vincular))}>{t('pres.vincular')}</Button>
             </div>
           )}
@@ -166,7 +165,7 @@ function Partidas({ p, dinero, onCambio }: { p: FichaPresupuesto; dinero: Dinero
         // a 390 px sin esconder el importe tras un desplazamiento lateral.
         <div key={g.titulo}>
           <div className="fidepr-box-1">{g.titulo}</div>
-          <table className="cabe fidepr-box-2">
+          <TablaSimple claseTabla="cabe fidepr-box-2">
             <colgroup><col /><col className="fidepr-box-3" /><col className={`${p.puedo_editar ? 'ficha-de-presupuesto-m5' : 'ficha-de-presupuesto-m6'}`} /></colgroup>
             <thead><tr>
               <th className="fidepr-th">{t('pres.descripcion')}</th><th className="fidepr-th2">{t('pres.importe')}</th><th className="fidepr-th" aria-label={t('pres.acciones')} />
@@ -186,7 +185,7 @@ function Partidas({ p, dinero, onCambio }: { p: FichaPresupuesto; dinero: Dinero
                   <Button size="xs" variant="ghost" title={t('pres.quitar')} icon={<Trash2 size={12} />} onClick={() => quitar(l.id)}>{''}</Button>
                 </>}</td>
               </tr>))}</tbody>
-          </table>
+          </TablaSimple>
         </div>
       ))}
       {p.puedo_editar && !editando && <FormularioDePartida key={nueva} p={p} guardando={guardando} onGuardar={c => guardar(c)} />}
@@ -227,7 +226,7 @@ function Seguimiento({ p, dinero }: { p: FichaPresupuesto; dinero: Dinero }) {
       </div>
       <div className="fidepr-grid-2">
         <div className="fidepr-tablaconscroll">
-          <table className="responsive-stack u-table">
+          <TablaSimple claseTabla="responsive-stack u-table">
             <thead><tr><th className="fidepr-th">{t('pres.mes')}</th><th className="fidepr-th2">{t('pres.plan')}</th><th className="fidepr-th2">{t('pres.real')}</th><th className="fidepr-th2">{t('pres.desviacion')}</th>
               {inf.amortizacion_total > 0 && <th className="fidepr-th2">{t('pres.amortizacion')}</th>}
               {conIngresos && <th className="fidepr-th2">{t('pres.ingreso')}</th>}</tr></thead>
@@ -239,17 +238,17 @@ function Seguimiento({ p, dinero }: { p: FichaPresupuesto; dinero: Dinero }) {
                 {inf.amortizacion_total > 0 && <td data-label={t('pres.amortizacion')} className="ficha-de-presupuesto-e8">{dinero(m.amortizacion)}</td>}
                 {conIngresos && <td data-label={t('pres.ingreso')} className="ficha-de-presupuesto-e8">{dinero(m.ingreso_real || m.ingreso_plan)}</td>}
               </tr>))}</tbody>
-          </table>
+          </TablaSimple>
         </div>
         <div className="fidepr-tablaconscroll">
-          <table className="cabe u-table">
+          <TablaSimple claseTabla="cabe u-table">
             <thead><tr><th className="fidepr-th">{t('pres.tipo')}</th><th className="fidepr-th2">{t('pres.plan')}</th><th className="fidepr-th2">{t('pres.real')}</th><th className="fidepr-th2">%</th></tr></thead>
             <tbody>{inf.por_tipo.map(x => (
               <tr key={x.tipo}>
                 <td className="fidepr-td">{t(`pres.tipo_${x.tipo}`, x.tipo)}</td><td className="ficha-de-presupuesto-e8">{dinero(x.plan)}</td><td className="ficha-de-presupuesto-e8">{dinero(x.real)}</td>
                 <td className={`ficha-de-presupuesto-e8 ${(x.desviacion_pct ?? 0) > 0 ? 'ficha-de-presupuesto-m2' : ''}`}>{x.desviacion_pct == null ? '—' : `${x.desviacion_pct.toLocaleString(localeActivo())} %`}</td>
               </tr>))}</tbody>
-          </table>
+          </TablaSimple>
         </div>
       </div>
       <div className="u-text3-xs">{t('pres.como_se_calcula')}</div>
@@ -266,7 +265,7 @@ function Estructura({ p, dinero, onAbrir }: { p: FichaPresupuesto; dinero: Diner
       <div className="fidepr-caja">
         <div className="u-text3-xs">{t('pres.padre')}</div>
         {p.padre_ficha_id
-          ? <button type="button" onClick={() => onAbrir(p.padre_ficha_id!)} className="fidepr-box-7">{p.padre_name} · {t(`pres.ambito_${p.padre_ambito}`)}</button>
+          ? <Pulsable onClick={() => onAbrir(p.padre_ficha_id!)} className="fidepr-box-7">{p.padre_name} · {t(`pres.ambito_${p.padre_ambito}`)}</Pulsable>
           : <div className="u-text2-sm">{t('pres.sin_padre')}</div>}
       </div>
       {te && (
@@ -284,7 +283,7 @@ function Estructura({ p, dinero, onAbrir }: { p: FichaPresupuesto; dinero: Diner
       {p.hijos.length > 0 ? (
         // Dos columnas (nombre con ámbito y estado debajo; importe a la derecha):
         // a 390 px una tabla de cuatro escondía el importe tras un desplazamiento.
-        <table className="cabe u-table">
+        <TablaSimple claseTabla="cabe u-table">
           <thead><tr><th className="fidepr-th">{t('pres.hijos')}</th><th className="fidepr-th2">{t('pres.gasto')}</th></tr></thead>
           <tbody>{p.hijos.map(h => (
             <tr key={h.id} onClick={() => onAbrir(h.id)} className="fidepr-box-9">
@@ -293,7 +292,7 @@ function Estructura({ p, dinero, onAbrir }: { p: FichaPresupuesto; dinero: Diner
               <td className="ficha-de-presupuesto-e8">{dinero(h.total_plan)}</td>
             </tr>))}</tbody>
           {p.consolidado_plan != null && <tfoot><tr><td className="fidepr-td5">{t('pres.consolidado')}</td><td className="ficha-de-presupuesto-e10">{dinero(p.consolidado_plan)}</td></tr></tfoot>}
-        </table>
+        </TablaSimple>
       ) : <div className="u-text3-sm">{t('pres.sin_hijos')}</div>}
       <div className="u-text3-xs">{t('pres.estructura_ayuda')}</div>
     </div>
@@ -320,13 +319,13 @@ function Escenarios({ p, dinero, onAbrir, accion, ocupado }: {
   return (
     <div className="u-stack-14">
       <div className="fidepr-tablaconscroll">
-        <table className="cabe u-table">
+        <TablaSimple claseTabla="cabe u-table">
           <thead><tr><th className="fidepr-th">{t('pres.version')}</th><th className="fidepr-th">{t('pres.estado')}</th><th className="fidepr-th2">{t('pres.gasto')}</th></tr></thead>
           <tbody>{p.versiones.map(v => (
             <tr key={v.id} onClick={() => v.id !== p.id && onAbrir(v.id)} className={`${v.id !== p.id ? 'ficha-de-presupuesto-m11' : 'ficha-de-presupuesto-m12'} ${v.id === p.id ? 'ficha-de-presupuesto-m13' : ''}`}>
               <td className="fidepr-td">v{v.version}</td><td className="fidepr-td6 ficha-de-presupuesto-e1" style={{ '--ficha-de-presupuesto-color': colorDeEstado(v.estado) } as CSSProperties}>{t(`pres.estado_${v.estado}`)}</td><td className="ficha-de-presupuesto-e8">{dinero(v.total_plan)}</td>
             </tr>))}</tbody>
-        </table>
+        </TablaSimple>
       </div>
       <div className="fidepr-caja2">
         <label className="fidepr-box-10"><span className="u-text3-xs">{t('pres.escenario_nuevo')}</span>
@@ -338,20 +337,19 @@ function Escenarios({ p, dinero, onAbrir, accion, ocupado }: {
       </div>
       <div className="fidepr-caja2">
         <label className="fidepr-box-12"><span className="u-text3-xs">{t('pres.comparar_con')}</span>
-          <select aria-label={t('pres.comparar_con')} value={otro} onChange={e => setOtro(e.target.value)} className={CLASE_CAMPO}>
-            <option value="">—</option>{candidatos.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-          </select></label>
+          <Select suelto aria-label={t('pres.comparar_con')} value={otro} onChange={e => setOtro(e.target.value)} className={CLASE_CAMPO} placeholder="—">{candidatos.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+          </Select></label>
         <Button size="sm" variant="secondary" disabled={!otro} onClick={comparar}>{t('pres.comparar')}</Button>
       </div>
       {cmp && (
         <div className="fidepr-tablaconscroll">
-          <table className="cabe u-table">
+          <TablaSimple claseTabla="cabe u-table">
             <thead><tr><th className="fidepr-th"><span className="u-sr-only">{t('pres.tipo')}</span></th>{cmp.presupuestos.map(x => <th key={x.id} className="fidepr-th2">{x.escenario} · v{x.version}</th>)}</tr></thead>
             <tbody>
               {tipos.map(tp => <tr key={tp}><td className="fidepr-td">{t(`pres.tipo_${tp}`, tp)}</td>{cmp.presupuestos.map(x => <td key={x.id} className="ficha-de-presupuesto-e8">{dinero(x.por_tipo[tp] ?? 0)}</td>)}</tr>)}
               {(['gasto', 'ingreso', 'margen'] as const).map(k => <tr key={k}><td className="fidepr-td5">{t(`pres.${k}`)}</td>{cmp.presupuestos.map(x => <td key={x.id} className="ficha-de-presupuesto-e10">{dinero(x[k])}</td>)}</tr>)}
             </tbody>
-          </table>
+          </TablaSimple>
         </div>
       )}
     </div>

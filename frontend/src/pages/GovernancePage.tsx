@@ -15,7 +15,7 @@ import {
   Settings, Shield, Sparkles, TrendingUp, Type, Zap,
 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { Card, EmptyState, KpiCard, Page, Tabs } from '../components/ui'
+import { Card, EmptyState, KpiCard, Page, Tabs, Switch } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import './GovernancePage.css'
 import { TOOLTIP_SUPERFICIE_3_SM } from '../constants/estilosGrafico'
@@ -124,11 +124,8 @@ export default function GovernancePage(): JSX.Element {
                   </div>
                   <div className="gov-row-4">
                     {usage && <span className="u-text2-xs">{t('pagina_gov.llamadas', { n: usage.calls || 0 })}</span>}
-                    <button type="button" role="switch" aria-label={t(meta.labelKey)} aria-checked={isEnabled}
-                      onClick={() => toggle({ module: key, is_enabled: !isEnabled })}
-                      className={`gov-switch ${isEnabled ? 'gov-switch--on' : ''}`}>
-                      <span className="gov-switch__bola" />
-                    </button>
+                    <Switch aria-label={t(meta.labelKey)} checked={isEnabled}
+                      onChange={() => toggle({ module: key, is_enabled: !isEnabled })} />
                   </div>
                 </div>
               </Card>

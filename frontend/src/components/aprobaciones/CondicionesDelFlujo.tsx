@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { approvalsApi } from '../../services/api'
 import { settingsApi } from '../../services/settingsApi'
-import { Button } from '../ui'
+import { Button, Select } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
@@ -60,16 +60,16 @@ export default function CondicionesDelFlujo({ workflowId, entityType, actuales, 
         <label><span className="apr-etiqueta">{t('aprob.importe_mayor_que')}</span><input aria-label={t('aprob.importe_mayor_que')} type="number" min={0} step="0.01" value={c.amount_gt} onChange={set('amount_gt')} className="apr-campo" /></label>
         <label><span className="apr-etiqueta">{t('aprob.importe_hasta')}</span><input aria-label={t('aprob.importe_hasta')} type="number" min={0} step="0.01" value={c.amount_lte} onChange={set('amount_lte')} className="apr-campo" /></label>
         <label><span className="apr-etiqueta">{t('aprob.departamento')}</span>
-          <select aria-label={t('aprob.departamento')} value={c.department} onChange={set('department')} className="apr-campo">
+          <Select suelto placeholder={false} aria-label={t('aprob.departamento')} value={c.department} onChange={set('department')} className="apr-campo">
             <option value="">{t('aprob.cualquiera')}</option>
             {(depts.data ?? []).map(d => <option key={d.name} value={d.name}>{d.name}</option>)}
-          </select></label>
+          </Select></label>
         <label><span className="apr-etiqueta">{t('aprob.categoria')}</span><input aria-label={t('aprob.categoria')} value={c.category} onChange={set('category')} className="apr-campo" placeholder={t('aprob.cualquiera')} /></label>
         {entityType === 'expense' && (
           <label><span className="apr-etiqueta">{t('aprob.excede_politica')}</span>
-            <select aria-label={t('aprob.excede_politica')} value={c.policy_exceeded} onChange={set('policy_exceeded')} className="apr-campo">
+            <Select suelto placeholder={false} aria-label={t('aprob.excede_politica')} value={c.policy_exceeded} onChange={set('policy_exceeded')} className="apr-campo">
               <option value="">{t('aprob.da_igual')}</option><option value="si">{t('aprob.si')}</option><option value="no">{t('aprob.no')}</option>
-            </select></label>
+            </Select></label>
         )}
         <Button size="sm" loading={guardando} onClick={guardar}>{t('aprob.guardar')}</Button>
       </div>

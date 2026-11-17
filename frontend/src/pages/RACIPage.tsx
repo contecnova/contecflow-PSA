@@ -15,7 +15,7 @@ import type { ChangeEvent, CSSProperties, ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { projectsApi, usersApi } from '../services/api'
 import type { PersonaVisible } from '../services/api'
-import { Avatar, Spinner, EmptyState, Button, Card, Modal } from '../components/ui'
+import { Avatar, Spinner, EmptyState, Button, Card, Modal, Pulsable, Select, TablaSimple } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -87,8 +87,7 @@ function RoleCell({ role, onClick, editable }: { role?: string; onClick?: () => 
 
   if (editable) {
     return (
-      <button
-        type="button"
+      <Pulsable
         className="raci-celda raci-celda--boton"
         onClick={onClick}
         title={titulo}
@@ -96,7 +95,7 @@ function RoleCell({ role, onClick, editable }: { role?: string; onClick?: () => 
         style={variables}
       >
         {meta ? meta.short : '—'}
-      </button>
+      </Pulsable>
     )
   }
 
@@ -135,9 +134,9 @@ function AddEntryModal({ projectId, users, onClose, onSaved }: { projectId: IdTy
       <div className="raci-grid">
         <div className="ui-field">
           <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-1`}>{t('raci_ui.tipo')}</label>
-          <select className="ds-input" id={`${idCampo}-1`} value={form.item_type} onChange={onField('item_type')}>
+          <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.item_type} onChange={onField('item_type')}>
             {ITEM_TYPES.map(it => <option key={it.value} value={it.value}>{t(it.label)}</option>)}
-          </select>
+          </Select>
         </div>
         <div className="ui-field">
           <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-4`}>{traducir('raci.nombre_del_elemento')}</label>
@@ -147,16 +146,16 @@ function AddEntryModal({ projectId, users, onClose, onSaved }: { projectId: IdTy
       <div className="raci-grid-2">
         <div className="ui-field">
           <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-2`}>{t('raci_ui.persona')}</label>
-          <select className="ds-input" id={`${idCampo}-2`} value={form.user_id} onChange={onField('user_id')}>
+          <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.user_id} onChange={onField('user_id')}>
             <option value="">{t('raci_ui.selecciona_persona')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}{(u.job_title || u.role) ? ` (${u.job_title || u.role})` : ''}</option>)}
-          </select>
+          </Select>
         </div>
         <div className="ui-field">
           <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-3`}>{t('raci_ui.rol_raci')}</label>
-          <select className="ds-input" id={`${idCampo}-3`} value={form.role} onChange={onField('role')}>
+          <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.role} onChange={onField('role')}>
             {Object.entries(ROLES_META).map(([k, v]) => <option key={k} value={k}>{k} — {t(v.label)}</option>)}
-          </select>
+          </Select>
         </div>
       </div>
       <div className="u-actions-10">
@@ -220,10 +219,10 @@ export default function RACIPage({ projectId }: { projectId?: string } = {}) {
         <Card>
           <div className="ui-field raci-selector">
             <label className="uiinde-estiloetiqueta" htmlFor="raci-proyecto">{t('raci_ui.proyecto')}</label>
-            <select id="raci-proyecto" className="ds-input" value={String(selectedProject)} onChange={e => setSelectedProject(e.target.value)}>
+            <Select suelto placeholder={false} id="raci-proyecto" value={String(selectedProject)} onChange={e => setSelectedProject(e.target.value)}>
               <option value="">{traducir('raci.selecciona_un_proyecto')}</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-            </select>
+            </Select>
           </div>
         </Card>
       ) : (
@@ -250,7 +249,7 @@ export default function RACIPage({ projectId }: { projectId?: string } = {}) {
           ctaLabel={traducir('raci.anadir_primera_entrada')} onCta={() => setShowAdd(true)} />
       ) : (
         <div className="ds-card raci-tabla-card u-scroll-x">
-          <table className="raci-table">
+          <TablaSimple claseTabla="raci-table">
             <thead>
               <tr>
                 <th className="raci-th">{t('raci_ui.elemento')}</th>
@@ -285,10 +284,10 @@ export default function RACIPage({ projectId }: { projectId?: string } = {}) {
                             <div className="raci-row-5">
                               <div className="raci-box-2">
                                 <RoleCell role={a.role} editable={false} />
-                                <button className="raci-btn-3xs" type="button" aria-label={t('raci_ui.quitar')} onClick={() => { openConfirmGlobal({ message: t('raci_ui.quitar_confirm'), onConfirm: () => deleteEntry(a.entry_id), danger: true }) }}
+                                <Pulsable className="raci-btn-3xs" aria-label={t('raci_ui.quitar')} onClick={() => { openConfirmGlobal({ message: t('raci_ui.quitar_confirm'), onConfirm: () => deleteEntry(a.entry_id), danger: true }) }}
                                   title={t('raci_ui.quitar')}>
                                   <X size={9} aria-hidden />
-                                </button>
+                                </Pulsable>
                               </div>
                             </div>
                           ) : (
@@ -302,7 +301,7 @@ export default function RACIPage({ projectId }: { projectId?: string } = {}) {
                 )
               })}
             </tbody>
-          </table>
+          </TablaSimple>
         </div>
       )}
     </div>

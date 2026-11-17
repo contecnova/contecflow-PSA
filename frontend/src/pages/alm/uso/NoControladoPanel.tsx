@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Coins, PackagePlus, PackageSearch, RefreshCw, RotateCcw, X } from 'lucide-react'
-import { Button, DataTable, EmptyState, KpiCard, Modal, Spinner, Tabs } from '../../../components/ui'
+import { Button, DataTable, EmptyState, KpiCard, Modal, Spinner, Tabs, Select } from '../../../components/ui'
 import type { ColumnaDeTabla } from '../../../components/ui'
 import { pedirTexto } from '../../../context/ConfirmContext'
 import { useToast } from '../../../context/ToastContext'
@@ -39,9 +39,9 @@ function Alta({ c, onClose }: { c: CandidatoNoControlado; onClose: () => void })
             <input className="alm-input" value={p.product_name} onChange={e => setP({ ...p, product_name: e.target.value })} />
           </label>
           <label className="almu-campo">{t('alm_uso.metrica')}
-            <select className="alm-input" value={p.metric} onChange={e => setP({ ...p, metric: e.target.value })}>
+            <Select suelto placeholder={false} className="alm-input" value={p.metric} onChange={e => setP({ ...p, metric: e.target.value })}>
               {METRICAS.map(m => <option key={m} value={m}>{etiquetaCodigo(t, 'alm_uso.metrica_tipo', m)}</option>)}
-            </select>
+            </Select>
           </label>
           <label className="almu-campo">{t('alm_uso.puestos')}
             <input className="alm-input" type="number" min={0} value={p.total_seats} onChange={e => setP({ ...p, total_seats: e.target.value })} />

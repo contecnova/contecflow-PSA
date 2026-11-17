@@ -12,7 +12,7 @@ import { useState } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { enterpriseApi } from '../services/api'
 import type { EntregaDeWebhook, EventoDeWebhook, WebhookSaliente } from '../services/api/tipos-plataforma'
-import { Button, Card, EmptyState, KpiCard, Modal, Spinner, StatusBadge, Table } from '../components/ui'
+import { Button, Card, EmptyState, KpiCard, Modal, Spinner, StatusBadge, Table, Select } from '../components/ui'
 import Pagination from '../components/ui/Pagination'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -103,22 +103,22 @@ export default function WebhookLogPage() {
       </div>
 
       <div className="ds-toolbar">
-        <select aria-label={t('webhook_log_page.col_webhook')} value={webhookId} className="ds-input whl-select"
+        <Select suelto placeholder={false} aria-label={t('webhook_log_page.col_webhook')} value={webhookId} className="whl-select"
           onChange={e => cambiarFiltro(() => setWebhookId(e.target.value))}>
           <option value="">{t('webhook_log_page.todos_webhooks')}</option>
           {webhooks.map(w => <option key={w.id} value={w.id}>{w.name || w.url}</option>)}
-        </select>
-        <select aria-label={t('webhook_log_page.col_evento')} value={event} className="ds-input whl-select"
+        </Select>
+        <Select suelto placeholder={false} aria-label={t('webhook_log_page.col_evento')} value={event} className="whl-select"
           onChange={e => cambiarFiltro(() => setEvent(e.target.value))}>
           <option value="">{t('webhook_log_page.todos_eventos')}</option>
           {eventos.map(ev => <option key={ev.value} value={ev.value}>{ev.label}</option>)}
-        </select>
-        <select aria-label={t('webhook_log_page.resultado')} value={estado} className="ds-input whl-select"
+        </Select>
+        <Select suelto placeholder={false} aria-label={t('webhook_log_page.resultado')} value={estado} className="whl-select"
           onChange={e => cambiarFiltro(() => setEstado(e.target.value as '' | 'ok' | 'ko'))}>
           <option value="">{t('webhook_log_page.exitosas_y_fallidas')}</option>
           <option value="ok">{t('webhook_log_page.solo_exitosas')}</option>
           <option value="ko">{t('webhook_log_page.solo_fallidas')}</option>
-        </select>
+        </Select>
       </div>
 
       {isLoading ? <Spinner /> : logs.length === 0 ? (
@@ -145,7 +145,7 @@ export default function WebhookLogPage() {
                 log.event ? <StatusBadge kind="accent" caps={false}>{log.event}</StatusBadge> : <span className="whl-muted-sm">—</span>
               ) },
               { key: 'webhook_url', label: t('webhook_log_page.col_url'), render: (_v, log) => (
-                <span className="whl-url" title={log.webhook_url || undefined}>
+                <span className="ds-codigo whl-url" title={log.webhook_url || undefined}>
                   {log.webhook_url || '—'}
                 </span>
               ) },
@@ -194,7 +194,7 @@ export default function WebhookLogPage() {
             {Boolean(selectedLog.payload) && (
               <div>
                 <div className="whl-detail-label whl-detail-label--block">{t('webhook_log_page.payload')}</div>
-                <pre className="whl-pre whl-pre--payload">
+                <pre className="ds-codigo whl-pre whl-pre--payload">
                   {JSON.stringify(
                     tryParseJson(selectedLog.payload), null, 2)}
                 </pre>
@@ -203,7 +203,7 @@ export default function WebhookLogPage() {
             {Boolean(selectedLog.response) && (
               <div>
                 <div className="whl-detail-label whl-detail-label--block">{t('webhook_log_page.respuesta')}</div>
-                <pre className="whl-pre">
+                <pre className="ds-codigo whl-pre">
                   {String(selectedLog.response).slice(0, 500)}
                 </pre>
               </div>

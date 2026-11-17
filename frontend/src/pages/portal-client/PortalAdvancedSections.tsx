@@ -32,6 +32,7 @@ import {
 } from './PortalUI'
 import { POLL_FAST_MS, POLL_FREQUENT_MS } from '../../constants/timings'
 import './PortalAdvancedSections.css'
+import { Pulsable } from '../../components/ui'
 
 // ── Status helpers ───────────────────────────────────────────────────────────
 const STATUS_TONE: Record<string, string> = {
@@ -768,7 +769,7 @@ export function PortalMessages() {
           <div className="poadse-grid-1">
             <PortalCard padding={10} className="portalad-sx4">
               {conversations.map(c => (
-                <button className={`poadse-box-29 ${activeConvId === c.id ? 'portal-advanced-sections-m7' : 'portal-advanced-sections-m8'}`} key={c.id} onClick={() => setActiveConvId(c.id)}>{c.title}</button>
+                <Pulsable className={`poadse-box-29 ${activeConvId === c.id ? 'portal-advanced-sections-m7' : 'portal-advanced-sections-m8'}`} key={c.id} onClick={() => setActiveConvId(c.id)}>{c.title}</Pulsable>
               ))}
             </PortalCard>
             <PortalCard padding={0} className="portalad-sx5">

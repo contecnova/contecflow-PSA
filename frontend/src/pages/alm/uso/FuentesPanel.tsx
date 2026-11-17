@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, EyeOff, History, KeyRound, Link2, PlugZap, RefreshCw, Settings2 } from 'lucide-react'
-import { Button, DataTable, EmptyState, Modal, Section, Spinner } from '../../../components/ui'
+import { Button, DataTable, EmptyState, Modal, Section, Spinner, Select, Checkbox } from '../../../components/ui'
 import type { ColumnaDeTabla } from '../../../components/ui'
 import { useToast } from '../../../context/ToastContext'
 import { useAppT } from '../../../i18n/AppLangContext'
@@ -47,14 +47,14 @@ function Configurar({ c, onClose }: { c: Conexion; onClose: () => void }) {
     <Modal open onClose={onClose} title={t('alm_uso.configurar_titulo', { fuente: nombreDeFuente(t, c.clave) })} size="lg">
       <div className="u-stack-14">
         {c.credenciales.length > 0 && (
-          <fieldset className="almu-servicios">
+          <fieldset className="ds-grupo-opciones almu-servicios">
             <legend>{t('alm_uso.credenciales')}</legend>
             <p className="u-text2-xs">{t('alm_uso.credenciales_ayuda')}</p>
             <div className="u-grid2-12">
               {c.credenciales.map(f => (
                 <label key={f.clave} className="almu-campo">{etiquetaCodigo(t, 'alm_uso.credencial', f.clave, f.etiqueta)}
                   {f.clave === 'service_account_json'
-                    ? <textarea className="alm-input alm-input--mono" rows={4} autoComplete="off"
+                    ? <textarea className="ds-codigo alm-input alm-input--mono ds-campo-codigo" rows={4} autoComplete="off"
                         placeholder={f.configurado ? t('alm_uso.configurado_sin_cambios') : ''}
                         value={creds[f.clave] ?? ''} onChange={e => setCreds({ ...creds, [f.clave]: e.target.value })} />
                     : <input className="alm-input" type={f.secreto ? 'password' : 'text'} autoComplete="off"
@@ -67,17 +67,17 @@ function Configurar({ c, onClose }: { c: Conexion; onClose: () => void }) {
           </fieldset>
         )}
         <label className="almu-campo">{t('alm_uso.fiabilidad_col')}
-          <select className="alm-input" value={fiabilidad} onChange={e => setFiabilidad(e.target.value)}>
+          <Select suelto placeholder={false} className="alm-input" value={fiabilidad} onChange={e => setFiabilidad(e.target.value)}>
             <option value="">{t('alm_uso.fiabilidad_por_defecto', { valor: etiquetaCodigo(t, 'alm_uso.fiabilidad', c.fiabilidad) })}</option>
             {['alta', 'media', 'baja'].map(f => <option key={f} value={f}>{etiquetaCodigo(t, 'alm_uso.fiabilidad', f)}</option>)}
-          </select>
+          </Select>
         </label>
         {c.opciones.length > 0 && (
-          <fieldset className="almu-servicios">
+          <fieldset className="ds-grupo-opciones almu-servicios">
             <legend>{t('alm_uso.opciones')}</legend>
             {c.opciones.map(o => (
               <label key={o.clave} className="almu-campo">{etiquetaCodigo(t, 'alm_uso.opcion', o.clave, o.descripcion)}
-                <input className="alm-input alm-input--mono" value={opciones[o.clave] ?? ''}
+                <input className="ds-codigo alm-input alm-input--mono ds-campo-codigo" value={opciones[o.clave] ?? ''}
                   onChange={e => setOpciones({ ...opciones, [o.clave]: e.target.value })} />
               </label>
             ))}
@@ -140,11 +140,11 @@ function Productos() {
     { key: 'nombre', label: t('alm_uso.producto') },
     { key: 'titulares', label: t('alm_uso.titulares') },
     { key: 'license_id', label: t('alm_uso.licencia'), sortable: false, render: (_v, p) => (
-      <select className="alm-input alm-input--compact" aria-label={t('alm_uso.licencia_de', { producto: p.nombre })}
+      <Select suelto placeholder={false} className="alm-input alm-input--compact" aria-label={t('alm_uso.licencia_de', { producto: p.nombre })}
         value={p.license_id ?? ''} onChange={e => mapear.mutate({ fuente: p.fuente, producto: p.producto, license_id: e.target.value || null, ignorar: false })}>
         <option value="">{p.mapeo === 'ignorado' ? t('alm_uso.ignorado') : t('alm_uso.sin_licencia')}</option>
         {licencias.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-      </select>
+      </Select>
     ) },
     { key: 'sugerencia', label: t('alm_uso.sugerida'), sortable: false, render: (_v, p) => p.sugerencia ? (
       <Button size="xs" variant="secondary" icon={<Link2 size={12} />}
@@ -159,7 +159,7 @@ function Productos() {
   ]
   return (
     <Section title={t('alm_uso.productos_titulo')} subtitle={t('alm_uso.productos_desc')}
-      actions={<label className="almu-check"><input type="checkbox" checked={soloSin} onChange={e => setSoloSin(e.target.checked)} />{t('alm_uso.solo_sin_licencia')}</label>}>
+      actions={<label className="almu-check"><Checkbox checked={soloSin} onChange={(_, e) => setSoloSin(e.target.checked)} />{t('alm_uso.solo_sin_licencia')}</label>}>
       <DataTable columns={columnas} data={data} loading={isLoading} emptyTitle={t('alm_uso.sin_productos')} />
     </Section>
   )

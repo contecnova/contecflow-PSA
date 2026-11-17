@@ -6,7 +6,7 @@ import type { CSSProperties, ChangeEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { developerAppsApi, apiUrl, apiUrlAbsoluta } from '../services/api'
 import type { AplicacionOAuth, SecretoRotado } from '../services/api/tipos-plataforma'
-import { Button, Modal, EmptyState, Spinner, StatusBadge } from '../components/ui'
+import { Button, Modal, EmptyState, Spinner, StatusBadge, Pulsable } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AlertTriangle, AppWindow, Code2, Copy, Plus, RotateCw } from 'lucide-react'
@@ -78,11 +78,11 @@ function AppModal({ app, onClose }: { app?: AplicacionOAuth | null; onClose: () 
           </p>
           <div className="u-mb-10">
             <label className="developer-portal-page-e1">{t('developer.client_id')}</label>
-            <code className="developer-portal-page-e6">{newSecret.client_id}</code>
+            <code className="ds-codigo developer-portal-page-e6">{newSecret.client_id}</code>
           </div>
           <div>
             <label className="developer-portal-page-e1">{t('developer.client_secret')}</label>
-            <code className="developer-portal-page-e6">{newSecret.client_secret}</code>
+            <code className="ds-codigo developer-portal-page-e6">{newSecret.client_secret}</code>
           </div>
         </div>
         <Button onClick={onClose}>{t('developer.got_it')}</Button>
@@ -107,14 +107,14 @@ function AppModal({ app, onClose }: { app?: AplicacionOAuth | null; onClose: () 
         </div>
         <div>
           <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="developer-portal-page-e7">{t('developer.app_redirect_label')}</label>
-          <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={f.redirect_uris} onChange={set('redirect_uris')} className="developer-portal-page-e3" rows={3}
+          <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={f.redirect_uris} onChange={set('redirect_uris')} className="ds-codigo developer-portal-page-e3" rows={3}
             placeholder={t('developer.app_redirect_placeholder')} />
         </div>
         <div>
           <label className="developer-portal-page-e7">{t('developer.app_scopes_label')}</label>
           <div className="u-wrap-8">
             {AVAILABLE_SCOPES.map(s => (
-              <button type="button" key={s} aria-pressed={f.scopes.includes(s)} onClick={() => toggleScope(s)} className={`devp-btn develope-sx3 ${f.scopes.includes(s) ? 'develope-sx4' : 'develope-sx5'} developer-portal-page-e4`} style={{ '--developer-portal-page-border': `1px solid ${f.scopes.includes(s) ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>{t(`developer.scope_${s}`)}</button>
+              <Pulsable type="button" key={s} aria-pressed={f.scopes.includes(s)} onClick={() => toggleScope(s)} className={`devp-btn develope-sx3 ${f.scopes.includes(s) ? 'develope-sx4' : 'develope-sx5'} developer-portal-page-e4`} style={{ '--developer-portal-page-border': `1px solid ${f.scopes.includes(s) ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>{t(`developer.scope_${s}`)}</Pulsable>
             ))}
           </div>
         </div>
@@ -150,7 +150,7 @@ function AppDetail({ app, onClose, onRotated }: { app: AplicacionOAuth; onClose:
         <div>
           <label className="developer-portal-page-e7">{t('developer.client_id')}</label>
           <div className="u-row-center-8">
-            <code className="developer-portal-page-e5">{app.client_id}</code>
+            <code className="ds-codigo developer-portal-page-e5">{app.client_id}</code>
             <Button variant="secondary" icon={<Copy size={14} />} onClick={() => copy(app.client_id)} className="develope-sx1">{t('developer.copy_btn')}</Button>
           </div>
         </div>
@@ -167,15 +167,15 @@ function AppDetail({ app, onClose, onRotated }: { app: AplicacionOAuth; onClose:
         </div>
         <div>
           <label className="developer-portal-page-e7">{t('developer.token_endpoint')}</label>
-          <code className="developer-portal-page-e6">{apiUrlAbsoluta('/developer/token')}</code>
+          <code className="ds-codigo developer-portal-page-e6">{apiUrlAbsoluta('/developer/token')}</code>
         </div>
         <div>
           <label className="developer-portal-page-e7">{t('developer.userinfo_endpoint')}</label>
-          <code className="developer-portal-page-e6">{apiUrlAbsoluta('/developer/userinfo')}</code>
+          <code className="ds-codigo developer-portal-page-e6">{apiUrlAbsoluta('/developer/userinfo')}</code>
         </div>
         <div className="devp-card-2">
           <strong>{t('developer.client_credentials_example')}</strong>
-          <pre className="devp-box">{`POST ${apiUrl('/developer/token')}
+          <pre className="ds-codigo ds-codigo--bloque devp-box">{`POST ${apiUrl('/developer/token')}
 Content-Type: application/json
 
 {
@@ -240,7 +240,7 @@ export default function DeveloperPortalPage(): JSX.Element {
               {app.description && <p className="devp-text-3">{app.description}</p>}
               <div className="u-mb-10">
                 <div className="devp-box-3">{t('developer.client_id')}</div>
-                <code className="u-text2-mono-xs">{app.client_id}</code>
+                <code className="ds-codigo u-text2-mono-xs">{app.client_id}</code>
               </div>
               <div className="devp-row-3">
                 {app.scopes?.map(s => (
@@ -272,7 +272,7 @@ export default function DeveloperPortalPage(): JSX.Element {
                 <AlertTriangle size={14} aria-hidden /> {t('developer.save_new_secret')}
               </p>
               <label className="developer-portal-page-e1">{t('developer.client_secret')}</label>
-              <code className="developer-portal-page-e6">{rotatedSecret.client_secret}</code>
+              <code className="ds-codigo developer-portal-page-e6">{rotatedSecret.client_secret}</code>
             </div>
             <Button onClick={() => { setRotatedSecret(null); setViewCreds(null) }}>{t('developer.understood_btn')}</Button>
           </div>

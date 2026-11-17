@@ -11,7 +11,7 @@ import api, { documentsApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AlertTriangle, CheckCircle2, Clock, ExternalLink, FileSignature, PenLine, Plus, X, XCircle } from 'lucide-react'
-import { Button, Spinner, EmptyState, Modal, KpiCard, IconButton } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, KpiCard, IconButton, Pulsable, Select, TablaSimple } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { fmtDate } from '../utils/helpers'
 import StatusBadge from '../components/ui/StatusBadge'
@@ -154,10 +154,10 @@ function CreateEnvelopeModal({ onClose, onCreated }: { onClose: () => void; onCr
       <div className="u-stack-14">
         <div>
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="esign-page-e10">{t('esign.document')}</label>
-          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.document_id} onChange={setField('document_id')} className="esign-page-e11">
+          <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.document_id} onChange={setField('document_id')} className="esign-page-e11">
             <option value="">{t('esign.select_document')}</option>
             {documents.map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="esign-page-e10">{t('esign.subject')}</label>
@@ -170,11 +170,11 @@ function CreateEnvelopeModal({ onClose, onCreated }: { onClose: () => void; onCr
         <div className="u-wrap-10">
           <div className="esign-box">
             <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="esign-page-e10">{t('esign.provider')}</label>
-            <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.provider} onChange={setField('provider')} className="esign-page-e11">
+            <Select suelto placeholder={false} id={`${idCampo}-4`} value={form.provider} onChange={setField('provider')} className="esign-page-e11">
               <option value="manual">{t('esign.provider_manual')}</option>
               <option value="docusign">DocuSign</option>
               <option value="adobe_sign">Adobe Sign</option>
-            </select>
+            </Select>
           </div>
           <div className="esign-box-2">
             <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="esign-page-e10">{t('esign.valid_days')}</label>
@@ -286,7 +286,7 @@ export default function ESignPage(): JSX.Element {
           action={<Button icon={<Plus size={14} />} onClick={() => setCreating(true)}>{t('esign.nueva_solicitud')}</Button>} />
       ) : (
         <div className="esign-card-2">
-          <table className="u-table">
+          <TablaSimple claseTabla="u-table">
             <thead>
               <tr>
                 {[t('pagina_esign.asunto'), t('pagina_esign.proveedor'), t('pagina_esign.firmantes'), t('pagina_esign.estado'), t('pagina_esign.enviado'), t('pagina_esign.vence'), ''].map((h, i) => (
@@ -298,10 +298,10 @@ export default function ESignPage(): JSX.Element {
               {envelopes.map(env => (
                 <tr key={env.id} className="esign-fila">
                   <td className="esign-page-e13">
-                    <button onClick={() => setDetail(env)}
+                    <Pulsable onClick={() => setDetail(env)}
                       className="esign-btn-3">
                       {env.subject || t('pagina_esign.sin_asunto')}
-                    </button>
+                    </Pulsable>
                   </td>
                   <td className="esign-page-e13">
                     <span className="u-text2-sm">
@@ -329,7 +329,7 @@ export default function ESignPage(): JSX.Element {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </TablaSimple>
         </div>
       )}
 

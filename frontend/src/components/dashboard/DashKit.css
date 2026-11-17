@@ -10,7 +10,7 @@
   font-size: var(--text-2xs);
   font-weight: 700;
   color: var(--text-3);
-  text-transform: uppercase;
+
   letter-spacing: 0.09em;
 }
 .dashkit-txt-2 {
@@ -30,7 +30,7 @@
   font-size: var(--text-2xs);
   font-weight: 700;
   color: var(--text-3);
-  text-transform: uppercase;
+
   letter-spacing: 0.09em;
   margin-bottom: 4px;
 }
@@ -48,7 +48,7 @@
 /* 16-11-2026: solo la primera letra en mayúscula (capitalize ponía "Solicitud
    De Servicio" en las etiquetas ya traducidas). */
 .dashkit-txt-3::first-letter {
-  text-transform: uppercase;
+
 }
 .dashkit-box-4 {
   font-size: var(--text-xs);
@@ -237,7 +237,7 @@
   font-size: var(--text-xs);
   font-weight: 700;
   color: var(--text-3);
-  text-transform: uppercase;
+
   letter-spacing: 0.09em;
   margin: 0;
 }

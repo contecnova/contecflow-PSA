@@ -16,7 +16,6 @@
   text-align: left;
   color: var(--text-3);
   font-size: var(--text-xs);
-  text-transform: uppercase;
 }
 .fidefa-sp-1 {
   padding: 6px;
@@ -50,7 +49,7 @@
 .fidefa-box-7 {
   padding: 6px;
   text-align: right;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 .fidefa-box-8 {
   background: none;
@@ -60,7 +59,7 @@
 }
 .fidefa-box-9 {
   padding: 6px;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 .fidefa-row-1 {
   justify-self: start;
@@ -85,7 +84,7 @@
 }
 .fidefa-txt-3 {
   text-align: right;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 .fidefa-txt-4 {
   font-size: var(--text-sm);

@@ -8,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Repeat, Trash2 } from 'lucide-react'
 import { ausenciasApi } from '../../../services/api/ausencias'
 import type { Rotacion, RotacionIn, Turno } from '../../../services/api/tipos-ausencias'
-import { Button, EmptyState, Modal, Spinner } from '../../ui'
+import { Button, EmptyState, Modal, Spinner, Select, Pulsable } from '../../ui'
 import { UserSelect } from '../../ui/EntitySelect'
 import DateInput from '../../ui/DateInput'
 import { confirmar } from '../../../context/ConfirmContext'
@@ -37,7 +37,7 @@ export default function EditorDeRotaciones() {
           <ul className="ausadm-lista">
             {(q.data ?? []).map((r: Rotacion) => (
               <li key={r.id}>
-                <button type="button" className={`ausadm-item${r.activo ? '' : ' ausadm-item--inactivo'}`}
+                <Pulsable className={`ausadm-item${r.activo ? '' : ' ausadm-item--inactivo'}`}
                   onClick={() => { const { id: _id, ...resto } = r; setAbierta({ id: r.id, datos: resto }) }}>
                   <Repeat size={16} aria-hidden />
                   <span className="ausadm-item-nombre">{r.nombre}
@@ -48,7 +48,7 @@ export default function EditorDeRotaciones() {
                       return t ? <Muestra key={i} color={t.color} className="ausadm-muestra--mini" /> : <span key={i} className="ausadm-muestra ausadm-muestra--mini ausadm-muestra--libre" />
                     })}
                   </span>
-                </button>
+                </Pulsable>
               </li>
             ))}
           </ul>
@@ -88,18 +88,17 @@ function Formulario({ id, inicial, turnos, onCerrar }: { id: string | null; inic
             <DateInput aria-label={ta('inicio_del_ciclo')} className="ausadm-campo" required value={d.inicio} onChange={e => setD({ ...d, inicio: e.target.value })} />
           </label>
         </div>
-        <fieldset className="ausadm-fieldset">
+        <fieldset className="ds-grupo-opciones ausadm-fieldset">
           <legend className="ausadm-etiqueta">{ta('ciclo')}</legend>
           <ol className="ausadm-ciclo">
             {d.ciclo.map((x, i) => (
               <li key={i} className="ausadm-ciclo-dia">
                 <span className="ausadm-ayuda">{ta('dia_n', { n: i + 1 })}</span>
                 <Muestra color={x ? porId.get(x)?.color : null} className={x ? 'ausadm-muestra--barra' : 'ausadm-muestra--barra ausadm-muestra--libre'} />
-                <select className="ausadm-campo ausadm-campo--mini" aria-label={ta('turno_del_dia', { n: i + 1 })} value={x ?? ''}
-                  onChange={e => setD({ ...d, ciclo: d.ciclo.map((y, j) => (j === i ? (e.target.value || null) : y)) })}>
-                  <option value="">{ta('libre')}</option>
+                <Select suelto className="ausadm-campo ausadm-campo--mini" aria-label={ta('turno_del_dia', { n: i + 1 })} value={x ?? ''}
+                  onChange={e => setD({ ...d, ciclo: d.ciclo.map((y, j) => (j === i ? (e.target.value || null) : y)) })} placeholder={ta('libre')}>
                   {turnos.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
-                </select>
+                </Select>
               </li>
             ))}
           </ol>
@@ -109,7 +108,7 @@ function Formulario({ id, inicial, turnos, onCerrar }: { id: string | null; inic
               onClick={() => setD({ ...d, ciclo: d.ciclo.slice(0, -1) })}>{ta('quitar_ultimo_dia')}</Button>
           </div>
         </fieldset>
-        <fieldset className="ausadm-fieldset">
+        <fieldset className="ds-grupo-opciones ausadm-fieldset">
           <legend className="ausadm-etiqueta">{ta('personas')}</legend>
           <p className="ausadm-ayuda">{ta('desfase_ayuda')}</p>
           {d.miembros.map((m, i) => (

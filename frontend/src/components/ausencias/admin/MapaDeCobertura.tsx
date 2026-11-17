@@ -9,7 +9,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Grid3x3 } from 'lucide-react'
 import { ausenciasApi } from '../../../services/api/ausencias'
 import type { Cobertura, CeldaDeCobertura } from '../../../services/api/tipos-ausencias'
-import { EmptyState, NavegadorDeMes, RejillaPersonaDia, Spinner, columnasDeDias } from '../../ui'
+import { EmptyState, NavegadorDeMes, RejillaPersonaDia, Spinner, columnasDeDias, Select } from '../../ui'
 import { useOpciones } from '../../politicas/comun'
 import { AvisoDeError, Muestra, isoDe, mesDe, useT } from './comun'
 
@@ -91,14 +91,12 @@ export function Filtros({ equipo, departamento, equipos, departamentos, onEquipo
   const { ta } = useT()
   return (
     <div className="ds-toolbar ausadm-filtros">
-      <select className="ds-input ausadm-filtro" aria-label={ta('equipo')} value={equipo} onChange={e => onEquipo(e.target.value)}>
-        <option value="">{ta('todos_los_equipos')}</option>
+      <Select suelto className="ds-input ausadm-filtro" aria-label={ta('equipo')} value={equipo} onChange={e => onEquipo(e.target.value)} placeholder={ta('todos_los_equipos')}>
         {equipos.map(x => <option key={x} value={x}>{x}</option>)}
-      </select>
-      <select className="ds-input ausadm-filtro" aria-label={ta('departamento')} value={departamento} onChange={e => onDepartamento(e.target.value)}>
-        <option value="">{ta('todos_los_departamentos')}</option>
+      </Select>
+      <Select suelto className="ds-input ausadm-filtro" aria-label={ta('departamento')} value={departamento} onChange={e => onDepartamento(e.target.value)} placeholder={ta('todos_los_departamentos')}>
         {departamentos.map(x => <option key={x} value={x}>{x}</option>)}
-      </select>
+      </Select>
     </div>
   )
 }

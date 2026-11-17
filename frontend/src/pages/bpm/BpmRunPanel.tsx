@@ -16,7 +16,7 @@
  */
 import { type CSSProperties, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Button, Modal, Spinner, EmptyState, Table } from '../../components/ui'
+import { Button, Modal, Spinner, EmptyState, Table, Select, TablaSimple } from '../../components/ui'
 import { Inbox, Activity } from 'lucide-react'
 import { bpmnInstancesApi, apiErrorMsg } from '../../services/api'
 import type { InstanciaBpmn, PasoDeBandejaBpmn, PasoDeInstanciaBpmn } from '../../services/api/tipos-documentos'
@@ -65,23 +65,23 @@ function CompleteModal({ step, onClose }: { step: InboxStep; onClose: () => void
       <div className="u-stack-12">
         <div className="u-text2-sm">{step.process_name}</div>
         {step.variables && Object.keys(step.variables).length > 0 && (
-          <div className="bprupa-box-1">
+          <div className="ds-codigo ds-codigo--bloque bprupa-box-1">
             {Object.entries(step.variables).map(([k, v]) => <div key={k}>{k} = {String(v)}</div>)}
           </div>
         )}
         {esDecision && (
           <>
             <label htmlFor="bpm-salida" className="bprupa-txt-1">{t('bpm.elige_salida')}</label>
-            <select id="bpm-salida" className="ds-input" value={salida} onChange={e => setSalida(e.target.value)}>
+            <Select suelto placeholder={false} id="bpm-salida" className="ds-input" value={salida} onChange={e => setSalida(e.target.value)}>
               <option value="" disabled>{t('bpm.elige_salida')}</option>
               {opciones.map(o => (
                 <option key={o.flow_id} value={o.flow_id}>{o.name}{o.default ? ` ${t('bpm.salida_por_defecto')}` : ''}</option>
               ))}
-            </select>
+            </Select>
           </>
         )}
         <label htmlFor="bpm-vars" id="bpm-vars-etiqueta" className="bprupa-txt-1">{t('bpm.variables_ayuda')}</label>
-        <textarea id="bpm-vars" aria-labelledby="bpm-vars-etiqueta" value={vars} onChange={e => setVars(e.target.value)} rows={4} className="bprupa-fs" placeholder={t('bpm.variables_ejemplo')} />
+        <textarea id="bpm-vars" aria-labelledby="bpm-vars-etiqueta" value={vars} onChange={e => setVars(e.target.value)} rows={4} className="ds-codigo bprupa-fs" placeholder={t('bpm.variables_ejemplo')} />
         <div className="u-actions-8">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => mutate()} loading={isPending} disabled={isPending || (esDecision && !salida)}>
@@ -153,7 +153,7 @@ export function BpmInbox(): JSX.Element {
       ) : inbox.length === 0 ? (
         <EmptyState icon={<Inbox size={28} />} title={t('bpm.bandeja_vacia')} description={t('bpm.bandeja_vacia_desc')} />
       ) : (
-        <table className="table">
+        <TablaSimple claseTabla="table">
           <thead><tr><th>{t('bpm.paso')}</th><th>{t('bpm.proceso')}</th><th>{t('bpm.rol')}</th><th>{t('bpm.desde')}</th><th><span className="u-sr-only">{t('cmdb.actions')}</span></th></tr></thead>
           <tbody>
             {inbox.map(s => (
@@ -166,7 +166,7 @@ export function BpmInbox(): JSX.Element {
               </tr>
             ))}
           </tbody>
-        </table>
+        </TablaSimple>
       )}
       {completing && <CompleteModal step={completing} onClose={() => setCompleting(null)} />}
     </section>
@@ -189,7 +189,7 @@ export default function BpmRunPanel() {
         ) : instances.length === 0 ? (
           <EmptyState icon={<Activity size={28} />} title={t('bpm.sin_instancias')} description={t('bpm.sin_instancias_desc')} />
         ) : (
-          <table className="table">
+          <TablaSimple claseTabla="table">
             <thead><tr><th>{t('bpm.proceso')}</th><th>{t('bpm.estado')}</th><th>{t('bpm.pendiente')}</th><th>{t('bpm.inicio')}</th><th><span className="u-sr-only">{t('cmdb.actions')}</span></th></tr></thead>
             <tbody>
               {instances.map(i => (
@@ -202,7 +202,7 @@ export default function BpmRunPanel() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </TablaSimple>
         )}
       </section>
       {viewing && <InstanceModal id={viewing} onClose={() => setViewing(null)} />}

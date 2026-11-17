@@ -19,7 +19,7 @@ import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, BarChart3, CheckCircle2, FolderOpen, Star, Ticket, Timer, Users } from 'lucide-react'
 import { sdMetricsApi } from '../../services/api'
 import type { SdRendimientoDeAgente } from '../../services/api/tipos-sd'
-import { Avatar, Card, EmptyState, KpiCard, Section, SelectorDePeriodo, Spinner, StatusBadge, useSort, SortableTH, ariaSort } from '../../components/ui'
+import { Avatar, Card, EmptyState, KpiCard, Section, SelectorDePeriodo, Spinner, StatusBadge, TablaSimple, useSort, SortableTH, ariaSort } from '../../components/ui'
 import { BarRow, GaugeCard, typePalette } from '../../components/dashboard/DashKit'
 import { usePeriodo } from '../../hooks/usePeriodo'
 import { CON_HORA, codigoDeErrorDePeriodo } from '../../utils/periodo'
@@ -231,7 +231,7 @@ export default function MetricsDashboardTab() {
             <EmptyState icon={<Users size={28} />} title={t('metricsdashboard.sin_datos_de_agentes_en_este_periodo')} description={t('metricsdashboard.sin_agentes_desc')} />
           ) : (
             <div className="u-scroll-x">
-              <table className="u-table">
+              <TablaSimple claseTabla="u-table">
                 <thead>
                   <tr className="medata-box-13">
                     {columnas.map(({ col, label }) => (
@@ -264,7 +264,7 @@ export default function MetricsDashboardTab() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </TablaSimple>
             </div>
           )}
         </Section>

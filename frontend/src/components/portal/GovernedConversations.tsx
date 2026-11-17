@@ -10,7 +10,7 @@ import { useToast } from '../../context/ToastContext'
 import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { CLIENT_API, S as PORTAL_STYLES, useErrorDelPortal, useLang } from '../../pages/portal-client/portalClientContext'
 import { useAppLang } from '../../i18n/AppLangContext'
-import { useDialogo, Button, EmptyState } from '../ui'
+import { useDialogo, Button, Checkbox, EmptyState, GrupoDeOpciones, Pulsable, Select } from '../ui'
 import { MessagesSquare, Plus, Check, X, Send, Save } from 'lucide-react'
 import StatusBadge from '../ui/StatusBadge'
 import { POLL_FREQUENT_MS, WS_HEARTBEAT_MS } from '../../constants/timings'
@@ -153,7 +153,7 @@ function ConversationListItem({ conversation, selected, onSelect, mode }: Conver
   const unread = mode === 'team' ? conversation.unread_for_team : conversation.unread_for_client
   const lastPreview = conversation.last_message?.body || conversation.title
   return (
-    <button className={`goveconv-box-13 governed-sx1 governed-conversations-e1 ${selected ? 'governed-conversations-m2' : 'governed-conversations-m3'}`}
+    <Pulsable className={`goveconv-box-13 governed-sx1 governed-conversations-e1 ${selected ? 'governed-conversations-m2' : 'governed-conversations-m3'}`}
       onClick={() => onSelect(conversation.id)}
       style={{ '--governed-conversations-border': `1px solid ${selected ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}
     >
@@ -168,7 +168,7 @@ function ConversationListItem({ conversation, selected, onSelect, mode }: Conver
         {unread > 0 && <StatusBadge color="var(--danger)">{unread} {t('governedconversations.sin_leer')}</StatusBadge>}
       </div>
       <div className="goveconv-txt-3">{lastPreview ? String(lastPreview).slice(0, 120) : t('governedconversations.sin_mensajes')}</div>
-    </button>
+    </Pulsable>
   )
 }
 
@@ -242,10 +242,8 @@ function ConversationComposer({ mode, value, onChange, onSend, sending, canInter
         className="goveconv-inputstyle2"
       />
       <div className="goveconv-row-4">
-        <label className={`goveconv-box-15 ${canInternalNotes ? 'governed-conversations-m6' : 'governed-conversations-m7'}`}>
-          <input type="checkbox" aria-label={t('governedconversations.enviar_como_nota_interna')} checked={isInternalNote} onChange={(event) => onToggleInternalNote(event.target.checked)} />
-          {t('governedconversations.enviar_como_nota_interna')}
-        </label>
+        <Checkbox className={`goveconv-box-15 ${canInternalNotes ? 'governed-conversations-m6' : 'governed-conversations-m7'}`}
+          label={t('governedconversations.enviar_como_nota_interna')} checked={isInternalNote} onChange={(marcado) => onToggleInternalNote(marcado)} />
         <Button icon={<Send size={13} />} onClick={onSend} loading={sending} disabled={disabled || !value.trim()}>
           {t('governedconversations.enviar_mensaje')}
         </Button>
@@ -314,31 +312,24 @@ function CreateConversationModal({ mode, open, onClose, onSubmit, projectOptions
           </div>
           <div>
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="goveconv-labelstyle">{t('alm.type')}</label>
-            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.topic_type} onChange={(event) => setForm((prev) => ({ ...prev, topic_type: event.target.value }))} className="goveconv-inputstyle">
+            <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.topic_type} onChange={(event) => setForm((prev) => ({ ...prev, topic_type: event.target.value }))} className="goveconv-inputstyle">
               {TOPIC_OPTIONS.map((tema) => <option key={tema} value={tema}>{etiquetaDeTema(t, tema)}</option>)}
-            </select>
+            </Select>
           </div>
           <div>
             <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="goveconv-labelstyle">{t('gas.proyecto')}</label>
-            <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.project_id} onChange={(event) => setForm((prev) => ({ ...prev, project_id: event.target.value }))} className="goveconv-inputstyle">
-              <option value="">{t('governedconversations.sin_proyecto')}</option>
+            <Select suelto placeholder={t('governedconversations.sin_proyecto')} id={`${idCampo}-3`} value={form.project_id} onChange={(event) => setForm((prev) => ({ ...prev, project_id: event.target.value }))} className="goveconv-inputstyle">
               {projectOptions.map((project) => <option key={project.id} value={project.id}>{project.code ? `${project.code} — ` : ''}{project.name}</option>)}
-            </select>
+            </Select>
           </div>
           {mode === 'team' && (
             <>
-              <div>
-                <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="goveconv-labelstyle">{t('governedconversations.equipo_invitado')}</label>
-                <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} multiple value={form.internal_user_ids} onChange={(event) => setForm((prev) => ({ ...prev, internal_user_ids: Array.from(event.target.selectedOptions).map((option) => option.value) }))} className="goveconv-inputstyle3">
-                  {teamUsers.map((user) => <option key={user.id} value={user.id}>{user.full_name || user.email}</option>)}
-                </select>
-              </div>
-              <div>
-                <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="goveconv-labelstyle">{t('governedconversations.usuarios_portal_invitados')}</label>
-                <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} multiple value={form.client_user_ids} onChange={(event) => setForm((prev) => ({ ...prev, client_user_ids: Array.from(event.target.selectedOptions).map((option) => option.value) }))} className="goveconv-inputstyle3">
-                  {clientUsers.map((user) => <option key={user.id} value={user.id}>{user.full_name || user.email}</option>)}
-                </select>
-              </div>
+              <GrupoDeOpciones tipo="checkbox" forma="lista" className="goveconv-multi" leyenda={t('governedconversations.equipo_invitado')}
+                valor={form.internal_user_ids} onChange={(ids) => setForm((prev) => ({ ...prev, internal_user_ids: ids }))}
+                opciones={teamUsers.map((user) => ({ valor: String(user.id), titulo: user.full_name || user.email }))} />
+              <GrupoDeOpciones tipo="checkbox" forma="lista" className="goveconv-multi" leyenda={t('governedconversations.usuarios_portal_invitados')}
+                valor={form.client_user_ids} onChange={(ids) => setForm((prev) => ({ ...prev, client_user_ids: ids }))}
+                opciones={clientUsers.map((user) => ({ valor: String(user.id), titulo: user.full_name || user.email }))} />
             </>
           )}
           <div className="u-col-full">
@@ -579,10 +570,9 @@ export function GovernedConversationInbox({
         </div>
         <div className="u-wrap-10">
           {projectOptions.length > 1 && (
-            <select value={selectedProject} onChange={(event) => setSelectedProject(event.target.value)} className="goveconv-inputstyle5">
-              <option value="">{t('governedconversations.todos_los_proyectos')}</option>
+            <Select suelto aria-label={t('gas.proyecto')} placeholder={t('governedconversations.todos_los_proyectos')} value={selectedProject} onChange={(event) => setSelectedProject(event.target.value)} className="goveconv-inputstyle5">
               {projectOptions.map((project) => <option key={project.id} value={project.id}>{project.code ? `${project.code} — ` : ''}{project.name}</option>)}
-            </select>
+            </Select>
           )}
           <Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('governedconversations.nueva_conversacion')}</Button>
         </div>
@@ -740,12 +730,12 @@ export function ConversationPoliciesPanel() {
 
             <div className="goveconv-grid-2">
               <div>
-                <label className="goveconv-labelstyle">{t('governedconversations.modo_de_asignacion')}</label>
-                <select value={draft.assignment_mode || 'manual'} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], assignment_mode: event.target.value } }))} className="goveconv-inputstyle">
+                <label htmlFor={`${idCampo}-${policy.id}-modo`} className="goveconv-labelstyle">{t('governedconversations.modo_de_asignacion')}</label>
+                <Select suelto placeholder={false} id={`${idCampo}-${policy.id}-modo`} value={draft.assignment_mode || 'manual'} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], assignment_mode: event.target.value } }))} className="goveconv-inputstyle">
                   <option value="manual">{t('governedconversations.manual')}</option>
                   <option value="owner_based">{t('governedconversations.owner_del_proyecto')}</option>
                   <option value="role_pool">{t('governedconversations.pool_rol')}</option>
-                </select>
+                </Select>
               </div>
               <div>
                 <label className="goveconv-labelstyle">{t('governedconversations.rol_por_defecto')}</label>
@@ -753,10 +743,9 @@ export function ConversationPoliciesPanel() {
               </div>
               <div>
                 <label id={`${idCampo}-${policy.id}-et-pool`} htmlFor={`${idCampo}-${policy.id}-pool`} className="goveconv-labelstyle">{t('governedconversations.pool_de_asignacion')}</label>
-                <select id={`${idCampo}-${policy.id}-pool`} aria-labelledby={`${idCampo}-${policy.id}-et-pool`} value={draft.default_group_id || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], default_group_id: event.target.value } }))} className="goveconv-inputstyle">
-                  <option value="">{t('governedconversations.sin_pool')}</option>
+                <Select suelto placeholder={t('governedconversations.sin_pool')} id={`${idCampo}-${policy.id}-pool`} value={draft.default_group_id || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], default_group_id: event.target.value } }))} className="goveconv-inputstyle">
                   {agentGroups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
-                </select>
+                </Select>
               </div>
               <div>
                 <label id={`${idCampo}-${policy.id}-et-fr`} htmlFor={`${idCampo}-${policy.id}-fr`} className="goveconv-labelstyle">{t('governedconversations.primera_respuesta_sla_h')}</label>
@@ -778,10 +767,7 @@ export function ConversationPoliciesPanel() {
 
             <div className="goveconv-grid-3">
               {POLICY_FLAGS.map(([key, label]) => (
-                <label key={key} className="goveconv-row-9">
-                  <input type="checkbox" aria-label={t(label)} checked={Boolean(draft[key])} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], [key]: event.target.checked } }))} />
-                  {t(label)}
-                </label>
+                <Checkbox key={key} className="goveconv-row-9" label={t(label)} checked={Boolean(draft[key])} onChange={(marcado) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], [key]: marcado } }))} />
               ))}
             </div>
 

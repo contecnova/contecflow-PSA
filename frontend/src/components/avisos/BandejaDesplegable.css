@@ -8,7 +8,7 @@
 .bandeja-desplegable__boton {
   position: relative;
   width: 30px;
-  height: 30px;
+  min-height: 30px;
   padding: 0;
   background: var(--surface-3);
   border: 1px solid var(--surface-4);
@@ -186,6 +186,6 @@
   }
   .app-topbar-right .bandeja-desplegable__boton {
     width: 34px;
-    height: 34px;
+    min-height: 34px;
   }
 }

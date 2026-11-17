@@ -17,7 +17,7 @@
   display: grid; grid-template-columns: minmax(220px, 2fr) 150px 70px 110px repeat(4, 120px);
   gap: 10px; align-items: center; padding: 10px 12px; font-size: var(--text-sm);
 }
-.bud-fila--head { color: var(--text-3); font-size: var(--text-xs); font-weight: 600; text-transform: uppercase; }
+.bud-fila--head { color: var(--text-3); font-size: var(--text-xs); font-weight: 600;}
 .bud-fila-btn, .bud-tarjeta {
   width: 100%; background: transparent; border: none; border-top: 1px solid var(--surface-3);
   text-align: left; cursor: pointer; color: var(--text-1); font-family: inherit;
@@ -33,7 +33,7 @@
 .bud-fila .bud-trunc { display: block; }
 
 .bud-num { text-align: right; }
-.bud-fila-btn .bud-num { font-family: var(--font-mono); }
+.bud-fila-btn .bud-num { font-variant-numeric: tabular-nums; }
 .bud-danger { color: var(--danger); }
 .bud-success { color: var(--success); }
 .bud-warning { color: var(--warning); }

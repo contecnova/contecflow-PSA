@@ -38,7 +38,7 @@
   font-size: var(--text-xs);
   font-weight: 600;
   color: var(--text-3);
-  text-transform: uppercase;
+
   letter-spacing: .06em;
 }
 .globsear-grid-1 {
@@ -68,7 +68,7 @@
   font-size: var(--text-xs);
   font-weight: 500;
   color: var(--text-3);
-  text-transform: uppercase;
+
   letter-spacing: .06em;
 }
 .globsear-box-9 {

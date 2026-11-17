@@ -1,7 +1,7 @@
 import { useAppT } from '../i18n/AppLangContext'
 import { localeActivo } from '../utils/helpers'
 import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
-import { Button, EmptyState } from './ui'
+import { Button, EmptyState, Pulsable } from './ui'
 import { BarChart3, ChevronDown, ChevronRight } from 'lucide-react'
 /**
  * GanttChart v2 — Production-quality Interactive Gantt
@@ -413,12 +413,12 @@ export default function GanttChart({
                 <div className={`gantchar-row-6 gantt-chart-e9 ${isGroup ? 'gantt-chart-m10' : 'gantt-chart-m11'}`} key={item.id} style={{ '--gantt-chart-height': px(h) } as CSSProperties}>
                   {isGroup ? (
                     <>
-                      <button
+                      <Pulsable
                         onClick={() => setCollapsed(s => { const n = new Set(s); n.has(item.id) ? n.delete(item.id) : n.add(item.id); return n })}
                         aria-label={collapsed.has(item.id) ? traducir('ganttchart.expandir_grupo') : traducir('ganttchart.contraer_grupo')}
                         className="gantchar-box-6">
                         {collapsed.has(item.id) ? <ChevronRight size={12} aria-hidden /> : <ChevronDown size={12} aria-hidden />}
-                      </button>
+                      </Pulsable>
                       <span className="gantchar-box-7">
                         {item.title || item.name}
                       </span>

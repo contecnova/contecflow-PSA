@@ -20,7 +20,7 @@ import { forecastApi } from '../services/api'
 import type { MapaDeCarga, ProyeccionDePersona, ResumenDeCapacidad } from '../services/api/tipos-personas'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Card, EmptyState, KpiCard, RejillaPersonaDia, SelectorDePeriodo, Tabs, columnasDeSemanas } from '../components/ui'
+import { Card, EmptyState, KpiCard, RejillaPersonaDia, SelectorDePeriodo, Tabs, columnasDeSemanas, TablaSimple } from '../components/ui'
 import type { TonoDeRejilla } from '../components/ui'
 import { fmtNumber } from '../utils/helpers'
 import { usePeriodo } from '../hooks/usePeriodo'
@@ -107,7 +107,7 @@ function UserDetailPanel({ userId, weeks, periodo }: { userId: string | number; 
         {t('prevision_recursos_ui.detalle_titulo', { nombre: data?.user_name ?? '', n: weeks })}
       </div>
       <div className="u-scroll-x">
-        <table className="rfc-table">
+        <TablaSimple claseTabla="rfc-table">
           <thead>
             <tr>
               <th className="rfc-th">{t('prevision_recursos_ui.col_semana')}</th>
@@ -133,7 +133,7 @@ function UserDetailPanel({ userId, weeks, periodo }: { userId: string | number; 
               )
             })}
           </tbody>
-        </table>
+        </TablaSimple>
       </div>
     </Card>
   )

@@ -16,7 +16,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, usersApi, risksApi } from '../services/api'
 import type { RiesgosDelProyecto } from '../services/api/tipos'
 import type { RiesgoSerializado } from '../services/api/tipos-proyectos'
-import { Button, KpiCard, Modal, Spinner, EmptyState, useSort, ViewToggle, Tabs } from '../components/ui'
+import { Button, KpiCard, Modal, Spinner, EmptyState, useSort, ViewToggle, Tabs, Select, IconButton, TablaSimple } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AlertOctagon, AlertTriangle, CircleDot, Folder, Grid3x3, List, Pencil, Plus, ShieldCheck, Trash2, User } from 'lucide-react'
@@ -84,7 +84,7 @@ function RiskMatrix({ risks }: { risks: RiskItem[] }) {
 
   return (
     <div className="u-scroll-x">
-      <table className="rsk-matrix">
+      <TablaSimple claseTabla="rsk-matrix">
         <thead>
           <tr>
             <th scope="col" className="rsk-matrix__axis">{t('risks.matrix.axis')}</th>
@@ -116,7 +116,7 @@ function RiskMatrix({ risks }: { risks: RiskItem[] }) {
             </tr>
           ))}
         </tbody>
-      </table>
+      </TablaSimple>
     </div>
   )
 }
@@ -164,40 +164,40 @@ function RiskFormModal({ risk, projectId, onClose }: { risk?: RiskItem | null; p
         </div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="rsk-label">{t('risks.form.category')}</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.category} onChange={set('category')} className="ds-input">
+          <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.category} onChange={set('category')}>
             {CATEGORIES.map(c => <option key={c} value={c}>{t(`risks.options.cat_${c}`)}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="rsk-label">{t('risks.form.status')}</label>
-          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.status} onChange={set('status')} className="ds-input">
+          <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.status} onChange={set('status')}>
             {STATUS_OPTIONS.map(s => <option key={s} value={s}>{t(`risks.options.status_${s}`)}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="rsk-label">{t('risks.form.prob')}</label>
-          <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.probability} onChange={set('probability')} className="ds-input">
+          <Select suelto placeholder={false} id={`${idCampo}-4`} value={form.probability} onChange={set('probability')}>
             {PROB_OPTIONS.map(p => <option key={p} value={p}>{t(`risks.options.prob_${p}`)}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="rsk-label">{t('risks.form.impact')}</label>
-          <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.impact} onChange={set('impact')} className="ds-input">
+          <Select suelto placeholder={false} id={`${idCampo}-5`} value={form.impact} onChange={set('impact')}>
             {IMPACT_OPTIONS.map(i => <option key={i} value={i}>{t(`risks.options.impact_${i}`)}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="rsk-label">{t('risks.form.response_type')}</label>
-          <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.response_type} onChange={set('response_type')} className="ds-input">
+          <Select suelto placeholder={false} id={`${idCampo}-6`} value={form.response_type} onChange={set('response_type')}>
             {RESPONSE_TYPES.map(r => <option key={r} value={r}>{t(`risks.options.resp_${r}`)}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="rsk-label">{t('risks.form.owner')}</label>
-          <select id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.owner_id} onChange={set('owner_id')} className="ds-input">
+          <Select suelto placeholder={false} id={`${idCampo}-7`} value={form.owner_id} onChange={set('owner_id')}>
             <option value="">{t('risks.form.unassigned')}</option>
             {users.map(u => <option key={u.id} value={String(u.id)}>{u.full_name}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="rsk-label">{t('risks_page.coste_min')}</label>
@@ -281,14 +281,14 @@ export default function RisksPage() {
 
   const botones = (r: RiskItem) => (
     <>
-      <button type="button" onClick={() => setEditing(r)} className="rsk-icon-btn"
-        aria-label={t('risks_page.editar_riesgo', { titulo: r.title })} title={t('risks_page.editar')}>
+      <IconButton type="button" onClick={() => setEditing(r)} className="rsk-icon-btn"
+        ariaLabel={t('risks_page.editar_riesgo', { titulo: r.title })} title={t('risks_page.editar')}>
         <Pencil size={14} aria-hidden />
-      </button>
-      <button type="button" onClick={() => confirmarBorrado(r)} className="rsk-icon-btn rsk-icon-btn--danger"
-        aria-label={t('risks_page.eliminar_riesgo', { titulo: r.title })} title={t('risks_page.eliminar')}>
+      </IconButton>
+      <IconButton type="button" onClick={() => confirmarBorrado(r)} className="rsk-icon-btn rsk-icon-btn--danger"
+        ariaLabel={t('risks_page.eliminar_riesgo', { titulo: r.title })} title={t('risks_page.eliminar')}>
         <Trash2 size={14} aria-hidden />
-      </button>
+      </IconButton>
     </>
   )
 
@@ -313,11 +313,11 @@ export default function RisksPage() {
 
       {/* Proyecto: filtro de toda la pantalla, bajo la cabecera */}
       <div className="ds-toolbar rsk-barra">
-        <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-          aria-label={t('risks_page.proyecto')} className="ds-input rsk-input--project">
+        <Select suelto placeholder={false} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
+          aria-label={t('risks_page.proyecto')} className="rsk-input--project">
           <option value="">{t('risks.all_projects')}</option>
           {projects.map(p => <option key={p.id} value={String(p.id)}>{p.code} — {p.name}</option>)}
-        </select>
+        </Select>
       </div>
 
       {/* Summary */}
@@ -350,22 +350,22 @@ export default function RisksPage() {
       ) : (
         <div>
           <div className="rsk-filters">
-            <select value={riskLevelFilter} onChange={e => setRiskLevelFilter(e.target.value)}
+            <Select suelto placeholder={false} value={riskLevelFilter} onChange={e => setRiskLevelFilter(e.target.value)}
               aria-label={t('risks_page.filtrar_nivel')}
-              className="ds-input rsk-input--auto">
+              className="rsk-input--auto">
               <option value="">{t('risks.filters.all_levels')}</option>
               <option value="critical">{t('risks.options.level_critical')}</option>
               <option value="high">{t('risks.options.level_high')}</option>
               <option value="medium">{t('risks.options.level_medium')}</option>
               <option value="low">{t('risks.options.level_low')}</option>
-            </select>
-            <select value={riskSortBy} onChange={e => setRiskSortBy(e.target.value as SortKey)}
-              aria-label={t('risks_page.ordenar')} className="ds-input rsk-input--auto">
+            </Select>
+            <Select suelto placeholder={false} value={riskSortBy} onChange={e => setRiskSortBy(e.target.value as SortKey)}
+              aria-label={t('risks_page.ordenar')} className="rsk-input--auto">
               <option value="risk_level">{t('risks.sort.level')}</option>
               <option value="title">{t('risks.sort.title')}</option>
               <option value="status">{t('risks.sort.status')}</option>
               <option value="project_name">{t('risks.sort.project')}</option>
-            </select>
+            </Select>
             <div className="rsk-filters__end">
               <ViewToggle view={view} onChange={(v: string) => setView(v as 'list' | 'cards')} />
             </div>

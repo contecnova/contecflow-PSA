@@ -5,6 +5,7 @@ import type { Conversacion, FuenteDeRespuesta } from '../../services/api/tipos-a
 import { useConfirm } from '../../context/ConfirmContext'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { Plus, Trash2, X } from 'lucide-react'
+import { Checkbox, Pulsable } from '../ui'
 import './NexusAssistPanel.css'
 
 const LAST_CONV_KEY = 'nexusassist_last_conversation_id'
@@ -179,38 +180,29 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
           </div>
         </div>
         <div className="neaspa-row-2">
-          <button type="button" title={t('nexusassist.nueva')} aria-label={t('nexusassist.nueva')}
-            onClick={() => { localStorage.removeItem(LAST_CONV_KEY); setConvId(null); setMessages([]) }}
-            className="neaspa-botonicono">
+          <Pulsable title={t('nexusassist.nueva')} aria-label={t('nexusassist.nueva')} onClick={() => { localStorage.removeItem(LAST_CONV_KEY); setConvId(null); setMessages([]) }} className="neaspa-botonicono">
             <Plus size={16} />
-          </button>
-          <button className={`neaspa-botonicono2 ${conversations.length === 0 || isClearingHistory ? 'nexus-assist-panel-m1' : 'nexus-assist-panel-m2'}`}
-            type="button"
-            title={t(isClearingHistory ? 'nexusassist.borrando' : 'nexusassist.borrar_historial')}
-            aria-label={t('nexusassist.borrar_historial')}
-            disabled={conversations.length === 0 || isClearingHistory}
-            onClick={() => openConfirm({
+          </Pulsable>
+          <Pulsable className={`neaspa-botonicono2 ${conversations.length === 0 || isClearingHistory ? 'nexus-assist-panel-m1' : 'nexus-assist-panel-m2'}`} title={t(isClearingHistory ? 'nexusassist.borrando' : 'nexusassist.borrar_historial')} aria-label={t('nexusassist.borrar_historial')} disabled={conversations.length === 0 || isClearingHistory} onClick={() => openConfirm({
               title: t('nexusassist.borrar_historial'),
               message: t('nexusassist.borrar_historial_ayuda'),
               danger: true,
               onConfirm: () => clearHistory(),
             })}>
             <Trash2 size={16} />
-          </button>
-          <button type="button" title={t('nexusassist.cerrar')} aria-label={t('nexusassist.cerrar')} onClick={onClose} className="neaspa-botonicono">
+          </Pulsable>
+          <Pulsable title={t('nexusassist.cerrar')} aria-label={t('nexusassist.cerrar')} onClick={onClose} className="neaspa-botonicono">
             <X size={16} />
-          </button>
+          </Pulsable>
         </div>
       </div>
       {!convId && messages.length === 0 && conversations.length > 0 && (
         <div className="neaspa-box-3">
           <div className="neaspa-box-4">{t('layoutshell.recientes')}</div>
           {conversations.slice(0,5).map(c => (
-            <button key={c.id} onClick={() => loadConv(c.id)}
-              type="button"
-              className="neaspa-box-5">
+            <Pulsable key={c.id} onClick={() => loadConv(c.id)} className="neaspa-box-5">
               {c.title}
-            </button>
+            </Pulsable>
           ))}
         </div>
       )}
@@ -219,11 +211,9 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
           <div>
             <div className="neaspa-box-6">{t('nexusassist.en_que_puedo_ayudarte_hoy')}</div>
             {SUGGESTIONS.map((s, i) => (
-              <button key={i} onClick={() => sendMessage(s)}
-                type="button"
-                className="neaspa-box-7">
+              <Pulsable key={i} onClick={() => sendMessage(s)} className="neaspa-box-7">
                 {s}
-              </button>
+              </Pulsable>
             ))}
           </div>
         )}
@@ -252,7 +242,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input) } }}
             placeholder={t('nexusassist.escribe_aqui')} rows={2}
             className="neaspa-box-9" />
-          <button className={`neaspa-box-14 nexusass-sx2 ${!input.trim() || loading ? 'nexus-assist-panel-m9' : 'nexus-assist-panel-m10'}`} onClick={() => sendMessage(input)} disabled={!input.trim() || loading}>↑</button>
+          <Pulsable className={`neaspa-box-14 nexusass-sx2 ${!input.trim() || loading ? 'nexus-assist-panel-m9' : 'nexus-assist-panel-m10'}`} onClick={() => sendMessage(input)} disabled={!input.trim() || loading}>↑</Pulsable>
         </div>
         <div className="neaspa-box-10">{t('nexusassist.enter_enviar_shift_enter_nueva_linea')}</div>
       </div>
@@ -290,15 +280,13 @@ function PieDeRespuesta({ mensaje, pregunta }: { mensaje: ChatMessage; pregunta:
           <a key={s.id} href="/service-desk?tab=kb" title={s.title} className="neaspa-chip">📖 {s.number} · {s.title.slice(0, 40)}</a>
         ))}
         {mensaje.id && (['up', 'down'] as const).map(d => (
-          <button key={d} type="button" aria-pressed={voto === (d === 'up')} aria-label={t('nexusassist.voto_' + d)} title={t('nexusassist.voto_' + d)}
-            onClick={() => votar(d === 'up')}
-            className={`nexus-assist-panel-e11 ${voto === (d === 'up') ? 'nexus-assist-panel-m12' : ''}`}>
+          <Pulsable key={d} aria-pressed={voto === (d === 'up')} aria-label={t('nexusassist.voto_' + d)} title={t('nexusassist.voto_' + d)} onClick={() => votar(d === 'up')} className={`nexus-assist-panel-e11 ${voto === (d === 'up') ? 'nexus-assist-panel-m12' : ''}`}>
             {d === 'up' ? '👍' : '👎'}
-          </button>
+          </Pulsable>
         ))}
         {voto === false && <span className="neaspa-chip3">{t('nexusassist.voto_gracias')}</span>}
         {!abierto && estado !== 'ok' && (
-          <button type="button" onClick={() => setAbierto(true)} className="neaspa-chip4">✎ {t('nexusassist.corregir')}</button>
+          <Pulsable onClick={() => setAbierto(true)} className="neaspa-chip4">✎ {t('nexusassist.corregir')}</Pulsable>
         )}
         {estado === 'ok' && <span className="neaspa-chip5">✓ {t('nexusassist.correccion_guardada')}</span>}
       </div>
@@ -307,17 +295,14 @@ function PieDeRespuesta({ mensaje, pregunta }: { mensaje: ChatMessage; pregunta:
           <div className="u-text3-xs">{t('nexusassist.corregir_ayuda')}</div>
           <textarea aria-label={t('nexusassist.corregir')} value={respuesta} onChange={e => setRespuesta(e.target.value)} rows={4}
             className="neaspa-box-11" />
-          <label className="neaspa-row-6">
-            <input type="checkbox" aria-label={t('nexusassist.tambien_clientes')} checked={publica} onChange={e => setPublica(e.target.checked)} /> {t('nexusassist.tambien_clientes')}
-          </label>
+          <Checkbox className="neaspa-row-6" label={t('nexusassist.tambien_clientes')} checked={publica} onChange={m => setPublica(m)} />
           {estado === 'denegado' && <div role="alert" className="neaspa-txt-1">{t('nexusassist.correccion_sin_permiso')}</div>}
           {estado === 'error' && <div role="alert" className="neaspa-txt-1">{t('nexusassist.correccion_error')}</div>}
           <div className="neaspa-row-7">
-            <button type="button" onClick={() => setAbierto(false)} className="neaspa-chip4">{t('nexusassist.cancelar')}</button>
-            <button type="button" disabled={isPending || !respuesta.trim()} onClick={() => guardar()}
-              className="neaspa-chip6">
+            <Pulsable onClick={() => setAbierto(false)} className="neaspa-chip4">{t('nexusassist.cancelar')}</Pulsable>
+            <Pulsable disabled={isPending || !respuesta.trim()} onClick={() => guardar()} className="neaspa-chip6">
               {t('nexusassist.guardar_correccion')}
-            </button>
+            </Pulsable>
           </div>
         </div>
       )}

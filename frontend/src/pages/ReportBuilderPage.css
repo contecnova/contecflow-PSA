@@ -223,7 +223,6 @@
   color: var(--text-3);
   font-size: var(--text-2xs);
   font-weight: 700;
-  text-transform: uppercase;
   letter-spacing: 0.06em;
   white-space: nowrap;
 }

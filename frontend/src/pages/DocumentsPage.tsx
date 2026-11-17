@@ -23,7 +23,7 @@ import {
   CheckCircle, XCircle, ExternalLink, Loader, Lock, LockOpen, Clock,
   type LucideIcon,
 } from 'lucide-react';
-import { Page, Button, Drawer, useDialogo, KpiCard, EmptyState, Tabs, IconButton } from '../components/ui'
+import { Page, Button, Drawer, useDialogo, KpiCard, EmptyState, Tabs, IconButton, Pulsable, Select, TablaSimple, Checkbox } from '../components/ui'
 import { localeActivo, fmtDate, fmtDateTime } from '../utils/helpers'
 import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
 import DateInput from '../components/ui/DateInput'
@@ -220,12 +220,12 @@ function DocCard({ doc, onView, onDelete, onSummary, selected, onToggleSelect }:
       <div className="docs-box-4 documents-page-e3" style={{ '--documents-page-background-color': ft.c } as CSSProperties} />
 
       {/* Checkbox */}
-      <button
+      <Pulsable
         type="button"
         onClick={e => { e.stopPropagation(); onToggleSelect(doc.id); }}
         className={`docs-btn document-sx11 ${selected ? 'document-sx12' : 'document-sx13'} ${selected || hover ? 'document-sx14' : 'document-sx15'} documents-page-e4`} style={{ '--documents-page-border': `2px solid ${selected ? 'var(--accent)' : 'var(--surface-5)'}` } as CSSProperties}>
         {selected && <Check size={9} color="white" strokeWidth={3} />}
-      </button>
+      </Pulsable>
 
       {/* Body */}
       <div className="docs-stack-2">
@@ -280,14 +280,14 @@ function DocCard({ doc, onView, onDelete, onSummary, selected, onToggleSelect }:
               <Download size={11} />
             </a>
           )}
-          <button aria-label={t('pagina_docs.generar_resumen_ia')} onClick={(e) => { e.stopPropagation(); onSummary(doc.id); }} title={t('pagina_docs.generar_resumen_ia')}
+          <Pulsable aria-label={t('pagina_docs.generar_resumen_ia')} onClick={(e) => { e.stopPropagation(); onSummary(doc.id); }} title={t('pagina_docs.generar_resumen_ia')}
             className="docs-btn-2">
             <Sparkles size={11} />
-          </button>
-          <button aria-label={t('pagina_docs.eliminar_documento')} onClick={(e) => { e.stopPropagation(); onDelete(doc); }} title={t('pagina_docs.eliminar_documento')}
+          </Pulsable>
+          <Pulsable aria-label={t('pagina_docs.eliminar_documento')} onClick={(e) => { e.stopPropagation(); onDelete(doc); }} title={t('pagina_docs.eliminar_documento')}
             className="docs-btn-3">
             <Trash2 size={11} />
-          </button>
+          </Pulsable>
         </div>
       </div>
     </div>
@@ -317,9 +317,9 @@ function DocRow({ doc, onView, onDelete, onSummary, selected, onToggleSelect }: 
       }}
       className="docs-row-12 documents-page-e3" style={{ '--documents-page-background-color': selected ? 'color-mix(in srgb, var(--accent) 6%, transparent)' : hover ? 'var(--surface-2)' : 'transparent' } as CSSProperties}>
       <td className="docs-td">
-        <button type="button" onClick={e => { e.stopPropagation(); onToggleSelect(doc.id); }} className={`docs-btn-4 document-sx16 ${selected ? 'document-sx12' : 'document-sx17'} documents-page-e4`} style={{ '--documents-page-border': `2px solid ${selected ? 'var(--accent)' : 'var(--surface-5)'}` } as CSSProperties}>
+        <Pulsable type="button" onClick={e => { e.stopPropagation(); onToggleSelect(doc.id); }} className={`docs-btn-4 document-sx16 ${selected ? 'document-sx12' : 'document-sx17'} documents-page-e4`} style={{ '--documents-page-border': `2px solid ${selected ? 'var(--accent)' : 'var(--surface-5)'}` } as CSSProperties}>
           {selected && <Check size={9} color="white" strokeWidth={3} />}
-        </button>
+        </Pulsable>
       </td>
       <td className="docs-td-2">
         <FileIcon mime={lv?.file_mime_type} name={lv?.file_name} size={28} />
@@ -348,14 +348,14 @@ function DocRow({ doc, onView, onDelete, onSummary, selected, onToggleSelect }: 
               <Download size={11} />
             </a>
           )}
-          <button type="button" onClick={() => onSummary(doc.id)} title={t('pagina_docs.generar_resumen_ia')} aria-label={t('pagina_docs.generar_resumen_ia')}
+          <Pulsable type="button" onClick={() => onSummary(doc.id)} title={t('pagina_docs.generar_resumen_ia')} aria-label={t('pagina_docs.generar_resumen_ia')}
             className="docs-btn-5">
             <Sparkles size={11} />
-          </button>
-          <button type="button" onClick={() => onDelete(doc)} title={t('pagina_docs.eliminar_documento')} aria-label={t('pagina_docs.eliminar_documento')}
+          </Pulsable>
+          <Pulsable type="button" onClick={() => onDelete(doc)} title={t('pagina_docs.eliminar_documento')} aria-label={t('pagina_docs.eliminar_documento')}
             className="docs-btn-6">
             <Trash2 size={11} />
-          </button>
+          </Pulsable>
         </div>
       </td>
     </tr>
@@ -480,16 +480,16 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
             <div className="u-grid2-10">
               <div>
                 <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="documents-page-e7">{t('documents.categoria')}</label>
-                <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} className="documents-page-e8">
+                <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} className="documents-page-e8">
                   {CATS.map(c => <option key={c} value={c}>{etiquetaCategoria(t, c)}</option>)}
-                </select>
+                </Select>
               </div>
               <div>
                 <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="documents-page-e7">{t('pagina_docs.proyecto')}</label>
-                <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.project_id} onChange={e => setForm(p => ({ ...p, project_id: e.target.value }))} className="documents-page-e8">
+                <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.project_id} onChange={e => setForm(p => ({ ...p, project_id: e.target.value }))} className="documents-page-e8">
                   <option value="">{t('documents.sin_proyecto')}</option>
                   {projects.map(p => <option key={p.id} value={p.id}>{p.code ? `${p.code} - ` : ''}{p.name}</option>)}
-                </select>
+                </Select>
               </div>
             </div>
             <div>
@@ -497,7 +497,7 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
               <input id={`${idCampo}-etiquetas`} aria-labelledby={`${idCampo}-etiquetas-et`} value={form.tags} onChange={e => setForm(p => ({ ...p, tags: e.target.value }))} className="documents-page-e8" placeholder={t('documents.etiquetas_separadas_por_comas')} aria-label={t('documents.etiquetas_separadas_por_comas')} />
             </div>
             <label className="docs-label-2">
-              <input type="checkbox" aria-label={t('documents.requiere_aprobacion_antes_de_usar')} checked={form.requires_approval} onChange={e => setForm(p => ({ ...p, requires_approval: e.target.checked }))}
+              <Checkbox aria-label={t('documents.requiere_aprobacion_antes_de_usar')} checked={form.requires_approval} onChange={(_, e) => setForm(p => ({ ...p, requires_approval: e.target.checked }))}
                 className="docs-input-2" />
               <span className="u-text2-base">{t('documents.requiere_aprobacion_antes_de_usar')}</span>
             </label>
@@ -615,28 +615,28 @@ function SharePanel({ documentId }: { documentId: PathId }) {
         </div>
 
         <div className="u-mb-12">
-          <select value={subjectType} onChange={e => setSubjectType(e.target.value)} aria-label={t('pagina_docs.conceder_acceso')} className="documents-page-e10">
+          <Select suelto placeholder={false} value={subjectType} onChange={e => setSubjectType(e.target.value)} aria-label={t('pagina_docs.conceder_acceso')} className="documents-page-e10">
             <option value="user">{t('pagina_docs.usuario')}</option>
             <option value="role">{t('pagina_docs.rol_2')}</option>
             <option value="department">{t('pagina_docs.departamento_2')}</option>
-          </select>
+          </Select>
         </div>
 
         {subjectType === 'user' && (
           <div className="u-mb-12">
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="documents-page-e9">{t('pagina_docs.usuario')}</label>
-            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={userId} onChange={e => setUserId(e.target.value)} className="documents-page-e10">
+            <Select suelto placeholder={false} id={`${idCampo}-1`} value={userId} onChange={e => setUserId(e.target.value)} className="documents-page-e10">
               <option value="">{t('documents.selecciona_un_usuario')}</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.full_name}{esFichaCompleta(u) ? ` (${u.email})` : ''}</option>)}
-            </select>
+            </Select>
           </div>
         )}
         {subjectType === 'role' && (
           <div className="u-mb-12">
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="documents-page-e9">{t('pagina_docs.rol_2')}</label>
-            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={roleVal} onChange={e => setRoleVal(e.target.value)} className="documents-page-e10">
+            <Select suelto placeholder={false} id={`${idCampo}-2`} value={roleVal} onChange={e => setRoleVal(e.target.value)} className="documents-page-e10">
               {ROLES_AVAILABLE.map(r => <option key={r} value={r}>{etiquetaCodigo(t, 'rol_usuario', r)}</option>)}
-            </select>
+            </Select>
           </div>
         )}
         {subjectType === 'department' && (
@@ -654,9 +654,9 @@ function SharePanel({ documentId }: { documentId: PathId }) {
         <div className="docs-grid-3">
           <div>
             <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="documents-page-e9">{t('documents.nivel_de_acceso')}</label>
-            <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={accessLevel} onChange={e => setAccessLevel(e.target.value)} className="documents-page-e10">
+            <Select suelto placeholder={false} id={`${idCampo}-4`} value={accessLevel} onChange={e => setAccessLevel(e.target.value)} className="documents-page-e10">
               {ACCESS_LEVELS.map(a => <option key={a.v} value={a.v}>{t(a.l)}</option>)}
-            </select>
+            </Select>
           </div>
           <div>
             <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="documents-page-e9">{t('pagina_docs.caducidad_opcional')}</label>
@@ -1169,12 +1169,12 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                   </div>
                   <div>
                     <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="docs-label-12">{t('documents.categoria')}</label>
-                    <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={metaForm.category} onChange={e => setMetaForm(f => f && ({ ...f, category: e.target.value }))} className="documents-page-e8">
+                    <Select suelto placeholder={false} id={`${idCampo}-3`} value={metaForm.category} onChange={e => setMetaForm(f => f && ({ ...f, category: e.target.value }))} className="documents-page-e8">
                       {CATS.map(c => <option key={c} value={c}>{etiquetaCategoria(t, c)}</option>)}
-                    </select>
+                    </Select>
                   </div>
                   <div className="u-row-center-10">
-                    <input type="checkbox" id="meta-req-approval" aria-labelledby="meta-req-approval-et" checked={metaForm.requires_approval} onChange={e => setMetaForm(f => f && ({ ...f, requires_approval: e.target.checked }))} className="docs-input-3" />
+                    <Checkbox id="meta-req-approval" checked={metaForm.requires_approval} onChange={(_, e) => setMetaForm(f => f && ({ ...f, requires_approval: e.target.checked }))} className="docs-input-3" />
                     <label id="meta-req-approval-et" htmlFor="meta-req-approval" className="docs-label-13">{t('documents.requiere_aprobacion')}</label>
                   </div>
                   <div className="docs-row-37">
@@ -1314,13 +1314,13 @@ export default function DocumentsPage(): JSX.Element {
             className="ds-input docs-input-4"
             />
         </div>
-        <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
+        <Select suelto placeholder={false} value={filterCat} onChange={e => setFilterCat(e.target.value)}
           aria-label={t('documents.filtrar_por_categoria')}
           className="ds-input docs-input-5">
           <option value="">{t('documents.todas_las_categorias')}</option>
           {CATS.map(c => <option key={c} value={c}>{etiquetaCategoria(t, c)}</option>)}
-        </select>
-        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+        </Select>
+        <Select suelto placeholder={false} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
           aria-label={t('documents.filtrar_por_estado_de_aprobacion')}
           className="ds-input docs-input-5">
           <option value="">{t('documents.todos_los_estados')}</option>
@@ -1332,20 +1332,20 @@ export default function DocumentsPage(): JSX.Element {
           <optgroup label={t('pagina_docs.otros')}>
             <option value="no_approval">{t('documents.sin_aprobacion_requerida')}</option>
           </optgroup>
-        </select>
-        <select value={sortBy} onChange={e => setSortBy(e.target.value)}
+        </Select>
+        <Select suelto placeholder={false} value={sortBy} onChange={e => setSortBy(e.target.value)}
           aria-label={t('pagina_docs.ordenar')}
           className="ds-input docs-input-5">
           {SORT_OPTS.map(o => <option key={o.v} value={o.v}>{t(o.l)}</option>)}
-        </select>
+        </Select>
         <div className="ds-toolbar__spacer" />
         <div className="ds-segmented" role="group" aria-label={t('pagina_docs.vista')}>
-          <button aria-label={t('pagina_docs.tarjetas')} type="button" aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')} title={t('pagina_docs.tarjetas')}>
+          <Pulsable aria-label={t('pagina_docs.tarjetas')} type="button" aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')} title={t('pagina_docs.tarjetas')}>
             <Grid3X3 size={12} />
-          </button>
-          <button aria-label={t('pagina_docs.lista')} type="button" aria-pressed={viewMode === 'list'} onClick={() => setViewMode('list')} title={t('pagina_docs.lista')}>
+          </Pulsable>
+          <Pulsable aria-label={t('pagina_docs.lista')} type="button" aria-pressed={viewMode === 'list'} onClick={() => setViewMode('list')} title={t('pagina_docs.lista')}>
             <List size={12} />
-          </button>
+          </Pulsable>
         </div>
       </div>
 
@@ -1353,18 +1353,18 @@ export default function DocumentsPage(): JSX.Element {
       {allTags.length > 0 && (
         <div className="ds-row-wrap">
           {allTags.map(t => (
-            <button type="button" key={t} aria-pressed={activeTags.includes(t)} onClick={() => toggleTag(t)}
+            <Pulsable type="button" key={t} aria-pressed={activeTags.includes(t)} onClick={() => toggleTag(t)}
               className={`ds-pill${activeTags.includes(t) ? ' ds-pill--accent' : ''} docs-btn-28`}
              >
               #{t}
-            </button>
+            </Pulsable>
           ))}
           {activeTags.length > 0 && (
-            <button type="button" onClick={() => setActiveTags([])}
+            <Pulsable type="button" onClick={() => setActiveTags([])}
               className="ds-pill ds-pill--danger docs-btn-28"
              >
               {t('pagina_docs.limpiar')}
-            </button>
+            </Pulsable>
           )}
         </div>
       )}
@@ -1423,14 +1423,14 @@ export default function DocumentsPage(): JSX.Element {
         </div>
       ) : (
         <div className="ds-card docs-box-39">
-          <table className="u-table">
+          <TablaSimple claseTabla="u-table">
             <thead>
               <tr className="docs-row-39">
                 <th className="docs-td">
-                  <button type="button" onClick={selectAll}
+                  <Pulsable type="button" onClick={selectAll}
                     className={`docs-btn-29 document-sx16 ${selectedIds.size === docs.length && docs.length > 0 ? 'document-sx12' : 'document-sx17'} documents-page-e4`} style={{ '--documents-page-border': `2px solid ${selectedIds.size === docs.length && docs.length > 0 ? 'var(--accent)' : 'var(--surface-5)'}` } as CSSProperties}>
                     {selectedIds.size === docs.length && docs.length > 0 && <Check size={9} color="white" strokeWidth={3} />}
-                  </button>
+                  </Pulsable>
                 </th>
                 <th aria-hidden="true" className="docs-th" />
                 {[t('pagina_docs.documento'), t('pagina_docs.categoria'), t('pagina_docs.aprobacion'), t('pagina_docs.tamano'), t('pagina_docs.fecha'), t('pagina_docs.autor'), ''].map((h, i) => (
@@ -1449,7 +1449,7 @@ export default function DocumentsPage(): JSX.Element {
                 />
               ))}
             </tbody>
-          </table>
+          </TablaSimple>
         </div>
       )}
 

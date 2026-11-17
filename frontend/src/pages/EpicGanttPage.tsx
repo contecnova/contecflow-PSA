@@ -7,7 +7,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, epicsApi, epicDependenciesApi } from '../services/api'
 import type { DependenciaDeEpica, EpicaDelRoadmap, RoadmapDeEpicas } from '../services/api/tipos-proyectos'
-import { Button, Spinner, EmptyState, Modal, IconButton } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, IconButton, Pulsable, Select } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { ArrowRight, BarChart2, CalendarRange, FolderKanban, GitMerge, Plus, Target, Trash2 } from 'lucide-react'
@@ -156,19 +156,19 @@ function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: 
         <div className="u-grid2-12">
           <div>
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="epic-gantt-page-e13">{t('epicgantt.epica_a')}</label>
-            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="epic-gantt-page-e14" value={form.epic_id} onChange={e => set('epic_id')(e.target.value)}>
+            <Select suelto placeholder={false} id={`${idCampo}-1`} className="epic-gantt-page-e14" value={form.epic_id} onChange={e => set('epic_id')(e.target.value)}>
               <option value="">{t('epicgantt.selecciona_epica')}</option>
               {epics.map(e => <option key={e.id} value={e.id}>{e.title}</option>)}
-            </select>
+            </Select>
           </div>
           <div>
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="epic-gantt-page-e13">{t('epicgantt.epica_b_depende_de_a')}</label>
-            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} className="epic-gantt-page-e14" value={form.depends_on_id} onChange={e => set('depends_on_id')(e.target.value)}>
+            <Select suelto placeholder={false} id={`${idCampo}-2`} className="epic-gantt-page-e14" value={form.depends_on_id} onChange={e => set('depends_on_id')(e.target.value)}>
               <option value="">{t('epicgantt.selecciona_epica')}</option>
               {epics.filter(e => e.id !== form.epic_id).map(e => (
                 <option key={e.id} value={e.id}>{e.title}</option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
 
@@ -176,14 +176,14 @@ function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: 
           <label className="epic-gantt-page-e13">{t('epicgantt.tipo_de_dependencia')}</label>
           <div className="u-stack-6">
             {DEP_TYPES.map(dt => (
-              <button type="button" key={dt.value} aria-pressed={form.dep_type===dt.value} onClick={() => set('dep_type')(dt.value)}
+              <Pulsable type="button" key={dt.value} aria-pressed={form.dep_type===dt.value} onClick={() => set('dep_type')(dt.value)}
                 className="egantt-btn epicgant-sx5 epic-gantt-page-e5" style={{ '--epic-gantt-page-border': `1px solid ${form.dep_type===dt.value ? alpha(dt.color, '50') : 'var(--surface-4)'}`, '--epic-gantt-page-background': form.dep_type===dt.value ? alpha(dt.color, '15') : 'transparent' } as CSSProperties}>
                 <span className="egantt-label-2 epic-gantt-page-e6" style={{ '--epic-gantt-page-background': alpha(dt.color, '30'), '--epic-gantt-page-color': dt.color } as CSSProperties}>{dt.symbol}</span>
                 <div className="u-flex1">
                   <div className={`egantt-box-6 ${form.dep_type===dt.value ? 'epicgant-sx6' : 'epicgant-sx7'} epic-gantt-page-e7`} style={{ '--epic-gantt-page-color': form.dep_type===dt.value ? dt.color : 'var(--text-1)' } as CSSProperties}>{t(dt.label)}</div>
                   <div className="u-text2-xs">{t(dt.desc)}</div>
                 </div>
-              </button>
+              </Pulsable>
             ))}
           </div>
         </div>
@@ -247,10 +247,10 @@ export default function EpicGanttPage(): JSX.Element {
 
       <div className="ds-toolbar egantt-filtros">
         <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="u-sr-only">{t('pagina_egantt.proyecto')}</label>
-        <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e => setProject(e.target.value)} className="ds-input egantt-proyecto">
+        <Select suelto placeholder={false} id={`${idCampo}-1`} value={project} onChange={e => setProject(e.target.value)} className="ds-input egantt-proyecto">
           <option value="">{t('epicgantt.selecciona_un_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
+        </Select>
       </div>
 
       {!project && <EmptyState icon={<FolderKanban size={28} />} title={t('epicgantt.selecciona_un_proyecto_2')} description={t('pagina_egantt.elige_un_proyecto_para_ver_el')} />}

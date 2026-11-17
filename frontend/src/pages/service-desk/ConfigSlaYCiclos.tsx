@@ -13,7 +13,7 @@ import { useAuth } from '../../context/AuthContext'
 import { confirmar } from '../../context/ConfirmContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { Button, EmptyState, Modal, Section, Spinner, StatusBadge } from '../../components/ui'
+import { Button, Checkbox, EmptyState, Modal, Radio, Section, Select, Spinner, StatusBadge, TablaSimple } from '../../components/ui'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { clientsApi, contractsApi, sdCatalogApi, sdGroupsApi, sdSlaPoliciesApi } from '../../services/api'
 import { slaAvanzadoApi } from '../../services/api/serviceDeskMercado'
@@ -60,7 +60,7 @@ export function ReglasSlaYOla() {
         actions={esAdmin ? <Button icon={<Plus size={14} />} onClick={() => setEditando({ ...VACIA, sort_order: (reglas.data?.length ?? 0) * 10 })}>{t('sd_mercado.regla_nueva')}</Button> : null}>
         {reglas.isLoading ? <Spinner /> : (reglas.data ?? []).length === 0 ? <EmptyState icon={<ListChecks size={28} />} title={t('sd_mercado.sin_reglas')} /> : (
           <div className="sdm-table-wrap">
-            <table className="u-table">
+            <TablaSimple claseTabla="u-table">
               <thead><tr>
                 <th>{t('sd_mercado.orden')}</th><th>{t('sd_mercado.nombre')}</th><th>{t('sd_mercado.condiciones')}</th>
                 <th>{t('sd_mercado.objetivos')}</th><th />
@@ -86,7 +86,7 @@ export function ReglasSlaYOla() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </TablaSimple>
           </div>
         )}
       </Section>
@@ -111,10 +111,10 @@ function FormRegla({ inicial, servicios, clientes, contratos, politicas, onCance
   const num = (k: keyof ReglaSla) => (e: ChangeEvent<HTMLInputElement>) => setR({ ...r, [k]: e.target.value === '' ? null : Number(e.target.value) })
   const lista = (k: keyof ReglaSla, ops: Opcion[], etiqueta: string) => (
     <label className="sdm-field"><span>{etiqueta}</span>
-      <select className="ds-input" value={(r[k] as string) || ''} onChange={sel(k)}>
+      <Select suelto placeholder={false} value={(r[k] as string) || ''} onChange={sel(k)}>
         <option value="">{t('sd_mercado.cualquiera')}</option>
         {ops.map(o => <option key={o.id} value={o.id}>{o.name || o.title || o.full_name || o.id}</option>)}
-      </select></label>
+      </Select></label>
   )
   const valida = r.name.trim().length >= 2 && (r.response_hours != null || r.resolution_hours != null)
   return (
@@ -122,23 +122,23 @@ function FormRegla({ inicial, servicios, clientes, contratos, politicas, onCance
       <div className="sdm-form">
         <label className="sdm-field"><span>{t('sd_mercado.nombre')}</span><input className="ds-input" value={r.name} onChange={e => setR({ ...r, name: e.target.value })} /></label>
         <label className="sdm-field"><span>{t('sd_mercado.orden')}</span><input className="ds-input" type="number" min={0} value={r.sort_order} onChange={e => setR({ ...r, sort_order: Number(e.target.value) || 0 })} /></label>
-        <label className="u-row-center-8"><input type="checkbox" checked={r.is_active} onChange={e => setR({ ...r, is_active: e.target.checked })} />{t('sd_mercado.activo')}</label>
+        <Checkbox className="u-row-center-8" checked={!!r.is_active} onChange={v => setR({ ...r, is_active: v })} label={t('sd_mercado.activo')} />
       </div>
       <div className="ds-eyebrow">{t('sd_mercado.condiciones')}</div>
       <div className="sdm-form">
         {lista('service_item_id', servicios, t('sd_mercado.servicio'))}
         <label className="sdm-field"><span>{t('sd_mercado.tipo')}</span>
-          <select className="ds-input" value={r.ticket_type || ''} onChange={sel('ticket_type')}>
+          <Select suelto placeholder={false} value={r.ticket_type || ''} onChange={sel('ticket_type')}>
             <option value="">{t('sd_mercado.cualquiera')}</option>
             {TIPOS.map(x => <option key={x} value={x}>{etiquetaSd('type', x)}</option>)}
-          </select></label>
+          </Select></label>
         {lista('client_id', clientes, t('sd_mercado.cliente'))}
         {lista('contract_id', contratos, t('sd_mercado.contrato'))}
         <label className="sdm-field"><span>{t('sd_mercado.prioridad')}</span>
-          <select className="ds-input" value={r.priority || ''} onChange={sel('priority')}>
+          <Select suelto placeholder={false} value={r.priority || ''} onChange={sel('priority')}>
             <option value="">{t('sd_mercado.cualquiera')}</option>
             {PRIORIDADES.map(x => <option key={x} value={x}>{etiquetaCodigo(t, 'estado', x)}</option>)}
-          </select></label>
+          </Select></label>
       </div>
       <div className="ds-eyebrow">{t('sd_mercado.objetivos')}</div>
       <div className="sdm-form">
@@ -177,9 +177,9 @@ function OlaPorPrioridad({ esAdmin }: { esAdmin: boolean }) {
       {(colas.data ?? []).length === 0 ? <EmptyState icon={<Users size={28} />} title={t('sd_mercado.sin_colas')} /> : (
         <div className="u-stack-12">
           <label className="sdm-field"><span>{t('sd_mercado.cola')}</span>
-            <select className="ds-input" value={elegida} onChange={e => setCola(e.target.value)}>
+            <Select suelto placeholder={false} value={elegida} onChange={e => setCola(e.target.value)}>
               {(colas.data ?? []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select></label>
+            </Select></label>
           {ola.data && <div className="u-text3-xs">{t('sd_mercado.ola_por_defecto', { h: ola.data.default_hours ?? '—' })}</div>}
           <div className="sdm-form">
             {PRIORIDADES.map(p => (
@@ -219,10 +219,10 @@ export function CiclosDeVida() {
   return (
     <Section title={t('sd_mercado.ciclos_titulo')} subtitle={t('sd_mercado.ciclos_desc')}
       actions={esAdmin && libres.length > 0 ? (
-        <select className="ds-input sdm-select-accion" aria-label={t('sd_mercado.ciclo_nuevo')} value="" onChange={e => e.target.value && setEditando(nuevo(e.target.value))}>
+        <Select suelto placeholder={false} className="sdm-select-accion" aria-label={t('sd_mercado.ciclo_nuevo')} value="" onChange={e => e.target.value && setEditando(nuevo(e.target.value))}>
           <option value="">{t('sd_mercado.ciclo_nuevo')}</option>
           {libres.map(tp => <option key={tp} value={tp}>{etiquetaSd('type', tp)}</option>)}
-        </select>
+        </Select>
       ) : null}>
       {isLoading ? <Spinner /> : data.length === 0 ? <EmptyState icon={<GitBranch size={28} />} title={t('sd_mercado.sin_ciclos')} description={t('sd_mercado.sin_ciclos_desc')} /> : (
         <ul className="sdm-list">
@@ -263,8 +263,8 @@ function EditorDeCiclo({ inicial, onCancel, onSave, guardando }: { inicial: Cicl
     <div className="u-stack-12">
       <div className="sdm-form">
         <label className="sdm-field"><span>{t('sd_mercado.nombre')}</span><input className="ds-input" value={c.name} onChange={e => setC({ ...c, name: e.target.value })} /></label>
-        <label className="u-row-center-8"><input type="checkbox" checked={c.is_active} onChange={e => setC({ ...c, is_active: e.target.checked })} />{t('sd_mercado.activo')}</label>
-        <label className="u-row-center-8"><input type="checkbox" checked={c.restrict_transitions} onChange={e => setC({ ...c, restrict_transitions: e.target.checked })} />{t('sd_mercado.transiciones_restringidas')}</label>
+        <Checkbox className="u-row-center-8" checked={!!c.is_active} onChange={v => setC({ ...c, is_active: v })} label={t('sd_mercado.activo')} />
+        <Checkbox className="u-row-center-8" checked={!!c.restrict_transitions} onChange={v => setC({ ...c, restrict_transitions: v })} label={t('sd_mercado.transiciones_restringidas')} />
       </div>
       <div className="u-text3-xs">{t('sd_mercado.ciclo_hint')}</div>
       <div className="sdm-steps">
@@ -272,10 +272,10 @@ function EditorDeCiclo({ inicial, onCancel, onSave, guardando }: { inicial: Cicl
           <div key={i} className="u-wrap-8">
             <input className="ds-input" aria-label={t('sd_mercado.clave')} placeholder={t('sd_mercado.clave')} value={s.key} onChange={e => setEstado(i, { key: e.target.value.toLowerCase() })} />
             <input className="ds-input" aria-label={t('sd_mercado.nombre')} placeholder={t('sd_mercado.nombre')} value={s.label} onChange={e => setEstado(i, { label: e.target.value })} />
-            <select className="ds-input" aria-label={t('sd_mercado.estado_base')} value={s.base_status} onChange={e => setEstado(i, { base_status: e.target.value })}>
+            <Select suelto placeholder={false} aria-label={t('sd_mercado.estado_base')} value={s.base_status} onChange={e => setEstado(i, { base_status: e.target.value })}>
               {ESTADOS_BASE.map(b => <option key={b} value={b}>{etiquetaCodigo(t, 'estado', b)}</option>)}
-            </select>
-            <label className="u-row-center-6"><input type="radio" name="sdm-inicial" checked={!!s.is_initial} onChange={() => setEstado(i, { is_initial: true })} />{t('sd_mercado.inicial')}</label>
+            </Select>
+            <Radio className="u-row-center-6" name="sdm-inicial" checked={!!s.is_initial} onChange={() => setEstado(i, { is_initial: true })} label={t('sd_mercado.inicial')} />
             <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} onClick={() => setC({ ...c, states: c.states.filter((_, j) => j !== i), transitions: c.transitions.filter(x => x.from_key !== s.key && x.to_key !== s.key) })}>{t('sd_mercado.quitar')}</Button>
           </div>
         ))}
@@ -284,16 +284,16 @@ function EditorDeCiclo({ inicial, onCancel, onSave, guardando }: { inicial: Cicl
       {c.restrict_transitions && (
         <div className="sdm-table-wrap">
           <div className="ds-eyebrow">{t('sd_mercado.transiciones')}</div>
-          <table className="u-table u-table-sm">
+          <TablaSimple claseTabla="u-table u-table-sm">
             <thead><tr><th>{t('sd_mercado.desde_hasta')}</th>{c.states.map(s => <th key={s.key} className="sdm-wrap">{s.label}</th>)}</tr></thead>
             <tbody>
               {c.states.map(a => (
                 <tr key={a.key}><td className="u-600 sdm-wrap">{a.label}</td>
-                  {c.states.map(b => <td key={b.key}>{a.key !== b.key && <input type="checkbox" aria-label={`${a.label} → ${b.label}`} checked={tiene(a.key, b.key)} onChange={() => alternar(a.key, b.key)} />}</td>)}
+                  {c.states.map(b => <td key={b.key}>{a.key !== b.key && <Checkbox aria-label={`${a.label} → ${b.label}`} checked={tiene(a.key, b.key)} onChange={() => alternar(a.key, b.key)} />}</td>)}
                 </tr>
               ))}
             </tbody>
-          </table>
+          </TablaSimple>
         </div>
       )}
       <div className="u-actions-10">

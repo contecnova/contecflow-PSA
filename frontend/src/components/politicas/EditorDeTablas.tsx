@@ -8,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Plus, Save, Table2, Trash2, Upload } from 'lucide-react'
 import { politicasApi } from '../../services/api'
 import type { FilaDeTabla, TablaDeReferencia } from '../../services/api/tipos-politicas'
-import { Button, EmptyState, Spinner } from '../ui'
+import { Button, EmptyState, Spinner, Select, TablaSimple, Pulsable } from '../ui'
 import DateInput from '../ui/DateInput'
 import { useToast } from '../../context/ToastContext'
 import { confirmar } from '../../context/ConfirmContext'
@@ -29,13 +29,13 @@ export default function EditorDeTablas() {
         : (
           <div className="pol-lista">
             {(q.data ?? []).map(x => (
-              <button key={x.id} type="button" className="pol-item" onClick={() => setAbierta(x.id)}>
+              <Pulsable key={x.id} className="pol-item" onClick={() => setAbierta(x.id)}>
                 <span><strong>{x.nombre}</strong> <span className="pol-ayuda">{x.descripcion}</span></span>
                 <span className="pol-chip">{t(`pol.valor_${x.tipo_de_valor}`)}{x.moneda ? ` · ${x.moneda}` : ''}</span>
                 <span className="pol-chip">{t('pol.n_filas', { n: x.n_filas })}</span>
                 <span className="pol-chip">{x.dominio ?? t('pol.todos_los_dominios')}</span>
                 {x.uso && <span className="pol-chip pol-chip--publicada">{t(`pol.uso_${x.dominio}_${x.uso}`, x.uso)}</span>}
-              </button>
+              </Pulsable>
             ))}
           </div>
         )}
@@ -93,25 +93,23 @@ function Tabla({ id, onVolver, onCreada }: { id: string | null; onVolver: () => 
         <label><span className="pol-etiqueta">{t('pol.nombre')}</span>
           <input className="pol-campo pol-campo--ancho" required value={cab.nombre ?? ''} onChange={e => setCab({ ...cab, nombre: e.target.value })} /></label>
         <label><span className="pol-etiqueta">{t('pol.tipo_de_valor')}</span>
-          <select className="pol-campo" value={cab.tipo_de_valor} onChange={e => setCab({ ...cab, tipo_de_valor: e.target.value as 'importe' | 'numero' })}>
+          <Select suelto className="pol-campo" value={cab.tipo_de_valor} onChange={e => setCab({ ...cab, tipo_de_valor: e.target.value as 'importe' | 'numero' })} placeholder={false}>
             <option value="importe">{t('pol.valor_importe')}</option><option value="numero">{t('pol.valor_numero')}</option>
-          </select></label>
+          </Select></label>
         {esImporte && <label><span className="pol-etiqueta">{t('pol.moneda_por_defecto')}</span>
           <SelectorDeMoneda valor={cab.moneda} opciones={opciones} etiqueta={t('pol.moneda_por_defecto')} onChange={m => setCab({ ...cab, moneda: m })} /></label>}
         <label><span className="pol-etiqueta">{t('pol.dominio')}</span>
-          <select className="pol-campo" value={cab.dominio ?? ''} onChange={e => setCab({ ...cab, dominio: e.target.value || null })}>
-            <option value="">{t('pol.todos_los_dominios')}</option>
+          <Select suelto className="pol-campo" value={cab.dominio ?? ''} onChange={e => setCab({ ...cab, dominio: e.target.value || null })} placeholder={t('pol.todos_los_dominios')}>
             {(catalogo?.dominios ?? []).map(d => <option key={d.clave} value={d.clave}>{t(`pol.dominio_${d.clave}`)}</option>)}
-          </select></label>
+          </Select></label>
         {(() => {
           // Rev. 166: un uso del dominio además de las reglas (gastos: tarifa por km).
           const usos = (catalogo?.dominios ?? []).find(d => d.clave === cab.dominio)?.usos_de_tabla ?? []
           return usos.length > 0 && (
             <label><span className="pol-etiqueta">{t('pol.uso_de_tabla')}</span>
-              <select className="pol-campo" aria-label={t('pol.uso_de_tabla')} value={cab.uso ?? ''} onChange={e => setCab({ ...cab, uso: e.target.value || null })}>
-                <option value="">{t('pol.uso_solo_reglas')}</option>
+              <Select suelto className="pol-campo" aria-label={t('pol.uso_de_tabla')} value={cab.uso ?? ''} onChange={e => setCab({ ...cab, uso: e.target.value || null })} placeholder={t('pol.uso_solo_reglas')}>
                 {usos.map(u => <option key={u.valor} value={u.valor}>{t(`pol.uso_${cab.dominio}_${u.valor}`, u.etiqueta)}</option>)}
-              </select></label>
+              </Select></label>
           )
         })()}
         <label className="u-col-full"><span className="pol-etiqueta">{t('pol.descripcion')}</span>
@@ -135,7 +133,7 @@ function Tabla({ id, onVolver, onCreada }: { id: string | null; onVolver: () => 
           )}
           {filas.length === 0 ? <EmptyState title={t('pol.sin_filas')} description={t('pol.sin_filas_texto')} /> : (
             <div className="pol-rejilla-envoltura pol-mt">
-              <table className="pol-rejilla">
+              <TablaSimple claseTabla="pol-rejilla">
                 <thead><tr>
                   <th scope="col">{t('pol.pais')}</th><th scope="col">{t('pol.ciudad')}</th><th scope="col">{t('pol.categoria')}</th>
                   <th scope="col">{t('pol.valor')}</th>{esImporte && <th scope="col">{t('pol.moneda')}</th>}
@@ -160,7 +158,7 @@ function Tabla({ id, onVolver, onCreada }: { id: string | null; onVolver: () => 
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </TablaSimple>
               <datalist id="pol-categorias">
                 {(catalogo?.dominios ?? []).flatMap(d => d.campos.filter(c => c.tipo === 'enum').flatMap(c => c.opciones))
                   .map(o => <option key={o.valor} value={o.valor}>{o.etiqueta}</option>)}

@@ -14,6 +14,7 @@ import { type CSSProperties, useState, useEffect, useRef } from 'react'
 import { CLIENT_API, useErrorDelPortal, useLang } from './portalClientContext'
 import { MessageCircle, X, Send, Sparkles, AlertTriangle, ThumbsUp, ThumbsDown } from 'lucide-react'
 import './PortalAIChatWidget.css'
+import { Pulsable } from '../../components/ui'
 
 const SESSION_KEY = 'portal_ai_session_id'
 
@@ -119,13 +120,13 @@ export default function PortalAIChatWidget() {
   // ── Floating bubble ──────────────────────────────────────────────────────
   if (!open) {
     return (
-      <button
+      <Pulsable
         onClick={() => setOpen(true)}
         aria-label={t('portalaichatwidget.abrir_asistente_ia')}
         title={t('portalaichatwidget.asistente_ia_pregunta_sobre_tus_proyectos')} className="portalai-sx1"
       >
         <MessageCircle size={24} />
-      </button>
+      </Pulsable>
     )
   }
 
@@ -146,16 +147,16 @@ export default function PortalAIChatWidget() {
         </div>
         <div className="u-row-6">
           {messages.length > 0 && (
-            <button onClick={handleClearSession}
+            <Pulsable onClick={handleClearSession}
               aria-label={t('portalaichatwidget.nueva_conversacion')} title={t('portalaichatwidget.empezar_de_nuevo')} className="portalai-sx3">
               {t('portalaichatwidget.nueva')}
-            </button>
+            </Pulsable>
           )}
-          <button onClick={() => setOpen(false)}
+          <Pulsable onClick={() => setOpen(false)}
             aria-label={t('portalaichatwidget.cerrar_asistente')}
             className="poaiwi-row-1">
             <X size={18} />
-          </button>
+          </Pulsable>
         </div>
       </div>
 
@@ -171,10 +172,10 @@ export default function PortalAIChatWidget() {
             </div>
             <div className="u-stack-6">
               {SUGGESTIONS.map(clave => tp(clave)).map(s => (
-                <button key={s} type="button" onClick={() => handleSend(s)}
+                <Pulsable key={s} onClick={() => handleSend(s)}
                   className="poaiwi-box-5 poaiwi-sugerencia">
                   <MessageCircle size={13} aria-hidden="true" /> {s}
-                </button>
+                </Pulsable>
               ))}
             </div>
           </div>
@@ -215,10 +216,10 @@ export default function PortalAIChatWidget() {
           placeholder={t('portalaichatwidget.escribe_tu_pregunta')}
           className="poaiwi-box-9"
         />
-        <button className={`poaiwi-row-4 ${input.trim() && !sending ? 'portal-aichat-widget-m3' : 'portal-aichat-widget-m4'}`} onClick={() => handleSend()} disabled={!input.trim() || sending}
+        <Pulsable className={`poaiwi-row-4 ${input.trim() && !sending ? 'portal-aichat-widget-m3' : 'portal-aichat-widget-m4'}`} onClick={() => handleSend()} disabled={!input.trim() || sending}
           aria-label={t('chat.send')}>
           <Send size={14} />
-        </button>
+        </Pulsable>
       </div>
 
       <style>{`
@@ -241,11 +242,11 @@ function Voto({ id }: { id: string }) {
   return (
     <div className="poaiwi-row-3">
       {([true, false] as const).map(util => (
-        <button className="poaiwi-box-11 portalai-sx6 portal-aichat-widget-e5" key={String(util)} type="button" aria-pressed={voto === util} aria-label={t(util ? 'portalaichatwidget.voto_up' : 'portalaichatwidget.voto_down')}
+        <Pulsable className="poaiwi-box-11 portalai-sx6 portal-aichat-widget-e5" key={String(util)} aria-pressed={voto === util} aria-label={t(util ? 'portalaichatwidget.voto_up' : 'portalaichatwidget.voto_down')}
           onClick={() => votar(util)}
           style={{ '--portal-aichat-widget-border': `1px solid ${voto === util ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
           {util ? <ThumbsUp size={13} /> : <ThumbsDown size={13} />}
-        </button>
+        </Pulsable>
       ))}
       {voto === false && <span className="u-text3">{t('portalaichatwidget.voto_gracias')}</span>}
     </div>

@@ -15,7 +15,7 @@ import { useToast } from '../../context/ToastContext'
 import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { Sparkles } from 'lucide-react'
-import { Button, Modal } from '../../components/ui'
+import { Button, Modal, Select } from '../../components/ui'
 import AIInlineEditor from '../../components/AIInlineEditor'
 import DateInput from '../../components/ui/DateInput'
 import { useFormValidation } from '../../hooks/useFormValidation'
@@ -300,21 +300,21 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
       <div className="crtimo-grid-1">
         <div>
           <label htmlFor={`${idPrefix}-ticket-type`} className="campo-etiqueta">{t('service_desk.ticket_type')} *</label>
-          <select id={`${idPrefix}-ticket-type`} value={form.ticket_type} onChange={set('ticket_type')} className={validation.inputClass('campo-form', 'ticket_type')}>
+          <Select suelto placeholder={false} id={`${idPrefix}-ticket-type`} value={form.ticket_type} onChange={set('ticket_type')} className={validation.inputClass('campo-form', 'ticket_type')}>
             {[['incident', t('service_desk.type_incident')], ['service_request', t('service_desk.type_service_request')],
               ['change', t('service_desk.type_change')], ['problem', t('service_desk.type_problem')], ['question', t('service_desk.type_question')]
             ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
+          </Select>
           {validation.errors.ticket_type && <div className="u-field-error">{validation.errors.ticket_type}</div>}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-service-item`} className="campo-etiqueta">{traducir('createticket.servicio')}</label>
-          <select id={`${idPrefix}-service-item`} value={form.service_item_id} onChange={set('service_item_id')} className="campo-form">
+          <Select suelto placeholder={false} id={`${idPrefix}-service-item`} value={form.service_item_id} onChange={set('service_item_id')} className="campo-form">
             <option value="">{t('service_desk.ticket_no_service')}</option>
             {catalog.flatMap(cat => cat.services?.map(s => (
               <option key={s.id} value={String(s.id)}>{cat.name} → {s.name}</option>
             )) || [])}
-          </select>
+          </Select>
         </div>
         <div className="u-col-full">
           <CatalogoInteligente texto={`${form.title} ${form.description}`.trim()} servicioId={form.service_item_id}
@@ -348,20 +348,20 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
 
         <div>
           <label htmlFor={`${idPrefix}-urgency`} className="campo-etiqueta">{t('service_desk.edit_urgency')}</label>
-          <select id={`${idPrefix}-urgency`} value={form.urgency} onChange={set('urgency')} className={validation.inputClass('campo-form', 'urgency')}>
+          <Select suelto placeholder={false} id={`${idPrefix}-urgency`} value={form.urgency} onChange={set('urgency')} className={validation.inputClass('campo-form', 'urgency')}>
             {[['critical', t('service_desk.urgency_critical')], ['high', t('service_desk.urgency_high')],
               ['medium', t('service_desk.urgency_medium')], ['low', t('service_desk.urgency_low')]
             ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
+          </Select>
           {validation.errors.urgency && <div className="u-field-error">{validation.errors.urgency}</div>}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-impact`} className="campo-etiqueta">{t('service_desk.edit_impact')}</label>
-          <select id={`${idPrefix}-impact`} value={form.impact} onChange={set('impact')} className={validation.inputClass('campo-form', 'impact')}>
+          <Select suelto placeholder={false} id={`${idPrefix}-impact`} value={form.impact} onChange={set('impact')} className={validation.inputClass('campo-form', 'impact')}>
             {[['enterprise', t('service_desk.impact_enterprise')], ['department', t('service_desk.impact_department')],
               ['user', t('service_desk.impact_user')], ['minimal', t('service_desk.impact_minimal')]
             ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
+          </Select>
           {validation.errors.impact && <div className="u-field-error">{validation.errors.impact}</div>}
         </div>
 
@@ -377,11 +377,11 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
           </div>
           <div className="crtimo-prioridad">
             <label htmlFor={`${idPrefix}-priority`} className="campo-etiqueta">{t('service_desk.ticket_priority')}</label>
-            <select id={`${idPrefix}-priority`} value={form.priority} onChange={set('priority')}
+            <Select suelto placeholder={false} id={`${idPrefix}-priority`} value={form.priority} onChange={set('priority')}
               className={validation.inputClass('campo-form', 'priority')}>
               {['p1_critical', 'p2_high', 'p3_medium', 'p4_low'].map(p =>
                 <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}
-            </select>
+            </Select>
           </div>
         </div>
 
@@ -395,16 +395,17 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
           <div key={f.id} className={`${f.type === 'textarea' ? 'create-ticket-modal-m1' : 'create-ticket-modal-m2'}`}>
             <label id={`${idPrefix}-${f.id}-et`} htmlFor={`${idPrefix}-${f.id}`} className="campo-etiqueta">{f.label}{f.required ? ' *' : ''}</label>
             {f.type === 'select' ? (
-              <select
+              <Select
+                suelto
+                placeholder={false}
                 id={`${idPrefix}-${f.id}`}
-                aria-labelledby={`${idPrefix}-${f.id}-et`}
                 value={String(dynamicValues[f.id] ?? '')}
                 onChange={(e) => setDynamicValues(v => ({ ...v, [f.id]: e.target.value }))}
                 className="campo-form"
               >
                 <option value="">{traducir('createticket.seleccionar')}</option>
                 {(f.options || []).map((op) => <option key={op} value={op}>{op}</option>)}
-              </select>
+              </Select>
             ) : f.type === 'textarea' ? (
               <textarea
                 id={`${idPrefix}-${f.id}`}
@@ -453,27 +454,28 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
 
         <div>
           <label htmlFor={`${idPrefix}-assigned-to`} className="campo-etiqueta">{t('common.assigned_to')}</label>
-          <select id={`${idPrefix}-assigned-to`} value={form.assigned_to_user_id} onChange={set('assigned_to_user_id')} className="campo-form">
+          <Select suelto placeholder={false} id={`${idPrefix}-assigned-to`} value={form.assigned_to_user_id} onChange={set('assigned_to_user_id')} className="campo-form">
             <option value="">{t('service_desk.ticket_auto_routing')}</option>
             {users.map(u => <option key={u.id} value={String(u.id)}>{u.full_name}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label htmlFor={`${idPrefix}-client`} className="campo-etiqueta">{traducir('createticket.cliente')}</label>
-          <select id={`${idPrefix}-client`} value={form.client_id} onChange={set('client_id')} className="campo-form">
+          <Select suelto placeholder={false} id={`${idPrefix}-client`} value={form.client_id} onChange={set('client_id')} className="campo-form">
             <option value="">{t('service_desk.ticket_no_client')}</option>
             {clients.map(c =>
               <option key={c.id} value={String(c.id)}>{c.name}</option>)}
-          </select>
+          </Select>
         </div>
         {form.client_id && contactos.length > 0 && (
           <div>
             <label htmlFor={`${idPrefix}-contact`} className="campo-etiqueta">{traducir('sd_cfg.req_contact')}</label>
-            <select id={`${idPrefix}-contact`} aria-label={traducir('sd_cfg.req_contact')} defaultValue="" className="campo-form"
+            <Select suelto placeholder={false} id={`${idPrefix}-contact`} aria-label={traducir('sd_cfg.req_contact')} className="campo-form"
+              value={contactos.find(x => x.full_name === solicitante.nombre && (x.email ?? '') === solicitante.correo)?.id ?? ''}
               onChange={e => { const c = contactos.find(x => x.id === e.target.value); if (c) setSolicitante({ nombre: c.full_name, correo: c.email ?? '' }) }}>
               <option value="">{traducir('sd_cfg.req_contact_none')}</option>
               {contactos.map(c => <option key={c.id} value={c.id}>{c.full_name}{c.email ? ` · ${c.email}` : ''}</option>)}
-            </select>
+            </Select>
           </div>
         )}
         <div>
@@ -537,7 +539,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
                     v[idx] = { ...v[idx], label: e.target.value }
                     setGeneratedFields(v)
                   }} className="campo-form" />
-                  <select aria-label={traducir('createticket.tipo_campo_n', { n: idx + 1 })} value={f.type || 'text'} onChange={(e) => {
+                  <Select suelto placeholder={false} aria-label={traducir('createticket.tipo_campo_n', { n: idx + 1 })} value={f.type || 'text'} onChange={(e) => {
                     const v = [...generatedFields]
                     v[idx] = { ...v[idx], type: e.target.value }
                     setGeneratedFields(v)
@@ -546,7 +548,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
                     <option value="textarea">{traducir('createticket.tipo_textarea')}</option>
                     <option value="select">{traducir('createticket.tipo_select')}</option>
                     <option value="date">{traducir('createticket.tipo_date')}</option>
-                  </select>
+                  </Select>
                   <input aria-label={traducir('createticket.id_campo_n', { n: idx + 1 })} value={f.id || ''} onChange={(e) => {
                     const v = [...generatedFields]
                     v[idx] = { ...v[idx], id: e.target.value }

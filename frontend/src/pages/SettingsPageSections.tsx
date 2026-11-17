@@ -11,7 +11,7 @@ import { usersApi, organizationsApi, biSmartAlertsApi, esignApi, apiUrl, esFicha
 import type { ClaveDeFirma, ConfigDeFirma } from '../services/api/tipos-finanzas'
 import type { Organizacion } from '../services/api/tipos-plataforma'
 import type { MetricasDeAlertaBi } from '../services/api/tipos-bi'
-import { Button, Modal, Spinner, EmptyState, MarcaExterno } from '../components/ui'
+import { Button, Checkbox, GrupoDeOpciones, IconButton, Modal, Pulsable, Select, Spinner, EmptyState, MarcaExterno, Switch } from '../components/ui'
 import { Search, Layers, Sparkles, Building2, Pencil, Trash2, Check, X, Plus, Pause, Play, Settings, KeyRound, Bell, Euro, Palmtree, Hash, Puzzle, LayoutTemplate, Tag, Compass, BarChart3, PenLine, Lock, Type, Calendar, List, CheckSquare, Link2, ClipboardList, FileSignature, CheckCircle2 } from 'lucide-react'
 /*
  * 16-11-2026: pasada de diseño de /settings. Iconos lucide en lugar de emojis
@@ -219,13 +219,13 @@ function SettingField({ setting, label, onSave }: { setting: SettingOut; label: 
       {editing ? (
         <div className="u-row-8">
           <input aria-label={label} id={idCampo} value={val} onChange={e => setVal(e.target.value)} className="set-input set-input--flex" autoFocus onKeyDown={e => { if (e.key === 'Enter') { onSave(val); setEditing(false) } if (e.key === 'Escape') { setVal(setting.value); setEditing(false) } }} />
-          <button type="button" onClick={() => { onSave(val); setEditing(false) }} className="set-btn-confirm" aria-label={t('common.save')} title={t('common.save')}><Check size={14} aria-hidden /></button>
-          <button type="button" onClick={() => { setVal(setting.value); setEditing(false) }} className="set-btn-dismiss" aria-label={t('common.cancel')} title={t('common.cancel')}><X size={14} aria-hidden /></button>
+          <Pulsable onClick={() => { onSave(val); setEditing(false) }} className="set-btn-confirm" aria-label={t('common.save')} title={t('common.save')}><Check size={14} aria-hidden /></Pulsable>
+          <Pulsable onClick={() => { setVal(setting.value); setEditing(false) }} className="set-btn-dismiss" aria-label={t('common.cancel')} title={t('common.cancel')}><X size={14} aria-hidden /></Pulsable>
         </div>
       ) : (
         <div className="set-field-value-row">
           <span className={`set-field-value${setting.value ? '' : ' set-field-value--empty'}`}>{setting.value || '—'}</span>
-          <button type="button" onClick={() => setEditing(true)} className="set-btn-icon" aria-label={t('settings_sections.editar_campo', { campo: label })} title={t('common.edit')}><Pencil size={14} aria-hidden /></button>
+          <Pulsable onClick={() => setEditing(true)} className="set-btn-icon" aria-label={t('settings_sections.editar_campo', { campo: label })} title={t('common.edit')}><Pencil size={14} aria-hidden /></Pulsable>
         </div>
       )}
     </div>
@@ -298,17 +298,11 @@ function UsersSection() {
             aria-label={t('settings.buscar_usuario_por_nombre_o_alias')}
             className="ds-input set-search-input" />
         </div>
-        <select
-          value={orgFilter}
-          onChange={(e) => setOrgFilter(e.target.value)}
-          className="ds-input set-org-filter"
-          aria-label={t('settings.filtrar_usuarios_por_organizacion')}
-        >
-          <option value="">{t('settings.todas_las_organizaciones')}</option>
+        <Select suelto placeholder={t('settings.todas_las_organizaciones')} value={orgFilter} onChange={(e) => setOrgFilter(e.target.value)} className="set-org-filter" aria-label={t('settings.filtrar_usuarios_por_organizacion')}>
           {organizations.filter(o => o.is_active !== false).map(o => (
             <option key={o.id} value={o.id}>{o.name}</option>
           ))}
-        </select>
+        </Select>
         {(search || orgFilter) && (
           <Button
             variant="secondary"
@@ -362,10 +356,10 @@ function UsersSection() {
               )}
               {u.department && <span className="u-text2-xs">{u.department}</span>}
               {!u.is_active && <span className="set-inactive">{t('settings_sections.inactivo')}</span>}
-              <button type="button" onClick={() => setEditUser(u)} className="set-btn-edit"><Pencil size={13} aria-hidden /> {t('common.edit')}</button>
-              {u.is_active ? <button type="button" onClick={() => setBajaDe({ id: u.id, nombre: u.full_name })} className="set-btn-warn"><Pause size={13} aria-hidden /> {t('settings_sections.desactivar')}</button>
-                : <button type="button" onClick={() => deactivate(u.id)} className="set-btn-ok"><Play size={13} aria-hidden /> {t('settings_sections.activar')}</button>}
-              <button type="button" onClick={() => openConfirmGlobal({ title: t('settings_sections.eliminar_permanentemente'), message: t('settings_sections.confirmar_eliminar_usuario', { nombre: u.full_name }), onConfirm: () => deletePermanent(u.id), danger: true })} className="set-btn-delete"><Trash2 size={13} aria-hidden /> {t('common.delete')}</button>
+              <Pulsable onClick={() => setEditUser(u)} className="set-btn-edit"><Pencil size={13} aria-hidden /> {t('common.edit')}</Pulsable>
+              {u.is_active ? <Pulsable onClick={() => setBajaDe({ id: u.id, nombre: u.full_name })} className="set-btn-warn"><Pause size={13} aria-hidden /> {t('settings_sections.desactivar')}</Pulsable>
+                : <Pulsable onClick={() => deactivate(u.id)} className="set-btn-ok"><Play size={13} aria-hidden /> {t('settings_sections.activar')}</Pulsable>}
+              <Pulsable onClick={() => openConfirmGlobal({ title: t('settings_sections.eliminar_permanentemente'), message: t('settings_sections.confirmar_eliminar_usuario', { nombre: u.full_name }), onConfirm: () => deletePermanent(u.id), danger: true })} className="set-btn-delete"><Trash2 size={13} aria-hidden /> {t('common.delete')}</Pulsable>
             </div>
           )})}
         </div>
@@ -445,8 +439,7 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
     setForm(f => ({ ...f, [k]: e.target.value }))
     validation.clearFieldError(k)
   }
-  const setOrganizations = (e: ChangeEvent<HTMLSelectElement>) => {
-    const values = Array.from(e.target.selectedOptions).map(o => o.value)
+  const setOrganizations = (values: string[]) => {
     setForm((f) => {
       const nextPrimary = values.includes(f.organization_id)
         ? f.organization_id
@@ -474,48 +467,40 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
         <div className="u-col-full"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('settings_sections.nombre_completo')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.full_name} onChange={set('full_name')} className="set-input" aria-invalid={!!validation.errors.full_name} />{errField('full_name')}</div>
         <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings_sections.usuario')} *</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.username} onChange={set('username')} className="set-input" aria-invalid={!!validation.errors.username} />{errField('username')}</div>
         <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="set-label">{t('settings_sections.email')} *</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="email" value={form.email} onChange={set('email')} className="set-input" aria-invalid={!!validation.errors.email} />{errField('email')}</div>
-        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="set-label">{t('settings_sections.rol')}</label><select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.role} onChange={set('role')} className="set-input" aria-invalid={!!validation.errors.role}>
+        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="set-label">{t('settings_sections.rol')}</label><Select suelto placeholder={false} id={`${idCampo}-4`} value={form.role} onChange={set('role')} className="set-input" error={!!validation.errors.role}>
           {/* Un externo se da de alta desde su proveedor (Recursos o Subcontratistas): aquí solo se muestra si ya lo es. */}
           {Object.entries(ROLE_LABELS).filter(([v]) => v !== 'subcontractor' || form.role === 'subcontractor').map(([v, l]) => <option key={v} value={v}>{etiquetaCodigo(t, 'rol_usuario', v, l)}</option>)}
-        </select>{errField('role')}</div>
-        <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="set-label">{t('settings_sections.rol_personalizado')}</label><select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.custom_role_id} onChange={set('custom_role_id')} className="set-input">
-          <option value="">{t('settings_sections.ninguno_rol_base')}</option>
+        </Select>{errField('role')}</div>
+        <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="set-label">{t('settings_sections.rol_personalizado')}</label><Select suelto placeholder={t('settings_sections.ninguno_rol_base')} id={`${idCampo}-5`} value={form.custom_role_id} onChange={set('custom_role_id')} className="set-input">
           {roles.filter(r => !r.is_system).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-        </select></div>
-        <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="set-label">{t('settings_sections.departamento')}</label><select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.department} onChange={set('department')} className="set-input">
-          <option value="">{t('settings.sin_departamento')}</option>
+        </Select></div>
+        <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="set-label">{t('settings_sections.departamento')}</label><Select suelto placeholder={t('settings.sin_departamento')} id={`${idCampo}-6`} value={form.department} onChange={set('department')} className="set-input">
           {departments.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-        </select></div>
+        </Select></div>
         <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="set-label">{t('settings_sections.cargo')}</label><input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.job_title} onChange={set('job_title')} className="set-input" /></div>
         <div><label htmlFor={`${idCampo}-grado`} className="set-label">{t('settings_sections.grado')}</label><input id={`${idCampo}-grado`} aria-label={t('settings_sections.grado')} value={form.grade} onChange={set('grade')} maxLength={60} className="set-input" aria-describedby={`${idCampo}-grado-ayuda`} /><span id={`${idCampo}-grado-ayuda`} className="u-text3-xs">{t('settings_sections.grado_ayuda')}</span></div>
         <div><label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="set-label">{t('settings_sections.horas_semanales')}</label><input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} type="number" value={form.weekly_capacity_hours} onChange={set('weekly_capacity_hours')} className="set-input" aria-invalid={!!validation.errors.weekly_capacity_hours} />{errField('weekly_capacity_hours')}</div>
         <div><label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="set-label">{t('settings_sections.tarifa_hora', { simbolo: fmtMoneda.simbolo })}</label><input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} type="number" value={form.hourly_rate} onChange={set('hourly_rate')} className="set-input" aria-invalid={!!validation.errors.hourly_rate} />{errField('hourly_rate')}</div>
         {esSuperadmin && <>
-        <div className="u-col-full">
-          <label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} className="set-label">{t('settings.organizaciones_seleccion_multiple')}</label>
-          <select id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} multiple value={form.organization_ids} onChange={setOrganizations} className="set-input set-input--multi">
-            {organizations.filter(o => o.is_active !== false).map(o => (
-              <option key={o.id} value={o.id}>{o.name} ({o.slug})</option>
-            ))}
-          </select>
-        </div>
+        <GrupoDeOpciones tipo="checkbox" forma="lista" className="u-col-full set-input--multi"
+          leyenda={t('settings.organizaciones_seleccion_multiple')}
+          valor={form.organization_ids} onChange={setOrganizations}
+          opciones={organizations.filter(o => o.is_active !== false).map(o => ({ valor: String(o.id), titulo: `${o.name} (${o.slug})` }))} />
         <div className="u-col-full">
           <label id={`${idCampo}-et11`} htmlFor={`${idCampo}-11`} className="set-label">{t('settings.organizacion_principal')}</label>
-          <select id={`${idCampo}-11`} aria-labelledby={`${idCampo}-et11`} value={form.organization_id} onChange={set('organization_id')} className="set-input">
-            <option value="">{t('settings.sin_organizacion_principal')}</option>
+          <Select suelto placeholder={t('settings.sin_organizacion_principal')} id={`${idCampo}-11`} value={form.organization_id} onChange={set('organization_id')} className="set-input">
             {form.organization_ids.map(orgId => {
               const org = organizations.find(o => o.id === orgId)
               return <option key={orgId} value={orgId}>{org?.name || orgId}</option>
             })}
-          </select>
+          </Select>
         </div>
         </>}
         <div className="u-col-full">
           <label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} className="set-label">{t('settings.timezone')}</label>
-          <select id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} value={form.timezone} onChange={set('timezone')} className="set-input">
-            <option value="">{t('settings.usa_la_zona_de_la_organizacion')}</option>
+          <Select suelto placeholder={t('settings.usa_la_zona_de_la_organizacion')} id={`${idCampo}-12`} value={form.timezone} onChange={set('timezone')} className="set-input">
             {timezoneOptions(form.timezone).map(tz => <option key={tz} value={tz}>{tz}</option>)}
-          </select>
+          </Select>
         </div>
         {!isEdit && <div className="u-col-full"><label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} className="set-label">{t('settings.contrasena')}</label><input id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} type="password" value={form.password} onChange={set('password')} className="set-input" aria-invalid={!!validation.errors.password} />{errField('password')}</div>}
         <div className="set-form-actions">
@@ -562,11 +547,11 @@ function RolesSection() {
               </div>
             </div>
             {r.is_system && <span className="set-chip">{t('settings_sections.sistema')}</span>}
-            <button type="button" onClick={() => setEditRole(r)} className="set-btn-edit"><Pencil size={13} aria-hidden /> {t('common.edit')}</button>
-            {!r.is_system && <button type="button" onClick={() => deleteRole(r.id)} className="set-btn-delete" aria-label={t('settings_sections.eliminar_x', { nombre: r.name })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></button>}
+            <Pulsable onClick={() => setEditRole(r)} className="set-btn-edit"><Pencil size={13} aria-hidden /> {t('common.edit')}</Pulsable>
+            {!r.is_system && <Pulsable onClick={() => deleteRole(r.id)} className="set-btn-delete" aria-label={t('settings_sections.eliminar_x', { nombre: r.name })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></Pulsable>}
           </div>
         )})}
-        <button type="button" onClick={() => setShowCreate(true)} className="set-btn-dashed"><Plus size={13} aria-hidden /> {t('settings_sections.crear_rol')}</button>
+        <Pulsable onClick={() => setShowCreate(true)} className="set-btn-dashed"><Plus size={13} aria-hidden /> {t('settings_sections.crear_rol')}</Pulsable>
       </div>
       {(showCreate || editRole) && (
         <RoleFormModal role={editRole} modules={modules} onClose={() => { setShowCreate(false); setEditRole(null) }}
@@ -593,16 +578,13 @@ function RoleFormModal({ role, modules, onClose, onSave }: { role: CustomRole | 
         <div role="group" aria-labelledby={`${idCampo}-mods`}>
           <div className="set-row-label">
             <span id={`${idCampo}-mods`} className="set-label">{t('settings.modulos_accesibles')}</span>
-            <button type="button" onClick={() => setForm(f => ({ ...f, module_access: modules.reduce<Record<string, unknown>>((a, m) => ({ ...a, [m.id]: !allOn }), {}) }))} className="set-btn-link">
+            <Pulsable onClick={() => setForm(f => ({ ...f, module_access: modules.reduce<Record<string, unknown>>((a, m) => ({ ...a, [m.id]: !allOn }), {}) }))} className="set-btn-link">
               {allOn ? t('settings_sections.desactivar_todos') : t('settings_sections.activar_todos')}
-            </button>
+            </Pulsable>
           </div>
           <div className="set-grid-3">
             {modules.map(m => (
-              <label key={m.id} className={`set-check-tile${form.module_access[m.id] ? ' set-check-tile--on' : ''}`}>
-                <input aria-label={m.label} type="checkbox" checked={!!form.module_access[m.id]} onChange={() => toggleModule(m.id)} />
-                {m.label}
-              </label>
+              <Checkbox key={m.id} className={`set-check-tile${form.module_access[m.id] ? ' set-check-tile--on' : ''}`} label={m.label} checked={!!form.module_access[m.id]} onChange={() => toggleModule(m.id)} />
             ))}
           </div>
         </div>
@@ -684,10 +666,7 @@ function AlertConfigSection() {
                   </div>
                   {cfg.description && <div className="u-text2-sm">{cfg.description}</div>}
                 </div>
-                <label className="set-toggle">
-                  <input type="checkbox" aria-label={cfg.label} checked={cfg.is_enabled} onChange={e => update({ type: cfg.alert_type, data: { is_enabled: e.target.checked } })} />
-                  <span className="u-text2-sm">{cfg.is_enabled ? t('settings_sections.activa') : t('settings_sections.inactiva')}</span>
-                </label>
+                <Checkbox className="set-toggle" aria-label={cfg.label} label={<span className="u-text2-sm">{cfg.is_enabled ? t('settings_sections.activa') : t('settings_sections.inactiva')}</span>} checked={cfg.is_enabled} onChange={m => update({ type: cfg.alert_type, data: { is_enabled: m } })} />
               </div>
               {cfg.is_enabled && (
                 <div className="set-alert-body">
@@ -701,10 +680,7 @@ function AlertConfigSection() {
                   )}
                   <div className="u-wrap-10" role="group" aria-label={t('settings_sections.notificar_a')}>
                     {NOTIFY_FIELDS.map(([key, labelKey]) => (
-                      <label key={key} className={`set-notify${cfg[key] ? ' set-notify--on' : ''}`}>
-                        <input aria-label={t(labelKey)} type="checkbox" checked={!!cfg[key]} onChange={e => update({ type: cfg.alert_type, data: { [key]: e.target.checked } })} />
-                        {t(labelKey)}
-                      </label>
+                      <Checkbox key={key} className={`set-notify${cfg[key] ? ' set-notify--on' : ''}`} label={t(labelKey)} checked={!!cfg[key]} onChange={m => update({ type: cfg.alert_type, data: { [key]: m } })} />
                     ))}
                   </div>
                 </div>
@@ -739,10 +715,7 @@ function AlertConfigSection() {
                   </div>
                 </div>
                 <div className="set-rule-actions">
-                  <label className="set-notify">
-                    <input type="checkbox" aria-label={rule.name} checked={!!rule.enabled} onChange={e => toggleRule({ id: rule.id, enabled: e.target.checked })} />
-                    {rule.enabled ? t('settings_sections.activa') : t('settings_sections.inactiva')}
-                  </label>
+                  <Checkbox className="set-notify" aria-label={rule.name} label={rule.enabled ? t('settings_sections.activa') : t('settings_sections.inactiva')} checked={!!rule.enabled} onChange={m => toggleRule({ id: rule.id, enabled: m })} />
                   <Button variant="danger" size="xs" onClick={() => openConfirmGlobal({ title: t('settings_sections.eliminar_regla'), message: t('settings_sections.confirmar_eliminar_x', { nombre: rule.name }), onConfirm: () => deleteRule(rule.id) })}>{t('common.delete')}</Button>
                 </div>
               </div>
@@ -760,17 +733,16 @@ function AlertConfigSection() {
             </div>
             <div>
               <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings.metrica')}</label>
-              <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={ruleForm.metric_key} onChange={setR('metric_key')} className="set-input">
-                <option value="">{t('settings.selecciona_una_metrica')}</option>
+              <Select suelto placeholder={t('settings.selecciona_una_metrica')} id={`${idCampo}-2`} value={ruleForm.metric_key} onChange={setR('metric_key')} className="set-input">
                 {metrics.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
-              </select>
+              </Select>
             </div>
             <div className="u-grid2-12">
               <div>
                 <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="set-label">{t('settings.condicion')}</label>
-                <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={ruleForm.condition} onChange={setR('condition')} className="set-input">
+                <Select suelto placeholder={false} id={`${idCampo}-3`} value={ruleForm.condition} onChange={setR('condition')} className="set-input">
                   {CONDITION_CODES.map(k => <option key={k} value={k}>{condLabel(k)}</option>)}
-                </select>
+                </Select>
               </div>
               {THRESHOLD_CONDITIONS.includes(ruleForm.condition) && (
                 <div>
@@ -782,11 +754,11 @@ function AlertConfigSection() {
             <div className="u-grid2-12">
               <div>
                 <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="set-label">{t('settings_sections.severidad')}</label>
-                <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={ruleForm.severity} onChange={setR('severity')} className="set-input">
+                <Select suelto placeholder={false} id={`${idCampo}-5`} value={ruleForm.severity} onChange={setR('severity')} className="set-input">
                   <option value="info">{t('settings_sections.sev_info')}</option>
                   <option value="warning">{t('settings_sections.sev_warning')}</option>
                   <option value="critical">{t('settings_sections.sev_critical')}</option>
-                </select>
+                </Select>
               </div>
               <div>
                 <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="set-label">{t('settings_sections.cooldown_minutos')}</label>
@@ -851,8 +823,8 @@ function RateTablesSection() {
                   <span className="set-applies">{tabla.applies_to === 'role' ? t('settings.por_rol') : tabla.applies_to === 'department' ? t('settings_sections.por_departamento') : t('settings.por_cliente')}</span>
                 </div>
                 <div className="u-row-8">
-                  <button type="button" onClick={() => setAddingEntry(tabla.id)} className="set-btn-add"><Plus size={13} aria-hidden /> {t('settings_sections.tarifa')}</button>
-                  <button type="button" onClick={() => deleteTable(tabla.id)} className="set-btn-delete set-btn-delete--md" aria-label={t('settings_sections.eliminar_x', { nombre: tabla.name })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></button>
+                  <Pulsable onClick={() => setAddingEntry(tabla.id)} className="set-btn-add"><Plus size={13} aria-hidden /> {t('settings_sections.tarifa')}</Pulsable>
+                  <Pulsable onClick={() => deleteTable(tabla.id)} className="set-btn-delete set-btn-delete--md" aria-label={t('settings_sections.eliminar_x', { nombre: tabla.name })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></Pulsable>
                 </div>
               </div>
               <div className="set-rates-grid">
@@ -867,8 +839,8 @@ function RateTablesSection() {
                       <input type="number" value={editEntryForm.cost_rate} onChange={ev => setEditEntryForm(f=>({...f,cost_rate:ev.target.value}))} className="set-input set-input--tight" placeholder={t('settings.coste_por_hora')} aria-label={t('settings.coste_por_hora')} />
                       <input type="number" value={editEntryForm.billing_rate} onChange={ev => setEditEntryForm(f=>({...f,billing_rate:ev.target.value}))} className="set-input set-input--tight" placeholder={t('settings.tarifa_de_facturacion')} aria-label={t('settings.tarifa_de_facturacion')} />
                       <div className="set-mini-actions">
-                        <button type="button" onClick={() => updateEntry({ tableId: tabla.id, entryId: e.id, data: editEntryForm })} disabled={!editEntryForm.label} className="set-btn-mini-ok" aria-label={t('common.save')} title={t('common.save')}><Check size={14} aria-hidden /></button>
-                        <button type="button" onClick={() => setEditingEntryId(null)} className="set-btn-mini-cancel" aria-label={t('common.cancel')} title={t('common.cancel')}><X size={14} aria-hidden /></button>
+                        <Pulsable onClick={() => updateEntry({ tableId: tabla.id, entryId: e.id, data: editEntryForm })} disabled={!editEntryForm.label} className="set-btn-mini-ok" aria-label={t('common.save')} title={t('common.save')}><Check size={14} aria-hidden /></Pulsable>
+                        <Pulsable onClick={() => setEditingEntryId(null)} className="set-btn-mini-cancel" aria-label={t('common.cancel')} title={t('common.cancel')}><X size={14} aria-hidden /></Pulsable>
                       </div>
                     </React.Fragment>
                   ) : (
@@ -877,8 +849,8 @@ function RateTablesSection() {
                       <div className="set-cell set-cell--num set-cell--cost">{e.cost_rate ? fmtMoneda(e.cost_rate) : '—'}</div>
                       <div className="set-cell set-cell--num set-cell--bill">{e.billing_rate ? fmtMoneda(e.billing_rate) : '—'}</div>
                       <div className="set-mini-actions set-mini-actions--tight">
-                        <button type="button" onClick={() => { setEditingEntryId(e.id); setEditEntryForm({ label: e.label, cost_rate: e.cost_rate||'', billing_rate: e.billing_rate||'' }) }} className="set-btn-ghost-icon" aria-label={t('settings_sections.editar_x', { nombre: e.label })} title={t('common.edit')}><Pencil size={14} aria-hidden /></button>
-                        <button type="button" onClick={() => deleteEntry({ tableId: tabla.id, entryId: e.id })} className="set-btn-ghost-icon set-btn-ghost-icon--danger" aria-label={t('settings_sections.eliminar_x', { nombre: e.label })} title={t('common.delete')}><X size={14} aria-hidden /></button>
+                        <Pulsable onClick={() => { setEditingEntryId(e.id); setEditEntryForm({ label: e.label, cost_rate: e.cost_rate||'', billing_rate: e.billing_rate||'' }) }} className="set-btn-ghost-icon" aria-label={t('settings_sections.editar_x', { nombre: e.label })} title={t('common.edit')}><Pencil size={14} aria-hidden /></Pulsable>
+                        <Pulsable onClick={() => deleteEntry({ tableId: tabla.id, entryId: e.id })} className="set-btn-ghost-icon set-btn-ghost-icon--danger" aria-label={t('settings_sections.eliminar_x', { nombre: e.label })} title={t('common.delete')}><X size={14} aria-hidden /></Pulsable>
                       </div>
                     </React.Fragment>
                   )
@@ -899,7 +871,7 @@ function RateTablesSection() {
           ))}
           <div className="set-add-panel set-add-panel--lg">
             <div className="set-flex2"><label htmlFor={`${idCampo}-c928`} className="set-label">{t('settings_sections.nombre_tabla')}</label><input aria-label={t('settings_sections.nombre_tabla')} id={`${idCampo}-c928`} value={newTable.name} onChange={e => setNewTable(f => ({ ...f, name: e.target.value }))} className="set-input" placeholder={t('settings.nombre_de_la_tabla')} /></div>
-            <div className="u-flex1"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('settings_sections.aplica_a')}</label><select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={newTable.applies_to} onChange={e => setNewTable(f => ({ ...f, applies_to: e.target.value }))} className="set-input"><option value="role">{t('settings.por_rol')}</option><option value="department">{t('settings.por_depto')}</option><option value="client">{t('settings.por_cliente')}</option></select></div>
+            <div className="u-flex1"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('settings_sections.aplica_a')}</label><Select suelto placeholder={false} id={`${idCampo}-1`} value={newTable.applies_to} onChange={e => setNewTable(f => ({ ...f, applies_to: e.target.value }))} className="set-input"><option value="role">{t('settings.por_rol')}</option><option value="department">{t('settings.por_depto')}</option><option value="client">{t('settings.por_cliente')}</option></Select></div>
             <Button onClick={() => { createTable(newTable); setNewTable({ name: '', applies_to: 'role', is_default: false }) }} disabled={!newTable.name}>{t('settings_sections.crear_tabla')}</Button>
           </div>
         </div>
@@ -942,7 +914,7 @@ function VacationSection() {
                   {p.days_per_year} {t('settings.dias_ano')} {p.carries_over ? `· ${t('settings_sections.acumula_hasta', { dias: p.max_carryover_days || '∞' })}` : `· ${t('settings_sections.no_acumula')}`}
                 </div>
               </div>
-              <button type="button" onClick={() => deletePolicy(p.id)} className="set-btn-delete" aria-label={t('settings_sections.eliminar_x', { nombre: p.name })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></button>
+              <Pulsable onClick={() => deletePolicy(p.id)} className="set-btn-delete" aria-label={t('settings_sections.eliminar_x', { nombre: p.name })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></Pulsable>
             </div>
           ))}
         </div>
@@ -950,7 +922,7 @@ function VacationSection() {
           <div className="set-flex2"><label htmlFor={`${idCampo}-c977`} className="set-label">{t('common.name')}</label><input aria-label={t('common.name')} id={`${idCampo}-c977`} value={newPolicy.name} onChange={e => setNewPolicy(f => ({ ...f, name: e.target.value }))} className="set-input" placeholder={t('settings.nombre_de_la_politica')} /></div>
           <div className="u-flex1"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('settings.dias_ano_2')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="number" value={newPolicy.days_per_year} onChange={e => setNewPolicy(f => ({ ...f, days_per_year: +e.target.value }))} className="set-input" /></div>
           <div className="u-flex1"><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings.max_acumulacion')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={newPolicy.max_carryover_days} onChange={e => setNewPolicy(f => ({ ...f, max_carryover_days: +e.target.value }))} className="set-input" /></div>
-          <label className="set-check-label"><input aria-label={t('settings.por_defecto')} type="checkbox" checked={newPolicy.is_default} onChange={e => setNewPolicy(f => ({ ...f, is_default: e.target.checked }))} />{t('settings.por_defecto')}</label>
+          <Checkbox className="set-check-label" label={t('settings.por_defecto')} checked={newPolicy.is_default} onChange={m => setNewPolicy(f => ({ ...f, is_default: m }))} />
           <Button onClick={() => { createPolicy(newPolicy); setNewPolicy({ name: '', days_per_year: 23, carries_over: true, max_carryover_days: 5, is_default: false }) }} disabled={!newPolicy.name}>{t('settings_sections.crear')}</Button>
         </div>
       </div>
@@ -959,9 +931,9 @@ function VacationSection() {
       <div>
         <div className="u-row-between u-mb-12">
           <div className="u-base-700">{t('settings.saldos_del_equipo')}</div>
-          <select value={year} onChange={e => setYear(+e.target.value)} className="set-select-sm" aria-label={t('settings_sections.anio')}>
+          <Select suelto placeholder={false} value={year} onChange={e => setYear(+e.target.value)} className="set-select-sm" aria-label={t('settings_sections.anio')}>
             {[currentYear - 1, currentYear, currentYear + 1].map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
+          </Select>
         </div>
         <div className="ds-card ds-card--plano">
           <div className="set-bal-row set-bal-head">
@@ -1012,14 +984,11 @@ function NumberingSection() {
                 <div><label htmlFor={`${idCampo}-${s.entity}-c1038`} className="set-label set-label--xs">{t('settings_sections.prefijo')}</label><input aria-label={t('settings_sections.prefijo')} id={`${idCampo}-${s.entity}-c1038`} defaultValue={s.prefix} onBlur={e => update({ entity: s.entity, data: { ...s, prefix: e.target.value } })} className="set-input set-input--w70" placeholder={t('settings_sections.prefijo')} /></div>
                 <div><label id={`${idCampo}-${s.entity}-etc1039`} htmlFor={`${idCampo}-${s.entity}-c1039`} className="set-label set-label--xs" title={t('settings_sections.separador')}>{t('settings_sections.sep')}</label><input id={`${idCampo}-${s.entity}-c1039`} aria-labelledby={`${idCampo}-${s.entity}-etc1039`} defaultValue={s.separator} onBlur={e => update({ entity: s.entity, data: { ...s, separator: e.target.value } })} className="set-input set-input--w40" /></div>
                 <div><label id={`${idCampo}-${s.entity}-etc1040`} htmlFor={`${idCampo}-${s.entity}-c1040`} className="set-label set-label--xs">{t('settings.digitos')}</label><input id={`${idCampo}-${s.entity}-c1040`} aria-labelledby={`${idCampo}-${s.entity}-etc1040`} type="number" min="1" max="8" defaultValue={s.padding} onBlur={e => update({ entity: s.entity, data: { ...s, padding: +e.target.value } })} className="set-input set-input--w60" /></div>
-                <label className="set-check-muted">
-                  <input aria-label={t('settings.incluir_ano')} type="checkbox" defaultChecked={s.include_year} onChange={e => update({ entity: s.entity, data: { ...s, include_year: e.target.checked } })} />
-                  {t('settings.incluir_ano')}
-                </label>
+                <Checkbox className="set-check-muted" label={t('settings.incluir_ano')} checked={!!s.include_year} onChange={m => update({ entity: s.entity, data: { ...s, include_year: m } })} />
               </div>
               <div className="set-shrink0">
                 <div className="u-text2-xs-mb4">{t('settings_sections.contador', { valor: s.current_value })}</div>
-                <button type="button" onClick={() => { openConfirmGlobal({ message: t('settings_sections.confirmar_resetear', { entidad: entityLabel(s.entity) }), onConfirm: () => reset(s.entity), danger: true }) }} className="set-btn-delete set-btn-delete--md">{t('settings_sections.resetear')}</button>
+                <Pulsable onClick={() => { openConfirmGlobal({ message: t('settings_sections.confirmar_resetear', { entidad: entityLabel(s.entity) }), onConfirm: () => reset(s.entity), danger: true }) }} className="set-btn-delete set-btn-delete--md">{t('settings_sections.resetear')}</Pulsable>
               </div>
             </div>
           ))}
@@ -1096,13 +1065,12 @@ function CustomFieldsSection() {
                       <span className="set-icon-lg" aria-hidden="true">{TYPE_ICONS[f.field_type] || <Type size={18} />}</span>
                       <div className="u-flex1">
                         <span className="u-base-600">{f.name}</span>
-                        <span className="set-key">{f.field_key}</span>
+                        <span className="ds-codigo set-key">{f.field_key}</span>
                         {f.is_required && <span className="set-required">*{t('settings_sections.obligatorio_min')}</span>}
                       </div>
                       <span className="u-text2-xs">{typeLabel(f.field_type)}</span>
-                      <button type="button" onClick={() => { setEditingFieldId(f.id); setEditFieldForm({ name: f.name, is_required: f.is_required, placeholder: f.placeholder||'' }) }}
-                        className="set-btn-edit" aria-label={t('settings_sections.editar_x', { nombre: f.name })} title={t('common.edit')}><Pencil size={14} aria-hidden /></button>
-                      <button type="button" onClick={() => deleteField(f.id)} className="set-btn-delete" aria-label={t('settings_sections.eliminar_x', { nombre: f.name })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></button>
+                      <Pulsable onClick={() => { setEditingFieldId(f.id); setEditFieldForm({ name: f.name, is_required: f.is_required, placeholder: f.placeholder||'' }) }} className="set-btn-edit" aria-label={t('settings_sections.editar_x', { nombre: f.name })} title={t('common.edit')}><Pencil size={14} aria-hidden /></Pulsable>
+                      <Pulsable onClick={() => deleteField(f.id)} className="set-btn-delete" aria-label={t('settings_sections.eliminar_x', { nombre: f.name })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></Pulsable>
                     </div>
                     {editingFieldId === f.id && (
                       <div className="set-edit-strip">
@@ -1110,14 +1078,10 @@ function CustomFieldsSection() {
                           className="set-input set-input--f2" placeholder={t('settings.nombre_del_campo')} aria-label={t('settings.nombre_del_campo')} autoFocus />
                         <input value={editFieldForm.placeholder} onChange={e=>setEditFieldForm(f=>({...f,placeholder:e.target.value}))}
                           className="set-input set-input--f2" placeholder={t('settings.placeholder_del_campo')} aria-label={t('settings.placeholder_del_campo')} />
-                        <label className="set-check-nowrap">
-                          <input aria-label={t('settings_sections.obligatorio')} type="checkbox" checked={editFieldForm.is_required}
-                            onChange={e=>setEditFieldForm(f=>({...f,is_required:e.target.checked}))} />{t('settings_sections.obligatorio')}
-                        </label>
-                        <button type="button" onClick={() => updateField({ id: f.id, data: editFieldForm })} disabled={!editFieldForm.name}
-                          className="set-btn-save set-btn-save--sm"><Check size={13} aria-hidden /> {t('common.save')}</button>
-                        <button type="button" onClick={() => setEditingFieldId(null)}
-                          className="set-btn-cancel set-btn-cancel--sm" aria-label={t('common.cancel')} title={t('common.cancel')}><X size={14} aria-hidden /></button>
+                        <Checkbox className="set-check-nowrap" label={t('settings_sections.obligatorio')} checked={editFieldForm.is_required}
+                          onChange={m=>setEditFieldForm(f=>({...f,is_required:m}))} />
+                        <Pulsable onClick={() => updateField({ id: f.id, data: editFieldForm })} disabled={!editFieldForm.name} className="set-btn-save set-btn-save--sm"><Check size={13} aria-hidden /> {t('common.save')}</Pulsable>
+                        <Pulsable onClick={() => setEditingFieldId(null)} className="set-btn-cancel set-btn-cancel--sm" aria-label={t('common.cancel')} title={t('common.cancel')}><X size={14} aria-hidden /></Pulsable>
                       </div>
                     )}
                   </React.Fragment>
@@ -1131,10 +1095,10 @@ function CustomFieldsSection() {
       <div className="set-add-panel-basic">
         <div className="set-add-title">{t('settings.anadir_campo_personalizado')}</div>
         <div className="set-grid-add-field">
-          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('settings_sections.entidad')}</label><select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.entity} onChange={e => setForm(f => ({ ...f, entity: e.target.value }))} className="set-input">{CUSTOM_FIELD_ENTITIES.map(e => <option key={e} value={e}>{entityLabel(e)}</option>)}</select></div>
+          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('settings_sections.entidad')}</label><Select suelto placeholder={false} id={`${idCampo}-1`} value={form.entity} onChange={e => setForm(f => ({ ...f, entity: e.target.value }))} className="set-input">{CUSTOM_FIELD_ENTITIES.map(e => <option key={e} value={e}>{entityLabel(e)}</option>)}</Select></div>
           <div><label htmlFor={`${idCampo}-c1150`} className="set-label">{t('common.name')}</label><input aria-label={t('common.name')} id={`${idCampo}-c1150`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value, field_key: e.target.value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') }))} className="set-input" placeholder={t('settings.nombre_del_campo')} /></div>
           <div><label htmlFor={`${idCampo}-c1151`} className="set-label">{t('settings_sections.clave')}</label><input aria-label={t('settings_sections.clave')} id={`${idCampo}-c1151`} value={form.field_key} onChange={e => setForm(f => ({ ...f, field_key: e.target.value }))} className="set-input" placeholder={t('settings_sections.clave_interna')} /></div>
-          <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings_sections.tipo')}</label><select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.field_type} onChange={e => setForm(f => ({ ...f, field_type: e.target.value }))} className="set-input">{Object.keys(FIELD_TYPE_KEYS).map(ty => <option key={ty} value={ty}>{typeLabel(ty)}</option>)}</select></div>
+          <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings_sections.tipo')}</label><Select suelto placeholder={false} id={`${idCampo}-2`} value={form.field_type} onChange={e => setForm(f => ({ ...f, field_type: e.target.value }))} className="set-input">{Object.keys(FIELD_TYPE_KEYS).map(ty => <option key={ty} value={ty}>{typeLabel(ty)}</option>)}</Select></div>
           <Button onClick={() => { createField(form); setForm({ entity: form.entity, name: '', field_key: '', field_type: 'text', is_required: false, placeholder: '' }) }} disabled={!form.name || !form.field_key}>{t('settings.anadir')}</Button>
         </div>
       </div>
@@ -1188,13 +1152,13 @@ function TemplatesSection() {
               </div>
               <div className="u-row-8">
                 <Button size="sm" onClick={e => { e.stopPropagation(); setSelected(tpl) }}>{t('settings_sections.ver_detalle')}</Button>
-                <button type="button" onClick={e => { e.stopPropagation(); deleteTemplate(tpl.id) }} className="set-btn-delete set-btn-delete--md" aria-label={t('settings_sections.eliminar_x', { nombre: tpl.name })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></button>
+                <Pulsable onClick={e => { e.stopPropagation(); deleteTemplate(tpl.id) }} className="set-btn-delete set-btn-delete--md" aria-label={t('settings_sections.eliminar_x', { nombre: tpl.name })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></Pulsable>
               </div>
             </div>
           ))}
         </div>
       )}
-      <button type="button" onClick={() => setShowCreate(true)} className="set-btn-dashed set-btn-dashed--full"><Plus size={13} aria-hidden /> {t('settings_sections.crear_plantilla')}</button>
+      <Pulsable onClick={() => setShowCreate(true)} className="set-btn-dashed set-btn-dashed--full"><Plus size={13} aria-hidden /> {t('settings_sections.crear_plantilla')}</Pulsable>
       {showCreate && <CreateTemplateModal isSaving={creatingTemplate} onClose={() => setShowCreate(false)} onSave={createTemplate} />}
       {selected && <TemplateDetailModal template={selected} onClose={() => setSelected(null)} />}
     </SeccionDeAjustes>
@@ -1310,7 +1274,7 @@ function CreateTemplateModal({ onClose, onSave, isSaving = false }: { onClose: (
       <div className="u-stack-16">
         <div className="set-grid-tpl-head">
           <div><label htmlFor={`${idCampo}-c1325`} className="set-label">{t('common.name')} *</label><input aria-label={t('common.name')} id={`${idCampo}-c1325`} value={form.name} onChange={set('name')} className="set-input" placeholder={t('settings.nombre_de_la_plantilla')} /></div>
-          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('settings_sections.tipo_proyecto')}</label><select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.project_type} onChange={set('project_type')} className="set-input"><option value="consulting">{t('settings_sections.pt_consulting')}</option><option value="development">{t('settings_sections.pt_development')}</option><option value="maintenance">{t('settings_sections.pt_maintenance')}</option><option value="internal">{t('settings_sections.pt_internal')}</option><option value="rd">{t('settings_sections.pt_rd')}</option></select></div>
+          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('settings_sections.tipo_proyecto')}</label><Select suelto placeholder={false} id={`${idCampo}-1`} value={form.project_type} onChange={set('project_type')} className="set-input"><option value="consulting">{t('settings_sections.pt_consulting')}</option><option value="development">{t('settings_sections.pt_development')}</option><option value="maintenance">{t('settings_sections.pt_maintenance')}</option><option value="internal">{t('settings_sections.pt_internal')}</option><option value="rd">{t('settings_sections.pt_rd')}</option></Select></div>
           <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings_sections.semanas_estimadas')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={form.estimated_weeks} onChange={set('estimated_weeks')} className="set-input" /></div>
           <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="set-label">{t('settings_sections.horas_estimadas')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.estimated_hours} onChange={set('estimated_hours')} className="set-input" /></div>
         </div>
@@ -1325,7 +1289,7 @@ function CreateTemplateModal({ onClose, onSave, isSaving = false }: { onClose: (
                 <span className="u-base-600">{p.name}</span>
                 <div className="u-row-8">
                   <span className="u-text2-xs">{t('settings_sections.n_tareas', { n: p.tasks.length })}</span>
-                  <button type="button" onClick={() => setForm(f => ({ ...f, phases: f.phases.filter((_, j) => j !== i) }))} className="set-btn-x" aria-label={t('settings_sections.eliminar_x', { nombre: p.name })} title={t('common.delete')}><X size={14} aria-hidden /></button>
+                  <Pulsable onClick={() => setForm(f => ({ ...f, phases: f.phases.filter((_, j) => j !== i) }))} className="set-btn-x" aria-label={t('settings_sections.eliminar_x', { nombre: p.name })} title={t('common.delete')}><X size={14} aria-hidden /></Pulsable>
                 </div>
               </div>
             </div>
@@ -1360,8 +1324,8 @@ function CreateTemplateModal({ onClose, onSave, isSaving = false }: { onClose: (
           <div className="set-draft set-draft--five">
             <input value={risk.title} onChange={e => setRisk(f => ({ ...f, title: e.target.value }))} className="set-input" placeholder={t('settings.titulo_riesgo')} aria-label={t('settings.titulo_riesgo')} />
             <input value={risk.category} onChange={e => setRisk(f => ({ ...f, category: e.target.value }))} className="set-input" placeholder={t('settings.categoria')} aria-label={t('settings.categoria_riesgo')} />
-            <select value={risk.probability} onChange={e => setRisk(f => ({ ...f, probability: e.target.value }))} className="set-input" aria-label={t('settings_sections.probabilidad')}><option value="low">{t('settings_sections.prob_low')}</option><option value="medium">{t('settings_sections.prob_medium')}</option><option value="high">{t('settings_sections.prob_high')}</option></select>
-            <select value={risk.impact} onChange={e => setRisk(f => ({ ...f, impact: e.target.value }))} className="set-input" aria-label={t('settings_sections.impacto')}><option value="minor">{t('settings_sections.imp_minor')}</option><option value="moderate">{t('settings_sections.imp_moderate')}</option><option value="major">{t('settings_sections.imp_major')}</option><option value="critical">{t('settings_sections.imp_critical')}</option></select>
+            <Select suelto placeholder={false} value={risk.probability} onChange={e => setRisk(f => ({ ...f, probability: e.target.value }))} className="set-input" aria-label={t('settings_sections.probabilidad')}><option value="low">{t('settings_sections.prob_low')}</option><option value="medium">{t('settings_sections.prob_medium')}</option><option value="high">{t('settings_sections.prob_high')}</option></Select>
+            <Select suelto placeholder={false} value={risk.impact} onChange={e => setRisk(f => ({ ...f, impact: e.target.value }))} className="set-input" aria-label={t('settings_sections.impacto')}><option value="minor">{t('settings_sections.imp_minor')}</option><option value="moderate">{t('settings_sections.imp_moderate')}</option><option value="major">{t('settings_sections.imp_major')}</option><option value="critical">{t('settings_sections.imp_critical')}</option></Select>
             <Button size="sm" onClick={addRisk} disabled={!risk.title}><Plus size={13} aria-hidden /> {t('settings_sections.ent_riesgo')}</Button>
           </div>
           <textarea aria-label={t('settings.plan_de_mitigacion_opcional')} value={risk.mitigation_plan} onChange={e => setRisk(f => ({ ...f, mitigation_plan: e.target.value }))} rows={2} className="set-input set-input--area set-input--mt8" placeholder={t('settings.plan_de_mitigacion_opcional')} />
@@ -1448,14 +1412,12 @@ function OfficesSection() {
                 <div className="set-fld-sm"><label id={`${idCampo}-${o.id}-etc1461`} htmlFor={`${idCampo}-${o.id}-c1461`} className="set-label">{t('settings_sections.ciudad')}</label>
                   <input id={`${idCampo}-${o.id}-c1461`} aria-labelledby={`${idCampo}-${o.id}-etc1461`} value={editForm.city} onChange={e => setEditForm(f=>({...f,city:e.target.value}))} className="set-input" /></div>
                 <div className="set-fld-tz"><label id={`${idCampo}-${o.id}-etc1463`} htmlFor={`${idCampo}-${o.id}-c1463`} className="set-label">{t('settings.timezone')}</label>
-                  <select id={`${idCampo}-${o.id}-c1463`} aria-labelledby={`${idCampo}-${o.id}-etc1463`} value={editForm.timezone} onChange={e => setEditForm(f=>({...f,timezone:e.target.value}))} className="set-input">
+                  <Select suelto placeholder={false} id={`${idCampo}-${o.id}-c1463`} value={editForm.timezone} onChange={e => setEditForm(f=>({...f,timezone:e.target.value}))} className="set-input">
                     {timezoneOptions(editForm.timezone).map(tz => <option key={tz} value={tz}>{tz}</option>)}
-                  </select></div>
+                  </Select></div>
                 <div className="set-actions-inline">
-                  <button type="button" onClick={() => update({ id: o.id, data: editForm })} disabled={!editForm.name}
-                    className="set-btn-save"><Check size={13} aria-hidden /> {t('common.save')}</button>
-                  <button type="button" onClick={() => setEditingId(null)}
-                    className="set-btn-cancel">{t('common.cancel')}</button>
+                  <Pulsable onClick={() => update({ id: o.id, data: editForm })} disabled={!editForm.name} className="set-btn-save"><Check size={13} aria-hidden /> {t('common.save')}</Pulsable>
+                  <Pulsable onClick={() => setEditingId(null)} className="set-btn-cancel">{t('common.cancel')}</Pulsable>
                 </div>
               </div>
             ) : (
@@ -1465,9 +1427,8 @@ function OfficesSection() {
                   <div className="u-base-700">{o.name}</div>
                   <div className="u-text2-xs">{o.city}{o.country ? `, ${o.country}` : ''} · {o.timezone}</div>
                 </div>
-                <button type="button" onClick={() => { setEditingId(o.id); setEditForm({ name:o.name, country:o.country||'', city:o.city||'', timezone:o.timezone||defaultTimezone }) }}
-                  className="set-btn-edit" aria-label={t('settings_sections.editar_x', { nombre: o.name })} title={t('common.edit')}><Pencil size={14} aria-hidden /></button>
-                <button type="button" onClick={() => del(o.id)} className="set-btn-delete" aria-label={t('settings_sections.eliminar_x', { nombre: o.name })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></button>
+                <Pulsable onClick={() => { setEditingId(o.id); setEditForm({ name:o.name, country:o.country||'', city:o.city||'', timezone:o.timezone||defaultTimezone }) }} className="set-btn-edit" aria-label={t('settings_sections.editar_x', { nombre: o.name })} title={t('common.edit')}><Pencil size={14} aria-hidden /></Pulsable>
+                <Pulsable onClick={() => del(o.id)} className="set-btn-delete" aria-label={t('settings_sections.eliminar_x', { nombre: o.name })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></Pulsable>
               </div>
             )}
           </div>
@@ -1478,7 +1439,7 @@ function OfficesSection() {
         <div className="set-flex2"><label htmlFor={`${idCampo}-c1491`} className="set-label">{t('common.name')} *</label><input aria-label={t('common.name')} id={`${idCampo}-c1491`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="set-input" placeholder={t('settings.nombre_de_la_sede')} /></div>
         <div className="u-flex1"><label htmlFor={`${idCampo}-pais`} className="set-label">{t('settings.pais')}</label><input aria-label={t('settings.pais')} id={`${idCampo}-pais`} value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))} className="set-input" placeholder={t('settings.pais')} /></div>
         <div className="u-flex1"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('settings_sections.ciudad')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} className="set-input" /></div>
-        <div className="u-flex1"><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings.timezone')}</label><select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.timezone} onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))} className="set-input">{timezoneOptions(form.timezone).map(tz => <option key={tz} value={tz}>{tz}</option>)}</select></div>
+        <div className="u-flex1"><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings.timezone')}</label><Select suelto placeholder={false} id={`${idCampo}-2`} value={form.timezone} onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))} className="set-input">{timezoneOptions(form.timezone).map(tz => <option key={tz} value={tz}>{tz}</option>)}</Select></div>
         <Button onClick={() => { create(form); setForm({ name: '', country: '', city: '', timezone: defaultTimezone }) }} disabled={!form.name}>{t('settings.anadir')}</Button>
       </div>
     </SeccionDeAjustes>
@@ -1516,9 +1477,8 @@ function TaskTypesSection() {
                 <div className="set-type-name">{tt.name}</div>
                 <div className="u-text2-2xs">{tt.is_billable_default ? t('settings_sections.facturable') : t('settings_sections.no_facturable')}</div>
               </div>
-              <button type="button" onClick={() => { setEditingId(tt.id); setEditForm({ name: tt.name, icon: tt.icon, color: tt.color, is_billable_default: tt.is_billable_default }) }}
-                className="set-btn-ghost-icon set-ml2" aria-label={t('settings_sections.editar_x', { nombre: tt.name })} title={t('common.edit')}><Pencil size={14} aria-hidden /></button>
-              <button type="button" onClick={() => del(tt.id)} className="set-btn-ghost-icon set-btn-ghost-icon--danger set-ml2" aria-label={t('settings_sections.eliminar_x', { nombre: tt.name })} title={t('common.delete')}><X size={14} aria-hidden /></button>
+              <Pulsable onClick={() => { setEditingId(tt.id); setEditForm({ name: tt.name, icon: tt.icon, color: tt.color, is_billable_default: tt.is_billable_default }) }} className="set-btn-ghost-icon set-ml2" aria-label={t('settings_sections.editar_x', { nombre: tt.name })} title={t('common.edit')}><Pencil size={14} aria-hidden /></Pulsable>
+              <Pulsable onClick={() => del(tt.id)} className="set-btn-ghost-icon set-btn-ghost-icon--danger set-ml2" aria-label={t('settings_sections.eliminar_x', { nombre: tt.name })} title={t('common.delete')}><X size={14} aria-hidden /></Pulsable>
             </div>
           ))}
         </div>
@@ -1528,9 +1488,9 @@ function TaskTypesSection() {
           <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('common.name')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={editForm.name} onChange={e => setEditForm(f=>({...f,name:e.target.value}))} className="set-input set-input--w130" autoFocus /></div>
           <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings_sections.icono')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={editForm.icon} onChange={e => setEditForm(f=>({...f,icon:e.target.value}))} className="set-input set-input--w55" /></div>
           <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="set-label">{t('settings_sections.color')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="color" value={/^#[0-9a-fA-F]{6}$/.test(editForm.color)?editForm.color:COLOR_DATO_POR_DEFECTO} onChange={e=>setEditForm(f=>({...f,color:e.target.value}))} className="set-color-input set-color-input--sm" /></div>
-          <label className="set-check-label set-check-pb"><input aria-label={t('settings_sections.facturable')} type="checkbox" checked={editForm.is_billable_default} onChange={e=>setEditForm(f=>({...f,is_billable_default:e.target.checked}))} />{t('settings_sections.facturable')}</label>
-          <button type="button" onClick={() => update({ id: editingId, data: editForm })} disabled={!editForm.name} className="set-btn-save"><Check size={13} aria-hidden /> {t('common.save')}</button>
-          <button type="button" onClick={() => setEditingId(null)} className="set-btn-cancel">{t('common.cancel')}</button>
+          <Checkbox className="set-check-label set-check-pb" label={t('settings_sections.facturable')} checked={editForm.is_billable_default} onChange={m=>setEditForm(f=>({...f,is_billable_default:m}))} />
+          <Pulsable onClick={() => update({ id: editingId, data: editForm })} disabled={!editForm.name} className="set-btn-save"><Check size={13} aria-hidden /> {t('common.save')}</Pulsable>
+          <Pulsable onClick={() => setEditingId(null)} className="set-btn-cancel">{t('common.cancel')}</Pulsable>
         </div>
       )}
       <div className="set-add-panel">
@@ -1538,7 +1498,7 @@ function TaskTypesSection() {
         <div><label htmlFor={`${idCampo}-c1552`} className="set-label">{t('settings_sections.clave')}</label><input aria-label={t('settings_sections.clave')} id={`${idCampo}-c1552`} value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} className="set-input set-input--w110" placeholder={t('settings_sections.clave')} /></div>
         <div><label htmlFor={`${idCampo}-c1553`} className="set-label">{t('settings_sections.icono')}</label><input aria-label={t('settings_sections.icono')} id={`${idCampo}-c1553`} value={form.icon} onChange={e => setForm(f => ({ ...f, icon: e.target.value }))} className="set-input set-input--w60" placeholder={t('settings_sections.icono')} /></div>
         <div><label id={`${idCampo}-etc1554`} htmlFor={`${idCampo}-c1554`} className="set-label">{t('settings_sections.color')}</label><div className="u-row-6"><input id={`${idCampo}-c1554`} aria-labelledby={`${idCampo}-etc1554`} type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} className="set-color-input set-color-input--sq" /><input aria-labelledby={`${idCampo}-etc1554`} value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} className="set-input set-input--w90" /></div></div>
-        <label className="set-check-label set-check-pb6"><input aria-label={t('settings_sections.facturable')} type="checkbox" checked={form.is_billable_default} onChange={e => setForm(f => ({ ...f, is_billable_default: e.target.checked }))} />{t('settings_sections.facturable')}</label>
+        <Checkbox className="set-check-label set-check-pb6" label={t('settings_sections.facturable')} checked={form.is_billable_default} onChange={m => setForm(f => ({ ...f, is_billable_default: m }))} />
         <Button onClick={() => { create(form); setForm({ name: '', value: '', icon: '', color: COLOR_DATO_POR_DEFECTO, is_billable_default: true }) }} disabled={!form.name || !form.value}>{t('settings.anadir')}</Button>
       </div>
     </SeccionDeAjustes>
@@ -1568,10 +1528,9 @@ function DepartmentsSection() {
   const setEditingId = (v: SetStateAction<string | null>) => setUi(s => ({ ...s, editingId: typeof v === 'function' ? v(s.editingId) : v }))
   const setEditForm = (v: SetStateAction<DepartmentForm>) => setUi(s => ({ ...s, editForm: typeof v === 'function' ? v(s.editForm) : v }))
   const selectorDeArea = (valor: string, onChange: (v: string) => void) => (
-    <select value={valor} onChange={e => onChange(e.target.value)} aria-label={t('settings.area_del_departamento')} className="set-input set-input--f2 set-input--compact">
-      <option value="">{t('settings.sin_area')}</option>
+    <Select suelto placeholder={t('settings.sin_area')} value={valor} onChange={e => onChange(e.target.value)} aria-label={t('settings.area_del_departamento')} className="set-input set-input--f2 set-input--compact">
       {areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-    </select>
+    </Select>
   )
   return (
     <>
@@ -1588,20 +1547,16 @@ function DepartmentsSection() {
                   <input value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
                     className="set-input set-input--f3 set-input--compact" placeholder={t('common.description')} aria-label={t('settings.descripcion_del_departamento')} />
                   {selectorDeArea(editForm.area_id, v => setEditForm(f => ({ ...f, area_id: v })))}
-                  <button type="button" onClick={() => update({ id: d.id, data: { ...editForm, area_id: editForm.area_id || null } })} disabled={!editForm.name}
-                    className="set-btn-save set-btn-confirm-light" aria-label={t('common.save')} title={t('common.save')}><Check size={14} aria-hidden /></button>
-                  <button type="button" onClick={() => setEditingId(null)}
-                    className="set-btn-cancel set-btn-cancel--sm" aria-label={t('common.cancel')} title={t('common.cancel')}><X size={14} aria-hidden /></button>
+                  <Pulsable onClick={() => update({ id: d.id, data: { ...editForm, area_id: editForm.area_id || null } })} disabled={!editForm.name} className="set-btn-save set-btn-confirm-light" aria-label={t('common.save')} title={t('common.save')}><Check size={14} aria-hidden /></Pulsable>
+                  <Pulsable onClick={() => setEditingId(null)} className="set-btn-cancel set-btn-cancel--sm" aria-label={t('common.cancel')} title={t('common.cancel')}><X size={14} aria-hidden /></Pulsable>
                 </div>
               ) : (
                 <div className="set-item set-item--wrap">
                   <span className="set-dept-name">{d.name}</span>
                   {nombreDeArea(d.area_id) && <span className="set-area-tag">{nombreDeArea(d.area_id)}</span>}
                   {d.description && <span className="u-text2-sm">{d.description}</span>}
-                  <button type="button" onClick={() => { setEditingId(d.id); setEditForm({ name: d.name, description: d.description || '', area_id: d.area_id || '' }) }}
-                    className="set-btn-edit" aria-label={t('settings_sections.editar_x', { nombre: d.name })} title={t('common.edit')}><Pencil size={14} aria-hidden /></button>
-                  <button type="button" onClick={() => del(d.id)}
-                    className="set-btn-delete" aria-label={t('settings_sections.eliminar_x', { nombre: d.name })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></button>
+                  <Pulsable onClick={() => { setEditingId(d.id); setEditForm({ name: d.name, description: d.description || '', area_id: d.area_id || '' }) }} className="set-btn-edit" aria-label={t('settings_sections.editar_x', { nombre: d.name })} title={t('common.edit')}><Pencil size={14} aria-hidden /></Pulsable>
+                  <Pulsable onClick={() => del(d.id)} className="set-btn-delete" aria-label={t('settings_sections.eliminar_x', { nombre: d.name })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></Pulsable>
                 </div>
               )}
             </div>
@@ -1640,16 +1595,15 @@ function AreasSection() {
               {editando?.id === a.id ? (
                 <>
                   <input value={editando.name} onChange={e => setEditando({ id: a.id, name: e.target.value })} aria-label={t('settings.nombre_del_area')} className="set-input set-input--f2 set-input--compact" autoFocus />
-                  <button type="button" onClick={() => ejecutar(() => presupuestosApi.guardarArea({ name: editando.name }, a.id)).then(() => setEditando(null))} disabled={!editando.name.trim()}
-                    className="set-btn-save set-btn-confirm-light" aria-label={t('common.save')} title={t('common.save')}><Check size={14} aria-hidden /></button>
-                  <button type="button" onClick={() => setEditando(null)} className="set-btn-cancel set-btn-cancel--sm" aria-label={t('common.cancel')} title={t('common.cancel')}><X size={14} aria-hidden /></button>
+                  <Pulsable onClick={() => ejecutar(() => presupuestosApi.guardarArea({ name: editando.name }, a.id)).then(() => setEditando(null))} disabled={!editando.name.trim()} className="set-btn-save set-btn-confirm-light" aria-label={t('common.save')} title={t('common.save')}><Check size={14} aria-hidden /></Pulsable>
+                  <Pulsable onClick={() => setEditando(null)} className="set-btn-cancel set-btn-cancel--sm" aria-label={t('common.cancel')} title={t('common.cancel')}><X size={14} aria-hidden /></Pulsable>
                 </>
               ) : (
                 <>
                   <span className="u-base-600">{a.name}</span>
                   <span className="set-area-depts">{a.departamentos.length ? a.departamentos.join(', ') : t('settings.area_sin_departamentos')}</span>
-                  <button type="button" onClick={() => setEditando({ id: a.id, name: a.name })} className="set-btn-edit" aria-label={t('settings_sections.editar_x', { nombre: a.name })} title={t('common.edit')}><Pencil size={14} aria-hidden /></button>
-                  <button type="button" onClick={() => ejecutar(() => presupuestosApi.borrarArea(a.id))} className="set-btn-delete" aria-label={t('settings_sections.eliminar_x', { nombre: a.name })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></button>
+                  <Pulsable onClick={() => setEditando({ id: a.id, name: a.name })} className="set-btn-edit" aria-label={t('settings_sections.editar_x', { nombre: a.name })} title={t('common.edit')}><Pencil size={14} aria-hidden /></Pulsable>
+                  <Pulsable onClick={() => ejecutar(() => presupuestosApi.borrarArea(a.id))} className="set-btn-delete" aria-label={t('settings_sections.eliminar_x', { nombre: a.name })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></Pulsable>
                 </>
               )}
             </div>
@@ -1724,7 +1678,7 @@ function MetricsSection() {
           {builtinMetrics.map(m => (
             <div key={m.key} className="set-metric-tile">
               <div className="u-text1-sm-600">{m.label}</div>
-              <div className="set-metric-key">{m.key}</div>
+              <div className="ds-codigo set-metric-key">{m.key}</div>
             </div>
           ))}
         </div>
@@ -1751,11 +1705,11 @@ function MetricsSection() {
                 <div key={cm.key} className="set-rule">
                   <div className="u-flex1-min0">
                     <div className="set-metric-name">{cm.label}</div>
-                    <div className="set-metric-formula">({la} {f.operator} {lb}){scale}</div>
+                    <div className="ds-codigo set-metric-formula">({la} {f.operator} {lb}){scale}</div>
                     {cm.description && <div className="u-text3-xs-mt2">{cm.description}</div>}
                   </div>
                   <div className="set-rule-actions set-rule-actions--8">
-                    <span className="set-metric-id">{cm.key}</span>
+                    <span className="ds-codigo set-metric-id">{cm.key}</span>
                     <Button variant="danger" size="xs" onClick={() => openConfirmGlobal({ title: t('settings_sections.eliminar_metrica'), message: t('settings_sections.confirmar_eliminar_metrica', { nombre: cm.label }), onConfirm: () => deleteMetric(cm.key) })}>{t('common.delete')}</Button>
                   </div>
                 </div>
@@ -1781,33 +1735,31 @@ function MetricsSection() {
               <div className="set-formula-grid">
                 <div>
                   <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="set-label">{t('settings.metrica_a')}</label>
-                  <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.operand_a} onChange={setF('operand_a')} className="set-input">
-                    <option value="">{t('settings_sections.selecciona')}</option>
+                  <Select suelto placeholder={t('settings_sections.selecciona')} id={`${idCampo}-3`} value={form.operand_a} onChange={setF('operand_a')} className="set-input">
                     {builtinMetrics.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
-                  </select>
+                  </Select>
                 </div>
                 <div>
                   <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="set-label" title={t('settings_sections.operador')}>{t('settings_sections.op')}</label>
-                  <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.operator} onChange={setF('operator')} className="set-input set-input--w70">
+                  <Select suelto placeholder={false} id={`${idCampo}-4`} value={form.operator} onChange={setF('operator')} className="set-input set-input--w70">
                     {Object.entries(OPERATOR_KEYS).map(([k, v]) => <option key={k} value={k}>{k} ({t(v)})</option>)}
-                  </select>
+                  </Select>
                 </div>
                 <div>
                   <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="set-label">{t('settings_sections.tipo_b')}</label>
-                  <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.operand_b_type} onChange={setF('operand_b_type')} className="set-input">
+                  <Select suelto placeholder={false} id={`${idCampo}-5`} value={form.operand_b_type} onChange={setF('operand_b_type')} className="set-input">
                     <option value="metric">{t('settings.otra_metrica')}</option>
                     <option value="constant">{t('settings_sections.constante')}</option>
-                  </select>
+                  </Select>
                 </div>
               </div>
               <div className="u-grid2-10">
                 <div>
                   <label id={`${idCampo}-etopb`} htmlFor={`${idCampo}-opb`} className="set-label">{form.operand_b_type === 'metric' ? t('settings_sections.metrica_b') : t('settings_sections.valor_constante')}</label>
                   {form.operand_b_type === 'metric' ? (
-                    <select id={`${idCampo}-opb`} aria-labelledby={`${idCampo}-etopb`} value={form.operand_b} onChange={setF('operand_b')} className="set-input">
-                      <option value="">{t('settings_sections.selecciona')}</option>
+                    <Select suelto placeholder={t('settings_sections.selecciona')} id={`${idCampo}-opb`} value={form.operand_b} onChange={setF('operand_b')} className="set-input">
                       {builtinMetrics.filter(m => m.key !== form.operand_a).map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
-                    </select>
+                    </Select>
                   ) : (
                     <input id={`${idCampo}-opb`} aria-labelledby={`${idCampo}-etopb`} type="number" value={form.operand_b} onChange={setF('operand_b')} className="set-input" placeholder="0" />
                   )}
@@ -1979,8 +1931,8 @@ function ESignSettingsSection() {
             <div className="set-eyebrow">{t('settings.webhooks_de_sincronizacion_de_estado')}</div>
             <div className="set-code-box">
               <div className="u-text2-xs-mb4">{t('settings.configura_en_el_panel_de_tu_proveedor')}</div>
-              <div className="set-code-line">DocuSign Connect: <span className="u-text1">{apiUrl('/esign/webhooks/docusign')}</span></div>
-              <div className="set-code-line">Adobe Sign: <span className="u-text1">{apiUrl('/esign/webhooks/adobe')}</span></div>
+              <div className="set-code-line">DocuSign Connect: <span className="ds-codigo u-text1">{apiUrl('/esign/webhooks/docusign')}</span></div>
+              <div className="set-code-line">Adobe Sign: <span className="ds-codigo u-text1">{apiUrl('/esign/webhooks/adobe')}</span></div>
             </div>
           </div>
 
@@ -2037,18 +1989,8 @@ function SessionSecuritySection() {
               {t('settings.cierra_la_sesion_automaticamente_si_el_usuario')}
             </div>
           </div>
-          <label className="set-switch">
-            <input
-              type="checkbox"
-              role="switch"
-              aria-label={t('settings.cierre_de_sesion_por_inactividad')}
-              checked={idleEnabled}
-              onChange={e => update({ key: 'idle_timeout_enabled', value: e.target.checked ? 'true' : 'false' })}
-            />
-            <span className="set-switch-track" aria-hidden="true">
-              <span className="set-switch-knob" />
-            </span>
-          </label>
+          <Switch aria-label={t('settings.cierre_de_sesion_por_inactividad')} checked={idleEnabled}
+            onChange={m => update({ key: 'idle_timeout_enabled', value: m ? 'true' : 'false' })} />
         </div>
 
         {/* Timeout duration selector */}
@@ -2056,16 +1998,16 @@ function SessionSecuritySection() {
           <span id="set-idle-minutes" className="set-label">{t('settings.minutos_de_inactividad_antes_de_cerrar_sesion')}</span>
           <div className="set-options">
             {IDLE_TIMEOUT_OPTIONS.map(m => (
-              <button
+              <IconButton
                 key={m}
-                type="button"
+                ariaLabel={m < 60 ? t('settings_sections.n_min', { n: m }) : t('settings_sections.n_h', { n: m / 60 })}
                 aria-pressed={m === idleMinutes}
                 tabIndex={idleEnabled ? undefined : -1}
                 onClick={() => update({ key: 'idle_timeout_minutes', value: String(m) })}
                 className={`set-option${m === idleMinutes ? ' set-option--on' : ''}`}
               >
                 {m < 60 ? t('settings_sections.n_min', { n: m }) : t('settings_sections.n_h', { n: m / 60 })}
-              </button>
+              </IconButton>
             ))}
           </div>
           <div className="set-hint-mt10">

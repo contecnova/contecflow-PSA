@@ -7,7 +7,7 @@ import { type CSSProperties, useState, useEffect, useRef, useCallback } from 're
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { alertsApi } from '../services/api'
 import type { Alerta } from '../services/api/tipos-documentos'
-import { Button, Spinner, EmptyState, KpiCard, Tabs } from '../components/ui'
+import { Button, Pulsable, Spinner, EmptyState, KpiCard, Tabs } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Bell, Check } from 'lucide-react'
@@ -96,10 +96,8 @@ function NotifItem({ notif, onMarkRead }: { notif: NotificationItem; onMarkRead:
 
   if (isUnread) {
     return (
-      <button type="button" onClick={() => onMarkRead(notif.id)}
-        className="notif-btn notifica-sx1 notifications-page-e1" style={{ '--notifications-page-border': `1px solid ${alpha(cfg.color, '25')}` } as CSSProperties}
-        onMouseEnter={e => { e.currentTarget.style.borderColor = alpha(cfg.color, '50') }}
-        onMouseLeave={e => { e.currentTarget.style.borderColor = alpha(cfg.color, '25') }}>
+      <Pulsable onClick={() => onMarkRead(notif.id)}
+        className="notif-btn notif-btn--sin-leer notifica-sx1 notifications-page-e1" style={{ '--notifications-page-border': `1px solid ${alpha(cfg.color, '25')}`, '--notif-borde-hover': alpha(cfg.color, '50') } as CSSProperties}>
         <div className="notif-box notifications-page-e2" style={{ '--notifications-page-background': cfg.color } as CSSProperties} />
         <div className="notif-row notifica-sx1 notifications-page-e3 notifications-page-e4" aria-hidden style={{ '--notifications-page-background': alpha(cfg.color, '20'), '--notifications-page-border': `1px solid ${alpha(cfg.color, '30')}`, '--notifications-page-color': cfg.color } as CSSProperties}>
           <Icono size={16} />
@@ -114,7 +112,7 @@ function NotifItem({ notif, onMarkRead }: { notif: NotificationItem; onMarkRead:
           {notif.body && <div className="notif-box-4">{notif.body}</div>}
           <div className="notif-box-5">{notif.created_at?.replace('T', ' ').slice(0, 16)}</div>
         </div>
-      </button>
+      </Pulsable>
     )
   }
 

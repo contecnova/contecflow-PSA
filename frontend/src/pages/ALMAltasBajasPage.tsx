@@ -17,7 +17,7 @@ import { Boxes, CalendarClock, ClipboardCheck, KeyRound, Laptop, ListChecks, Pac
 import { almIntegracionApi } from '../services/api/almIntegracion'
 import type { Baja, Devolucion, ElementoDeKit, ItemDeCatalogoAlm, Kit, Peticion, PropuestaDeKit } from '../services/api/almIntegracion'
 import { licensesApi, sdCatalogApi, usersApi } from '../services/api'
-import { Button, DataTable, EmptyState, KpiCard, Modal, Page, Select, Spinner, Tabs } from '../components/ui'
+import { Button, DataTable, EmptyState, KpiCard, Modal, Page, Select, Spinner, Tabs, Pulsable, Checkbox } from '../components/ui'
 import DateInput from '../components/ui/DateInput'
 import { useAppT } from '../i18n/AppLangContext'
 import { useToast } from '../context/ToastContext'
@@ -83,7 +83,7 @@ function Bajas() {
       <Button icon={<CalendarClock size={14} />} onClick={() => setProgramar(true)}>{t('almint.programar_baja')}</Button>
     </div>
     {q.isLoading ? <Spinner /> : <DataTable<Baja> data={filas} emptyIcon={<UserMinus size={28} />} emptyTitle={t('almint.sin_bajas')} columns={[
-      { key: 'user_name', label: t('almint.persona'), render: (_v, f) => <button type="button" className="almint-boton-enlace" onClick={() => setAbierta(f.id)}>{f.user_name}</button> },
+      { key: 'user_name', label: t('almint.persona'), render: (_v, f) => <Pulsable type="button" className="almint-boton-enlace" onClick={() => setAbierta(f.id)}>{f.user_name}</Pulsable> },
       { key: 'motivo', label: t('almint.col_motivo'), render: (_v, f) => etiqueta(t, 'motivo_baja', f.motivo) },
       { key: 'estado', label: t('almint.col_estado'), render: (_v, f) => <Estado t={t} codigo={f.estado} /> },
       { key: 'fecha_efectiva', label: t('almint.col_fecha_baja'), render: (_v, f) => fmtDate(f.fecha_efectiva) },
@@ -212,7 +212,7 @@ function AccionDeDevolucion({ tipo, d, onClose }: { tipo: 'recibir' | 'perdida';
           options={CONDICIONES.map(c => ({ value: c, label: etiqueta(t, 'condicion', c) }))} />
         <label className="almint-campo">{t('almint.observaciones')}
           <textarea className="ds-input" rows={3} value={f.observations} onChange={e => setF({ ...f, observations: e.target.value })} /></label>
-        <label className="almint-elemento"><span><input type="checkbox" checked={f.a_reparar} onChange={e => setF({ ...f, a_reparar: e.target.checked })} /> {t('almint.enviar_a_reparar')}</span></label>
+        <label className="almint-elemento"><span><Checkbox checked={f.a_reparar} onChange={(_, e) => setF({ ...f, a_reparar: e.target.checked })} /> {t('almint.enviar_a_reparar')}</span></label>
         <p className="almint-tenue">{t('almint.recepcion_explicacion')}</p>
       </> : <label className="almint-campo">{t('almint.motivo')}
         <textarea className="ds-input" rows={3} value={f.motivo} onChange={e => setF({ ...f, motivo: e.target.value })} /></label>}
@@ -271,8 +271,8 @@ function TarjetaDePropuesta({ p }: { p: PropuestaDeKit }) {
     <div>
       {(p.estado === 'pendiente' ? p.elementos : resultado).map((e, i) => <div key={`${e.clave}-${i}`} className="almint-elemento">
         <label>
-          {p.estado === 'pendiente' && <input type="checkbox" checked={elegidas.includes(e.clave ?? '')}
-            onChange={ev => setElegidas(ev.target.checked ? [...elegidas, e.clave ?? ''] : elegidas.filter(c => c !== e.clave))} />}
+          {p.estado === 'pendiente' && <Checkbox checked={elegidas.includes(e.clave ?? '')}
+            onChange={(_, ev) => setElegidas(ev.target.checked ? [...elegidas, e.clave ?? ''] : elegidas.filter(c => c !== e.clave))} />}
           {e.tipo === 'licencia' ? <KeyRound size={14} aria-hidden /> : <Laptop size={14} aria-hidden />}
           <span>{e.tipo === 'licencia' ? e.license_name : `${etiqueta(t, 'tipo_equipo', e.asset_type)} × ${e.cantidad}`}</span>
         </label>

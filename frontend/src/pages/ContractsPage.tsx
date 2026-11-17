@@ -6,7 +6,7 @@ import { z } from 'zod'
 import { projectsApi, contractsApi } from '../services/api'
 import type { ContratoDeServicio } from '../services/api/tipos-finanzas'
 import DocumentosDeFicha from '../components/conectores/DocumentosDeFicha'
-import { Button, Modal, Spinner, EmptyState, ClientSelect, KpiCard, useSort, SortableTH } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, ClientSelect, KpiCard, useSort, SortableTH, Pulsable, Select } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Building2, CalendarClock, ClipboardList, Coins, LayoutGrid, List, Pencil, Plus, ScrollText, Wrench } from 'lucide-react'
@@ -175,10 +175,10 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
         </div>
         <div>
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ctr-label">{t('contractspage.campo_proyecto')}</label>
-          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.project_id} onChange={set('project_id')} className="ctr-input" {...err('project_id')}>
+          <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.project_id} onChange={set('project_id')} className="ctr-input" {...err('project_id')}>
             <option value="">{t('contractspage.seleccionar')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-          </select>
+          </Select>
           {msg('project_id')}
         </div>
         <div>
@@ -197,16 +197,16 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
         </div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ctr-label">{t('contracts.tipo_de_contrato')}</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.contract_type} onChange={set('contract_type')} className="ctr-input" {...err('contract_type')}>
+          <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.contract_type} onChange={set('contract_type')} className="ctr-input" {...err('contract_type')}>
             {CONTRACT_TYPES.map(v => <option key={v} value={v}>{t(`contractspage.tipo_${v}`)}</option>)}
-          </select>
+          </Select>
           {msg('contract_type')}
         </div>
         <div>
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ctr-label">{t('contractspage.campo_estado')}</label>
-          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.status} onChange={set('status')} className="ctr-input">
+          <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.status} onChange={set('status')} className="ctr-input">
             {Object.keys(STATUS_COLOR).map(v => <option key={v} value={v}>{t(`contractspage.estado_${v}`)}</option>)}
-          </select>
+          </Select>
         </div>
         {form.contract_type === 'fixed_price' && (
           <div>
@@ -351,11 +351,11 @@ function ContractDetail({ contract, onClose, onEdit }: { contract: Contract; onC
                       {wo.start_date ? ` · ${fmtDate(wo.start_date)}` : ''}
                     </div>
                   </div>
-                  <select value={wo.status} onChange={e => updateWOStatus({ woId: wo.id, status: e.target.value })}
+                  <Select suelto placeholder={false} value={wo.status} onChange={e => updateWOStatus({ woId: wo.id, status: e.target.value })}
                     aria-label={t('contractspage.estado_de_ot', { code: wo.code })}
                     className="ctr-wo-status" style={colorVar(WO_COLOR[woEstado])}>
                     {Object.keys(WO_COLOR).map(v => <option key={v} value={v}>{t(`contractspage.ot_${v}`)}</option>)}
-                  </select>
+                  </Select>
                 </div>
               )
             })}
@@ -458,20 +458,20 @@ export default function ContractsPage(): JSX.Element {
       <div className="ds-page">
 
       <div className="ds-toolbar">
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+        <Select suelto placeholder={false} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
           aria-label={t('contractspage.filtrar_estado')} className="ctr-input ctr-input--auto">
           <option value="">{t('contracts.todos_los_estados')}</option>
           {Object.keys(STATUS_COLOR).map(v => <option key={v} value={v}>{t(`contractspage.estado_${v}`)}</option>)}
-        </select>
+        </Select>
         <div className="ds-toolbar__spacer" />
         <div className="ds-segmented" role="group" aria-label={t('proyectos_ui.vista')}>
           {[
             { v: 'list', label: t('proyectos_ui.vista_lista'), Icon: List },
             { v: 'grid', label: t('proyectos_ui.vista_tarjetas'), Icon: LayoutGrid },
           ].map(({ v, label, Icon }) => (
-            <button aria-label={label} key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)} title={label}>
+            <Pulsable aria-label={label} key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)} title={label}>
               <Icon size={12} />
-            </button>
+            </Pulsable>
           ))}
         </div>
       </div>
@@ -482,7 +482,7 @@ export default function ContractsPage(): JSX.Element {
           {expiring.map(c => {
             const nivel = c.daysLeft <= 14 ? 'danger' : c.daysLeft <= 30 ? 'warning' : 'accent'
             return (
-              <button key={c.id} type="button" className={`ctr-expiring ctr-expiring--${nivel}`}
+              <Pulsable key={c.id} type="button" className={`ctr-expiring ctr-expiring--${nivel}`}
                 onClick={() => setDetail(c)}>
                 <span className="ctr-expiring__icon" aria-hidden="true"><CalendarClock size={16} /></span>
                 <div className="u-flex1-min0">
@@ -496,7 +496,7 @@ export default function ContractsPage(): JSX.Element {
                 <div className="ctr-expiring__days">
                   {c.daysLeft === 0 ? t('contractspage.vence_hoy') : t(c.daysLeft === 1 ? 'contractspage.vence_en_uno' : 'contractspage.vence_en', { count: c.daysLeft })}
                 </div>
-              </button>
+              </Pulsable>
             )
           })}
         </div>
@@ -527,7 +527,7 @@ export default function ContractsPage(): JSX.Element {
             const estado = estadoDe(c)
             const vencido = !!c.end_date && new Date(c.end_date) < new Date()
             return (
-              <button key={c.id} type="button" className="ctr-table__row"
+              <Pulsable key={c.id} type="button" className="ctr-table__row"
                 onClick={() => setDetail(c)}>
                 <div className="u-min0">
                   <div className="u-base-600">{c.name}</div>
@@ -539,7 +539,7 @@ export default function ContractsPage(): JSX.Element {
                 <span className={vencido ? 'ctr-date is-overdue' : 'ctr-date'}>{c.end_date ? fmtDate(c.end_date) : '—'}</span>
                 <span className="ctr-status-text" style={colorVar(STATUS_COLOR[estado])}>{t(`contractspage.estado_${estado}`)}</span>
                 <span className="u-text2-sm">{c.work_orders?.length || 0}</span>
-              </button>
+              </Pulsable>
             )
           })}
           </div>
@@ -550,7 +550,7 @@ export default function ContractsPage(): JSX.Element {
             const estado = estadoDe(c)
             const nOts = c.work_orders?.length ?? 0
             return (
-              <button key={c.id} type="button" onClick={() => setDetail(c)}
+              <Pulsable key={c.id} type="button" onClick={() => setDetail(c)}
                 className="ctr-card" style={colorVar(STATUS_COLOR[estado])}>
                 <div className="ctr-card__head">
                   <div className="u-min0">
@@ -570,7 +570,7 @@ export default function ContractsPage(): JSX.Element {
                 <div className="ctr-card__dates">
                   {c.start_date ? fmtDate(c.start_date) : '—'} – {c.end_date ? <span className={new Date(c.end_date) < new Date() ? 'is-overdue' : undefined}>{fmtDate(c.end_date)}</span> : '—'}
                 </div>
-              </button>
+              </Pulsable>
             )
           })}
         </div>

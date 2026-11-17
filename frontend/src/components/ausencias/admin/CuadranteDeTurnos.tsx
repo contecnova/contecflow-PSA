@@ -12,7 +12,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarDays, Eraser, Moon, Star, Users } from 'lucide-react'
 import { ausenciasApi } from '../../../services/api/ausencias'
 import type { CambioDeTurno, CeldaDeCuadrante, Cuadrante, Turno } from '../../../services/api/tipos-ausencias'
-import { EmptyState, RejillaPersonaDia, Spinner, columnasDeDias } from '../../ui'
+import { EmptyState, RejillaPersonaDia, Spinner, columnasDeDias, IconButton } from '../../ui'
 import { useToast } from '../../../context/ToastContext'
 import { useOpciones } from '../../politicas/comun'
 import { AvisoDeError, Muestra, errorDe, isoDe, mesDe, useT } from './comun'
@@ -109,7 +109,7 @@ function Rejilla({ datos }: { datos: Cuadrante }) {
           const t = p.tipo === 'turno' ? turnos.get(p.id) : undefined
           const activo = JSON.stringify(p) === JSON.stringify(pincel)
           return (
-            <button key={p.tipo === 'turno' ? p.id : p.tipo} type="button" role="radio" aria-checked={activo}
+            <IconButton key={p.tipo === 'turno' ? p.id : p.tipo} role="radio" aria-checked={activo} ariaLabel={nombreDePincel(p)}
               className={`ausadm-pincel${activo ? ' ausadm-pincel--activo' : ''}`} draggable
               onDragStart={e => { e.dataTransfer.setData(TIPO_DND, JSON.stringify(p)); e.dataTransfer.effectAllowed = 'copy' }}
               onClick={() => setPincel(p)}>
@@ -117,7 +117,7 @@ function Rejilla({ datos }: { datos: Cuadrante }) {
                 : p.tipo === 'libre' ? <Moon size={12} aria-hidden /> : <Eraser size={12} aria-hidden />}
               {nombreDePincel(p)}
               {t && <span className="ausadm-ayuda">{t.hora_inicio}–{t.hora_fin}</span>}
-            </button>
+            </IconButton>
           )
         })}
         {guardar.isPending && <Spinner size={14} label={ta('guardando')} />}

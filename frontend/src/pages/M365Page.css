@@ -85,7 +85,7 @@
 }
 .m365-color {
   width: 110px;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 .m365-muestra {
   width: 22px;
@@ -117,7 +117,7 @@
 }
 .m365-nota code,
 .m365-permiso {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--text-xs);
   background: var(--surface-2);
   padding: 1px 6px;
@@ -166,7 +166,7 @@
   border-radius: var(--radius-sm);
   background: var(--surface-2);
   border: 1px solid var(--border);
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--text-xs);
   color: var(--text-2);
   overflow-x: auto;

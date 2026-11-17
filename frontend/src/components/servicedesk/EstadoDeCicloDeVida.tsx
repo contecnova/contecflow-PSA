@@ -8,7 +8,7 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { StatusBadge } from '../ui'
+import { Select, StatusBadge } from '../ui'
 import { slaAvanzadoApi } from '../../services/api/serviceDeskMercado'
 import './sdMercado.css'
 
@@ -28,11 +28,11 @@ export default function EstadoDeCicloDeVida({ ticketId, onCambio }: { ticketId: 
     <div className="u-row-center-8 u-mb-16">
       <span className="ds-eyebrow">{data.lifecycle}</span>
       {actual && <StatusBadge caps={false} color={actual.color || undefined}>{actual.label}</StatusBadge>}
-      <select className="ds-input" aria-label={t('sd_mercado.cambiar_estado')} value="" disabled={cambiar.isPending}
+      <Select suelto placeholder={false} aria-label={t('sd_mercado.cambiar_estado')} value="" disabled={cambiar.isPending}
         onChange={e => e.target.value && cambiar.mutate(e.target.value)}>
         <option value="">{t('sd_mercado.cambiar_estado')}</option>
         {data.states.filter(s => s.key !== data.current && s.allowed).map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-      </select>
+      </Select>
     </div>
   )
 }

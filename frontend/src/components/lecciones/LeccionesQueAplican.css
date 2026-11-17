@@ -67,7 +67,7 @@
   border: 1px solid var(--surface-4);
   border-radius: 99px;
   padding: 1px 8px;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */

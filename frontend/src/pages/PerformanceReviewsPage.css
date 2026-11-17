@@ -18,7 +18,7 @@
   font-weight: 700;
   min-width: 28px;
   text-align: right;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .perf-box-2 {
@@ -45,7 +45,7 @@
 
 .perf-btn {
   width: 30px;
-  height: 30px;
+  min-height: 30px;
   cursor: pointer;
   font-size: var(--text-sm);
   font-weight: 700;
@@ -390,7 +390,7 @@
 .perf-box-29 {
   font-size: var(--text-2xl);
   font-weight: 800;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .perf-box-30 {

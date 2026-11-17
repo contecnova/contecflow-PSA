@@ -30,6 +30,7 @@ import { DYNAMIC_FORM_OPTIONS_LIMIT } from '../../constants/pagination'
 import './PortalSupportDesk.css'
 import { CampoFecha } from '../../components/ui/SelectorDeFecha'
 import { textosDeFechaDelPortal } from '../../i18n/fechaPortal'
+import { Pulsable } from '../../components/ui'
 
 
 const PRIORITY_TONE: Record<string, string> = {
@@ -815,10 +816,10 @@ function SugerenciasDeLaKb({ texto, onResuelto }: { texto: string; onResuelto: (
       <strong className="u-sm">{traducir('sd_cfg.kb_suggest_title')}</strong>
       {sugerencias.slice(0, 3).map(a => (
         <div key={a.id} className="posude-box-16">
-          <button type="button" onClick={() => setAbierto(abierto === a.id ? null : a.id)} aria-expanded={abierto === a.id}
+          <Pulsable onClick={() => setAbierto(abierto === a.id ? null : a.id)} aria-expanded={abierto === a.id}
             className="posude-box-17">
             {a.title}
-          </button>
+          </Pulsable>
           {abierto === a.id && (
             <div className="posude-stack-3">
               <div className="posude-txt-3">{detalle?.body ?? a.summary ?? ''}</div>

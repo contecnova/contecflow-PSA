@@ -10,6 +10,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { authApi } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
+import { Select } from '../ui'
 import './SelectorDeEmpresa.css'
 
 export default function SelectorDeEmpresa() {
@@ -40,7 +41,9 @@ export default function SelectorDeEmpresa() {
   }
 
   return (
-    <select
+    <Select
+      suelto
+      placeholder={false}
       aria-label={t('login.switch_org')}
       title={t('login.switch_org')}
       value={data.current ?? ''}
@@ -49,6 +52,6 @@ export default function SelectorDeEmpresa() {
       className="sedeem-box-1"
     >
       {data.items.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-    </select>
+    </Select>
   )
 }

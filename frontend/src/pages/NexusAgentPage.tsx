@@ -16,7 +16,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { aiProvidersApi, nexusAgentApi, apiStream } from '../services/api'
 import type { EjecucionDelAgente, EjecucionDelAgenteResumen, PasoDelAgente } from '../services/api/tipos-analitica'
-import { Button, Card, EmptyState, Section, Spinner } from '../components/ui'
+import { Button, Card, Checkbox, EmptyState, Pulsable, Section, Spinner } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import MarkdownText from '../components/ui/MarkdownText'
@@ -113,7 +113,8 @@ function FilaDeHistorial({ ejecucion: e, seleccionada, onAbrir }: { ejecucion: E
   const estado = e.status && STATUS_KIND[e.status] ? e.status : 'pending'
   const pasos = e.steps_count ?? 0
   return (
-    <button type="button" role="listitem" onClick={onAbrir} aria-current={seleccionada || undefined}
+    <div role="listitem">
+    <Pulsable onClick={onAbrir} aria-current={seleccionada || undefined}
       className={`nexus-hist${seleccionada ? ' nexus-hist--activa' : ''}`}>
       <span className="nexus-hist__cuerpo">
         <span className="nexus-hist__instruccion">{e.instruction}</span>
@@ -125,7 +126,8 @@ function FilaDeHistorial({ ejecucion: e, seleccionada, onAbrir }: { ejecucion: E
         </span>
       </span>
       <ChevronRight size={16} aria-hidden className="nexus-hist__flecha" />
-    </button>
+    </Pulsable>
+    </div>
   )
 }
 
@@ -312,14 +314,8 @@ export default function ContecflowAgentPage() {
               <div className="nexus-controles">
                 <div className="nexus-opciones">
                   <span className="nexus-pista">{t('nexusagent.enter_para_ejecutar')}</span>
-                  <label className="nexus-check">
-                    <input type="checkbox" checked={streaming} onChange={e => setStreaming(e.target.checked)} />
-                    {t('nexusagent.streaming')}
-                  </label>
-                  <label className="nexus-check">
-                    <input type="checkbox" checked={permitirEscritura} onChange={e => setPermitirEscritura(e.target.checked)} />
-                    {t('nexusagent.permitir_escritura')}
-                  </label>
+                  <Checkbox className="nexus-check" checked={!!streaming} onChange={setStreaming} label={t('nexusagent.streaming')} />
+                  <Checkbox className="nexus-check" checked={!!permitirEscritura} onChange={setPermitirEscritura} label={t('nexusagent.permitir_escritura')} />
                 </div>
                 <Button icon={<Play size={14} />} onClick={execute} disabled={!instruction.trim()} loading={isRunning}>
                   {isRunning ? t('nexusagent.ejecutando') : t('nexusagent.ejecutar')}
@@ -399,11 +395,11 @@ export default function ContecflowAgentPage() {
               <Section title={t('nexusagent.ejemplos')}>
                 <div className="nexus-ejemplos">
                   {EXAMPLES.map((ex, i) => (
-                    <button key={i} type="button" className="nexus-ejemplo"
+                    <Pulsable key={i} className="nexus-ejemplo"
                       onClick={() => { setInstruction(t(ex.text)); textareaRef.current?.focus() }}>
                       <span className="nexus-ejemplo__icono" aria-hidden>{ex.icon}</span>
                       <span>{t(ex.text)}</span>
-                    </button>
+                    </Pulsable>
                   ))}
                 </div>
               </Section>

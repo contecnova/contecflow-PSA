@@ -10,7 +10,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Bell, Check, Plus, Play, Trash2, ListChecks, Link2 } from 'lucide-react'
 import { biSmartAlertsApi } from '../../services/api'
 import type { AlertaDisparadaBi, ReglaDeAlertaBi } from '../../services/api/tipos-bi'
-import { Button, EmptyState, IconButton, StatusBadge } from '../ui'
+import { Button, EmptyState, IconButton, StatusBadge, Select } from '../ui'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { etiquetaMetricaBi } from '../../i18n/catalogoMetricas'
 import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
@@ -93,16 +93,16 @@ export default function SmartAlertsPanel() {
           <div className="smalpa-form">
             <input aria-label={t('smartalerts.nombre_de_la_regla')} value={name} onChange={e => setName(e.target.value)} placeholder={t('smartalerts.nombre_de_la_regla')}
               className="ds-input smalpa-form-name" />
-            <select aria-label={t('smartalerts.metrica')} value={metric} onChange={e => setMetric(e.target.value)} className="ds-input smalpa-form-select">
+            <Select suelto aria-label={t('smartalerts.metrica')} value={metric} onChange={e => setMetric(e.target.value)} className="ds-input smalpa-form-select" placeholder={false}>
               {(supported?.metrics || [{ key: 'revenue', label: 'revenue', is_custom: false }]).map(m => <option key={m.key} value={m.key}>{etiquetaDeMetrica(m.key)}</option>)}
-            </select>
-            <select aria-label={t('smartalerts.condicion')} value={condition} onChange={e => setCondition(e.target.value)} className="ds-input smalpa-form-select">
+            </Select>
+            <Select suelto aria-label={t('smartalerts.condicion')} value={condition} onChange={e => setCondition(e.target.value)} className="ds-input smalpa-form-select" placeholder={false}>
               {/* Sin campo de umbral: las condiciones `threshold_*` se crean desde Configuración (el servidor exige `threshold`). */}
               {(supported?.conditions ?? ['trend_down', 'trend_up', 'anomaly']).filter(c => !c.startsWith('threshold_')).map(c => <option key={c} value={c}>{etiquetaCodigo(t, 'condicion_alerta', c)}</option>)}
-            </select>
-            <select aria-label={t('smartalerts.severidad')} value={severity} onChange={e => setSeverity(e.target.value)} className="ds-input smalpa-form-select">
+            </Select>
+            <Select suelto aria-label={t('smartalerts.severidad')} value={severity} onChange={e => setSeverity(e.target.value)} className="ds-input smalpa-form-select" placeholder={false}>
               {SEVERIDADES.map(s => <option key={s} value={s}>{etiquetaSeveridad(s)}</option>)}
-            </select>
+            </Select>
             <Button icon={<Plus size={14} />} onClick={() => { void createRule() }} disabled={!name.trim()}>{t('smartalerts.crear')}</Button>
           </div>
           {reglas.map(rule => (

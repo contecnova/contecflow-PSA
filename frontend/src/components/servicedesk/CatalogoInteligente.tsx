@@ -11,7 +11,7 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { Button, StatusBadge } from '../ui'
+import { Button, Pulsable, StatusBadge } from '../ui'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { catalogoInteligenteApi } from '../../services/api/serviceDeskMercado'
 import type { RellenoSugerido } from '../../services/api/serviceDeskMercado'
@@ -52,9 +52,9 @@ export default function CatalogoInteligente({ texto, servicioId, onElegir, onRel
         <div className="u-wrap-6">
           <TrendingUp size={12} aria-hidden="true" />
           {chips.map(s => (
-            <button key={s.service_id} type="button" className="u-btn-outline-sm sdm-chip" aria-pressed={servicioId === s.service_id} onClick={() => onElegir(s.service_id)}>
+            <Pulsable key={s.service_id} className="u-btn-outline-sm sdm-chip" aria-pressed={servicioId === s.service_id} onClick={() => onElegir(s.service_id)}>
               {s.service_name}{s.ticket_count ? <StatusBadge caps={false}>{s.ticket_count}</StatusBadge> : null}
-            </button>
+            </Pulsable>
           ))}
         </div>
       )}

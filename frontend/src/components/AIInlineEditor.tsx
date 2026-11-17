@@ -27,6 +27,8 @@ import { nexusAgentApi } from '../services/api';
 import { traduccionApi } from '../services/api/traduccion';
 import { useAppT, type TranslationParams } from '../hooks/useAppT';
 import { errorDeTraduccion, motivoDeTraduccion, nombreDeIdioma } from '../hooks/useTraduccion';
+import { Button } from './ui'
+import IconButton from './ui/IconButton'
 import './AIInlineEditor.css'
 
 const ICONO = { size: 15, 'aria-hidden': true } as const
@@ -297,10 +299,9 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
       {anterior !== null && !loading && (
         <div className="aiinedit-row-1">
           <span>{t('ai_inline.aplicado')}</span>
-          <button type="button" onClick={() => { onChange(anterior); setAnterior(null) }}
-            className="aiinedit-box-3">
+          <Button variant="link" size="xs" onClick={() => { onChange(anterior); setAnterior(null) }}>
             {t('ai_inline.deshacer')}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -308,10 +309,10 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
       {error && (
         <div className="aiinedit-row-2" role="alert">
           <span className="aiinedit-msg"><AlertTriangle size={13} aria-hidden="true" /> <span>{error}</span></span>
-          <button type="button" onClick={() => setError('')} aria-label={t('traduccion_ui.editor.cerrar_aviso')}
+          <IconButton onClick={() => setError('')} ariaLabel={t('traduccion_ui.editor.cerrar_aviso')}
             className="aiinedit-box-4">
             <X size={13} aria-hidden="true" />
-          </button>
+          </IconButton>
         </div>
       )}
 
@@ -319,10 +320,10 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
       {aviso && (
         <div className="aiinedit-row-aviso" role="status">
           <span className="aiinedit-msg"><Info size={13} aria-hidden="true" /> <span>{aviso}</span></span>
-          <button type="button" onClick={() => setAviso('')} aria-label={t('traduccion_ui.editor.cerrar_aviso')}
+          <IconButton onClick={() => setAviso('')} ariaLabel={t('traduccion_ui.editor.cerrar_aviso')}
             className="aiinedit-box-4 aiinedit-box-4--neutro">
             <X size={13} aria-hidden="true" />
-          </button>
+          </IconButton>
         </div>
       )}
 
@@ -335,10 +336,11 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
             <span className="aiinedit-box-5">{t('ai_inline.esc_cancel')}</span>
           </div>
           {filtered.map(cmd => (
-            <button
-              type="button"
+            <IconButton
               role="menuitem"
               key={cmd.id}
+              ariaLabel={t(`traduccion_ui.editor.cmd.${cmd.id}`)}
+              title={t(`traduccion_ui.editor.hint.${cmd.id}`)}
               aria-haspopup={cmd.id === 'traducir' ? 'menu' : undefined}
               onMouseDown={(e) => { e.preventDefault(); if (cmd.id === 'traducir') abrirIdiomas(); else runCommand(cmd.id); }}
               className="aiinedit-row-4"
@@ -348,7 +350,7 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
                 <div className="aiinedit-txt-2">{t(`traduccion_ui.editor.cmd.${cmd.id}`)}</div>
                 <div className="aiinedit-box-7">{t(`traduccion_ui.editor.hint.${cmd.id}`)}</div>
               </div>
-            </button>
+            </IconButton>
           ))}
         </div>
       )}
@@ -357,10 +359,10 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
       {palette && submenu === 'idiomas' && (
         <div className="ai-inline-editor-paleta" role="menu" aria-label={t('traduccion_ui.editor.traducir_a')}>
           <div className="aiinedit-row-3">
-            <button type="button" className="aiinedit-volver" aria-label={t('traduccion_ui.editor.volver')}
+            <IconButton className="aiinedit-volver" ariaLabel={t('traduccion_ui.editor.volver')}
               onMouseDown={(e) => { e.preventDefault(); setSubmenu('comandos'); }}>
               <ChevronLeft size={14} aria-hidden="true" />
-            </button>
+            </IconButton>
             <Languages size={13} aria-hidden="true" /> <strong className="aiinedit-txt-1">{t('traduccion_ui.editor.traducir_a')}</strong>
             <span className="aiinedit-box-5">{t('ai_inline.esc_cancel')}</span>
           </div>
@@ -368,16 +370,16 @@ export default function AIInlineEditor({ value, onChange, rows = 4, placeholder,
             {cargandoIdiomas && <div className="aiinedit-vacio" aria-live="polite">{t('traduccion_ui.editor.cargando_idiomas')}</div>}
             {!cargandoIdiomas && idiomasOrdenados.length === 0 && <div className="aiinedit-vacio">{t('traduccion_ui.editor.sin_idiomas')}</div>}
             {idiomasOrdenados.map(codigo => (
-              <button
-                type="button"
+              <IconButton
                 role="menuitem"
                 key={codigo}
+                ariaLabel={nombreDeIdioma(codigo, lang)}
                 onMouseDown={(e) => { e.preventDefault(); runTraducir(codigo); }}
                 className="aiinedit-row-4 aiinedit-idioma"
               >
                 <span className="aiinedit-txt-2">{nombreDeIdioma(codigo, lang)}</span>
                 {codigo === lang && <span className="aiinedit-box-7">{t('traduccion_ui.editor.tu_idioma')}</span>}
-              </button>
+              </IconButton>
             ))}
           </div>
         </div>

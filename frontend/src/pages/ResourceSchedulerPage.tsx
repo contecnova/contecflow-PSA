@@ -25,7 +25,7 @@ import api, { projectsApi, unwrapList, type ApiError, type ProjectListItem } fro
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { CalendarDays, Trash2, Users, X } from 'lucide-react'
-import { Button, Spinner, EmptyState, Tabs, useDialogo } from '../components/ui'
+import { Button, Spinner, EmptyState, Tabs, useDialogo, Select, Pulsable } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import useMediaQuery from '../hooks/useMediaQuery'
@@ -198,12 +198,12 @@ function BookingPanel({ booking, position, projects, onSave, onDelete, onClose, 
       </div>
 
       <label className="rsch-label-muted-xs" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{t('resource_scheduler.project')}</label>
-      <select className="ds-input rsch-input" id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={projectId} onChange={e => setProjectId(e.target.value)}>
+      <Select suelto placeholder={false} className="rsch-input" id={`${idCampo}-1`} value={projectId} onChange={e => setProjectId(e.target.value)}>
         <option value="">{t('resource_scheduler.no_project')}</option>
         {projects.map(p => (
           <option key={p.id} value={p.id}>{p.code} – {p.name}</option>
         ))}
-      </select>
+      </Select>
 
       <label className="rsch-label-muted-xs" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{t('resource_scheduler.hours_per_day')}</label>
       <input className="ds-input rsch-input-2" id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" min={1} max={24} value={hoursPerDay} onChange={e => setHours(Number(e.target.value))} />
@@ -211,10 +211,10 @@ function BookingPanel({ booking, position, projects, onSave, onDelete, onClose, 
       <span className="rsch-label-muted-xs" id={`${idCampo}-et3`}>{t('resource_scheduler.type')}</span>
       <div className="rsch-row-2" role="group" aria-labelledby={`${idCampo}-et3`}>
         {['soft', 'hard'].map(typeOption => (
-          <button type="button" className={`rsch-btn-xs${bookingType === typeOption ? ' is-active' : ''}`} key={typeOption}
+          <Pulsable type="button" className={`rsch-btn-xs${bookingType === typeOption ? ' is-active' : ''}`} key={typeOption}
             aria-pressed={bookingType === typeOption} onClick={() => setType(typeOption)}>
             {typeOption === 'soft' ? t('resource_scheduler.tentative') : t('resource_scheduler.confirmed')}
-          </button>
+          </Pulsable>
         ))}
       </div>
 
@@ -514,16 +514,16 @@ export default function ResourceSchedulerPage() {
         />
         <div className="ds-toolbar__spacer" />
         {departments.length > 0 && (
-          <select className="ds-input rsch-input-3" aria-label={t('agenda_recursos_ui.departamento')} value={department} onChange={e => setDepartment(e.target.value)}>
+          <Select suelto placeholder={false} className="rsch-input-3" aria-label={t('agenda_recursos_ui.departamento')} value={department} onChange={e => setDepartment(e.target.value)}>
             <option value="">{t('resource_scheduler.all_departments')}</option>
             {departments.map(d => <option key={d} value={d}>{d}</option>)}
-          </select>
+          </Select>
         )}
-        <select className="ds-input rsch-input-3" aria-label={t('agenda_recursos_ui.horizonte')} value={weeks} onChange={e => setWeeks(Number(e.target.value))}>
+        <Select suelto placeholder={false} className="rsch-input-3" aria-label={t('agenda_recursos_ui.horizonte')} value={weeks} onChange={e => setWeeks(Number(e.target.value))}>
           {[8, 12, 16, 24].map(w => (
             <option key={w} value={w}>{t('agenda_recursos_ui.n_semanas', { n: w })}</option>
           ))}
-        </select>
+        </Select>
       </div>
 
       {/* Legend */}

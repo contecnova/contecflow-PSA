@@ -21,7 +21,7 @@ import {
   Clock, Users, ToggleLeft, ToggleRight, ChevronDown, ChevronUp, X, Plus, FileText, UserCheck, EyeOff, BarChart3,
 } from 'lucide-react'
 import { fmtDate } from '../../utils/helpers'
-import { Button, EmptyState, IconButton, KpiCard, Spinner, Tabs } from '../ui'
+import { Button, EmptyState, IconButton, KpiCard, Spinner, Tabs, Select, Segmentado, Pulsable } from '../ui'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import useMediaQuery from '../../hooks/useMediaQuery'
 import { POLL_DEFAULT_MS } from '../../constants/timings'
@@ -99,9 +99,9 @@ function DsrTab() {
       {/* Create form */}
       <div className={`bigdpa-grid-1 ${isNarrow ? 'bi-gdpr-panel-m3' : 'bi-gdpr-panel-m4'}`}>
         <input aria-label={t('bigdpr.subject_id_o_email')} placeholder={t('bigdpr.subject_id_o_email')} value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} className="bi-gdpr-panel-e30" />
-        <select value={form.request_type} onChange={e => setForm(f => ({ ...f, request_type: e.target.value }))} className="bi-gdpr-panel-e31">
+        <Select suelto value={form.request_type} onChange={e => setForm(f => ({ ...f, request_type: e.target.value }))} className="bi-gdpr-panel-e31" placeholder={false}>
           {['erasure', 'portability', 'rectification', 'restriction'].map(rt => <option key={rt} value={rt}>{etiquetaCodigo(t, 'bigdpr.tipo', rt)}</option>)}
-        </select>
+        </Select>
         <input aria-label={t('absences.notes_optional')} placeholder={t('absences.notes_optional')} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="bi-gdpr-panel-e30" />
         <Button icon={<Plus size={14} />} onClick={() => createMut.mutate({ user_id: form.user_id, request_type: form.request_type, notes: form.notes || '' })}
           disabled={createMut.isPending || !form.user_id} loading={createMut.isPending}>
@@ -111,13 +111,8 @@ function DsrTab() {
 
       {/* Status filter */}
       <div className="bigdpa-row-1">
-        <div className="ds-segmented" role="group" aria-label={t('bigdpr.filtrar_estado')}>
-          {['', 'pending', 'completed'].map(s => (
-            <button type="button" key={s} aria-pressed={statusFilter === s} onClick={() => setFilter(s)}>
-              {s ? etiquetaCodigo(t, 'bigdpr.estado', s) : t('bigdpr.todos')}
-            </button>
-          ))}
-        </div>
+        <Segmentado aria-label={t('bigdpr.filtrar_estado')} valor={statusFilter} onChange={setFilter}
+          opciones={['', 'pending', 'completed'].map(s => ({ valor: s, etiqueta: s ? etiquetaCodigo(t, 'bigdpr.estado', s) : t('bigdpr.todos') }))} />
       </div>
 
       {isLoading ? (
@@ -183,7 +178,7 @@ function DsrTab() {
                 </div>
                 {expanded && informe ? (
                   <div className="bigdpa-box-2">
-                    <pre className="bigdpa-sp-1">{JSON.stringify(informe, null, 2)}</pre>
+                    <pre className="ds-codigo ds-codigo--bloque bigdpa-sp-1">{JSON.stringify(informe, null, 2)}</pre>
                   </div>
                 ) : null}
               </div>
@@ -235,12 +230,12 @@ function ConsentTab() {
         <div className="bi-gdpr-panel-e16">{t('bigdpr.registrar_consentimiento')}</div>
         <div className={`bigdpa-grid-2 ${isNarrow ? 'bi-gdpr-panel-m3' : 'bi-gdpr-panel-m17'}`}>
           <input aria-label={t('bigdpr.user_id_o_email')} placeholder={t('bigdpr.user_id_o_email')} value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} className="bi-gdpr-panel-e30" />
-          <select value={form.purpose} onChange={e => setForm(f => ({ ...f, purpose: e.target.value }))} className="bi-gdpr-panel-e31">
+          <Select suelto value={form.purpose} onChange={e => setForm(f => ({ ...f, purpose: e.target.value }))} className="bi-gdpr-panel-e31" placeholder={false}>
             {['analytics', 'marketing', 'profiling', 'research'].map(p => <option key={p} value={p}>{etiquetaCodigo(t, 'bigdpr.finalidad', p)}</option>)}
-          </select>
-          <select value={form.channel} onChange={e => setForm(f => ({ ...f, channel: e.target.value }))} className="bi-gdpr-panel-e31">
+          </Select>
+          <Select suelto value={form.channel} onChange={e => setForm(f => ({ ...f, channel: e.target.value }))} className="bi-gdpr-panel-e31" placeholder={false}>
             {['web', 'email', 'api', 'mobile'].map(c => <option key={c} value={c}>{etiquetaCodigo(t, 'bigdpr.canal', c)}</option>)}
-          </select>
+          </Select>
           <Button icon={<Plus size={14} />} onClick={() => addMut.mutate(form)} disabled={addMut.isPending || !form.user_id} loading={addMut.isPending}>
             {t('bigdpr.anadir')}
           </Button>
@@ -262,15 +257,15 @@ function ConsentTab() {
                 </div>
               </div>
               <span className="bi-gdpr-panel-badge" style={varsBadge(c.consented ? 'var(--success)' : 'var(--danger)')}>{c.consented ? t('bigdpr.concedido') : t('bigdpr.revocado')}</span>
-              <button className={`bigdpa-row-13 ${c.consented ? 'bi-gdpr-panel-m18' : 'bi-gdpr-panel-m19'}`} onClick={() => toggleMut.mutate({ c, consented: !c.consented })} disabled={toggleMut.isPending}
+              <Pulsable className={`bigdpa-row-13 ${c.consented ? 'bi-gdpr-panel-m18' : 'bi-gdpr-panel-m19'}`} onClick={() => toggleMut.mutate({ c, consented: !c.consented })} disabled={toggleMut.isPending}
                 title={c.consented ? t('bigdpr.revocar') : t('bigdpr.conceder')} aria-label={c.consented ? t('bigdpr.revocar') : t('bigdpr.conceder')}>
                 {c.consented ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
-              </button>
-              <button aria-label={t('bigdpr.ver_historial')} onClick={() => setHistUser(histUserId === c.user_id ? null : c.user_id)}
+              </Pulsable>
+              <Pulsable aria-label={t('bigdpr.ver_historial')} onClick={() => setHistUser(histUserId === c.user_id ? null : c.user_id)}
                 title={t('bigdpr.ver_historial')}
                 className="bigdpa-row-4">
                 <Clock size={14} />
-              </button>
+              </Pulsable>
             </div>
           ))}
           {!consents.length && (
@@ -332,9 +327,9 @@ function MasksTab() {
       <div className={`bigdpa-grid-1 ${isNarrow ? 'bi-gdpr-panel-m3' : 'bi-gdpr-panel-m22'}`}>
         <input aria-label={t('bigdpr.entidad_ej_user')} placeholder={t('bigdpr.entidad_ej_user')} value={form.entity} onChange={e => setForm(f => ({ ...f, entity: e.target.value }))} className="bi-gdpr-panel-e30" />
         <input aria-label={t('bigdpr.campo_ej_email')} placeholder={t('bigdpr.campo_ej_email')} value={form.field} onChange={e => setForm(f => ({ ...f, field: e.target.value }))} className="bi-gdpr-panel-e30" />
-        <select value={form.mask_type} onChange={e => setForm(f => ({ ...f, mask_type: e.target.value }))} className="bi-gdpr-panel-e31">
+        <Select suelto value={form.mask_type} onChange={e => setForm(f => ({ ...f, mask_type: e.target.value }))} className="bi-gdpr-panel-e31" placeholder={false}>
           {['hash', 'redact', 'suppress', 'pseudonymize'].map(mt => <option key={mt} value={mt}>{etiquetaCodigo(t, 'bigdpr.mascara', mt)}</option>)}
-        </select>
+        </Select>
         <Button icon={<Plus size={14} />} onClick={() => addMut.mutate(form)} disabled={addMut.isPending || !form.field} loading={addMut.isPending}>
           {t('bigdpr.anadir_mascara')}
         </Button>
@@ -342,7 +337,7 @@ function MasksTab() {
       <div className="u-stack-6">
         {masks.map((m, i) => (
           <div key={i} className="bi-gdpr-panel-e23">
-            <span className="bigdpa-txt-3">{m.dataset}.{m.field}</span>
+            <span className="ds-codigo bigdpa-txt-3">{m.dataset}.{m.field}</span>
             <span className="bi-gdpr-panel-badge" style={varsBadge(MASK_COLOR[m.mask_type] ?? 'var(--text-3)')}>{etiquetaCodigo(t, 'bigdpr.mascara', m.mask_type)}</span>
             <span className="bigdpa-box-5">{fmt(m.updated_at)}</span>
           </div>

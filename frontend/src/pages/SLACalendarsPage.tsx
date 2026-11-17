@@ -14,7 +14,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { slaCalendarsApi, type SlaCalendar } from '../services/api'
 import type { SdComprobacionDeDia } from '../services/api/tipos-sd'
-import { Button, Card, EmptyState, IconButton, Spinner, Modal } from '../components/ui'
+import { Button, Card, EmptyState, IconButton, Spinner, Modal, Select, Pulsable, Checkbox } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { CalendarClock, CalendarDays, Check, CheckCircle2, Clock, Globe, Pencil, Plus, Trash2, X, XCircle } from 'lucide-react'
@@ -83,9 +83,9 @@ function CalendarForm({ cal, onClose }: { cal?: SlaCalendar | null; onClose: () 
         </div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="slac-label">{t('sla_calendars_page.zona_horaria')}</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} className="slac-input" value={form.timezone} onChange={e => set('timezone')(e.target.value)}>
+          <Select suelto placeholder={false} id={`${idCampo}-2`} className="slac-input" value={form.timezone} onChange={e => set('timezone')(e.target.value)}>
             {timezoneOptions(form.timezone).map(tz => <option key={tz} value={tz}>{tz}</option>)}
-          </select>
+          </Select>
         </div>
         <div className="u-grid2-12">
           <div>
@@ -99,24 +99,22 @@ function CalendarForm({ cal, onClose }: { cal?: SlaCalendar | null; onClose: () 
               onChange={v => set('work_end')(v)} />
           </div>
         </div>
-        <fieldset className="slac-days">
+        <fieldset className="slac-days ds-grupo-opciones">
           <legend className="slac-label">{t('slacalendars.dias_laborables')}</legend>
           <div className="u-wrap-8">
             {DIAS_ISO.map(d => {
               const active = form.work_days.has(d)
               return (
-                <button key={d} type="button" onClick={() => toggleDay(d)} aria-pressed={active}
+                <Pulsable key={d} type="button" onClick={() => toggleDay(d)} aria-pressed={active}
                   className={`slac-day${active ? ' slac-day--active' : ''}`}>
                   {nombreCortoDelDia(d)}
-                </button>
+                </Pulsable>
               )
             })}
           </div>
         </fieldset>
-        <label className="u-row-center-8">
-          <input type="checkbox" checked={general} onChange={e => setGeneral(e.target.checked)} />
-          <span>{t('sd_mercado.festivos_generales')}</span>
-        </label>
+        <Checkbox className="u-row-center-8" checked={!!general} onChange={setGeneral}
+          label={t('sd_mercado.festivos_generales')} />
         <div className="u-text3-xs">{t('sd_mercado.festivos_generales_hint')}</div>
         <div className="slac-actions">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>

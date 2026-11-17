@@ -13,7 +13,7 @@ import { useId, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { uatApi, projectsApi, tasksApi } from '../services/api'
 import type { CasoUat, InformeUat } from '../services/api/tipos-proyectos'
-import { Spinner, EmptyState, Button, Modal, KpiCard, IconButton, StatusBadge } from '../components/ui'
+import { Spinner, EmptyState, Button, Modal, KpiCard, IconButton, StatusBadge, Select } from '../components/ui'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -100,28 +100,28 @@ function CaseFormModal({ open, onClose, onSave, initial, tasks = [] }: { open: b
         <div className="uat-grid3">
           <div>
             <label htmlFor={`${idPrefix}-status`} className={ls}>{traducir('uat.estado')}</label>
-            <select id={`${idPrefix}-status`} value={form.status} onChange={s('status')} className={fs}>
+            <Select suelto placeholder={false} id={`${idPrefix}-status`} value={form.status} onChange={s('status')} className={fs}>
               {Object.entries(STATUS_META).map(([v, m]) => (
                 <option key={v} value={v}>{traducir(m.label)}</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div>
             <label htmlFor={`${idPrefix}-priority`} className={ls}>{traducir('uat.prioridad')}</label>
-            <select id={`${idPrefix}-priority`} value={form.priority} onChange={s('priority')} className={fs}>
+            <Select suelto placeholder={false} id={`${idPrefix}-priority`} value={form.priority} onChange={s('priority')} className={fs}>
               {Object.entries(PRIORITY_META).map(([v, m]) => (
                 <option key={v} value={v}>{traducir(m.label)}</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div>
             <label htmlFor={`${idPrefix}-task-id`} className={ls}>{traducir('uat.tarea_vinculada')}</label>
-            <select id={`${idPrefix}-task-id`} value={form.task_id} onChange={s('task_id')} className={fs}>
+            <Select suelto placeholder={false} id={`${idPrefix}-task-id`} value={form.task_id} onChange={s('task_id')} className={fs}>
               <option value="">{traducir('uat.sin_tarea')}</option>
               {tasks.map(t => (
                 <option key={t.id} value={String(t.id)}>{t.title}</option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
 
@@ -180,7 +180,7 @@ function ExportModal({ open, onClose, report }: { open: boolean; onClose: () => 
           <span aria-live="polite">{copied ? traducir('uat.copiado') : traducir('uat.copiar_texto')}</span>
         </Button>
       </div>
-      <pre className="uat-export-pre" tabIndex={0}>
+      <pre className="ds-codigo uat-export-pre" tabIndex={0}>
         {report?.text || ''}
       </pre>
       <div className="uat-export-hint">
@@ -284,7 +284,7 @@ export default function UATPage({ projectId }: { projectId?: string } = {}) {
       <div className="ds-page">
       {(!projectId || selectedProject) && (
         <div className="ds-toolbar uat-filters">
-          {!projectId && <select
+          {!projectId && <Select suelto placeholder={false}
             value={selectedProject}
             onChange={e => { setSelectedProject(e.target.value); setStatusFilter('') }}
             className={`${fs} uat-input--project`}
@@ -292,15 +292,15 @@ export default function UATPage({ projectId }: { projectId?: string } = {}) {
           >
             <option value="">{traducir('uat.selecciona_un_proyecto')}</option>
             {projects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
-          </select>}
+          </Select>}
 
           {selectedProject && (
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={`${fs} uat-input--status`} aria-label={traducir('uat.estado')}>
+            <Select suelto placeholder={false} value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={`${fs} uat-input--status`} aria-label={traducir('uat.estado')}>
               <option value="">{traducir('uat.todos_los_estados')}</option>
               {Object.entries(STATUS_META).map(([v, m]) => (
                 <option key={v} value={v}>{traducir(m.label)}</option>
               ))}
-            </select>
+            </Select>
           )}
         </div>
       )}

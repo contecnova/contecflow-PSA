@@ -12,6 +12,7 @@ import { syncPending } from '../services/offlineQueue';
 import useOfflineSync from '../hooks/useOfflineSync';
 import api from '../services/api';
 import { useAppT } from '../i18n/AppLangContext';
+import { Button } from './ui'
 import './OfflineIndicator.css'
 
 type ResultadoDeSync = Awaited<ReturnType<typeof syncPending>>;
@@ -110,12 +111,12 @@ export default function OfflineIndicator() {
 
           {/* Sync button */}
           {isOnline && totalPending > 0 && (
-            <button className={`offlindi-box-8 ${manualSyncing ? 'offline-indicator-m9' : 'offline-indicator-m10'}`}
+            <Button size="sm" className="offlindi-box-8"
               onClick={handleManualSync}
-              disabled={manualSyncing}
+              loading={manualSyncing}
             >
               {manualSyncing ? t('offline_indicator.syncing_now') : t('offline_indicator.sync_now_btn')}
-            </button>
+            </Button>
           )}
 
           {isOnline && totalPending === 0 && (

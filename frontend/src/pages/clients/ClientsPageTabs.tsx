@@ -6,7 +6,7 @@ import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import { clientExtApi, clientsApi, contractsApi, type ClientContact, type Contract, licensesApi, portalApi, wsApi, apiWsUrl } from '../../services/api'
-import { Button, Spinner, EmptyState, Modal, Tabs, IconButton } from '../../components/ui'
+import { Button, Spinner, EmptyState, Modal, Tabs, IconButton, Select, TablaSimple, Checkbox } from '../../components/ui'
 import Pagination from '../../components/ui/Pagination'
 import { BadgeWithTooltip } from '../../components/ui/BadgeWithTooltip'
 import { IconFR, IconCR } from '../../components/ui/FRCRIcons'
@@ -277,13 +277,13 @@ export function ContactsTab({ cid }: { cid: string }) {
             <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="clpata-lbl">{traducir('clients.telefono')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className="clpata-inp" /></div>
             <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="clpata-lbl">{traducir('clientstabs.cargo')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.job_title} onChange={e => setForm(f => ({ ...f, job_title: e.target.value }))} className="clpata-inp" /></div>
             <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="clpata-lbl">{traducir('clientstabs.rol')}</label>
-              <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} className="clpata-inp">
+              <Select suelto placeholder={false} id={`${idCampo}-5`} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} className="clpata-inp">
                 {roles.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
-              </select>
+              </Select>
             </div>
             <div className="clpata-row-4">
               <label className="u-row-center-8-pointer">
-                <input type="checkbox" checked={form.is_primary} onChange={e => setForm(f => ({ ...f, is_primary: e.target.checked }))} />
+                <Checkbox checked={form.is_primary} onChange={(_, e) => setForm(f => ({ ...f, is_primary: e.target.checked }))} />
                 {traducir('clientstabs.contacto_principal')}
               </label>
             </div>
@@ -355,10 +355,10 @@ export function LicensesTab({ cid }: { cid: string }) {
         <Modal open title={traducir('clientstabs.vincular_licencia')} onClose={() => setShowLink(false)} width={440}>
           <div className="u-mb-14">
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="clpata-lbl">{traducir('clientstabs.licencia')}</label>
-            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={selectedLic} onChange={e => setSelectedLic(e.target.value)} className="clpata-inp">
+            <Select suelto placeholder={false} id={`${idCampo}-1`} value={selectedLic} onChange={e => setSelectedLic(e.target.value)} className="clpata-inp">
               <option value="">{traducir('clientstabs.seleccionar')}</option>
               {available.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
+            </Select>
           </div>
           <div className="u-mb-16">
             <label id={`${idCampo}-notas-et`} htmlFor={`${idCampo}-notas`} className="clpata-lbl">{traducir('clientstabs.notas_opcional')}</label>
@@ -429,10 +429,10 @@ export function ContractsTab({ cid }: { cid: string }) {
         <Modal open title={traducir('clientstabs.vincular_contrato')} onClose={() => setShowLink(false)} width={440}>
           <div className="u-mb-16">
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="clpata-lbl">{traducir('clientstabs.contrato')}</label>
-            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={selectedCon} onChange={e => setSelectedCon(e.target.value)} className="clpata-inp">
+            <Select suelto placeholder={false} id={`${idCampo}-1`} value={selectedCon} onChange={e => setSelectedCon(e.target.value)} className="clpata-inp">
               <option value="">{traducir('clientstabs.seleccionar')}</option>
               {available.map(c => <option key={c.id} value={c.id}>{c.name || c.client_name} — {etiquetaCodigo(traducir, 'estado', c.status)}</option>)}
-            </select>
+            </Select>
           </div>
           <div className="u-actions-8">
             <Button variant="secondary" onClick={() => setShowLink(false)}>{traducir('common.cancel')}</Button>
@@ -502,9 +502,9 @@ export function PortalUATTab({ _cid, projects }: { _cid?: string; projects: Clie
           {projects.length > 1 && (
             <div className="u-mb-16">
               <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="clpata-lbl">{traducir('clientstabs.proyecto')}</label>
-              <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={selectedProject} onChange={e => setSelectedProject(e.target.value)} className="clpata-inp">
+              <Select suelto placeholder={false} id={`${idCampo}-1`} value={selectedProject} onChange={e => setSelectedProject(e.target.value)} className="clpata-inp">
                 {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-              </select>
+              </Select>
             </div>
           )}
 
@@ -636,9 +636,9 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: ClientPr
     <div>
       <div className="clpata-row-9">
         <span className="u-text2-base">{filteredFrs.length} {traducir('clients.solicitud_es_del_cliente')}</span>
-        <select aria-label={traducir('clientstabs.filtrar_por_cr')} value={crFilter} onChange={e => setCrFilter(e.target.value)} className="clpata-inp2">
+        <Select suelto placeholder={false} aria-label={traducir('clientstabs.filtrar_por_cr')} value={crFilter} onChange={e => setCrFilter(e.target.value)} className="clpata-inp2">
           {crStates.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-        </select>
+        </Select>
       </div>
       {filteredFrs.length === 0 ? (
         <EmptyState icon={<Lightbulb size={28} />} title={traducir('clients.sin_solicitudes')} description={traducir('clientstabs.sin_solicitudes_cliente')} />
@@ -715,10 +715,10 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: ClientPr
               <div><label id={`${idCampo}-semanas-et`} htmlFor={`${idCampo}-semanas`} className="clpata-ls">{traducir('clientstabs.semanas_entrega')}</label><input id={`${idCampo}-semanas`} aria-labelledby={`${idCampo}-semanas-et`} type="number" value={responseForm.estimated_delivery_weeks} onChange={e => setResponseForm(f => ({ ...f, estimated_delivery_weeks: e.target.value }))} className="clpata-fs" placeholder={traducir('clientstabs.semanas')} /></div>
             </div>
             <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="clpata-ls">{traducir('common.status')}</label>
-              <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={responseForm.status} onChange={e => setResponseForm(f => ({ ...f, status: e.target.value }))} className="clpata-fs">
+              <Select suelto placeholder={false} id={`${idCampo}-1`} value={responseForm.status} onChange={e => setResponseForm(f => ({ ...f, status: e.target.value }))} className="clpata-fs">
                 <option value="estimated">{traducir('clients.presupuestada_pendiente_aprobacion_cliente')}</option>
                 <option value="rejected">{traducir('clients.rechazada_no_factible')}</option>
-              </select>
+              </Select>
             </div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setResponding(null)}>{traducir('common.cancel')}</Button>
@@ -786,9 +786,9 @@ export function PortalDocumentosTab({ cid, projects }: { cid: string; projects: 
       {projects.length > 1 && (
         <div className="u-mb-16">
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="clpata-lbl">{traducir('clientstabs.proyecto')}</label>
-          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={selectedProject} onChange={e => setSelectedProject(e.target.value)} className="clpata-inp">
+          <Select suelto placeholder={false} id={`${idCampo}-1`} value={selectedProject} onChange={e => setSelectedProject(e.target.value)} className="clpata-inp">
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-          </select>
+          </Select>
         </div>
       )}
       {!selectedProject
@@ -872,7 +872,7 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
           <div className="clpata-box-23">{traducir('clients.que_secciones_puede_ver_el_cliente_en')}</div>
           {MODULES.map(m => (
             <label key={m.id} className="clpata-row-12">
-              <input type="checkbox" checked={modules.includes(m.id)} onChange={() => toggleModule(m.id)} className="clpata-box-24" />
+              <Checkbox checked={modules.includes(m.id)} onChange={() => toggleModule(m.id)} className="clpata-box-24" />
               <span className="clpata-txt-4" aria-hidden="true"><m.Icon size={15} /></span>
               <span className={`clpata-txt-6 ${modules.includes(m.id) ? 'clients-page-tabs-m8' : 'clients-page-tabs-m9'}`}>{traducir(`clientstabs.mod_${m.id}`)}</span>
             </label>
@@ -882,7 +882,7 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
         <div className="clpata-panel5">
           <div className="clpata-box-22 clpata-ico"><Ticket size={15} aria-hidden="true" />{traducir('clientstabs.mod_support')}</div>
           <label className="clpata-row-13">
-            <input type="checkbox" aria-label={traducir('clients.acceso_sin_proyecto_vinculado')} checked={sdWithout} onChange={e => setSdWithout(e.target.checked)} className="clpata-box-25" />
+            <Checkbox aria-label={traducir('clients.acceso_sin_proyecto_vinculado')} checked={sdWithout} onChange={(_, e) => setSdWithout(e.target.checked)} className="clpata-box-25" />
             <div>
               <div className="u-base-600">{traducir('clients.acceso_sin_proyecto_vinculado')}</div>
               <div className="u-text2-xs">{traducir('clients.puede_abrir_tickets_aunque_no_tenga_proyectos')}</div>
@@ -896,20 +896,20 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
           <div className="clpata-box-22 clpata-ico"><Globe size={15} aria-hidden="true" />{traducir('clientstabs.idioma_y_sla')}</div>
           <div className="u-mb-14">
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="clpata-lbl">{traducir('clients.idioma_por_defecto_del_portal')}</label>
-            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={defaultLang} onChange={e => setDefaultLang(e.target.value)} className="clpata-inp">
+            <Select suelto placeholder={false} id={`${idCampo}-1`} value={defaultLang} onChange={e => setDefaultLang(e.target.value)} className="clpata-inp">
               {languages.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
-            </select>
+            </Select>
             <div className="clpata-box-26">{traducir('clients.se_aplica_a_nuevos_usuarios_cada_usuario')}</div>
           </div>
           <div>
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="clpata-lbl">{traducir('clientstabs.tier_sla')}</label>
-            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={slaTier} onChange={e => setSlaTier(e.target.value)} className="clpata-inp">
+            <Select suelto placeholder={false} id={`${idCampo}-2`} value={slaTier} onChange={e => setSlaTier(e.target.value)} className="clpata-inp">
               <option value="">{traducir('clients.sin_tier')}</option>
               <option value="bronze">{traducir('clientstabs.sla_bronze')}</option>
               <option value="silver">{traducir('clientstabs.sla_silver')}</option>
               <option value="gold">{traducir('clientstabs.sla_gold')}</option>
               <option value="enterprise">{traducir('clientstabs.sla_enterprise')}</option>
-            </select>
+            </Select>
             {slaTier && <div className="clpata-box-34 clients-page-tabs-e1" style={{ '--clients-page-tabs-background': alpha((SLA_COLOR[slaTier] || 'var(--text-2)'), '15'), '--clients-page-tabs-color': SLA_COLOR[slaTier] || 'var(--text-2)' } as CSSProperties}>
               {traducir('clientstabs.tier_activo')} <strong>{traducir(`clientstabs.sla_${slaTier}`).split(' — ')[0]}</strong>
             </div>}
@@ -924,7 +924,7 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
             { key: 'allowPwd', val: allowPwd, set: setAllowPwd, label: traducir('clientstabs.puede_cambiar_pwd'), desc: traducir('clientstabs.puede_cambiar_pwd_desc') },
           ].map(opt => (
             <label className={`clpata-row-15 clientsp-sx1 clients-page-tabs-e2 ${opt.val ? 'clients-page-tabs-m10' : 'clients-page-tabs-m11'}`} key={opt.key} style={{ '--clients-page-tabs-border': `1px solid ${opt.val ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
-              <input type="checkbox" checked={opt.val} onChange={e => opt.set(e.target.checked)} className="clpata-box-27" />
+              <Checkbox checked={opt.val} onChange={(_, e) => opt.set(e.target.checked)} className="clpata-box-27" />
               <div>
                 <div className={`clpata-txt-7 ${opt.val ? 'clients-page-tabs-m12' : 'clients-page-tabs-m13'}`}>{opt.label}</div>
                 <div className="u-text3-xs">{opt.desc}</div>
@@ -989,7 +989,7 @@ export function InvoicesTab({ cid }: { cid: string }) {
   return (
     <div className="clifac" aria-busy={isFetching || undefined}>
       <div className="clifac-scroll">
-        <table className="clifac-tabla">
+        <TablaSimple claseTabla="clifac-tabla">
           <thead>
             <tr>
               <th scope="col">{traducir('clientstabs.fact_numero')}</th>
@@ -1012,7 +1012,7 @@ export function InvoicesTab({ cid }: { cid: string }) {
               </tr>
             ))}
           </tbody>
-        </table>
+        </TablaSimple>
       </div>
       <Pagination page={page} totalPages={totalPages} onChange={setPage} total={total} pageSize={FACTURAS_POR_PAGINA} maxVisible={5} />
     </div>

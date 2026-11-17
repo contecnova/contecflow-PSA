@@ -89,7 +89,6 @@
   font-size: var(--text-2xs);
   font-weight: 700;
   color: var(--text-3);
-  text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-bottom: 4px;
 }

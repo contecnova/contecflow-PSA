@@ -26,7 +26,7 @@ import type { FotoDeSalud, ResumenNps } from '../services/api/tipos-personas'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Activity, Calculator, LineChart as IconoLinea, MousePointerClick, Send, ThumbsUp, Users } from 'lucide-react'
-import { Button, Card, EmptyState, FormField, Input, Section, SelectorDePeriodo } from '../components/ui'
+import { Button, Card, EmptyState, FormField, Input, Pulsable, Section, SelectorDePeriodo } from '../components/ui'
 import { usePeriodo } from '../hooks/usePeriodo'
 import { CON_HORA, codigoDeErrorDePeriodo, formatearTramo, type Granularidad } from '../utils/periodo'
 import { useAppT } from '../i18n/AppLangContext'
@@ -204,21 +204,21 @@ export default function NPSPage() {
                 {/* Clientes sin instantáneas de salud */}
                 {leaderboard.length === 0 && clients.map(c => (
                   <li key={c.id}>
-                    <button type="button" onClick={() => setClientId(c.id)} aria-pressed={clientId === c.id}
+                    <Pulsable onClick={() => setClientId(c.id)} aria-pressed={clientId === c.id}
                       className={`nps-fila${clientId === c.id ? ' nps-fila--activa' : ''}`}>
                       <span className="nps-fila__nombre">{c.name}</span>
                       <span className="nps-fila__vacio">—</span>
-                    </button>
+                    </Pulsable>
                   </li>
                 ))}
                 {leaderboard.map((l, i) => (
                   <li key={l.client_id}>
-                    <button type="button" onClick={() => setClientId(l.client_id)} aria-pressed={clientId === l.client_id}
+                    <Pulsable onClick={() => setClientId(l.client_id)} aria-pressed={clientId === l.client_id}
                       className={`nps-fila${clientId === l.client_id ? ' nps-fila--activa' : ''}`}>
                       <span className="nps-fila__pos">{i + 1}</span>
                       <span className="nps-fila__nombre">{l.client_name}</span>
                       <HealthBadge score={l.health_score} />
-                    </button>
+                    </Pulsable>
                   </li>
                 ))}
               </ul>
@@ -292,10 +292,10 @@ export default function NPSPage() {
                 <div className="u-stack-12">
                   <div>
                     <div className="nps-etiqueta" id="nps-puntuacion">{t('nps.score_label')}</div>
-                    <div className="nps-puntos" role="radiogroup" aria-labelledby="nps-puntuacion">
+                    <div className="nps-puntos" role="group" aria-labelledby="nps-puntuacion">
                       {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
-                        <button key={n} type="button" role="radio" aria-checked={scoreInput === n} onClick={() => setScoreInput(n)}
-                          className={`nps-punto${scoreInput === n ? ` nps-punto--activo nps-punto--${tramo(n)}` : ''}`}>{n}</button>
+                        <Pulsable key={n} aria-pressed={scoreInput === n} onClick={() => setScoreInput(n)}
+                          className={`nps-punto${scoreInput === n ? ` nps-punto--activo nps-punto--${tramo(n)}` : ''}`}>{n}</Pulsable>
                       ))}
                     </div>
                   </div>

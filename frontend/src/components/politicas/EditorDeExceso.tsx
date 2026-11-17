@@ -6,7 +6,7 @@
 import type { CSSProperties } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import type { BandaDeExceso, DominioDePoliticas, Exceso } from '../../services/api/tipos-politicas'
-import { Button } from '../ui'
+import { Button, Select } from '../ui'
 import { SelectorDeReferencia } from './ConstructorDeCondiciones'
 import EditorDeResultados from './EditorDeResultados'
 import { useTextos } from './comun'
@@ -40,10 +40,10 @@ export default function EditorDeExceso({ dominio, valor, onChange }: {
     <div className="u-stack-10">
       <div className="pol-fila">
         <span className="pol-ayuda">{t('pol.exceso_de')}</span>
-        <select className="pol-campo pol-campo--medio" aria-label={t('pol.campo_medido')} value={campo.clave}
-          onChange={e => onChange({ ...valor, campo: e.target.value })}>
+        <Select suelto className="pol-campo pol-campo--medio" aria-label={t('pol.campo_medido')} value={campo.clave}
+          onChange={e => onChange({ ...valor, campo: e.target.value })} placeholder={false}>
           {medibles.map(c => <option key={c.clave} value={c.clave}>{etiquetaDeCampo(dominio.clave, c)}</option>)}
-        </select>
+        </Select>
         <span className="pol-ayuda">{t('pol.sobre')}</span>
         <SelectorDeReferencia dominio={dominio} campo={campo} valor={valor.referencia} onChange={r => onChange({ ...valor, referencia: r })} />
         <Button size="xs" variant="ghost" icon={<Trash2 size={13} />} onClick={() => onChange(null)}>{t('pol.quitar_bandas')}</Button>

@@ -10,7 +10,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Sparkles } from 'lucide-react'
 import { leccionesApi } from '../../services/api'
 import type { Hecho, Leccion } from '../../services/api'
-import { Button, Modal, Spinner } from '../ui'
+import { Button, Modal, Spinner, Select, TablaSimple } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
@@ -33,14 +33,14 @@ export function TablaDeHechos({ hechos }: { hechos: Hecho[] }) {
   const t = useAppT()
   if (!hechos.length) return <div className="u-text3-sm">{t('lec.sin_hechos')}</div>
   return (
-    <table className="u-table-sm">
+    <TablaSimple claseTabla="u-table-sm">
       <tbody>{hechos.map(h => (
         <tr key={h.etiqueta} className="fodele-box-1">
           <td className="fodele-box-2">{h.etiqueta}</td>
           <td className="fodele-box-3">{valorDeHecho(h.valor)}</td>
         </tr>))}
       </tbody>
-    </table>
+    </TablaSimple>
   )
 }
 
@@ -102,17 +102,17 @@ export default function FormularioDeLeccion({ origen, leccion, onClose, onGuarda
             <label><span className="fodele-etiqueta">{t('lec.titulo')}</span><input aria-label={t('lec.titulo')} value={form.titulo} onChange={set('titulo')} className="fodele-campo" maxLength={300} /></label>
             <div className="fodele-grid-1">
               <label><span className="fodele-etiqueta">{t('lec.tipo')}</span>
-                <select aria-label={t('lec.tipo')} value={form.tipo} onChange={set('tipo')} className="fodele-campo">
+                <Select suelto aria-label={t('lec.tipo')} value={form.tipo} onChange={set('tipo')} className="fodele-campo" placeholder={false}>
                   <option value="evitar">{t('lec.tipo_evitar')}</option><option value="repetir">{t('lec.tipo_repetir')}</option>
-                </select></label>
+                </Select></label>
               <label><span className="fodele-etiqueta">{t('lec.categoria')}</span>
-                <select aria-label={t('lec.categoria')} value={form.categoria} onChange={set('categoria')} className="fodele-campo">
+                <Select suelto aria-label={t('lec.categoria')} value={form.categoria} onChange={set('categoria')} className="fodele-campo" placeholder={false}>
                   {(cfg.data?.categorias ?? []).map(c => <option key={c} value={c}>{t(`lec.cat_${c}`, c)}</option>)}
-                </select></label>
+                </Select></label>
               <label><span className="fodele-etiqueta">{t('lec.severidad')}</span>
-                <select aria-label={t('lec.severidad')} value={form.severidad} onChange={set('severidad')} className="fodele-campo">
+                <Select suelto aria-label={t('lec.severidad')} value={form.severidad} onChange={set('severidad')} className="fodele-campo" placeholder={false}>
                   {['baja', 'media', 'alta'].map(s => <option key={s} value={s}>{t(`lec.sev_${s}`)}</option>)}
-                </select></label>
+                </Select></label>
             </div>
             <label><span className="fodele-etiqueta">{t('lec.que_paso')}</span><textarea rows={4} aria-label={t('lec.que_paso')} value={form.que_paso} onChange={set('que_paso')} className="fodele-campo" /></label>
             <label><span className="fodele-etiqueta">{t('lec.causa')}</span><textarea rows={2} aria-label={t('lec.causa')} value={form.causa} onChange={set('causa')} className="fodele-campo" /></label>

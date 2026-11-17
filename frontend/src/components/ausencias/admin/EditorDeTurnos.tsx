@@ -9,7 +9,7 @@ import { Clock, MoonStar, Plus, Trash2 } from 'lucide-react'
 import { ausenciasApi } from '../../../services/api/ausencias'
 import { advancedConfigApi } from '../../../services/settingsApi'
 import type { Turno, TurnoIn } from '../../../services/api/tipos-ausencias'
-import { Button, EmptyState, Modal, Spinner } from '../../ui'
+import { Button, EmptyState, Modal, Spinner, Select, Pulsable, Checkbox } from '../../ui'
 import { CampoFecha } from '../../ui/SelectorDeFecha'
 import { confirmar } from '../../../context/ConfirmContext'
 import { useToast } from '../../../context/ToastContext'
@@ -62,7 +62,7 @@ export default function EditorDeTurnos() {
           <ul className="ausadm-lista">
             {turnos.map(t => (
               <li key={t.id}>
-                <button type="button" className={`ausadm-item${t.activo ? '' : ' ausadm-item--inactivo'}`} onClick={() => abrir(t)}>
+                <Pulsable className={`ausadm-item${t.activo ? '' : ' ausadm-item--inactivo'}`} onClick={() => abrir(t)}>
                   <Muestra color={t.color} className="ausadm-muestra--punto" />
                   <span className="ausadm-item-nombre">{t.nombre}
                     <span className="ausadm-ayuda"> {t.hora_inicio}–{t.hora_fin} · {ta('n_horas', { n: t.duracion_horas })}</span></span>
@@ -74,7 +74,7 @@ export default function EditorDeTurnos() {
                     {t.office_id && <span className="ausadm-chip">{oficinas.find(o => o.id === t.office_id)?.name ?? '—'}</span>}
                     {!t.activo && <span className="ausadm-chip">{ta('inactivo')}</span>}
                   </span>
-                </button>
+                </Pulsable>
               </li>
             ))}
           </ul>
@@ -128,15 +128,12 @@ function Formulario({ id, inicial, oficinas, onCerrar }: { id: string | null; in
         <p id="ausadm-horario" className="ausadm-ayuda" aria-live="polite">
           {h.cruza ? ta('horario_cruza', { n: h.horas }) : ta('horario_dura', { n: h.horas })}
         </p>
-        <fieldset className="ausadm-fieldset">
+        <fieldset className="ds-grupo-opciones ausadm-fieldset">
           <legend className="ausadm-etiqueta">{ta('dias_que_opera')}</legend>
           <div className="ausadm-fila">
             {DIAS_SEMANA.map(dia => (
-              <label key={dia} className="ausadm-chip ausadm-chip--seleccionable">
-                <input aria-label={ta(`dia_corto_${dia}`)} type="checkbox" checked={d.dias_semana.includes(dia)}
-                  onChange={e => cambiar({ dias_semana: e.target.checked ? [...d.dias_semana, dia].sort() : d.dias_semana.filter(x => x !== dia) })} />
-                {ta(`dia_corto_${dia}`)}
-              </label>
+              <Checkbox key={dia} className="ausadm-chip ausadm-chip--seleccionable" label={ta(`dia_corto_${dia}`)} checked={d.dias_semana.includes(dia)}
+                onChange={m => cambiar({ dias_semana: m ? [...d.dias_semana, dia].sort() : d.dias_semana.filter(x => x !== dia) })} />
             ))}
           </div>
           <span className="ausadm-ayuda">{ta('dias_vacio_todos')}</span>
@@ -144,24 +141,21 @@ function Formulario({ id, inicial, oficinas, onCerrar }: { id: string | null; in
         <div className="ausadm-grid-2">
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('equipo')}</span>
-            <select className="ausadm-campo" value={d.equipo ?? ''} onChange={e => cambiar({ equipo: e.target.value || null })}>
-              <option value="">{ta('cualquiera')}</option>
+            <Select suelto className="ausadm-campo" value={d.equipo ?? ''} onChange={e => cambiar({ equipo: e.target.value || null })} placeholder={ta('cualquiera')}>
               {(opciones?.equipos ?? []).map(x => <option key={x} value={x}>{x}</option>)}
-            </select>
+            </Select>
           </label>
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('departamento')}</span>
-            <select className="ausadm-campo" value={d.departamento ?? ''} onChange={e => cambiar({ departamento: e.target.value || null })}>
-              <option value="">{ta('cualquiera')}</option>
+            <Select suelto className="ausadm-campo" value={d.departamento ?? ''} onChange={e => cambiar({ departamento: e.target.value || null })} placeholder={ta('cualquiera')}>
               {(opciones?.departamentos ?? []).map(x => <option key={x} value={x}>{x}</option>)}
-            </select>
+            </Select>
           </label>
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('oficina')}</span>
-            <select className="ausadm-campo" value={d.office_id ?? ''} onChange={e => cambiar({ office_id: e.target.value || null })}>
-              <option value="">{ta('cualquiera')}</option>
+            <Select suelto className="ausadm-campo" value={d.office_id ?? ''} onChange={e => cambiar({ office_id: e.target.value || null })} placeholder={ta('cualquiera')}>
               {oficinas.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-            </select>
+            </Select>
           </label>
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('personas_requeridas')}</span>

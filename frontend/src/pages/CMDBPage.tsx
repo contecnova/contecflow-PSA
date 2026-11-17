@@ -6,7 +6,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { cmdbApi } from '../services/api'
-import { Button, Spinner, Modal, Tabs, KpiCard, EmptyState, IconButton } from '../components/ui'
+import { Button, Spinner, Modal, Tabs, KpiCard, EmptyState, IconButton, Pulsable, Select, TablaSimple } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { ArrowDown, ArrowUp, Bot, Box, Database, History, Link2, ListTree, Network, Pencil, Plus, Radar, Shapes, Trash2, X, Zap } from 'lucide-react'
@@ -155,7 +155,7 @@ function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () => void 
           </div>
           <div>
             <label id={`${id('type')}-et`} className="cmdb-label" htmlFor={id('type')}>{t('cmdb.ci_type')}</label>
-            <select id={id('type')} className="cmdb-input" value={form.ci_class ? `clase:${form.ci_class}` : form.ci_type}
+            <Select suelto placeholder={false} id={id('type')} className="cmdb-input" value={form.ci_class ? `clase:${form.ci_class}` : form.ci_type}
               onChange={e => {
                 const v = e.target.value
                 const propia = v.startsWith('clase:') ? (propias?.classes ?? []).find(c => c.key === v.slice(6)) : null
@@ -163,27 +163,27 @@ function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () => void 
               }}>
               {CI_TYPES.map(c => <option key={c} value={c}>{etiqueta('type_', c)}</option>)}
               {(propias?.classes ?? []).filter(c => c.is_active || c.key === form.ci_class).map(c => <option key={c.id} value={`clase:${c.key}`}>{c.label}</option>)}
-            </select>
+            </Select>
           </div>
         </div>
         <div className="cmdb-grid">
           <div>
             <label id={`${id('status')}-et`} className="cmdb-label" htmlFor={id('status')}>{t('cmdb.status')}</label>
-            <select id={id('status')} className="cmdb-input" value={form.status} onChange={e => set('status')(e.target.value)}>
+            <Select suelto placeholder={false} id={id('status')} className="cmdb-input" value={form.status} onChange={e => set('status')(e.target.value)}>
               {Object.keys(STATUS_COLOR).map(v => <option key={v} value={v}>{etiqueta('st_', v)}</option>)}
-            </select>
+            </Select>
           </div>
           <div>
             <label id={`${id('env')}-et`} className="cmdb-label" htmlFor={id('env')}>{t('cmdb.environment')}</label>
-            <select id={id('env')} className="cmdb-input" value={form.environment} onChange={e => set('environment')(e.target.value)}>
+            <Select suelto placeholder={false} id={id('env')} className="cmdb-input" value={form.environment} onChange={e => set('environment')(e.target.value)}>
               {Object.keys(ENV_COLOR).map(v => <option key={v} value={v}>{etiqueta('env_', v)}</option>)}
-            </select>
+            </Select>
           </div>
           <div>
             <label id={`${id('crit')}-et`} className="cmdb-label" htmlFor={id('crit')}>{t('cmdb.criticality')}</label>
-            <select id={id('crit')} className="cmdb-input" value={form.criticality} onChange={e => set('criticality')(e.target.value)}>
+            <Select suelto placeholder={false} id={id('crit')} className="cmdb-input" value={form.criticality} onChange={e => set('criticality')(e.target.value)}>
               {CRITICALITIES.map(v => <option key={v} value={v}>{etiqueta('crit_', v)}</option>)}
-            </select>
+            </Select>
           </div>
         </div>
         <div className="cmdb-grid">
@@ -292,15 +292,15 @@ function RelationsModal({ item, allItems, onClose }: { item: CI; allItems: CI[];
         <div className="cmdb-rel-add">
           <div className="cmdb-rel-add__title">{t('cmdb.anadir_relacion')}</div>
           <div className="cmdb-rel-add__grid">
-            <select aria-label={t('cmdb.relation_type')} className="cmdb-input cmdb-input--w180" value={relType} onChange={e => setRelType(e.target.value)}>
+            <Select suelto placeholder={false} aria-label={t('cmdb.relation_type')} className="cmdb-input cmdb-input--w180" value={relType} onChange={e => setRelType(e.target.value)}>
               {REL_TYPES.map(r => <option key={r} value={r}>{etiqueta('rel_', r)}</option>)}
-            </select>
-            <select aria-label={t('cmdb.target_ci')} className="cmdb-input" value={toId} onChange={e => setToId(e.target.value)}>
+            </Select>
+            <Select suelto placeholder={false} aria-label={t('cmdb.target_ci')} className="cmdb-input" value={toId} onChange={e => setToId(e.target.value)}>
               <option value="">{t('cmdb.target_ci')}</option>
               {allItems.filter(i => i.id !== item.id).map(i => (
                 <option key={i.id} value={i.id}>{i.name}</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div className="cmdb-mt10">
             <Button onClick={() => createRel()} disabled={isPending || !toId} loading={isPending}>{t('cmdb.add_relation')}</Button>
@@ -345,7 +345,7 @@ function ChangelogModal({ item, onClose }: { item: CI; onClose: () => void }) {
                 <div className="cmdb-log__summary">{e.summary}</div>
                 {e.field && (
                   <div className="cmdb-log__field">
-                    <code className="cmdb-code">{e.field}</code>
+                    <code className="ds-codigo cmdb-code">{e.field}</code>
                     {e.old_value && <span> · <span className="u-danger">−{e.old_value}</span></span>}
                     {e.new_value && <span> → <span className="u-success">+{e.new_value}</span></span>}
                   </div>
@@ -444,10 +444,10 @@ function CMDBAgentsTab({ items }: { items: CI[] }) {
           </div>
           <div>
             <label className="cmdb-label" htmlFor="agent-os">{t('cmdb.platform')}</label>
-            <select id="agent-os" value={osType} onChange={e => setOsType(e.target.value)} className="cmdb-input cmdb-input--w130">
+            <Select suelto placeholder={false} id="agent-os" value={osType} onChange={e => setOsType(e.target.value)} className="cmdb-input cmdb-input--w130">
               <option value="linux">{t('cmdb.os_linux')}</option>
               <option value="windows">{t('cmdb.os_windows')}</option>
-            </select>
+            </Select>
           </div>
           <Button onClick={() => registerAgent()} loading={isPending} disabled={!agentName.trim()}>{t('cmdb.register')}</Button>
         </div>
@@ -457,11 +457,11 @@ function CMDBAgentsTab({ items }: { items: CI[] }) {
             <div className="cmdb-token__title">
               {t('cmdb.token_de_registro_usalo_una_sola_vez')}
             </div>
-            <code className="cmdb-token__value">
+            <code className="ds-codigo cmdb-token__value">
               {newToken}
             </code>
             <div className="cmdb-token__hint">
-              {t('cmdb.ejecuta_el_agente_con')} <code className="u-mono">CMDB_TOKEN={newToken} ./cmdb-agent</code>
+              {t('cmdb.ejecuta_el_agente_con')} <code className="ds-codigo u-mono">CMDB_TOKEN={newToken} ./cmdb-agent</code>
             </div>
             <div className="cmdb-mt10"><Button variant="ghost" size="sm" onClick={() => setNewToken(null)}>{t('cmdb.hide_token')}</Button></div>
           </div>
@@ -477,7 +477,7 @@ function CMDBAgentsTab({ items }: { items: CI[] }) {
         {isLoading ? <Spinner /> : agents.length === 0 ? (
           <EmptyState icon={<Bot size={28} />} title={t('cmdb.no_hay_agentes_registrados_registra_el_primero')} />
         ) : (
-          <table className="cmdb-table">
+          <TablaSimple claseTabla="cmdb-table">
             <thead>
               <tr className="u-border-b">
                 <th className="cmdb-th">{t('cmdb.nombre_del_agente')}</th>
@@ -512,7 +512,7 @@ function CMDBAgentsTab({ items }: { items: CI[] }) {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </TablaSimple>
         )}
       </div>
     </div>
@@ -548,20 +548,20 @@ function ClasesTab() {
       </p>
       <div>
         <label className="cmdb-label" htmlFor="clase-ci">{t('cmdb.ci_type')}</label>
-        <select id="clase-ci" className="cmdb-input cmdb-input--max280" value={clase} onChange={e => { setClase(e.target.value); setFilas(null) }}>
+        <Select suelto placeholder={false} id="clase-ci" className="cmdb-input cmdb-input--max280" value={clase} onChange={e => { setClase(e.target.value); setFilas(null) }}>
           {CI_TYPES.map(c => <option key={c} value={c}>{etiqueta('type_', c)}</option>)}
-        </select>
+        </Select>
       </div>
       {actuales.length === 0 && <div className="u-text2-sm">{t('cmdb.classes_empty')}</div>}
       {actuales.map((f, i) => (
         <div key={i} className="cmdb-class-row">
-          <input aria-label={t('cmdb.classes_key')} className="cmdb-input cmdb-input--mono" value={f.key}
+          <input aria-label={t('cmdb.classes_key')} className="ds-codigo cmdb-input cmdb-input--mono ds-campo-codigo" value={f.key}
             onChange={e => cambiar(i, { key: e.target.value })} />
           <input aria-label={t('cmdb.classes_label')} className="cmdb-input" value={f.label ?? ''} placeholder={etiquetaDeCampo({ ...f, label: null })}
             onChange={e => cambiar(i, { label: e.target.value })} />
-          <select aria-label={t('cmdb.classes_type')} className="cmdb-input" value={f.field_type} onChange={e => cambiar(i, { field_type: e.target.value })}>
+          <Select suelto placeholder={false} aria-label={t('cmdb.classes_type')} className="cmdb-input" value={f.field_type} onChange={e => cambiar(i, { field_type: e.target.value })}>
             {['text', 'number', 'date'].map(ft => <option key={ft} value={ft}>{t(`cmdb.classes_type_${ft}`)}</option>)}
-          </select>
+          </Select>
           <div className="cmdb-class-row__actions">
             <IconButton disabled={i === 0} onClick={() => mover(i, -1)} ariaLabel={t('cmdb.classes_up')}><ArrowUp size={14} /></IconButton>
             <IconButton disabled={i === actuales.length - 1} onClick={() => mover(i, 1)} ariaLabel={t('cmdb.classes_down')}><ArrowDown size={14} /></IconButton>
@@ -584,7 +584,7 @@ function Red({ item }: { item: CI }) {
   const extra = a.os || a.db_engine || a.url || a.image || a.cloud_provider || a.region
   return (
     <>
-      {item.hostname && <div className="cmdb-net-host">{item.hostname}{a.port ? `:${a.port}` : ''}</div>}
+      {item.hostname && <div className="ds-codigo cmdb-net-host">{item.hostname}{a.port ? `:${a.port}` : ''}</div>}
       {item.ip_address && <div className="u-text2-mono-xs">{item.ip_address}</div>}
       {extra && <div className="cmdb-net-extra" title={String(extra)}>{String(extra)}</div>}
       {!item.hostname && !item.ip_address && !extra && '—'}
@@ -697,19 +697,19 @@ export default function CMDBPage(): JSX.Element {
             <div className="cmdb-topo__filters">
               <div className="cmdb-topo__ci">
                 <label className="cmdb-label" htmlFor="topo-ci">{t('cmdb.central_ci')}</label>
-                <select id="topo-ci" className="cmdb-input" value={topoCI?.id || ''} onChange={e => {
+                <Select suelto placeholder={false} id="topo-ci" className="cmdb-input" value={topoCI?.id || ''} onChange={e => {
                   setTopoCI(todos.find(i => i.id === e.target.value) || null)
                   setDrillCI(null)
                 }}>
                   <option value="">{t('cmdb.select_ci')}</option>
                   {todos.map(ci => <option key={ci.id} value={ci.id}>{ci.name}</option>)}
-                </select>
+                </Select>
               </div>
               <div>
                 <label className="cmdb-label" htmlFor="topo-radius">{t('cmdb.radio_de_expansion')}</label>
-                <select id="topo-radius" className="cmdb-input cmdb-input--w120" value={topoRadius} onChange={e => setTopoRadius(Number(e.target.value))}>
+                <Select suelto placeholder={false} id="topo-radius" className="cmdb-input cmdb-input--w120" value={topoRadius} onChange={e => setTopoRadius(Number(e.target.value))}>
                   {[1,2,3].map(r => <option key={r} value={r}>{t('cmdb.levels', { n: r })}</option>)}
-                </select>
+                </Select>
               </div>
               {topoCI && (
                 <Button variant="secondary" onClick={() => { setTopoCI(null); setDrillCI(null) }}>{t('cmdb.clear')}</Button>
@@ -815,17 +815,17 @@ export default function CMDBPage(): JSX.Element {
           </div>
           <div>
             <label className="cmdb-label" htmlFor="cmdb-type">{t('cmdb.ci_type')}</label>
-            <select id="cmdb-type" value={filterType} onChange={e => setFilterType(e.target.value)} className="cmdb-input cmdb-input--w200">
+            <Select suelto placeholder={false} id="cmdb-type" value={filterType} onChange={e => setFilterType(e.target.value)} className="cmdb-input cmdb-input--w200">
               <option value="">{t('cmdb.todos_los_tipos')}</option>
               {CI_TYPES.map(c => <option key={c} value={c}>{etiqueta('type_', c)} ({typeCounts[c]||0})</option>)}
-            </select>
+            </Select>
           </div>
           <div>
             <label className="cmdb-label" htmlFor="cmdb-status">{t('cmdb.status')}</label>
-            <select id="cmdb-status" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="cmdb-input cmdb-input--w160">
+            <Select suelto placeholder={false} id="cmdb-status" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="cmdb-input cmdb-input--w160">
               <option value="">{t('cmdb.todos')}</option>
               {Object.keys(STATUS_COLOR).map(v => <option key={v} value={v}>{etiqueta('st_', v)}</option>)}
-            </select>
+            </Select>
           </div>
           {(filterType||filterStatus||searchQ) && (
             <Button variant="secondary" onClick={() => {setFilterType('');setFilterStatus('');setSearchQ('')}}>{t('cmdb.clear')}</Button>
@@ -841,16 +841,16 @@ export default function CMDBPage(): JSX.Element {
           action={todos.length ? undefined : newCiButton} />
       ) : (
         <div className="cmdb-panel cmdb-panel--scroll">
-          <table className="cmdb-table">
+          <TablaSimple claseTabla="cmdb-table">
             <thead>
               <tr className="u-border-b">
               {columnas.map(([key, label]) => (
                 <th key={key} aria-sort={sortKey === key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
                   className="cmdb-th-sort">
-                  <button type="button" onClick={() => toggleSort(key)}
+                  <Pulsable type="button" onClick={() => toggleSort(key)}
                     className={`cmdb-sort-btn${sortKey === key ? ' is-active' : ''}`}>
                     {t(`cmdb.${label}`)}{sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
-                  </button>
+                  </Pulsable>
                 </th>
               ))}
               <th className="cmdb-th-pad"><span className="u-sr-only">{t('cmdb.actions')}</span></th>
@@ -892,7 +892,7 @@ export default function CMDBPage(): JSX.Element {
                   </tr>
               ))}
             </tbody>
-          </table>
+          </TablaSimple>
         </div>
       )}
       </>}

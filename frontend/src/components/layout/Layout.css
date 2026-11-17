@@ -128,7 +128,7 @@
   background: var(--surface-4);
   border-radius: 4px;
   padding: 1px 4px;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   color: var(--text-3);
 }
 .layo-row-7 {
@@ -257,7 +257,7 @@
 .layo-box-19 {
   font-size: var(--text-3xs-h);
   color: var(--text-3);
-  text-transform: uppercase;
+
   letter-spacing: 0.08em;
   margin-bottom: 4px;
 }
@@ -316,7 +316,7 @@
   background: transparent;
   font-size: var(--text-2xs);
   font-weight: 700;
-  text-transform: uppercase;
+
   letter-spacing: 0.08em;
   text-align: left;
   transition: color 0.1s;
@@ -611,3 +611,7 @@
   padding: 6px 8px;
 }
 /* <<< estilos-en-linea */
+
+/* Botones con texto pintados con IconButton (aria-expanded, role…): sin el line-height: 0 del botón de icono. */
+.icon-button.layo-row-17,
+.icon-button.layo-row-16 { line-height: inherit; }

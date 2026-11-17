@@ -19,7 +19,7 @@ import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import { extractErr, fmtDate } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { Button, EmptyState, Modal, Spinner, StatusBadge, Tabs } from '../ui'
+import { Button, Checkbox, EmptyState, Modal, Select, Spinner, StatusBadge, Tabs } from '../ui'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { ticketsApi } from '../../services/api'
 import { problemasApi } from '../../services/api/serviceDeskMercado'
@@ -104,11 +104,9 @@ function Incidentes({ problema, esAdmin }: { problema: SdProblema; esAdmin: bool
           <label className="sdm-field"><span>{t('sd_mercado.buscar_incidentes')}</span>
             <input className="ds-input" value={busqueda} onChange={e => setBusqueda(e.target.value)} /></label>
           {(resultados.data ?? []).filter(r => !yaVinculados.has(r.id)).map(r => (
-            <label key={r.id} className="u-row-center-8 sdm-wrap">
-              <input type="checkbox" checked={elegidos.includes(r.id)}
-                onChange={e => setElegidos(e.target.checked ? [...elegidos, r.id] : elegidos.filter(x => x !== r.id))} />
-              <span className="u-mono">{r.number}</span> {r.title}
-            </label>
+            <Checkbox key={r.id} className="u-row-center-8 sdm-wrap" checked={elegidos.includes(r.id)}
+              onChange={v => setElegidos(v ? [...elegidos, r.id] : elegidos.filter(x => x !== r.id))}
+              label={<><span className="u-mono">{r.number}</span> {r.title}</>} />
           ))}
           <div className="u-row-end"><Button size="sm" onClick={() => vincular.mutate()} loading={vincular.isPending} disabled={elegidos.length === 0}>{t('sd_mercado.vincular_n', { n: elegidos.length })}</Button></div>
         </div>
@@ -174,9 +172,9 @@ function CrearCambio({ problema, esAdmin }: { problema: SdProblema; esAdmin: boo
       <div className="u-text2-xs">{t('sd_mercado.cambio_desde_problema_desc')}</div>
       <div className="sdm-form">
         <label className="sdm-field"><span>{t('sd_mercado.tipo_cambio')}</span>
-          <select className="ds-input" value={tipo} onChange={e => setTipo(e.target.value)}>
+          <Select suelto placeholder={false} value={tipo} onChange={e => setTipo(e.target.value)}>
             {['standard', 'normal', 'emergency'].map(x => <option key={x} value={x}>{etiquetaSd('chg_type', x)}</option>)}
-          </select></label>
+          </Select></label>
         <label className="sdm-field"><span>{t('sd_mercado.inicio_previsto')}</span><DateInput className="ds-input" withTime value={inicio} onChange={e => setInicio(e.target.value)} /></label>
         <label className="sdm-field"><span>{t('sd_mercado.fin_previsto')}</span><DateInput className="ds-input" withTime value={fin} onChange={e => setFin(e.target.value)} /></label>
       </div>
@@ -222,7 +220,7 @@ function Kedb({ problema, esAdmin }: { problema: SdProblema; esAdmin: boolean })
           <div className="sdm-form">
             <label className="sdm-field"><span>{t('sd_mercado.dias_revision')}</span>
               <input className="ds-input" type="number" min={7} max={365} value={dias} placeholder={t('sd_mercado.dias_revision_defecto')} onChange={e => setDias(e.target.value)} /></label>
-            <label className="u-row-center-8"><input type="checkbox" checked={autoKb} onChange={e => setAutoKb(e.target.checked)} />{t('sd_mercado.crear_articulo_kb')}</label>
+            <Checkbox className="u-row-center-8" checked={!!autoKb} onChange={setAutoKb} label={t('sd_mercado.crear_articulo_kb')} />
           </div>
           <div className="u-actions-8">
             <Button variant="secondary" onClick={() => revisar.mutate()} loading={revisar.isPending}>{t('sd_mercado.marcar_revisado')}</Button>

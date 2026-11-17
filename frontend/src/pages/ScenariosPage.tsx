@@ -15,7 +15,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { scenariosApi } from '../services/api'
 import type { EscenarioDetalle, EscenarioResumen, ResultadoDeEscenario } from '../services/api/tipos-finanzas'
-import { Button, Card, KpiCard, Modal, Spinner, EmptyState } from '../components/ui'
+import { Button, Card, KpiCard, Modal, Spinner, EmptyState, Pulsable } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AlertTriangle, CheckCircle2, Clock, Gauge, GitBranch, Lightbulb, MousePointerClick, Play, Plus, Trash2, XCircle } from 'lucide-react'
@@ -96,7 +96,7 @@ export default function ScenariosPage() {
                 action={<Button icon={<Plus size={14} />} onClick={()=>setShowCreate(true)}>{t('scenarios.nuevo_escenario')}</Button>} />
             </Card>
           ) : scenarios.map(s => (
-            <button key={s.id} type="button" onClick={()=>setSelected(s.id)} aria-pressed={selected===s.id}
+            <Pulsable key={s.id} type="button" onClick={()=>setSelected(s.id)} aria-pressed={selected===s.id}
               className={`scn-card scn-item${selected===s.id ? ' scn-item--selected' : ''}`}>
               <div className="scn-item-name">{s.name}</div>
               <div className="scn-item-meta">{t('scenarios.resumen_proyectos_semanas', { proyectos: s.project_count, semanas: s.horizon_weeks })}</div>
@@ -104,7 +104,7 @@ export default function ScenariosPage() {
                 <span className={`scn-status${s.status==='computed' ? ' scn-status--computed' : ''}`}>{etiquetaEstado(s.status)}</span>
                 <span className="u-text3-xs">{fmtDate(s.created_at)}</span>
               </div>
-            </button>
+            </Pulsable>
           ))}
         </div>
 

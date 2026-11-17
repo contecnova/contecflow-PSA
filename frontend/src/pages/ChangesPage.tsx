@@ -7,7 +7,7 @@ import { z } from 'zod'
 import { projectsApi, projectChangesApi, cabApi } from '../services/api'
 import type { CambioEnCab } from '../services/api/tipos-cambios'
 import type { SolicitudDeCambio } from '../services/api/tipos-proyectos'
-import { Button, Modal, Spinner, EmptyState, Tabs, KpiCard, IconButton } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, Tabs, KpiCard, IconButton, Select } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { ArrowLeftRight, CalendarClock, Check, Coins, FolderOpen, Hourglass, ListChecks, MessageSquare, Pencil, Plus, ThumbsDown, ThumbsUp, Trash2, User, Users, Wrench, X, Zap } from 'lucide-react'
@@ -155,9 +155,9 @@ function CRFormModal({ cr, projectId, onClose }: { cr?: SolicitudDeCambio | null
         </div>
         <div>
           <label htmlFor={`${idPrefix}-impact`} className="chg-label">{t('changes.impact')}</label>
-          <select id={`${idPrefix}-impact`} value={form.impact} onChange={set('impact')} className="chg-input" {...err('impact')}>
+          <Select suelto placeholder={false} id={`${idPrefix}-impact`} value={form.impact} onChange={set('impact')} className="chg-input" {...err('impact')}>
             {Object.entries(IMPACT_CFG).map(([v, c]) => <option key={v} value={v}>{t(c.labelKey)}</option>)}
-          </select>
+          </Select>
           {errMsg('impact')}
         </div>
         <div>
@@ -429,11 +429,11 @@ export default function ChangesPage(): JSX.Element {
       {tab === 'project' && (
         <>
           <div className="ds-toolbar">
-            <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
+            <Select suelto placeholder={false} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
               aria-label={t('changes.project_select_aria')} className="chg-input chg-input--project">
               <option value="">{t('changes.select_project_ph')}</option>
               {projects.map((p) => <option key={p.id} value={String(p.id)}>{p.code} — {p.name}</option>)}
-            </select>
+            </Select>
           </div>
 
           {selectedProject && summary && (summary.total ?? 0) > 0 && (

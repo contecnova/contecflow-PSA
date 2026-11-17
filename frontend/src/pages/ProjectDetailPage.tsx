@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, risksApi, plantillasApi, type ProjectDetail, type ProjectUpdatePayload } from '../services/api'
-import { Spinner, LoadBar as LoadBarRaw, EmptyState as EstadoVacio, MarcaExterno } from '../components/ui'
+import { Spinner, LoadBar as LoadBarRaw, EmptyState as EstadoVacio, MarcaExterno, Pulsable, Select } from '../components/ui'
 import { extractErr, fmtDate, fmtCurrency } from '../utils/helpers'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
@@ -282,11 +282,11 @@ function EditProjectForm({ project, onSave, onCancel, isPending }: {
       </div>
       <div>
         <label className="pd-label-style" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{t('project_detail.status_label')}</label>
-        <select className="pd-input-style pd-input" id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.status} onChange={e => set('status', e.target.value)}>
+        <Select suelto placeholder={false} className="pd-input-style pd-input" id={`${idCampo}-2`} value={form.status} onChange={e => set('status', e.target.value)}>
           {Object.entries(STATUS_CFG).map(([v, cfg]) => (
             <option key={v} value={v}>{cfg.label}</option>
           ))}
-        </select>
+        </Select>
       </div>
       <div>
         <label className="pd-label-style" id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`}>{t('project_detail.end_date_label')}</label>
@@ -307,13 +307,13 @@ function EditProjectForm({ project, onSave, onCancel, isPending }: {
           onBlur={e => e.target.style.borderColor = 'var(--surface-4)'} />
       </div>
       <div className="u-row-8">
-        <button className="pd-btn-sm" onClick={() => onSave(form)} disabled={isPending || !form.name.trim()}
+        <Pulsable className="pd-btn-sm" onClick={() => onSave(form)} disabled={isPending || !form.name.trim()}
           style={{ '--pd-btn-sm-cursor': isPending || !form.name.trim() ? 'not-allowed' : 'pointer', '--pd-btn-sm-opacity': !form.name.trim() ? '0.5' : '1' } as CSSProperties}>
           <Check size={13} />{isPending ? t('project_detail.saving') : t('project_detail.save_changes')}
-        </button>
-        <button className="pd-btn-ghost-sm" onClick={onCancel}>
+        </Pulsable>
+        <Pulsable className="pd-btn-ghost-sm" onClick={onCancel}>
           <X size={13} /> {t('project_detail.cancel')}
-        </button>
+        </Pulsable>
       </div>
     </div>
   )
@@ -429,12 +429,9 @@ export default function ProjectDetailPage() {
       <div className="pd-card-3">
         {/* Back + code */}
         <div className="pd-row-7">
-          <button className="pd-btn-sm-2" onClick={() => navigate('/projects')}
-            onMouseEnter={e => e.currentTarget.style.color = 'var(--text-1)'}
-            onMouseLeave={e => e.currentTarget.style.color = 'var(--text-3)'}
-          >
+          <Pulsable className="pd-btn-sm-2" onClick={() => navigate('/projects')}>
             <ChevronLeft size={14} /> {t('project_detail.back_projects')}
-          </button>
+          </Pulsable>
           {project.code && (
             <>
               <span className="pd-text-2">/</span>
@@ -466,12 +463,9 @@ export default function ProjectDetailPage() {
           </div>
           <div className="pd-row-10">
             {tab === 'overview' && !editing && (
-              <button className="pd-btn-sm-3" onClick={() => setEditing(true)}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-glow)'; e.currentTarget.style.color = 'var(--accent)' }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--surface-4)'; e.currentTarget.style.color = 'var(--text-2)' }}
-              >
+              <Pulsable className="pd-btn-sm-3" onClick={() => setEditing(true)}>
                 <Edit2 size={12} /> {t('project_detail.edit_button')}
-              </button>
+              </Pulsable>
             )}
             <Link to={`/tasks?project_id=${project.id}`} className="pd-enlace-cabecera">
               <CheckSquare size={12} /> {t('project_detail.tab_tasks')}
@@ -485,33 +479,32 @@ export default function ProjectDetailPage() {
             </Link>
             {/* Rev. 173: plantilla desde el proyecto (fases, tareas, dependencias, roles, documentos) */}
             {gestiona && (
-              <button className="pd-btn-sm-4" disabled={guardandoPlantilla}
+              <Pulsable className="pd-btn-sm-4" disabled={guardandoPlantilla}
                 onClick={() => guardarComoPlantilla()} title={t('planificador.guardar_como_plantilla_ayuda')}>
                 <Copy size={12} /> {t('planificador.guardar_como_plantilla')}
-              </button>
+              </Pulsable>
             )}
             {/* I27: Auto-planificar tareas del proyecto */}
-            <button className="pd-btn-sm-4"
+            <Pulsable className="pd-btn-sm-4"
               onClick={() => setSmartScheduleOpen(true)}
               title={t('project_detail.auto_schedule_tooltip')}
             >
               <Sparkles size={12} /> {t('project_detail.auto_schedule')}
-            </button>
+            </Pulsable>
           </div>
         </div>
 
         {/* Tab bar */}
         <div className="pd-row-11">
           {TABS.map(({ id: tid, label, icon: Icon }) => (
-            <button className="pd-btn-ghost-base"
+            <Pulsable className="pd-btn-ghost-base"
               key={tid}
               onClick={() => setTab(tid)}
+              data-activa={tab === tid ? 'true' : undefined}
               style={{ '--pd-btn-ghost-base-border-bottom': `2px solid ${tab === tid ? 'var(--accent)' : 'transparent'}`, '--pd-btn-ghost-base-color': tab === tid ? 'var(--accent)' : 'var(--text-2)', '--pd-btn-ghost-base-font-weight': tab === tid ? '700' : '500' } as CSSProperties}
-              onMouseEnter={e => { if (tab !== tid) e.currentTarget.style.color = 'var(--text-1)' }}
-              onMouseLeave={e => { if (tab !== tid) e.currentTarget.style.color = 'var(--text-2)' }}
             >
               <Icon size={13} />{label}
-            </button>
+            </Pulsable>
           ))}
         </div>
       </div>

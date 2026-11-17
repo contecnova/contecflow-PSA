@@ -16,7 +16,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, usersApi, permissionsApi } from '../services/api'
 import type { PermisoDeProyecto } from '../services/api/tipos-plataforma'
-import { Avatar, Button, Card, Spinner, EmptyState, KpiCard, Modal } from '../components/ui'
+import { Avatar, Button, Card, Spinner, EmptyState, KpiCard, Modal, Checkbox, Pulsable, Select, TablaSimple } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import PageHeader from '../components/layout/PageHeader'
@@ -88,10 +88,10 @@ function PermissionForm({ projectId, users, perm, onClose }: { projectId: string
         {!isEdit && (
           <div className="ui-field">
             <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-1`}>{t('permisos_proyecto_ui.usuario')}</label>
-            <select className="ds-input" id={`${idCampo}-1`} value={form.user_id} onChange={e => set('user_id')(e.target.value)}>
+            <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.user_id} onChange={e => set('user_id')(e.target.value)}>
               <option value="">{t('projectpermissions.selecciona_un_usuario')}</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.full_name}{u.role ? ` — ${etiquetaCodigo(t, 'rol_usuario', u.role)}` : ''}</option>)}
-            </select>
+            </Select>
           </div>
         )}
         {isEdit && (
@@ -110,14 +110,14 @@ function PermissionForm({ projectId, users, perm, onClose }: { projectId: string
             {LEVELS.map(l => {
               const activo = form.level === l.value
               return (
-                <button className={`pperm-nivel${activo ? ' pperm-nivel--activo' : ''}`} type="button" aria-pressed={activo} key={l.value} onClick={() => set('level')(l.value)}>
+                <Pulsable className={`pperm-nivel${activo ? ' pperm-nivel--activo' : ''}`} aria-pressed={activo} key={l.value} onClick={() => set('level')(l.value)}>
                   <l.Icon size={16} className="pperm-nivel__icono" aria-hidden />
                   <div className="u-flex1-min0">
                     <div className="pperm-nivel__nombre">{t(l.label)}</div>
                     <div className="u-text2-xs">{t(l.desc)}</div>
                   </div>
                   {activo && <Check size={16} className="pperm-nivel__check" aria-hidden />}
-                </button>
+                </Pulsable>
               )
             })}
           </div>
@@ -127,18 +127,12 @@ function PermissionForm({ projectId, users, perm, onClose }: { projectId: string
           <div className="pperm-extra">
             <div className="ds-eyebrow">{t('permisos_proyecto_ui.permisos_adicionales')}</div>
             <div className="u-stack-8">
-              <label className="u-row-center-8-pointer">
-                <input type="checkbox" checked={form.can_see_financials} onChange={e => set('can_see_financials')(e.target.checked)} />
-                <span>{t('projectpermissions.ver_datos_financieros_costes_presupuesto_facturacion')}</span>
-              </label>
-              <label className="u-row-center-8-pointer">
-                <input type="checkbox" checked={form.can_see_rates} onChange={e => set('can_see_rates')(e.target.checked)} />
-                <span>{t('projectpermissions.ver_tarifas_hora_de_los_companeros')}</span>
-              </label>
-              <label className="u-row-center-8-pointer">
-                <input type="checkbox" checked={form.can_export} onChange={e => set('can_export')(e.target.checked)} />
-                <span>{t('projectpermissions.exportar_datos_del_proyecto')}</span>
-              </label>
+              <Checkbox className="u-row-center-8-pointer" checked={!!form.can_see_financials} onChange={set('can_see_financials')}
+                label={t('projectpermissions.ver_datos_financieros_costes_presupuesto_facturacion')} />
+              <Checkbox className="u-row-center-8-pointer" checked={!!form.can_see_rates} onChange={set('can_see_rates')}
+                label={t('projectpermissions.ver_tarifas_hora_de_los_companeros')} />
+              <Checkbox className="u-row-center-8-pointer" checked={!!form.can_export} onChange={set('can_export')}
+                label={t('projectpermissions.exportar_datos_del_proyecto')} />
             </div>
           </div>
         )}
@@ -220,10 +214,10 @@ export default function ProjectPermissionsPage() {
       <Card>
         <div className="ui-field pperm-selector">
           <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-1`}>{t('permisos_proyecto_ui.proyecto')}</label>
-          <select className="ds-input" id={`${idCampo}-1`} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
+          <Select suelto placeholder={false} id={`${idCampo}-1`} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}>
             <option value="">{t('projectpermissions.selecciona_un_proyecto')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
+          </Select>
         </div>
         {selectedProject && (
           <p className="pperm-ayuda">
@@ -260,7 +254,7 @@ export default function ProjectPermissionsPage() {
               {t('permisos_proyecto_ui.n_permisos', { n: perms.length, proyecto: selectedProj?.name ?? '' })}
             </div>
             <div className="pperm-tabla-scroll">
-            <table className="pperm-table">
+            <TablaSimple claseTabla="pperm-table">
               <thead>
                 <tr>
                   {[t('permisos_proyecto_ui.usuario'), t('permisos_proyecto_ui.col_nivel'), t('permisos_proyecto_ui.col_finanzas'), t('permisos_proyecto_ui.col_tarifas'), t('permisos_proyecto_ui.col_exportar'), t('permisos_proyecto_ui.col_acciones')].map(h => (
@@ -302,7 +296,7 @@ export default function ProjectPermissionsPage() {
                   )
                 })}
               </tbody>
-            </table>
+            </TablaSimple>
             </div>
           </Card>
 

@@ -26,7 +26,6 @@ textarea.rev-input { resize: vertical; }
   font-size: var(--text-xs);
   font-weight: 500;
   color: var(--text-2);
-  text-transform: uppercase;
   letter-spacing: 0.07em;
   display: block;
   margin-bottom: 5px;
@@ -69,7 +68,6 @@ textarea.rev-input { resize: vertical; }
   font-weight: 500;
   margin-bottom: 10px;
   color: var(--text-2);
-  text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 
@@ -146,7 +144,6 @@ textarea.rev-input { resize: vertical; }
   font-size: var(--text-2xs);
   font-weight: 700;
   color: var(--text-3);
-  text-transform: uppercase;
   letter-spacing: 0.07em;
   white-space: nowrap;
 }
@@ -157,7 +154,7 @@ textarea.rev-input { resize: vertical; }
 .rev-table tbody tr:nth-child(even) { background: color-mix(in srgb, var(--text-1) 2%, transparent); }
 .rev-table tbody tr.rev-row--reversed { opacity: 0.5; }
 .rev-entry__name { font-weight: 500; }
-.rev-period { font-family: var(--font-mono); font-size: var(--text-sm); }
+.rev-period { font-variant-numeric: tabular-nums; font-size: var(--text-sm); }
 .rev-amount--recognized { font-weight: 600; color: var(--success); }
 .rev-amount--deferred { color: var(--warning); }
 .rev-status { font-size: var(--text-xs); }

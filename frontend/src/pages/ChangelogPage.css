@@ -19,7 +19,7 @@
 .chl-card-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; gap: 10px; }
 .chl-card-tags { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; flex-wrap: wrap; }
 .chl-version {
-  font-size: var(--text-2xs); font-family: var(--font-mono); padding: 2px 7px; border-radius: 8px;
+  font-size: var(--text-2xs); font-variant-numeric: tabular-nums; padding: 2px 7px; border-radius: 8px;
   background: var(--surface-4); color: var(--text-2); font-weight: 700;
 }
 .chl-type-badge {
@@ -42,8 +42,7 @@
   .chl-grid3 { grid-template-columns: minmax(0, 1fr); }
 }
 .chl-label {
-  font-size: var(--text-xs); font-weight: 700; color: var(--text-2); text-transform: uppercase;
-  display: block; margin-bottom: 5px;
+  font-size: var(--text-xs); font-weight: 700; color: var(--text-2);  display: block; margin-bottom: 5px;
 }
 .chl-input {
   width: 100%; background: var(--surface-3); border: 1px solid var(--surface-4);

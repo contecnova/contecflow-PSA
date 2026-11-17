@@ -14,7 +14,7 @@ import { settingsApi } from '../services/settingsApi'
  * con .ds-input; vacío de SmartMatch con
  * EmptyState; "skills" y "burnout" en castellano.
  */
-import { Avatar, LoadBar, Button, Card, KpiCard, Modal, Input, Select, Spinner, EmptyState, useSort, SortableTH, ViewToggle, Tabs, MarcaExterno } from '../components/ui'
+import { Avatar, LoadBar, Button, Card, KpiCard, Modal, Input, Select, Spinner, EmptyState, useSort, SortableTH, ViewToggle, Tabs, MarcaExterno, Pulsable } from '../components/ui'
 import AltaDeExternoModal from '../components/externos/AltaDeExternoModal'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -122,9 +122,9 @@ function BurnoutMonitorTab() {
       <div className="res-bo-bar">
         <div className="u-wrap-6" role="group" aria-label={t('resources_page.filtrar_riesgo')}>
           {(['all', 'yellow', 'orange', 'red'] as const).map(id => (
-            <button key={id} type="button" onClick={() => setFilter(id)} aria-pressed={filter === id} className="res-chip">
+            <Pulsable key={id} type="button" onClick={() => setFilter(id)} aria-pressed={filter === id} className="res-chip">
               {id === 'all' ? t('resources_page.todos') : t(`resources_page.riesgo_${id}`)}
-            </button>
+            </Pulsable>
           ))}
         </div>
         <Button variant="secondary" size="sm" icon={<RefreshCw size={14} />} onClick={() => recompute()} loading={isPending}>
@@ -357,34 +357,34 @@ function SmartMatchTab() {
               {form.skills.map(s => (
                 <span key={s} className="res-skill">
                   {s}
-                  <button type="button" onClick={() => removeSkill(s)} className="res-skill__remove"
-                    aria-label={t('resources_page.quitar_skill', { skill: s })}><span aria-hidden="true">×</span></button>
+                  <Pulsable type="button" onClick={() => removeSkill(s)} className="res-skill__remove"
+                    aria-label={t('resources_page.quitar_skill', { skill: s })}><span aria-hidden="true">×</span></Pulsable>
                 </span>
               ))}
             </div>
             <div className="u-row-8">
-              <select id={`${idCampo}-skill`} aria-labelledby={`${idCampo}-etskill`} value={skillInput} onChange={e => setSkillInput(e.target.value)} className="ds-input res-input--grow">
+              <Select suelto placeholder={false} id={`${idCampo}-skill`} value={skillInput} onChange={e => setSkillInput(e.target.value)} className="res-input--grow">
                 <option value="">{t('resources_page.seleccionar_skill')}</option>
                 {allSkills.filter(s => !form.skills.includes(s.name)).map(s => <option key={s.id || s.name} value={s.name}>{s.name}</option>)}
-              </select>
+              </Select>
               <Button variant="secondary" icon={<Plus size={14} />} onClick={() => { if (skillInput) addSkill(skillInput) }} disabled={!skillInput}>{t('resources_page.anadir')}</Button>
             </div>
             <div className="res-quicks">
               {SKILLS_SUGERIDOS.filter(s => !form.skills.includes(s)).map(s => (
-                <button key={s} type="button" onClick={() => addSkill(s)} className="res-quick"
-                  aria-label={t('resources_page.anadir_skill_nombre', { skill: s })}>+{s}</button>
+                <Pulsable key={s} type="button" onClick={() => addSkill(s)} className="res-quick"
+                  aria-label={t('resources_page.anadir_skill_nombre', { skill: s })}>+{s}</Pulsable>
               ))}
             </div>
           </div>
 
           <div className="u-mb-14">
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="res-label">{t('resources_page.rol')}</label>
-            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} className="ds-input">
+            <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}>
               <option value="">{t('resources_page.cualquier_rol')}</option>
               <option value="employee">{t('resources_page.rol_employee')}</option>
               <option value="pm">{t('resources_page.rol_pm')}</option>
               <option value="team_lead">{t('resources_page.rol_team_lead')}</option>
-            </select>
+            </Select>
           </div>
 
           <div className="res-sm__grid">
@@ -519,16 +519,16 @@ export default function ResourcesPage() {
           <div className="res-filters">
             <input aria-label={t('resources.buscar_por_nombre_cargo_o_departamento')} value={search} onChange={e => setSearch(e.target.value)} placeholder={t('resources.buscar_por_nombre_cargo_o_departamento')}
               className="ds-input res-input--search" />
-            <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)} aria-label={t('resources.department')} className="ds-input res-input--auto">
+            <Select suelto placeholder={false} value={deptFilter} onChange={e => setDeptFilter(e.target.value)} aria-label={t('resources.department')} className="res-input--auto">
               <option value="">{t('resources.todos_los_departamentos')}</option>
               {departments.map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
-            <select value={resSort.key} onChange={e => setResSort(e.target.value)} aria-label={t('resources_page.ordenar')} className="ds-input res-input--auto">
+            </Select>
+            <Select suelto placeholder={false} value={resSort.key} onChange={e => setResSort(e.target.value)} aria-label={t('resources_page.ordenar')} className="res-input--auto">
               <option value="user.full_name">{t('resources_page.orden_nombre')}</option>
               <option value="current_load_pct">{t('resources_page.orden_carga')}</option>
               <option value="user.department">{t('resources.department')}</option>
               <option value="user.role">{t('resources_page.rol')}</option>
-            </select>
+            </Select>
             <ViewToggle view={view} onChange={setView} />
           </div>
           {isLoading ? (

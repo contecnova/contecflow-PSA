@@ -14,7 +14,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { templatesApi, type ApiError } from '../services/api'
 import type { PlantillaDeProyecto, ProyectoDesdePlantilla } from '../services/api/tipos-proyectos'
-import { Button, Card, ClientSelect, EmptyState, Input, Modal, Select, Spinner } from '../components/ui'
+import { Button, Card, ClientSelect, EmptyState, Input, Modal, Select, Spinner, Pulsable } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
 import { TYPE_LABELS } from '../utils/helpers'
@@ -429,7 +429,7 @@ export default function ProjectTemplatesPage() {
         <div className="ptpl-aviso" role="status">
           <CheckCircle2 size={15} aria-hidden />
           <span className="u-flex1-min0">{successMsg}</span>
-          <button type="button" className="ptpl-aviso__cerrar" aria-label={t('common.close')} onClick={() => setSuccessMsg(null)}><X size={14} aria-hidden /></button>
+          <Pulsable className="ptpl-aviso__cerrar" aria-label={t('common.close')} onClick={() => setSuccessMsg(null)}><X size={14} aria-hidden /></Pulsable>
         </div>
       )}
 

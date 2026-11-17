@@ -5,7 +5,7 @@ import { useState, useRef, useEffect, useId } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { importApi } from '../services/api'
 import type { ErrorDeFilaImportada, ResultadoDeImportacion, ValidacionDeImportacion } from '../services/api/tipos-plataforma'
-import { Button, Card, EmptyState, KpiCard, Page, StatusBadge } from '../components/ui'
+import { Button, Card, EmptyState, KpiCard, Page, StatusBadge, Select, TablaSimple } from '../components/ui'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import { AlertTriangle, CheckCircle2, Download, FileSearch, FileUp, History, Loader2, Upload, XCircle } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
@@ -129,15 +129,15 @@ function ImportTab() {
 
             <div className="u-mb-16">
               <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="import-page-e8">{t('import_data.type_label')}</label>
-              <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={entityType} onChange={e => { setEntityType(e.target.value); setStep('select'); setValidation(null); setResult(null) }} className="import-page-e9">
+              <Select suelto placeholder={false} id={`${idCampo}-1`} value={entityType} onChange={e => { setEntityType(e.target.value); setStep('select'); setValidation(null); setResult(null) }} className="import-page-e9">
                 {Object.entries(ENTITY_LABELS).map(([v,l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
+              </Select>
             </div>
 
             {template && (
               <div className="impt-card">
                 <div className="impt-box-2">{t('import_data.csv_columns')}</div>
-                <div className="impt-box-3">
+                <div className="ds-codigo impt-box-3">
                   {template.columns.join(' | ')}
                 </div>
                 <div className="impt-plantilla">
@@ -206,12 +206,12 @@ function ImportTab() {
                 <div className="impt-box-6">
                   <div className="impt-box-7">{t('import_data.preview')}</div>
                   <div className="u-scroll-x">
-                    <table className="impt-table">
+                    <TablaSimple claseTabla="impt-table">
                       <thead><tr>{Object.keys((validation.preview ?? [])[0] || {}).map(k => <th key={k} className="impt-th">{k}</th>)}</tr></thead>
                       <tbody>
                         {(validation.preview ?? []).map((row,i) => <tr key={i}>{Object.values(row).map((v,j) => <td key={j} className="impt-td">{String(v).slice(0,30)}</td>)}</tr>)}
                       </tbody>
-                    </table>
+                    </TablaSimple>
                   </div>
                 </div>
               )}

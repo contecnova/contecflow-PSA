@@ -10,7 +10,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, CheckCircle2, Clock, FileText, ListOrdered, Paperclip, ShieldAlert, Trash2, Users } from 'lucide-react'
 import { ausenciasApi } from '../../services/api/ausencias'
 import type { AusenciaServida, PeticionDeAusencia, VistaPreviaDeAusencia } from '../../services/api/tipos-ausencias'
-import { Button, Modal, Spinner } from '../ui'
+import { Button, Modal, Spinner, Select, TablaSimple, GrupoDeOpciones, Checkbox } from '../ui'
 import DateInput from '../ui/DateInput'
 import { UserSelect } from '../ui/EntitySelect'
 import IconoDeAusencia from './IconoDeAusencia'
@@ -76,17 +76,13 @@ export default function FormularioDeAusencia({ abierto, onCerrar, editar }: {
     <Modal open={abierto} onClose={onCerrar} title={editar ? ta('editar_ausencia') : ta('pedir_ausencia')} size="lg">
       <form className="aus-formulario" onSubmit={e => { e.preventDefault(); if (completa && !bloqueada) guardar.mutate() }}>
         <div className="aus-formulario-datos">
-          <fieldset className="aus-tipos" aria-label={ta('tipo')}>
-            <legend className="aus-etiqueta">{ta('tipo')}</legend>
-            {tipos.isLoading && <Spinner label={ta('cargando')} />}
-            {(tipos.data ?? []).map(t => (
-              <label key={t.id} className="aus-tipo-opcion">
-                <input type="radio" name="tipo" aria-label={nombreDeTipo(t, lang)} value={t.id} checked={p.absence_type_id === t.id}
-                  onChange={() => poner({ absence_type_id: t.id, hours: null })} />
-                <Muestra color={t.color} className="aus-tipo"><IconoDeAusencia icono={t.icono} size={14} />{nombreDeTipo(t, lang)}</Muestra>
-              </label>
-            ))}
-          </fieldset>
+          {tipos.isLoading && <Spinner label={ta('cargando')} />}
+          <GrupoDeOpciones forma="fila" name="tipo" leyenda={ta('tipo')} valor={p.absence_type_id ?? ''}
+            onChange={v => { const t = (tipos.data ?? []).find(x => String(x.id) === v); if (t) poner({ absence_type_id: t.id, hours: null }) }}
+            opciones={(tipos.data ?? []).map(t => ({
+              valor: String(t.id),
+              titulo: <Muestra color={t.color} className="aus-tipo"><IconoDeAusencia icono={t.icono} size={14} />{nombreDeTipo(t, lang)}</Muestra>,
+            }))} />
           <div className="aus-fila">
             <label className="aus-campo-con-etiqueta"><span className="aus-etiqueta">{ta('desde')}</span>
               <DateInput className="aus-campo" aria-label={ta('desde')} value={p.start_date}
@@ -105,20 +101,19 @@ export default function FormularioDeAusencia({ abierto, onCerrar, editar }: {
             </label>
           ) : (
             <div className="aus-fila">
-              <label className="aus-casilla"><input type="checkbox" aria-label={ta('medio_dia_inicio')} checked={Boolean(p.half_day_start)}
-                onChange={e => poner({ half_day_start: e.target.checked })} />{ta('medio_dia_inicio')}</label>
+              <Checkbox className="aus-casilla" label={ta('medio_dia_inicio')} checked={Boolean(p.half_day_start)}
+                onChange={m => poner({ half_day_start: m })} />
               {p.end_date !== p.start_date && (
-                <label className="aus-casilla"><input type="checkbox" aria-label={ta('medio_dia_fin')} checked={Boolean(p.half_day_end)}
-                  onChange={e => poner({ half_day_end: e.target.checked })} />{ta('medio_dia_fin')}</label>
+                <Checkbox className="aus-casilla" label={ta('medio_dia_fin')} checked={Boolean(p.half_day_end)}
+                  onChange={m => poner({ half_day_end: m })} />
               )}
             </div>
           )}
           {turnos.length > 0 && (
             <label className="aus-campo-con-etiqueta"><span className="aus-etiqueta">{ta('turno')}</span>
-              <select className="aus-campo" aria-label={ta('turno')} value={p.shift_id ?? ''} onChange={e => poner({ shift_id: e.target.value || null })}>
-                <option value="">{ta('turno_del_cuadrante')}</option>
+              <Select suelto className="aus-campo" aria-label={ta('turno')} value={p.shift_id ?? ''} onChange={e => poner({ shift_id: e.target.value || null })} placeholder={ta('turno_del_cuadrante')}>
                 {turnos.map(t => <option key={t.id} value={t.id}>{t.nombre} · {t.hora_inicio}–{t.hora_fin}</option>)}
-              </select>
+              </Select>
             </label>
           )}
           <label className="aus-campo-con-etiqueta">
@@ -153,13 +148,12 @@ function Adjuntos({ docs, valor, onChange }: { docs: { id: string; nombre: strin
   const { ta } = useTa()
   const [tipoId, setTipoId] = useState('')
   return (
-    <fieldset className="aus-fieldset">
+    <fieldset className="ds-grupo-opciones aus-fieldset">
       <legend className="aus-etiqueta"><Paperclip size={13} aria-hidden /> {ta('adjuntar_ya')}</legend>
       <div className="aus-fila">
-        <select className="aus-campo" aria-label={ta('tipo_de_documento')} value={tipoId} onChange={e => setTipoId(e.target.value)}>
-          <option value="">{ta('elige_tipo_de_documento')}</option>
+        <Select suelto className="aus-campo" aria-label={ta('tipo_de_documento')} value={tipoId} onChange={e => setTipoId(e.target.value)} placeholder={ta('elige_tipo_de_documento')}>
           {docs.map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)}
-        </select>
+        </Select>
         <input type="file" className="aus-campo" aria-label={ta('fichero')} disabled={!tipoId}
           onChange={e => { const f = e.target.files?.[0]; if (f && tipoId) onChange([...valor, { tipoId, fichero: f }]); e.target.value = '' }} />
       </div>
@@ -199,7 +193,7 @@ function Previa({ v, turnos }: { v: VistaPreviaDeAusencia; turnos: { id: string;
         <dt><Users size={12} aria-hidden /> {ta('companeros_ausentes')}</dt><dd>{v.companeros_ausentes}</dd>
       </dl>
       {huecos.length > 0 && (
-        <table className="aus-tabla aus-tabla--compacta">
+        <TablaSimple claseTabla="aus-tabla aus-tabla--compacta">
           <caption>{ta('plazas_por_dia_y_turno')}</caption>
           <thead><tr><th scope="col">{ta('dia')}</th><th scope="col">{ta('turno')}</th><th scope="col">{ta('libres')}</th><th scope="col">{ta('en_espera')}</th></tr></thead>
           <tbody>
@@ -210,7 +204,7 @@ function Previa({ v, turnos }: { v: VistaPreviaDeAusencia; turnos: { id: string;
               </tr>
             ))}
           </tbody>
-        </table>
+        </TablaSimple>
       )}
       {v.cupos.filter(c => c.lleno).map(c => (
         <p key={c.clave} className="aus-aviso"><Clock size={13} aria-hidden /> {c.momento === 'solicitud'

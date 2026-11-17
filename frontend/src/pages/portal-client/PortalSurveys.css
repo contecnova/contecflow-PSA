@@ -17,7 +17,7 @@
   font-size: var(--text-xs);
   font-weight: 700;
   color: var(--text-3);
-  text-transform: uppercase;
+
   letter-spacing: 0.07em;
   margin-bottom: 10px;
 }
@@ -118,7 +118,7 @@
   height: 40px;
   flex-shrink: 0;
   cursor: pointer;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--text-base);
   font-weight: 700;
 }
@@ -127,7 +127,7 @@
 }
 .portsurv-txt-2 {
   font-weight: 700;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .portsurv-row-11 {
@@ -135,7 +135,7 @@
   height: 38px;
   border-radius: var(--radius-md);
   flex-shrink: 0;
-  background: var(--success-bg, rgba(16,185,129,0.12));
+  background: var(--success-bg);
   color: var(--success);
   display: flex;
   align-items: center;

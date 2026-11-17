@@ -16,7 +16,7 @@ import { useId } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { settingsApi } from '../../services/settingsApi'
-import { Button } from '../ui'
+import { Button, Select } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import './aprobaciones.css'
 
@@ -72,11 +72,11 @@ export function EditorDeCondicion({ valor, onChange }: { valor: CondicionSimple;
         <input id={`${id}-lt`} className="apr-campo" type="number" min={0} step="0.01" value={valor.amount_lt ?? ''}
           onChange={e => onChange({ ...valor, amount_lt: num(e.target.value) })} /></label>
       <label htmlFor={`${id}-dep`}><span className="apr-etiqueta">{t('aprob.departamento')}</span>
-        <select id={`${id}-dep`} className="apr-campo" value={valor.department ?? ''}
+        <Select suelto placeholder={false} id={`${id}-dep`} className="apr-campo" value={valor.department ?? ''}
           onChange={e => onChange({ ...valor, department: e.target.value || undefined })}>
           <option value="">{t('aprob.cualquiera')}</option>
           {(depts.data ?? []).filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-        </select></label>
+        </Select></label>
       <label htmlFor={`${id}-cat`}><span className="apr-etiqueta">{t('aprob.categoria')}</span>
         <input id={`${id}-cat`} className="apr-campo" value={valor.category ?? ''} placeholder={t('aprob.cualquiera')}
           onChange={e => onChange({ ...valor, category: e.target.value || undefined })} /></label>
@@ -102,7 +102,7 @@ export function EditorDeReglasDeAutoaprobacion({ raw, onChange }: { raw: string;
     <div className="apr-reglas">
       {reglas.length === 0 && <p className="apr-condiciones__ayuda">{t('aprob.sin_reglas_auto')}</p>}
       {reglas.map((r, i) => (
-        <fieldset key={i} className="apr-regla">
+        <fieldset key={i} className="ds-grupo-opciones apr-regla">
           <legend className="apr-etiqueta">{t('aprob.regla_n', { n: i + 1 })}</legend>
           <label htmlFor={`${id}-${i}-label`}><span className="apr-etiqueta">{t('aprob.etiqueta_regla')}</span>
             <input id={`${id}-${i}-label`} className="apr-campo" value={r.label ?? ''}

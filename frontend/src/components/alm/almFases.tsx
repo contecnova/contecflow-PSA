@@ -11,7 +11,7 @@ import {
   LifeBuoy, Monitor, MousePointer2, Network, Package, Printer, RefreshCw, Repeat, Server, ShoppingCart, Smartphone,
   Tablet, Timer, User, Users, Wrench, Briefcase, Landmark, Radio, Boxes,
 } from 'lucide-react'
-import { StatusBadge } from '../ui'
+import { StatusBadge, GrupoDeOpciones, Select, Checkbox } from '../ui'
 import type { StatusBadgeKind } from '../ui/StatusBadge'
 import { UserSelect, ProjectSelect, ClientSelect, AssetSelect } from '../ui/EntitySelect'
 import { settingsApi } from '../../services/settingsApi'
@@ -106,14 +106,9 @@ export function SelectorDeTitular({
   const deps = useDepartamentos()
   return (
     <div className="almf-titular">
-      <div className="almf-titular__tipos" role="radiogroup" aria-label={t('alm.holder_type')}>
-        {tipos.map(k => (
-          <button key={k} type="button" role="radio" aria-checked={tipo === k}
-            className={`almf-chip${tipo === k ? ' almf-chip--on' : ''}`} onClick={() => onChange(k, '')}>
-            {ICONO_TITULAR[k]}<span>{textoDeTitular(t, k)}</span>
-          </button>
-        ))}
-      </div>
+      <GrupoDeOpciones forma="fila" className="almf-titular__tipos" aria-label={t('alm.holder_type')}
+        valor={tipo} onChange={v => onChange(v as typeof tipo, '')}
+        opciones={tipos.map(k => ({ valor: k, titulo: <>{ICONO_TITULAR[k]}<span>{textoDeTitular(t, k)}</span></> }))} />
       <div className="almf-titular__quien">
         <label className="alm-label" htmlFor={`${idBase}-quien`}>{t('alm.holder_who')}</label>
         {tipo === 'user' && <UserSelect value={id} onChange={v => onChange('user', v)} className="alm-input" placeholder={t('alm.holder_pick_user')} />}
@@ -121,10 +116,10 @@ export function SelectorDeTitular({
         {tipo === 'client' && <ClientSelect id={`${idBase}-quien`} value={id} onChange={v => onChange('client', v)} className="alm-input" placeholder={t('alm.holder_pick_client')} />}
         {tipo === 'asset' && <AssetSelect value={id} onChange={v => onChange('asset', v)} placeholder={t('alm.holder_pick_asset')} />}
         {tipo === 'department' && (
-          <select id={`${idBase}-quien`} className="alm-input" value={id} onChange={e => onChange('department', e.target.value)}>
+          <Select suelto placeholder={false} id={`${idBase}-quien`} className="alm-input" value={id} onChange={e => onChange('department', e.target.value)}>
             <option value="">{t('alm.holder_pick_department')}</option>
             {(deps.data ?? []).filter(d => d.is_active).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-          </select>
+          </Select>
         )}
       </div>
     </div>
@@ -141,7 +136,7 @@ export function EditorDeChecklist({ t, filas, onChange }: { t: Traductor; filas:
       {filas.map((f, i) => (
         <li key={f.item} className="almf-checklist__fila">
           <label className="almf-checklist__item">
-            <input type="checkbox" checked={f.ok} onChange={e => cambiar(i, { ok: e.target.checked })} />
+            <Checkbox checked={f.ok} onChange={(_, e) => cambiar(i, { ok: e.target.checked })} />
             <span>{textoDeChecklist(t, f.item)}</span>
           </label>
           <input className="alm-input almf-checklist__nota" value={f.note ?? ''} placeholder={t('alm.checklist_note')}

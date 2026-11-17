@@ -114,7 +114,7 @@ Un solo desplegable: `<select>` nativo con el estilo del kit, 38 px como `Input`
 Fuera de `components/ui` e `index.css` (lo comprueba `src/__tests__/kitCssSinRestos.test.ts`):
 
 - Sin `text-transform: uppercase` ni `capitalize`: el texto va como se escribe. Un rótulo pequeño es `ds-eyebrow` (del kit).
-- Sin letra monoespaciada: cifras alineadas con `font-variant-numeric: tabular-nums`.
+- Sin letra monoespaciada en el CSS de las pantallas: cifras alineadas con `font-variant-numeric: tabular-nums`. El código que el usuario lee o copia (rutas de API, variables, comandos) usa la clase del kit `ds-codigo` (`ds-codigo--bloque` para bloques), la única con monoespaciada.
 - Sin colores literales (`#hex`, `rgb()/rgba()/hsl()` con números): `var(--token)`; mezclas con `color-mix(in srgb, var(--x) 20%, transparent)`.
 - Sin `height: NNpx` en botones, campos y selects: los controles del kit ya miden 38/32 px; si hace falta, `min-height`.
 

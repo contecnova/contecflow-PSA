@@ -9,7 +9,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Download, ShieldCheck } from 'lucide-react'
 import { conectoresApi, mensajeDeConector } from '../../services/api'
-import { Button, Modal, Spinner } from '../ui'
+import { Button, Modal, Spinner, TablaSimple } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { fmtDate as formatDate } from '../../utils/helpers'
@@ -76,7 +76,7 @@ export default function DocumentoContecmind({ id, puedeEscribir, onClose }: { id
                 : apr.isError ? <div className="docucont-valor2">{mensajeDeConector(apr.error, t('docs.error_generico'))}</div>
                 : (apr.data?.versions ?? []).length === 0 ? <div className="docucont-valor2">{t('docs.sin_versiones')}</div>
                 : (
-                  <table className="docucont-box-2">
+                  <TablaSimple claseTabla="docucont-box-2">
                     <thead><tr className="docucont-txt-3">
                       <th className="docucont-sp-1">{t('docs.version')}</th><th className="docucont-sp-1">{t('docs.estado')}</th>
                       <th className="docucont-sp-1">{t('docs.fichero')}</th><th className="docucont-sp-1">{t('docs.fecha')}</th><th aria-label={t('docs.pedir_aprobacion')} />
@@ -96,7 +96,7 @@ export default function DocumentoContecmind({ id, puedeEscribir, onClose }: { id
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </TablaSimple>
                 )}
               {apr.data?.solicitud && (
                 <div className="docucont-valor3">{t('docs.solicitud_en_curso')}: <strong>{estado(apr.data.solicitud.status)}</strong></div>

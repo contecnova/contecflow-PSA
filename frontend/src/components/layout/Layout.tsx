@@ -3,7 +3,7 @@ import React, { type CSSProperties, useState, useEffect, useRef, useMemo } from 
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
-import { Avatar, IconButton } from '../ui'
+import { Avatar, IconButton, Pulsable } from '../ui'
 import api, { projectsApi, tasksApi } from '../../services/api'
 import GlobalSearch from './GlobalSearch'
 import QuickCreateMenu from './QuickCreateMenu'
@@ -594,7 +594,7 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, ope
 
   return (
     <div className="layo-sp-2">
-      <button className={`layo-row-17 ${isAnyChildActive ? 'layout-m6' : 'layout-m4'}`} onClick={onToggle} aria-expanded={open} aria-controls={`nav-group-${group.id}`}
+      <IconButton ariaLabel={String(groupLabel)} title={String(groupLabel)} className={`layo-row-17 ${isAnyChildActive ? 'layout-m6' : 'layout-m4'}`} onClick={onToggle} aria-expanded={open} aria-controls={`nav-group-${group.id}`}
         onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-2)' }}
         onMouseLeave={e => { e.currentTarget.style.color = isAnyChildActive ? 'var(--accent)' : 'var(--text-3)' }}
       >
@@ -604,7 +604,7 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, ope
           <span className="layo-box-6">{realVisible.length}</span>
         )}
         <ChevronRight size={10} className={`layout-sx2 ${open ? 'layout-m7' : 'layout-m8'}`} />
-      </button>
+      </IconButton>
       <div className={`layo-grid-1 ${open ? 'layout-m9' : 'layout-m10'}`} id={`nav-group-${group.id}`}>
         <div className="layo-box-7">
           <div className="layo-stack-2">
@@ -769,51 +769,38 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
     <div className="app-topbar" role="banner">
       <Breadcrumbs items={breadcrumbs} />
       <div className="app-topbar-center">
-        <button onClick={onSearchOpen} title={text.global_search_title}
-          aria-label={text.open_global_search}
-          className="layo-row-6"
-        >
+        <Pulsable onClick={onSearchOpen} title={text.global_search_title} aria-label={text.open_global_search} className="layo-row-6">
           <Search size={12} />
           <span className="app-topbar-texto u-flex1">{text.search_placeholder}</span>
           <span className="app-topbar-texto layo-box-9">⌘K</span>
-        </button>
+        </Pulsable>
       </div>
       <div className="app-topbar-right">
-        <button onClick={onQuickCreate}
+        <IconButton onClick={onQuickCreate}
           title={traducir('layout.crear_nuevo')}
-          aria-label={traducir('layout.crear_nuevo_2')}
+          ariaLabel={traducir('layout.crear_nuevo_2')}
           className="layo-row-7"
           onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
           onMouseLeave={e => e.currentTarget.style.opacity = '1'}
         >
           <Plus size={16} />
-        </button>
-        <button className={`layo-row-18 layout-sx3 layout-e13 ${aiOpen ? 'layout-m14' : 'layout-m15'}`} onClick={onAiToggle} title={text.ai_title}
-          aria-label={text.open_ai} aria-pressed={aiOpen}
-          style={{ '--layout-border': `1px solid ${aiOpen ? 'color-mix(in srgb, var(--accent) 35%, transparent)' : 'var(--surface-4)'}` } as CSSProperties}
-        >
+        </IconButton>
+        <Pulsable className={`layo-row-18 layout-sx3 layout-e13 ${aiOpen ? 'layout-m14' : 'layout-m15'}`} onClick={onAiToggle} title={text.ai_title} aria-label={text.open_ai} aria-pressed={aiOpen} style={{ '--layout-border': `1px solid ${aiOpen ? 'color-mix(in srgb, var(--accent) 35%, transparent)' : 'var(--surface-4)'}` } as CSSProperties}>
           <Brain size={13} />
           <span className="app-topbar-texto">{text.ai_short}</span>
-        </button>
+        </Pulsable>
         {/* I25: Voice command modal — accesible desde cualquier página */}
-        <button
+        <IconButton
           onClick={onVoiceOpen}
           title={traducir('layout.comando_de_voz_imputar_crear_ticket_tarea')}
-          aria-label={traducir('layout.abrir_comando_de_voz')}
+          ariaLabel={traducir('layout.abrir_comando_de_voz')}
           className="layo-row-8"
           onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent)' }}
           onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-2)' }}
         >
           <Mic size={14} />
-        </button>
-        <button className={`layo-row-19 layout-sx3 layout-e13 ${chatOpen ? 'layout-m14' : 'layout-m15'}`}
-          onClick={onChatToggle}
-          type="button"
-          title={traducir('layoutshell.abrir_chat')}
-          aria-label={traducir('layoutshell.abrir_chat')}
-          aria-pressed={chatOpen}
-          style={{ '--layout-border': `1px solid ${chatOpen ? 'color-mix(in srgb, var(--accent) 35%, transparent)' : 'var(--surface-4)'}` } as CSSProperties}
-        >
+        </IconButton>
+        <Pulsable className={`layo-row-19 layout-sx3 layout-e13 ${chatOpen ? 'layout-m14' : 'layout-m15'}`} onClick={onChatToggle} title={traducir('layoutshell.abrir_chat')} aria-label={traducir('layoutshell.abrir_chat')} aria-pressed={chatOpen} style={{ '--layout-border': `1px solid ${chatOpen ? 'color-mix(in srgb, var(--accent) 35%, transparent)' : 'var(--surface-4)'}` } as CSSProperties}>
           <MessageSquare size={13} />
           <span className="app-topbar-texto">{traducir('layoutshell.chat')}</span>
           {chatBadgeVisible && (
@@ -821,7 +808,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
               {chatBadgeCount > 99 ? '99+' : chatBadgeCount}
             </span>
           )}
-        </button>
+        </Pulsable>
         {/* Campana de avisos sin leer (16-11-2026): contador y panel con los últimos. */}
         {user && <CampanaDeAvisos />}
         {activeTimer && !activeTimer.paused_at && (
@@ -861,14 +848,12 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
         {user && (
           <div className="layo-row-9"
           >
-            <button onClick={onProfileOpen} title={user.full_name}
-              className="layo-row-10"
-            >
+            <Pulsable onClick={onProfileOpen} title={user.full_name} className="layo-row-10">
               <Avatar name={user.full_name} size={24} url={undefined} />
               <span className="app-topbar-texto layo-box-12">
                 {user.full_name}
               </span>
-            </button>
+            </Pulsable>
             <IconButton onClick={onLogout}
               ariaLabel={t ? t('nav', 'logout') : 'Cerrar sesión'}
               className="layout-e34"
@@ -1044,10 +1029,9 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       {suplantadoPor && (
         <div role="alert" className="layo-row-13">
           <span>{t('layoutshell.suplantando', { nombre: user?.full_name ?? user?.email ?? '', soporte: suplantadoPor })}</span>
-          <button type="button" onClick={() => { void salirDeSuplantacion() }}
-            className="layo-box-17">
+          <Pulsable onClick={() => { void salirDeSuplantacion() }} className="layo-box-17">
             {t('layoutshell.salir')}
-          </button>
+          </Pulsable>
         </div>
       )}
 
@@ -1099,12 +1083,9 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                   ['ai', text.workspace_ai],
                   ['settings', text.workspace_settings],
                 ].map(([key, label]) => (
-                  <button className={`layo-box-26 ${workspace === key ? 'layout-m28' : 'layout-m29'}`}
-                    key={key}
-                    onClick={() => setWorkspace(key)}
-                  >
+                  <Pulsable className={`layo-box-26 ${workspace === key ? 'layout-m28' : 'layout-m29'}`} key={key} onClick={() => setWorkspace(key)}>
                     {label}
-                  </button>
+                  </Pulsable>
                 ))}
               </div>
             </div>
@@ -1136,7 +1117,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
           </IconButton>
 
           {!collapsed && (
-            <button onClick={() => setShortcutsOpen(true)} title={`${text.keyboard_shortcuts} (?)`}
+            <IconButton ariaLabel={`${text.keyboard_shortcuts} (?)`} onClick={() => setShortcutsOpen(true)} title={`${text.keyboard_shortcuts} (?)`}
               className="layo-row-16"
               onMouseEnter={e => e.currentTarget.style.color = 'var(--text-2)'}
               onMouseLeave={e => e.currentTarget.style.color = 'var(--text-3)'}
@@ -1144,7 +1125,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
               <Keyboard size={11} />
               <span>{text.shortcuts}</span>
               <span className="kbd layo-txt-2">?</span>
-            </button>
+            </IconButton>
           )}
         </div>
       </aside>

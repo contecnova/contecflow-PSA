@@ -11,7 +11,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, ClipboardCheck, Users } from 'lucide-react'
 import { useAppT } from '../../i18n/AppLangContext'
-import { EmptyState, KpiCard, Spinner, StatusBadge } from '../ui'
+import { EmptyState, KpiCard, Pulsable, Spinner, StatusBadge, TablaSimple } from '../ui'
 import type { StatusBadgeKind } from '../ui/StatusBadge'
 import Pagination from '../ui/Pagination'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
@@ -44,7 +44,7 @@ export default function PanelDelCab({ onOpen }: { onOpen: (id: string) => void }
         <input className="ds-input" type="number" min={0} max={100} value={minimo} onChange={e => { setMinimo(Number(e.target.value) || 0); setPage(1) }} /></label></div>
       {isLoading ? <Spinner /> : items.length === 0 ? <EmptyState icon={<ClipboardCheck size={28} />} title={t('sd_mercado.cab_vacio')} /> : (
         <div className="sdm-table-wrap">
-          <table className="u-table">
+          <TablaSimple claseTabla="u-table">
             <thead><tr>
               <th>{t('sd_mercado.cambio')}</th><th>{t('sd_mercado.tipo_cambio')}</th><th>{t('sd_mercado.riesgo')}</th>
               <th>{t('sd_mercado.analizado')}</th><th>{t('sd_mercado.inicio_previsto')}</th>
@@ -52,7 +52,7 @@ export default function PanelDelCab({ onOpen }: { onOpen: (id: string) => void }
             <tbody>
               {items.map(c => (
                 <tr key={c.id} className="u-border-b">
-                  <td><button type="button" className="u-btn-outline-sm sdm-wrap" onClick={() => onOpen(c.id)}><span className="u-mono">{c.number}</span> {c.title}</button></td>
+                  <td><Pulsable className="u-btn-outline-sm sdm-wrap" onClick={() => onOpen(c.id)}><span className="u-mono">{c.number}</span> {c.title}</Pulsable></td>
                   <td>{etiquetaSd('chg_type', c.change_type)}</td>
                   <td>{c.auto_risk_label
                     ? <StatusBadge kind={RIESGO[c.auto_risk_label] || 'neutral'} caps={false}>{etiquetaCodigo(t, 'sd_mercado.nivel_riesgo', c.auto_risk_label)} · {Math.round(c.auto_risk_score ?? 0)}</StatusBadge>
@@ -62,7 +62,7 @@ export default function PanelDelCab({ onOpen }: { onOpen: (id: string) => void }
                 </tr>
               ))}
             </tbody>
-          </table>
+          </TablaSimple>
         </div>
       )}
       <Pagination page={page} totalPages={Math.max(1, Math.ceil(total / TAMANO))} onChange={setPage} total={total} pageSize={TAMANO} />

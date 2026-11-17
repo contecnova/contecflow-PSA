@@ -18,7 +18,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { analyticsApi, scheduledReportsApi, apiUrl } from '../services/api'
 import type { CatalogoDeMetricas, ConsultaDeMetrica, FilaDeMetrica, OpcionesDeFiltroAnalitico, ResumenDeMetrica } from '../services/api/tipos-analitica'
-import { Card, Button, Spinner, EmptyState, KpiCard, SelectorDePeriodo, Table, Tabs, type ColumnaDeTabla } from '../components/ui'
+import { Card, Button, Spinner, EmptyState, KpiCard, SelectorDePeriodo, Table, Tabs, type ColumnaDeTabla, Select, Pulsable, IconButton, TablaSimple, Checkbox } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import { Page } from '../components/ui'
 import {
@@ -320,7 +320,7 @@ function HeatmapChart({ data, meta }: { data: MetricRow[]; meta?: ConsultaDeMetr
   }
   return (
     <div className="u-scroll-x">
-      <table className="rep-table">
+      <TablaSimple claseTabla="rep-table">
         <thead>
           <tr>
             <th className="rep-th">{traducir('reportes_ui.persona')}</th>
@@ -344,7 +344,7 @@ function HeatmapChart({ data, meta }: { data: MetricRow[]; meta?: ConsultaDeMetr
             </tr>
           ))}
         </tbody>
-      </table>
+      </TablaSimple>
       <div className="rep-row-muted">
         {[['var(--success)', traducir('reportes_ui.nivel_bajo')], ['var(--accent)', traducir('reportes_ui.nivel_medio')], ['var(--warning)', traducir('reportes_ui.nivel_alto')], ['var(--danger)', traducir('reportes_ui.nivel_critico')]].map(([c, l]) => (
           <div className="rep-row-2" key={l}>
@@ -637,41 +637,41 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
           {/* Metric selector */}
           <div className={narrow ? 'rep-campo-ancho' : undefined}>
             <label className="rep-ls" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{traducir('reports.metrica')}</label>
-            <select className="ds-input" id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={metric} onChange={e => handleMetricChange(e.target.value)}>
+            <Select suelto placeholder={false} id={`${idCampo}-1`} value={metric} onChange={e => handleMetricChange(e.target.value)}>
               <option value="">{traducir('reports.seleccionar_metrica')}</option>
               {catalogue && Object.entries(catalogue).map(([cat, items]) => (
                 <optgroup key={cat} label={etiquetaCategoria(cat, traducir)}>
                   {items.map(item => <option key={item.id} value={item.id}>{etiquetaMetrica(traducir, item.id, item.label)}</option>)}
                 </optgroup>
               ))}
-            </select>
+            </Select>
           </div>
 
           {/* Project filter */}
           <div>
             <label className="rep-ls" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{traducir('reportes_ui.proyecto')}</label>
-            <select className="ds-input" id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={projectId} onChange={e => setProjectId(e.target.value)}>
+            <Select suelto placeholder={false} id={`${idCampo}-2`} value={projectId} onChange={e => setProjectId(e.target.value)}>
               <option value="">{traducir('reports.todos_los_proyectos')}</option>
               {filters?.projects?.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
-            </select>
+            </Select>
           </div>
 
           {/* User filter */}
           <div>
             <label className="rep-ls" id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`}>{traducir('reportes_ui.persona_icono')}</label>
-            <select className="ds-input" id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={userId} onChange={e => setUserId(e.target.value)}>
+            <Select suelto placeholder={false} id={`${idCampo}-3`} value={userId} onChange={e => setUserId(e.target.value)}>
               <option value="">{traducir('reports.todas_las_personas')}</option>
               {filters?.users?.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
-            </select>
+            </Select>
           </div>
 
           {/* Dept filter */}
           <div>
             <label className="rep-ls" id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`}>{traducir('reportes_ui.departamento')}</label>
-            <select className="ds-input" id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={department} onChange={e => setDepartment(e.target.value)}>
+            <Select suelto placeholder={false} id={`${idCampo}-4`} value={department} onChange={e => setDepartment(e.target.value)}>
               <option value="">{traducir('reports.todos')}</option>
               {filters?.departments?.map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
+            </Select>
           </div>
 
           {/* Top N */}
@@ -685,8 +685,8 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
             <span className="rep-ls" id={`${idCampo}-eta746`}>{traducir('reportes_ui.color')}</span>
             <div className="rep-row-6" role="group" aria-labelledby={`${idCampo}-eta746`}>
               {PALETTE.slice(0, 5).map(c => (
-                <button type="button" className={`rep-btn${color === c ? ' rep-btn--activo' : ''}`} key={c} aria-label={traducir('reportes_ui.color_n', { c })} aria-pressed={color === c} onClick={() => setColor(c)}
-                  style={{ '--rep-btn-background': c } as CSSProperties} />
+                <Pulsable type="button" className={`rep-btn${color === c ? ' rep-btn--activo' : ''}`} key={c} aria-label={traducir('reportes_ui.color_n', { c })} aria-pressed={color === c} onClick={() => setColor(c)}
+                  style={{ '--rep-btn-background': c } as CSSProperties}>{null}</Pulsable>
               ))}
               <input className="rep-input" type="color" aria-label={traducir('reportes_ui.color_personalizado')} value={/^#[0-9a-fA-F]{6}$/.test(color) ? color : COLOR_DATO_POR_DEFECTO} onChange={e => setColor(e.target.value)} />
             </div>
@@ -700,9 +700,9 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
           {/* Chart type */}
           <div className="rep-row-9">
             {CHART_TYPES.map(ct => (
-              <button type="button" className={`rep-grafico${chartType === ct.id ? ' rep-grafico--activo' : ''}`} key={ct.id} onClick={() => setChartType(ct.id)} title={traducir(ct.label)} aria-label={traducir(ct.label)} aria-pressed={chartType === ct.id}>
+              <Pulsable type="button" className={`rep-grafico${chartType === ct.id ? ' rep-grafico--activo' : ''}`} key={ct.id} onClick={() => setChartType(ct.id)} title={traducir(ct.label)} aria-label={traducir(ct.label)} aria-pressed={chartType === ct.id}>
                 <ct.Icon size={15} aria-hidden />
-              </button>
+              </Pulsable>
             ))}
           </div>
         </div>
@@ -725,11 +725,11 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
               { id: 'tasks_overdue', label: traducir('reportes_ui.m_tareas_retraso'), cat: 'Agilidad' },
               { id: 'cost_vs_budget', label: traducir('reportes_ui.m_coste_presupuesto'), cat: 'Rentabilidad' },
             ].map(m => (
-              <button className="rep-btn-2" key={m.id} type="button" onClick={() => handleMetricChange(m.id)}>
+              <Pulsable className="rep-btn-2" key={m.id} type="button" onClick={() => handleMetricChange(m.id)}>
                 <div className="rep-icono-metrica"><IconoCategoria cat={m.cat} size={18} /></div>
                 <div className="u-text1-sm-600">{m.label}</div>
                 <div className="rep-text-muted-2xs">{etiquetaCategoria(m.cat, traducir)}</div>
-              </button>
+              </Pulsable>
             ))}
           </div>
         </div>
@@ -811,7 +811,7 @@ function ReportsDashboard({ saved, onRemove, onOpen }: { saved: SavedReport[]; o
             <div className="u-md-700">{r.name}</div>
             <div className="u-row-6">
               <Button size="xs" variant="ghost" icon={<Pencil size={12} />} onClick={() => onOpen(r)}>{traducir('reportes_ui.editar')}</Button>
-              <button className="rep-icono rep-icono--borrar" type="button" aria-label={traducir('reportes_ui.eliminar_informe')} title={traducir('reportes_ui.eliminar_informe')} onClick={() => onRemove(r.id)}><Trash2 size={14} aria-hidden /></button>
+              <IconButton className="rep-icono rep-icono--borrar" type="button" ariaLabel={traducir('reportes_ui.eliminar_informe')} title={traducir('reportes_ui.eliminar_informe')} onClick={() => onRemove(r.id)}><Trash2 size={14} aria-hidden /></IconButton>
             </div>
           </div>
           <MiniPanel config={r} />
@@ -960,15 +960,15 @@ function ScheduledReportsTab() {
             </div>
             <div>
               <label className="rep-ls-2" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{traducir('reports.metrica_2')}</label>
-              <select className="ds-input" id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.metric} onChange={e => setForm(f => ({ ...f, metric: e.target.value }))}>
+              <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.metric} onChange={e => setForm(f => ({ ...f, metric: e.target.value }))}>
                 {METRICS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="rep-ls-2" id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`}>{traducir('reportes_ui.frecuencia')}</label>
-              <select className="ds-input" id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.frequency} onChange={e => setForm(f => ({ ...f, frequency: e.target.value }))}>
+              <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.frequency} onChange={e => setForm(f => ({ ...f, frequency: e.target.value }))}>
                 {Object.entries(FREQ_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="rep-ls-2" id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`}>{traducir('reports.destinatarios_emails_separados_por_coma')}</label>
@@ -976,11 +976,9 @@ function ScheduledReportsTab() {
                 placeholder={traducir('reportes_ui.emails_ejemplo')} />
             </div>
           </div>
-          <label className="rep-label-sm">
-            <input className="rep-input-3" type="checkbox" checked={form.include_pdf}
-              onChange={e => setForm(f => ({ ...f, include_pdf: e.target.checked }))} />
-            {traducir('reports.adjuntar_pdf_del_informe_al_email')}
-          </label>
+          <Checkbox className="rep-label-sm" checked={!!form.include_pdf}
+            onChange={v => setForm(f => ({ ...f, include_pdf: v }))}
+            label={traducir('reports.adjuntar_pdf_del_informe_al_email')} />
           <div className="u-actions-8">
             <Button variant="secondary" onClick={() => setShowCreate(false)}>
               {traducir('common.cancel')}
@@ -1044,9 +1042,9 @@ function ScheduledReportsTab() {
                   rel="noopener noreferrer">
                   <FileText size={12} aria-hidden /> PDF
                 </a>
-                <button className="rep-icono rep-icono--borrar" type="button" aria-label={traducir('common.delete')} title={traducir('common.delete')} onClick={() => { openConfirmGlobal({ message: traducir('reportes_ui.eliminar_confirm', { nombre: rep.name }), onConfirm: () => remove(rep.id), danger: true }) }}>
+                <IconButton className="rep-icono rep-icono--borrar" type="button" ariaLabel={traducir('common.delete')} title={traducir('common.delete')} onClick={() => { openConfirmGlobal({ message: traducir('reportes_ui.eliminar_confirm', { nombre: rep.name }), onConfirm: () => remove(rep.id), danger: true }) }}>
                   <Trash2 size={14} aria-hidden />
-                </button>
+                </IconButton>
               </div>
             </div>
           </div>
@@ -1089,10 +1087,10 @@ function PresetsTab({ presets, supportedMetrics, onOpen }: { presets: readonly P
       </div>
       <div className="rep-row-17">
         {cats.map(c => (
-          <button className={`rep-chip${filterCat === c ? ' rep-chip--activo' : ''}`} type="button" aria-pressed={filterCat === c} key={c} onClick={() => setFilterCat(c)}>
+          <Pulsable className={`rep-chip${filterCat === c ? ' rep-chip--activo' : ''}`} type="button" aria-pressed={filterCat === c} key={c} onClick={() => setFilterCat(c)}>
             {c !== 'all' && <IconoCategoria cat={c} size={12} />}
             {c === 'all' ? traducir('reportes_ui.todas_n', { n: enabledPresets.length }) : etiquetaCategoria(c, traducir)}
-          </button>
+          </Pulsable>
         ))}
       </div>
       {searchQ.trim().length >= 2 && (
@@ -1102,7 +1100,7 @@ function PresetsTab({ presets, supportedMetrics, onOpen }: { presets: readonly P
       )}
       <div className="rep-grid-5">
         {filtered.map(p => (
-          <button className="rep-btn-3" key={p.id} type="button" onClick={() => onOpen(p)}
+          <Pulsable className="rep-btn-3" key={p.id} type="button" onClick={() => onOpen(p)}
             style={{ '--rep-btn-3-border': `1px solid ${alpha(p.color, '25')}`, '--rep-btn-3-tono': p.color } as CSSProperties}>
             <div className="rep-icono-metrica rep-text-8" style={{ '--rep-text-8-color': p.color } as CSSProperties}><IconoCategoria cat={p.cat} size={18} /></div>
             <div className="rep-text-base-strong">{traducir(p.label)}</div>
@@ -1110,7 +1108,7 @@ function PresetsTab({ presets, supportedMetrics, onOpen }: { presets: readonly P
               {etiquetaCategoria(p.cat, traducir)} · {chartLabels[p.chart] || p.chart}
               <ArrowRight size={12} aria-hidden />
             </div>
-          </button>
+          </Pulsable>
         ))}
       </div>
     </div>
@@ -1201,10 +1199,10 @@ export default function ReportsPage() {
               </div>
               <div className="u-wrap-8">
                 {items.map(item => (
-                  <button className="rep-btn-sm-3" key={item.id} onClick={() => { setEditingReport({ metric: item.id, chartType: item.default_chart }); setMode('explorer') }}>
+                  <Pulsable className="rep-btn-sm-3" key={item.id} onClick={() => { setEditingReport({ metric: item.id, chartType: item.default_chart }); setMode('explorer') }}>
                     {(() => { const IconoGrafico = ICONO_GRAFICO[item.default_chart] || BarChart3; return <IconoGrafico size={12} className="rep-text-muted-2xs-4" aria-hidden /> })()}
                     {etiquetaMetrica(traducir, item.id, item.label)}
-                  </button>
+                  </Pulsable>
                 ))}
               </div>
             </div>

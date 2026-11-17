@@ -15,7 +15,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { organizationsApi, usersApi } from '../services/api'
 import type { DetalleDeOrganizacion, Organizacion } from '../services/api/tipos-plataforma'
-import { Button, Card, Modal, Spinner, EmptyState, Confirm } from '../components/ui'
+import { Button, Card, Checkbox, Modal, Select, Spinner, EmptyState, Confirm } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import { UserSelect } from '../components/ui/EntitySelect'
 import PageHeader from '../components/layout/PageHeader'
@@ -419,9 +419,9 @@ export default function OrganizationsPage() {
             </div>
             <div className="orgs-grid-3">
               <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ds-field__label">{t('pagina_orgs.plan')}</label>
-                <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.plan} onChange={e=>setForm(f=>({...f,plan:e.target.value}))} className="ds-input">
+                <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.plan} onChange={e=>setForm(f=>({...f,plan:e.target.value}))}>
                   {['starter','pro','enterprise'].map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
+                </Select>
               </div>
               <div>
                 <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="ds-field__label">{t('organizations.max_usuarios')}</label>
@@ -475,9 +475,9 @@ export default function OrganizationsPage() {
             </div>
             <div className="orgs-grid-3">
               <div><label id={`${idCampo}-et11`} htmlFor={`${idCampo}-11`} className="ds-field__label">{t('pagina_orgs.plan')}</label>
-                <select id={`${idCampo}-11`} aria-labelledby={`${idCampo}-et11`} value={editForm?.plan ?? ''} onChange={e=>setEditForm(f => f && ({...f,plan:e.target.value}))} className="ds-input">
+                <Select suelto placeholder={false} id={`${idCampo}-11`} value={editForm?.plan ?? ''} onChange={e=>setEditForm(f => f && ({...f,plan:e.target.value}))}>
                   {['starter','pro','enterprise'].map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
+                </Select>
               </div>
               <div>
                 <label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} className="ds-field__label">{t('organizations.max_usuarios')}</label>
@@ -496,13 +496,8 @@ export default function OrganizationsPage() {
               {editValidation.errors.domain && <div className="u-field-error">{errorDeCampo(editValidation.errors.domain)}</div>}
             </div>
             {/* Revisión 2026-11: la MFA obligatoria sólo se podía activar por API. */}
-            <label className="orgs-check">
-              <input type="checkbox" aria-label={t('organizations.exigir_mfa')} checked={!!editForm?.require_mfa} onChange={e => setEditForm(f => f && ({ ...f, require_mfa: e.target.checked }))} className="orgs-check__input" />
-              <span>
-                <strong>{t('organizations.exigir_mfa')}</strong>
-                <span className="orgs-check__ayuda">{t('organizations.exigir_mfa_ayuda')}</span>
-              </span>
-            </label>
+            <Checkbox className="orgs-check" checked={!!editForm?.require_mfa} onChange={v => setEditForm(f => f && ({ ...f, require_mfa: v }))}
+              label={<strong>{t('organizations.exigir_mfa')}</strong>} ayuda={t('organizations.exigir_mfa_ayuda')} />
             <div>
               <label id={`${idCampo}-et15`} htmlFor={`${idCampo}-15`} className="ds-field__label">{t('organizations.email_del_admin')}</label>
               <input id={`${idCampo}-15`} aria-labelledby={`${idCampo}-et15`} value={editForm?.admin_email ?? ''} onChange={e=>{ setEditForm(f => f && ({...f,admin_email:e.target.value})); editValidation.clearFieldError('admin_email') }} className={editValidation.inputClass('campo-form', 'admin_email')} />

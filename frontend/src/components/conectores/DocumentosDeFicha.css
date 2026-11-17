@@ -140,7 +140,7 @@
   align-items: center;
   gap: 6px;
   font-size: var(--text-xs);
-  text-transform: uppercase;
+
   letter-spacing: .04em;
   color: var(--text-2);
 }

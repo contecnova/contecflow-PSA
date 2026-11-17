@@ -7,7 +7,7 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link2, Plus, Trash2 } from 'lucide-react'
 import { dependenciasApi, tasksApi, type Dependencia } from '../../services/api'
-import { Button, EmptyState, Spinner } from '../ui'
+import { Button, EmptyState, Spinner, Select, TablaSimple } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
@@ -65,30 +65,28 @@ export default function EditorDeDependencias({ projectId }: { projectId: string 
     <div className="plan-stack">
       {puedeEditar && (
         <form className="plan-row" onSubmit={e => { e.preventDefault(); crear.mutate() }}>
-          <select className="plan-select" aria-label={t('planificador.predecesora')} value={nueva.predecessor_id}
-            onChange={e => setNueva(n => ({ ...n, predecessor_id: e.target.value }))}>
-            <option value="">{t('planificador.predecesora')}</option>
+          <Select suelto className="plan-select" aria-label={t('planificador.predecesora')} value={nueva.predecessor_id}
+            onChange={e => setNueva(n => ({ ...n, predecessor_id: e.target.value }))} placeholder={t('planificador.predecesora')}>
             {tareas.map(x => <option key={x.id} value={x.id}>{nombre[x.id]}</option>)}
-          </select>
-          <select className="plan-select" aria-label={t('planificador.col_vinculo')} value={nueva.link_type}
-            onChange={e => setNueva(n => ({ ...n, link_type: e.target.value }))}>
+          </Select>
+          <Select suelto className="plan-select" aria-label={t('planificador.col_vinculo')} value={nueva.link_type}
+            onChange={e => setNueva(n => ({ ...n, link_type: e.target.value }))} placeholder={false}>
             {VINCULOS.map(v => <option key={v} value={v}>{t(`planificador.vinculo_${v}`)}</option>)}
-          </select>
+          </Select>
           {nueva.link_type === 'schedule' && (
             <>
-              <select className="plan-select" aria-label={t('planificador.col_tipo')} value={nueva.dependency_type}
-                onChange={e => setNueva(n => ({ ...n, dependency_type: e.target.value }))}>
+              <Select suelto className="plan-select" aria-label={t('planificador.col_tipo')} value={nueva.dependency_type}
+                onChange={e => setNueva(n => ({ ...n, dependency_type: e.target.value }))} placeholder={false}>
                 {TIPOS.map(x => <option key={x} value={x}>{t(`planificador.tipo_${x}`)}</option>)}
-              </select>
+              </Select>
               <input type="number" className="plan-input plan-input--num" aria-label={t('planificador.col_desfase')}
                 value={nueva.lag_days} onChange={e => setNueva(n => ({ ...n, lag_days: Number(e.target.value) }))} />
             </>
           )}
-          <select className="plan-select" aria-label={t('planificador.sucesora')} value={nueva.successor_id}
-            onChange={e => setNueva(n => ({ ...n, successor_id: e.target.value }))}>
-            <option value="">{t('planificador.sucesora')}</option>
+          <Select suelto className="plan-select" aria-label={t('planificador.sucesora')} value={nueva.successor_id}
+            onChange={e => setNueva(n => ({ ...n, successor_id: e.target.value }))} placeholder={t('planificador.sucesora')}>
             {tareas.filter(x => x.id !== nueva.predecessor_id).map(x => <option key={x.id} value={x.id}>{nombre[x.id]}</option>)}
-          </select>
+          </Select>
           <Button size="sm" type="submit" icon={<Plus size={13} />} loading={crear.isPending}
             disabled={!nueva.predecessor_id || !nueva.successor_id}>{t('planificador.anadir_dependencia')}</Button>
         </form>
@@ -97,7 +95,7 @@ export default function EditorDeDependencias({ projectId }: { projectId: string 
         <EmptyState icon={<Link2 size={20} />} title={t('planificador.sin_dependencias')} description={t('planificador.sin_dependencias_desc')} />
       ) : (
         <div className="plan-card plan-tabla-scroll">
-          <table className="plan-tabla">
+          <TablaSimple claseTabla="plan-tabla">
             <thead>
               <tr>
                 <th>{t('planificador.predecesora')}</th><th>{t('planificador.col_vinculo')}</th>
@@ -112,10 +110,10 @@ export default function EditorDeDependencias({ projectId }: { projectId: string 
                   <td>{t(`planificador.vinculo_${d.link_type ?? 'schedule'}`)}</td>
                   <td>
                     {puedeEditar && d.link_type === 'schedule' ? (
-                      <select className="plan-select" aria-label={t('planificador.col_tipo')} value={d.dependency_type}
-                        onChange={e => editar.mutate({ id: d.id, cambios: { dependency_type: e.target.value as Dependencia['dependency_type'] } })}>
+                      <Select suelto className="plan-select" aria-label={t('planificador.col_tipo')} value={d.dependency_type}
+                        onChange={e => editar.mutate({ id: d.id, cambios: { dependency_type: e.target.value as Dependencia['dependency_type'] } })} placeholder={false}>
                         {TIPOS.map(x => <option key={x} value={x}>{t(`planificador.tipo_${x}`)}</option>)}
-                      </select>
+                      </Select>
                     ) : d.link_type === 'schedule' ? t(`planificador.tipo_${d.dependency_type}`) : '—'}
                   </td>
                   <td className="plan-num">
@@ -136,7 +134,7 @@ export default function EditorDeDependencias({ projectId }: { projectId: string 
                 </tr>
               ))}
             </tbody>
-          </table>
+          </TablaSimple>
         </div>
       )}
     </div>

@@ -18,7 +18,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { skillsApi, usersApi } from '../services/api'
 import type { SkillDelCatalogo } from '../services/api/tipos-alm'
 import type { CambioDeNivelDeSkill, MatrizDeSkills, PersonaPorSkills, SkillDePersona } from '../services/api/tipos-personas'
-import { Button, Card, KpiCard, Modal, Section, Spinner, EmptyState, Tabs } from '../components/ui'
+import { Button, Card, KpiCard, Modal, Section, Spinner, EmptyState, Tabs, IconButton, Select, Pulsable, TablaSimple, Checkbox } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Award, BookOpen, Code2, Grid3x3, HeartHandshake, History, Languages, Layers, Lightbulb, Pencil, Plus, Ruler, Search, Sparkles, Tags, UserRound, Users, Wrench, X } from 'lucide-react'
@@ -89,7 +89,7 @@ function SkillsMatrix({ users, skills }: { users: MatrixUser[]; skills: SkillsMa
 
   return (
     <div className="u-scroll-x">
-      <table className="skl-matrix">
+      <TablaSimple claseTabla="skl-matrix">
         <thead>
           <tr>
             <th scope="col" className="skl-matrix__corner">{t('skills.persona')}</th>
@@ -143,7 +143,7 @@ function SkillsMatrix({ users, skills }: { users: MatrixUser[]; skills: SkillsMa
             </tr>
           ))}
         </tbody>
-      </table>
+      </TablaSimple>
     </div>
   )
 }
@@ -235,8 +235,8 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
                   <LevelBadge level={s.level} />
                   {s.years_experience && <span className="u-text2-xs">{t('skills.anos_abrev', { n: s.years_experience })}</span>}
                   {s.certified && <StatusBadge kind="success" caps={false}>{t('skills.cert_abrev')}</StatusBadge>}
-                  <button type="button" onClick={() => { openConfirmGlobal({ message: t('skills.confirm_quitar_usuario'), onConfirm: () => removeSkill(s.id), danger: true }) }} className="skl-x"
-                    aria-label={t('skills.quitar_skill', { name: s.skill_name || '' })} title={t('skills.quitar_skill', { name: s.skill_name || '' })}><X size={14} aria-hidden /></button>
+                  <IconButton type="button" onClick={() => { openConfirmGlobal({ message: t('skills.confirm_quitar_usuario'), onConfirm: () => removeSkill(s.id), danger: true }) }} className="skl-x"
+                    ariaLabel={t('skills.quitar_skill', { name: s.skill_name || '' })} title={t('skills.quitar_skill', { name: s.skill_name || '' })}><X size={14} aria-hidden /></IconButton>
                 </div>
               ))}
             </div>
@@ -250,20 +250,20 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
         <div className="skl-add__grid">
           <div>
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={ls}>{t('skills.skill_req')}</label>
-            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.skill_id} onChange={e => setForm(f => ({ ...f, skill_id: e.target.value }))} className={`${fs}${form.skill_id ? ' skl-input--picked' : ''}`}>
+            <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.skill_id} onChange={e => setForm(f => ({ ...f, skill_id: e.target.value }))} className={`${fs}${form.skill_id ? ' skl-input--picked' : ''}`}>
               <option value="">{t('skills.selecciona_un_skill')}</option>
               {CATEGORIES.map(cat => (
                 <optgroup key={cat} label={catLabel(cat)}>
                   {catalog.filter(s => s.category === cat).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </optgroup>
               ))}
-            </select>
+            </Select>
           </div>
           <div>
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={ls}>{t('skills.nivel_req')}</label>
-            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value }))} className={fs}>
+            <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value }))} className={fs}>
               {LEVELS.map(l => <option key={l} value={l}>{t(LEVEL_CFG[l].label)}</option>)}
-            </select>
+            </Select>
           </div>
           <div>
             <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={ls}>{t('skills.anos_exp')}</label>
@@ -271,10 +271,8 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
           </div>
         </div>
         <div className="skl-add__row">
-          <label className="skl-check">
-            <input type="checkbox" aria-label={t('skills.tiene_certificacion')} checked={form.certified} onChange={e => setForm(f => ({ ...f, certified: e.target.checked }))} />
-            {t('skills.tiene_certificacion')}
-          </label>
+          <Checkbox className="skl-check" checked={!!form.certified} onChange={v => setForm(f => ({ ...f, certified: v }))}
+            label={t('skills.tiene_certificacion')} />
           {form.certified && (
             <input aria-label={t('skills.nombre_de_la_certificacion')} value={form.cert_name} onChange={e => setForm(f => ({ ...f, cert_name: e.target.value }))} className={`${fs} skl-input--grow`} placeholder={t('skills.nombre_de_la_certificacion')} />
           )}
@@ -321,17 +319,17 @@ function StaffingSearch() {
           <div className="skl-eyebrow">{t('skills.skills_requeridos')}</div>
           <div className="u-wrap-6">
             {catalog.map(s => (
-              <button key={s.id} type="button" onClick={() => toggleSkill(s.id)} aria-pressed={selectedSkills.includes(s.id)} className="skl-toggle">
+              <Pulsable key={s.id} type="button" onClick={() => toggleSkill(s.id)} aria-pressed={selectedSkills.includes(s.id)} className="skl-toggle">
                 {s.name}
-              </button>
+              </Pulsable>
             ))}
           </div>
         </div>
         <div className="u-flex1">
           <label htmlFor={idNivel} className="skl-eyebrow skl-eyebrow--block">{t('skills.nivel_minimo')}</label>
-          <select id={idNivel} value={minLevel} onChange={e => setMinLevel(e.target.value)} className={fs}>
+          <Select suelto placeholder={false} id={idNivel} value={minLevel} onChange={e => setMinLevel(e.target.value)} className={fs}>
             {LEVELS.map(l => <option key={l} value={l}>{t(LEVEL_CFG[l].label)}</option>)}
-          </select>
+          </Select>
         </div>
       </div>
       <Button icon={<Search size={14} />} onClick={search} disabled={selectedSkills.length === 0 || searching}>
@@ -496,7 +494,7 @@ export default function SkillsPage() {
           </div>
           <div className="skl-people">
             {activos.map(u => (
-              <button key={u.id} type="button"
+              <Pulsable key={u.id} type="button"
                 onClick={() => setEditingUser(u)}
                 className="skl-person">
                 <div className="skl-person__head">
@@ -509,7 +507,7 @@ export default function SkillsPage() {
                   </span>
                 </div>
                 <UserSkillPreview userId={u.id} />
-              </button>
+              </Pulsable>
             ))}
           </div>
         </div>
@@ -524,9 +522,9 @@ export default function SkillsPage() {
             <Section title={t('skills.anadir_nuevo_skill_al_catalogo')}>
             <div className="skl-catalog__form">
               <input aria-label={t('skills.nombre_del_skill')} value={newSkill.name} onChange={e => setNewSkill(f => ({ ...f, name: e.target.value }))} className={`${fs} skl-input--grow2`} placeholder={t('skills.nombre_del_skill')} />
-              <select aria-label={t('skills.category')} value={newSkill.category} onChange={e => setNewSkill(f => ({ ...f, category: e.target.value }))} className={`${fs} skl-input--grow1`}>
+              <Select suelto placeholder={false} aria-label={t('skills.category')} value={newSkill.category} onChange={e => setNewSkill(f => ({ ...f, category: e.target.value }))} className={`${fs} skl-input--grow1`}>
                 {CATEGORIES.map(c => <option key={c} value={c}>{catLabel(c)}</option>)}
-              </select>
+              </Select>
               <Button icon={<Plus size={14} />} onClick={() => { createSkill(newSkill); setNewSkill({ name: '', category: 'technical', description: '' }) }} disabled={!newSkill.name}>{t('skills.anadir')}</Button>
             </div>
             </Section>
@@ -543,8 +541,8 @@ export default function SkillsPage() {
                       <div key={s.id} className="skl-chip skl-chip--catalog">
                         <span className="skl-base">{s.name}</span>
                         <span className="u-text2-xs">{t('skills.n_usuarios', { n: s.user_count ?? 0 })}</span>
-                        <button type="button" onClick={() => { openConfirmGlobal({ message: t('skills.confirm_quitar_catalogo'), onConfirm: () => deleteSkill(s.id), danger: true }) }} className="skl-x"
-                          aria-label={t('skills.quitar_skill', { name: s.name })} title={t('skills.quitar_skill', { name: s.name })}><X size={14} aria-hidden /></button>
+                        <IconButton type="button" onClick={() => { openConfirmGlobal({ message: t('skills.confirm_quitar_catalogo'), onConfirm: () => deleteSkill(s.id), danger: true }) }} className="skl-x"
+                          ariaLabel={t('skills.quitar_skill', { name: s.name })} title={t('skills.quitar_skill', { name: s.name })}><X size={14} aria-hidden /></IconButton>
                       </div>
                     ))}
                   </div>

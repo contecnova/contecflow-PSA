@@ -4,6 +4,7 @@ import { useToast } from '../../context/ToastContext'
 import { FileSpreadsheet } from 'lucide-react'
 import './PageHeader.css'
 import { useTextoUi } from '../ui/useTextoUi'
+import { Pulsable } from '../ui'
 
 interface ExtractedTable {
   headers: string[]
@@ -172,8 +173,7 @@ function AutoListExportButton({ exportTargetSelector, exportFilePrefix }: AutoLi
   const toast = useToast() as { error: (msg: string) => void }
   const t = useTextoUi()
   return (
-    <button
-      type="button"
+    <Pulsable
       onClick={() => {
         const ok = exportVisibleListToExcel({ targetSelector: exportTargetSelector, filePrefix: exportFilePrefix })
         if (!ok) toast.error(t('layoutshell.nada_que_exportar'))
@@ -183,7 +183,7 @@ function AutoListExportButton({ exportTargetSelector, exportFilePrefix }: AutoLi
     >
       <FileSpreadsheet size={14} aria-hidden />
       {t('layoutshell.exportar_excel')}
-    </button>
+    </Pulsable>
   )
 }
 
@@ -237,7 +237,7 @@ export default function PageHeader({
             <span key={i} className="u-row-center-6">
               {i > 0 && <span className="pagehead-txt-1">›</span>}
               {crumb.onClick ? (
-                <button className={`pagehead-box-4 ${i === breadcrumb.length - 1 ? 'page-header-m3' : 'page-header-m4'}`} type="button" onClick={crumb.onClick}>{crumb.label}</button>
+                <Pulsable className={`pagehead-box-4 ${i === breadcrumb.length - 1 ? 'page-header-m3' : 'page-header-m4'}`} onClick={crumb.onClick}>{crumb.label}</Pulsable>
               ) : (
                 <span className={`pagehead-txt-2 ${i === breadcrumb.length - 1 ? 'page-header-m3' : 'page-header-m4'}`}>{crumb.label}</span>
               )}

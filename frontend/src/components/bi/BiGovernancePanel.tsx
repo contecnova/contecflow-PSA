@@ -13,7 +13,7 @@ import { biCollaborationApi, biGovernanceAuditApi } from '../../services/api'
 import type { AccesoBi as AuditEvent, ReglasDeGobiernoBi, ResumenDeGobiernoBi as OverviewData } from '../../services/api/tipos-grc'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Shield, RefreshCw, Database, MessageCircle, Calendar, Zap, Clock, History, LayoutDashboard, ListChecks } from 'lucide-react'
-import { Card, Button, Tabs, Spinner, EmptyState, SelectorDePeriodo } from '../ui'
+import { Card, Button, Tabs, Spinner, EmptyState, SelectorDePeriodo, Checkbox } from '../ui'
 import { usePeriodo } from '../../hooks/usePeriodo'
 import { CON_HORA, codigoDeErrorDePeriodo } from '../../utils/periodo'
 import { useToast } from '../../context/ToastContext'
@@ -58,7 +58,7 @@ function MetricRow({ label, value, mono }: MetricRowProps) {
   return (
     <div className="bigopa-row-2">
       <span className="u-text3">{label}</span>
-      <span className={`bigopa-box-10 ${mono ? 'bi-governance-panel-m1' : 'bi-governance-panel-m2'}`}>{value}</span>
+      <span className={`bigopa-box-10 ${mono ? 'ds-codigo bi-governance-panel-m1' : 'bi-governance-panel-m2'}`}>{value}</span>
     </div>
   )
 }
@@ -255,11 +255,7 @@ export default function BiGovernancePanel() {
                   onChange={e => setReglas(r => ({ ...r, max_error_reports: e.target.value === '' ? undefined : Number(e.target.value) }))}
                   className="bigopa-inputbase" />
               </label>
-              <label className="bigopa-row-6">
-                <input type="checkbox" aria-label={t('bigovernance.exigir_informes_activos')} checked={!!reglas.require_active_schedules}
-                  onChange={e => setReglas(r => ({ ...r, require_active_schedules: e.target.checked }))} />
-                {t('bigovernance.exigir_informes_activos')}
-              </label>
+              <Checkbox className="bigopa-row-6" label={t('bigovernance.exigir_informes_activos')} checked={!!reglas.require_active_schedules} onChange={m => setReglas(r => ({ ...r, require_active_schedules: m }))} />
             </div>
           )}
           <div className="bigopa-row-7">

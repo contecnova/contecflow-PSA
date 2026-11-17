@@ -22,7 +22,7 @@ import {
   AlertOctagon, ArrowLeft, BookOpen, Bug, ClipboardCheck, Columns3, GitPullRequestArrow, Inbox, LayoutDashboard,
   List, ListTodo, MessageSquare, MessagesSquare, PanelRight, Plus, Settings, TriangleAlert, Wrench,
 } from 'lucide-react'
-import { Button, EmptyState, Spinner, Tabs } from '../components/ui'
+import { Button, EmptyState, Spinner, Tabs, Pulsable } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { TicketList, MajorIncidents } from './service-desk/QueueAndRoutingSections'
@@ -245,7 +245,7 @@ function ListaPorAprobar({ items, seleccionado, onSelect }: { items: PorAprobar[
   return (
     <div className="ds-card sdp-apr-list">
       {items.map((a) => (
-        <button key={a.approval_id} type="button" onClick={() => onSelect(a.ticket_id)}
+        <Pulsable key={a.approval_id} type="button" onClick={() => onSelect(a.ticket_id)}
           aria-pressed={seleccionado === a.ticket_id} className="sdp-apr-item">
           <span className="sdp-apr-number">{a.number}</span>
           <span className="u-flex1-min0">
@@ -257,7 +257,7 @@ function ListaPorAprobar({ items, seleccionado, onSelect }: { items: PorAprobar[
           <span className="sdp-apr-date">
             {a.created_at ? fmtDate(a.created_at) : ''}
           </span>
-        </button>
+        </Pulsable>
       ))}
     </div>
   )

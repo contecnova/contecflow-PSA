@@ -5,6 +5,7 @@
  * tiene traducción se ve con la clave legible, nunca cortado.
  */
 import { useAppT } from '../../i18n/AppLangContext'
+import { TablaSimple } from '../ui'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import './sdMercado.css'
 
@@ -34,7 +35,7 @@ export default function VistaDeDatos({ datos, nivel = 0 }: { datos: Valor; nivel
       const complejas = Array.from(new Set(datos.flatMap(d => Object.keys(d as object)))).filter(c => !columnas.includes(c))
       return (
         <div className="sdm-table-wrap">
-          <table className="u-table u-table-sm">
+          <TablaSimple claseTabla="u-table u-table-sm">
             <thead><tr>{columnas.map(c => <th key={c}>{etiqueta(c)}</th>)}</tr></thead>
             <tbody>
               {datos.map((fila, i) => (
@@ -43,7 +44,7 @@ export default function VistaDeDatos({ datos, nivel = 0 }: { datos: Valor; nivel
                 </tr>
               ))}
             </tbody>
-          </table>
+          </TablaSimple>
           {complejas.length > 0 && datos.map((fila, i) => (
             <div key={`c${i}`} className="u-stack-6 u-mb-10">
               {complejas.map(c => (fila as Record<string, Valor>)[c] != null && (

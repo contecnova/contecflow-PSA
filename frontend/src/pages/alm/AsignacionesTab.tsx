@@ -6,7 +6,7 @@
 import { useId, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeftRight, History } from 'lucide-react'
-import { Button, DataTable, EmptyState, Spinner } from '../../components/ui'
+import { Button, DataTable, EmptyState, Spinner, Pulsable, Select, Checkbox } from '../../components/ui'
 import type { ColumnaDeTabla } from '../../components/ui'
 import Pagination from '../../components/ui/Pagination'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -39,7 +39,7 @@ export default function AsignacionesTab({ soloPrestamos = false, onAbrir }: {
   const filas = data?.items ?? []
   const columnas: ColumnaDeTabla<Asignacion>[] = [
     { key: 'resource_name', label: t('alm.resource'), render: (_v, a) => (
-      <button type="button" className="alm-link-btn" onClick={() => onAbrir(a)}>{a.resource_name ?? '—'}</button>) },
+      <Pulsable type="button" className="alm-link-btn" onClick={() => onAbrir(a)}>{a.resource_name ?? '—'}</Pulsable>) },
     { key: 'holder_name', label: t('alm.holder'), render: (_v, a) => (
       <span className="almf-fila__nombre">{ICONO_TITULAR[a.holder_type]}{a.holder_name ?? textoDeTitular(t, a.holder_type)}</span>) },
     { key: 'mode', label: t('alm.assign_mode'), render: (_v, a) => <>{t(`alm.mode_${a.mode}`)}{a.quantity > 1 ? ` · ${a.quantity}` : ''}</> },
@@ -58,27 +58,27 @@ export default function AsignacionesTab({ soloPrestamos = false, onAbrir }: {
       <div className="almf-filtros">
         <div className="almf-filtro">
           <label className="alm-label" htmlFor="almf-est">{t('alm.status')}</label>
-          <select id="almf-est" className="alm-input" value={estado} onChange={e => { setEstado(e.target.value); setPagina(1) }}>
+          <Select suelto placeholder={false} id="almf-est" className="alm-input" value={estado} onChange={e => { setEstado(e.target.value); setPagina(1) }}>
             <option value="active,pending">{t('alm.filter_current')}</option>
             <option value="active">{t('alm.st_active')}</option>
             <option value="pending">{t('alm.st_pending')}</option>
             <option value="ended">{t('alm.st_ended')}</option>
             <option value="rejected,cancelled">{t('alm.filter_rejected_cancelled')}</option>
             <option value="">{t('alm.filter_all')}</option>
-          </select>
+          </Select>
         </div>
         {!soloPrestamos && (
           <div className="almf-filtro">
             <label className="alm-label" htmlFor="almf-rec">{t('alm.resource')}</label>
-            <select id="almf-rec" className="alm-input" value={recurso} onChange={e => { setRecurso(e.target.value); setPagina(1) }}>
+            <Select suelto placeholder={false} id="almf-rec" className="alm-input" value={recurso} onChange={e => { setRecurso(e.target.value); setPagina(1) }}>
               <option value="">{t('alm.filter_all')}</option>
               <option value="license">{t('alm.tab_licenses')}</option>
               <option value="asset">{t('alm.tab_assets')}</option>
-            </select>
+            </Select>
           </div>
         )}
         <label className="alm-check-row">
-          <input type="checkbox" checked={vencidos} onChange={e => { setVencidos(e.target.checked); setPagina(1) }} />
+          <Checkbox checked={vencidos} onChange={(_, e) => { setVencidos(e.target.checked); setPagina(1) }} />
           <span className="alm-check-label">{t('alm.filter_overdue')}</span>
         </label>
       </div>

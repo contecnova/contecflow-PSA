@@ -11,7 +11,7 @@ import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, Database, FlaskConica
 import { biEtlApi } from '../../services/api'
 import type { ConectorEtl, FichaDeConectorEtl } from '../../services/api/tipos-bi'
 import { useAppT } from '../../i18n/AppLangContext'
-import { Button, Card, Confirm, EmptyState, IconButton, Modal, Spinner } from '../ui'
+import { Button, Card, Confirm, EmptyState, IconButton, Modal, Spinner, Select } from '../ui'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { useToast } from '../../context/ToastContext'
 import { extractErr, fmtDateTime, fmtNumber } from '../../utils/helpers'
@@ -64,9 +64,9 @@ function Configurar({ conector, onClose }: { conector: Conector; onClose: () => 
         {conector.entidades.length > 1 && (
           <label className="bietpa-grid-2">
             {t('etl.entidad')}
-            <select className="bietpa-campo" value={entidad} onChange={e => setEntidad(e.target.value)}>
+            <Select suelto className="bietpa-campo" value={entidad} onChange={e => setEntidad(e.target.value)} placeholder={false}>
               {conector.entidades.map(e => <option key={e} value={e}>{etiquetaCodigo(t, 'etl.entidad_tipo', e, legible(e))}</option>)}
-            </select>
+            </Select>
           </label>
         )}
         <Campos ficha={conector} valores={valores} puestos={conector.secretos_puestos} onChange={(k, v) => setValores(x => ({ ...x, [k]: v }))} />

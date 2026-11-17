@@ -9,7 +9,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ListOrdered } from 'lucide-react'
 import { useAppT } from '../../i18n/AppLangContext'
-import { EmptyState, Spinner, StatusBadge, Section } from '../ui'
+import { EmptyState, Pulsable, Spinner, StatusBadge, Section, TablaSimple } from '../ui'
 import Pagination from '../ui/Pagination'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { iaDelTicketApi } from '../../services/api/serviceDeskMercado'
@@ -41,7 +41,7 @@ export default function ColaPorRiesgo({ onSelect }: { onSelect: (id: string) => 
         <EmptyState icon={<ListOrdered size={28} />} title={t('sd_mercado.cola_vacia')} description={t('sd_mercado.cola_riesgo_desc')} />
       ) : (
         <div className="sdm-table-wrap">
-          <table className="u-table">
+          <TablaSimple claseTabla="u-table">
             <thead><tr>
               <th>{t('sd_mercado.ticket')}</th><th>{t('sd_mercado.prioridad')}</th><th>{t('sd_mercado.puntuacion')}</th>
               <th>{t('sd_mercado.riesgo_sla')}</th><th>{t('sd_mercado.valor_negocio')}</th><th>{t('sd_mercado.vence')}</th>
@@ -49,8 +49,8 @@ export default function ColaPorRiesgo({ onSelect }: { onSelect: (id: string) => 
             <tbody>
               {items.map(tk => (
                 <tr key={tk.id} className="u-border-b">
-                  <td><button type="button" className="u-btn-outline-sm sdm-wrap" onClick={() => onSelect(tk.id)}>
-                    <span className="u-mono">{tk.number}</span> {tk.title}</button></td>
+                  <td><Pulsable className="u-btn-outline-sm sdm-wrap" onClick={() => onSelect(tk.id)}>
+                    <span className="u-mono">{tk.number}</span> {tk.title}</Pulsable></td>
                   <td><StatusBadge caps={false}>{etiquetaCodigo(t, 'estado', tk.priority)}</StatusBadge></td>
                   <td className="u-600">{pct(tk.priority_score)}</td>
                   <td><StatusBadge kind={tk.sla_risk_score >= BANDA_ALTA ? 'danger' : tk.sla_risk_score >= BANDA_MEDIA ? 'warning' : 'success'} caps={false}>{pct(tk.sla_risk_score)}</StatusBadge></td>
@@ -59,7 +59,7 @@ export default function ColaPorRiesgo({ onSelect }: { onSelect: (id: string) => 
                 </tr>
               ))}
             </tbody>
-          </table>
+          </TablaSimple>
           <Pagination page={page} totalPages={Math.max(1, Math.ceil(total / TAMANO))} onChange={setPage} total={total} pageSize={TAMANO} />
         </div>
       )}

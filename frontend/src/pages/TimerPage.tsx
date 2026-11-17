@@ -15,7 +15,7 @@ import type { Imputacion, SesionDeCronometro } from '../services/api/tipos-perso
 import { useAuth } from '../context/AuthContext'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Button, Card, EmptyState, FormField, Modal, Section, StatusBadge, Table } from '../components/ui'
+import { Button, Card, EmptyState, FormField, Modal, Section, StatusBadge, Table, Select, Checkbox } from '../components/ui'
 import { Timer, Play, Pause, Square, Trash2, FolderOpen, History, WifiOff } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useAppT } from '../i18n/AppLangContext'
@@ -85,21 +85,19 @@ function StartModal({ onClose, onStart, isPending }: {
       subtitle={traducir('timer.selecciona_proyecto_y_tarea')}>
       <div className="tm-form">
         <FormField label={traducir('timer.col_proyecto')} required>
-          <select value={projectId} onChange={e => { setProjectId(e.target.value); setTaskId('') }} className="ds-input">
+          <Select suelto placeholder={false} value={projectId} onChange={e => { setProjectId(e.target.value); setTaskId('') }}>
             <option value="">{traducir('timer.selecciona_un_proyecto')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
+          </Select>
         </FormField>
         <FormField label={traducir('timer.tarea_opcional')}>
-          <select value={taskId} onChange={e => setTaskId(e.target.value)} className="ds-input" disabled={!projectId}>
+          <Select suelto placeholder={false} value={taskId} onChange={e => setTaskId(e.target.value)} disabled={!projectId}>
             <option value="">{traducir('timer.sin_tarea')}</option>
             {tasks.map(t => <option key={t.id} value={t.id}>{t.title || (t as { name?: string }).name}</option>)}
-          </select>
+          </Select>
         </FormField>
-        <label className="tm-check">
-          <input type="checkbox" checked={billable} onChange={e => setBillable(e.target.checked)} className="tm-check-input" />
-          {traducir('timer.tiempo_facturable')}
-        </label>
+        <Checkbox className="tm-check" checked={!!billable} onChange={setBillable}
+          label={traducir('timer.tiempo_facturable')} />
         <div className="tm-modal-actions">
           <Button variant="secondary" onClick={onClose}>{traducir('timer.cancelar')}</Button>
           <Button icon={<Play size={14} />} disabled={!projectId} loading={isPending}
@@ -152,19 +150,15 @@ function StopModal({ currentTimer, onClose, onStop, onCancelTimer, pendingAction
             placeholder={traducir('timer.describe_el_trabajo_realizado')} autoFocus />
         </FormField>
         <FormField label={traducir('timer.tarea_final')} hint={traducir('timer.si_ya_existe_una_imputacion_para_esa')}>
-          <select value={taskId} onChange={e => setTaskId(e.target.value)} className="ds-input">
+          <Select suelto placeholder={false} value={taskId} onChange={e => setTaskId(e.target.value)}>
             <option value="">{traducir('timer.sin_tarea')}</option>
             {tasks.map(task => <option key={task.id} value={task.id}>{task.title || (task as { name?: string }).name}</option>)}
-          </select>
+          </Select>
         </FormField>
-        <label className="tm-check">
-          <input type="checkbox" checked={billable} onChange={e => setBillable(e.target.checked)} className="tm-check-input" />
-          {traducir('timer.marcar_como_facturable')}
-        </label>
-        <label className="tm-check tm-check--top">
-          <input type="checkbox" checked={forceDuplicate} onChange={e => setForceDuplicate(e.target.checked)} className="tm-check-input" />
-          <span>{traducir('timer.permitir_imputacion_duplicada_y_avisar_al_manager')}</span>
-        </label>
+        <Checkbox className="tm-check" checked={!!billable} onChange={setBillable}
+          label={traducir('timer.marcar_como_facturable')} />
+        <Checkbox className="tm-check tm-check--top" checked={!!forceDuplicate} onChange={setForceDuplicate}
+          label={traducir('timer.permitir_imputacion_duplicada_y_avisar_al_manager')} />
         <div className="tm-modal-actions tm-modal-actions--split">
           <Button variant="danger" icon={<Trash2 size={14} />} disabled={isBusy && !isCancelling} loading={isCancelling} onClick={onCancelTimer}>
             {isCancelling ? traducir('timer.cancelando') : traducir('timer.cancelar_cronometro')}

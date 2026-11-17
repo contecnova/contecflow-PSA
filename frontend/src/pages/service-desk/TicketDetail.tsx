@@ -19,7 +19,7 @@ import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { ArrowUpCircle, CheckCircle2, ChevronDown, ChevronRight, Pause, Pencil, Play, Scissors, Sparkles, Undo2, X, Zap } from 'lucide-react'
-import { Button, Spinner, Modal } from '../../components/ui'
+import { Button, Spinner, Modal, Pulsable, Select, Checkbox } from '../../components/ui'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import AIInlineEditor from '../../components/AIInlineEditor'
 import DocumentsPanel from '../../components/DocumentsPanel'
@@ -103,22 +103,22 @@ function CannedResponsePicker({ onSelect, onClose }: { onSelect: (body: string) 
             <div key={cat}>
               <div className="tkd-canned__cat">{cat === 'General' ? t('ticketdetail.categoria_general') : cat}</div>
               {catItems.map(r => (
-                <button type="button" key={r.id} onClick={() => { onSelect(r.body || ''); onClose() }}
+                <Pulsable key={r.id} onClick={() => { onSelect(r.body || ''); onClose() }}
                   aria-label={r.title || t('service_desk.detail_send_comment')}
                   className="tkd-canned__item">
                   <div className="tkd-canned__title">
-                    {r.shortcut && <span className="tkd-canned__shortcut">{r.shortcut}</span>}
+                    {r.shortcut && <span className="ds-codigo tkd-canned__shortcut">{r.shortcut}</span>}
                     {r.title}
                   </div>
                   <div className="tkd-canned__body">{r.body?.slice(0, 80)}</div>
-                </button>
+                </Pulsable>
               ))}
             </div>
           )
         })}
       </div>
       <div className="tkd-canned__foot">
-        <button type="button" onClick={onClose} className="tkd-canned__cancel">{t('service_desk.canned_cancel_esc')}</button>
+        <Pulsable onClick={onClose} className="tkd-canned__cancel">{t('service_desk.canned_cancel_esc')}</Pulsable>
       </div>
     </div>
   )
@@ -216,40 +216,40 @@ function TicketEditModal({ ticket, onClose, onSaved }: { ticket: TicketShape; on
         </div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('service_desk.ticket_type')}</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.ticket_type} onChange={set('ticket_type')} className={IS}>
+          <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.ticket_type} onChange={set('ticket_type')} className="tkd-sel">
             {[['incident', t('service_desk.type_incident')], ['service_request', t('service_desk.type_service_request')],
               ['change', t('service_desk.type_change')], ['problem', t('service_desk.type_problem')], ['question', t('service_desk.type_question')]
             ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={LS}>{t('service_desk.ticket_priority')}</label>
-          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.priority} onChange={set('priority')} className={IS}>
+          <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.priority} onChange={set('priority')} className="tkd-sel">
             {[['p1_critical', t('service_desk.priority_p1')], ['p2_high', t('service_desk.priority_p2')],
               ['p3_medium', t('service_desk.priority_p3')], ['p4_low', t('service_desk.priority_p4')]
             ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className={LS}>{t('service_desk.edit_urgency')}</label>
-          <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.urgency} onChange={set('urgency')} className={IS}>
+          <Select suelto placeholder={false} id={`${idCampo}-4`} value={form.urgency} onChange={set('urgency')} className="tkd-sel">
             {[['critical', t('service_desk.urgency_critical')], ['high', t('service_desk.urgency_high')], ['medium', t('service_desk.urgency_medium')], ['low', t('service_desk.urgency_low')]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className={LS}>{t('service_desk.edit_impact')}</label>
-          <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.impact} onChange={set('impact')} className={IS}>
+          <Select suelto placeholder={false} id={`${idCampo}-5`} value={form.impact} onChange={set('impact')} className="tkd-sel">
             {[['enterprise', t('service_desk.impact_enterprise')], ['department', t('service_desk.impact_department')], ['user', t('service_desk.impact_user')], ['minimal', t('service_desk.impact_minimal')]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className={LS}>{t('common.status')}</label>
-          <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.status} onChange={set('status')} className={IS}>
+          <Select suelto placeholder={false} id={`${idCampo}-6`} value={form.status} onChange={set('status')} className="tkd-sel">
             {[['new', t('service_desk.status_new')], ['assigned', t('service_desk.status_assigned')], ['in_progress', t('service_desk.status_in_progress')],
               ['pending_client', t('service_desk.status_waiting_client')], ['pending_third', t('service_desk.status_pending_third')],
               ['resolved', t('service_desk.status_resolved')], ['closed', t('service_desk.status_closed')], ['cancelled', t('service_desk.status_cancelled')]
             ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
+          </Select>
         </div>
         <div className="u-col-full">
           <label htmlFor={`${idCampo}-desc`} className={LS}>{t('common.description')} *</label>
@@ -286,7 +286,7 @@ function TicketEditModal({ ticket, onClose, onSaved }: { ticket: TicketShape; on
         </div>
         <div className="u-col-full">
           <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className={LS}>{t('ticketdetail.campos_dinamicos_json')}</label>
-          <textarea id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} value={dynamicFieldsText} onChange={e => setDynamicFieldsText(e.target.value)} rows={6} className={`${IS} tkd-input--mono`} />
+          <textarea id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} value={dynamicFieldsText} onChange={e => setDynamicFieldsText(e.target.value)} rows={6} className={`${IS} tkd-input--mono ds-campo-codigo`} />
         </div>
       </div>
     </Modal>
@@ -472,7 +472,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
             {ticket && (
               <Button size="sm" variant="secondary" icon={<Pencil size={13} />} onClick={() => setShowEdit(true)}>{t('common.edit')}</Button>
             )}
-            <button type="button" onClick={onClose} aria-label={t('ticketdetail.cerrar_detalle')} title={t('ticketdetail.cerrar_detalle')} className="tkd-close"><X size={18} aria-hidden="true" /></button>
+            <Pulsable onClick={onClose} aria-label={t('ticketdetail.cerrar_detalle')} title={t('ticketdetail.cerrar_detalle')} className="tkd-close"><X size={18} aria-hidden="true" /></Pulsable>
           </div>
         </div>
         {ticket && (
@@ -576,13 +576,13 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
                     {t('sd_cfg.uc_resolution')}: {textoSla(ticket.uc_breached ? 'breached' : 'ok')} · {fmtDate(ticket.uc_due)}
                   </div>
                 )}
-                <select id="uc-contrato" value={ticket.uc_contract_id ?? ''} onChange={e => e.target.value && elegirUc(e.target.value)}
-                  className={`${IS} tkd-input--uc`}>
+                <Select suelto placeholder={false} tamano="sm" id="uc-contrato" value={ticket.uc_contract_id ?? ''} onChange={e => e.target.value && elegirUc(e.target.value)}
+                  className="tkd-sel">
                   <option value="">{contratosUc.length ? t('sd_cfg.uc_choose') : t('sd_cfg.uc_none')}</option>
                   {contratosUc.map(c => (
                     <option key={c.id} value={c.id}>{c.vendor_name ? `${c.vendor_name} · ` : ''}{c.title} ({[c.response_hours && t('sd_cfg.uc_resp_h', { n: c.response_hours }), c.resolution_hours && t('sd_cfg.uc_hours', { n: c.resolution_hours })].filter(Boolean).join(' / ')})</option>
                   ))}
-                </select>
+                </Select>
               </div>
             )}
           </div>
@@ -608,15 +608,15 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
 
           {/* Reasignar */}
           <div className="u-mb-16">
-            <button type="button" aria-expanded={editAssign} onClick={() => setEditAssign(e => !e)} className="tkd-link-btn">
+            <Pulsable aria-expanded={editAssign} onClick={() => setEditAssign(e => !e)} className="tkd-link-btn">
               {editAssign ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />} {t('ticketdetail.reasignar')}
-            </button>
+            </Pulsable>
             {editAssign && (
               <div className="tkd-assign-row">
-                <select aria-label={t('service_desk.detail_select_agent')} onChange={e => e.target.value && updateTicket({ assigned_to_user_id: e.target.value })} className={`${IS} tkd-input--flex1`} defaultValue="">
+                <Select suelto placeholder={false} aria-label={t('service_desk.detail_select_agent')} value="" onChange={e => e.target.value && updateTicket({ assigned_to_user_id: e.target.value })} className="tkd-input--flex1">
                   <option value="" disabled>{t('service_desk.detail_select_agent')}</option>
                   {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-                </select>
+                </Select>
               </div>
             )}
           </div>
@@ -681,15 +681,12 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
             <div className="tkd-section-title">{t('service_desk.detail_log_time')}</div>
             <div className="u-row-8">
               <input type="number" aria-label={t('service_desk.detail_time_spent')} placeholder={t('service_desk.detail_time_spent')} value={timeMin} onChange={e => setTimeMin(e.target.value)} className={`${IS} tkd-input--flex1`} />
-              <select aria-label={t('ticketdetail.unidad')} value={timeUnit} onChange={e => setTimeUnit(e.target.value)} className={`${IS} tkd-input--unit`}>
+              <Select suelto placeholder={false} aria-label={t('ticketdetail.unidad')} value={timeUnit} onChange={e => setTimeUnit(e.target.value)} className="tkd-input--unit">
                 <option value="minutes">{t('ticketdetail.unidad_min')}</option>
                 <option value="hours">{t('ticketdetail.unidad_h')}</option>
                 <option value="days">{t('ticketdetail.unidad_d')}</option>
-              </select>
-              <label className="tkd-check tkd-check--nowrap">
-                <input type="checkbox" checked={facturable} onChange={e => setFacturable(e.target.checked)} aria-label={t('sd_cfg.time_billable')} />
-                {t('sd_cfg.time_billable')}
-              </label>
+              </Select>
+              <Checkbox className="tkd-check tkd-check--nowrap" checked={facturable} onChange={setFacturable} aria-label={t('sd_cfg.time_billable')} label={t('sd_cfg.time_billable')} />
               <Button onClick={() => logTime()} disabled={loggingTime || !timeMin} loading={loggingTime}>{t('service_desk.detail_add_btn')}</Button>
             </div>
           </div>
@@ -724,20 +721,17 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
                 onChange={e => setCommentText(e.target.value)} rows={3} className={`${IS} tkd-input--comment`} />
             </div>
             <div className="tkd-tools">
-              <button type="button" aria-pressed={showCanned} onClick={() => setShowCanned(s => !s)}
+              <Pulsable aria-pressed={showCanned} onClick={() => setShowCanned(s => !s)}
                 className="tkd-tool">
                 <Zap size={13} aria-hidden="true" />{t('ticketdetail.respuestas_rapidas')}
-              </button>
-              <button type="button" onClick={() => suggestReply()} disabled={suggestingReply}
+              </Pulsable>
+              <Pulsable onClick={() => suggestReply()} disabled={suggestingReply}
                 className="tkd-tool">
                 <Sparkles size={13} aria-hidden="true" />{suggestingReply ? t('service_desk.detail_ai_generating') : t('sd_cfg.ai_suggest')}
-              </button>
+              </Pulsable>
             </div>
             {sugerencia && <ApoyoDeLaSugerencia s={sugerencia} />}
-            <label className="tkd-check tkd-check--mb">
-              <input type="checkbox" aria-label={t('service_desk.internal_note')} checked={notaInterna} onChange={e => setNotaInterna(e.target.checked)} />
-              {t('service_desk.internal_note')}
-            </label>
+            <Checkbox className="tkd-check tkd-check--mb" aria-label={t('service_desk.internal_note')} checked={notaInterna} onChange={setNotaInterna} label={t('service_desk.internal_note')} />
             {/* Solo respuestas públicas: las notas internas no salen nunca al cliente. */}
             {!notaInterna && (
               <VistaPreviaDeSalida key={ticket.id} contextType="ticket" contextId={ticket.id} texto={commentText}

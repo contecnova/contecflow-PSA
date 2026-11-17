@@ -11,6 +11,7 @@ import { CheckCircle2 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { apiUrl } from '../services/api/urls'
 import './IntakeFormPage.css'
+import { Pulsable, Select } from '../components/ui'
 
 // axios directo y no el cliente de la app: formulario público, sin sesión que
 // refrescar ni redirección a login si responde 401.
@@ -130,12 +131,12 @@ export default function IntakeFormPage(): JSX.Element {
 
           <div>
             <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} style={LS}>{t('intake_form.priority_label')}</label>
-            <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={fields.priority || form.default_priority} onChange={set('priority')} style={FS}>
+            <Select suelto placeholder={false} id={`${idCampo}-5`} value={fields.priority || form.default_priority} onChange={set('priority')} style={FS}>
               <option value="low">{t('intake_form.priority_low')}</option>
               <option value="medium">{t('intake_form.priority_medium')}</option>
               <option value="high">{t('intake_form.priority_high')}</option>
               <option value="critical">{t('intake_form.priority_critical')}</option>
-            </select>
+            </Select>
           </div>
 
           {isError && (
@@ -144,13 +145,13 @@ export default function IntakeFormPage(): JSX.Element {
             </div>
           )}
 
-          <button
+          <Pulsable
             onClick={() => mutate(fields)}
             disabled={isPending || !fields.subject}
             className={`intake-btn ${isPending ? 'intakefo-sx1' : 'intakefo-sx2'} ${isPending || !fields.subject ? 'intakefo-sx3' : 'intakefo-sx4'}`}
           >
             {isPending ? t('intake_form.sending_button') : t('intake_form.send_button')}
-          </button>
+          </Pulsable>
         </div>
       </div>
     </div>

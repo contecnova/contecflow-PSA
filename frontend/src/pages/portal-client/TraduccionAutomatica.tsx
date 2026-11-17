@@ -19,6 +19,7 @@ import { useState, type ReactNode } from 'react'
 import { Languages } from 'lucide-react'
 import { useIdiomaDelPortal, useLang } from './portalClientContext'
 import '../../components/traduccion/traduccion.css'
+import { Button } from '../../components/ui'
 
 /** Lo que el servidor añade a un elemento traducido. */
 export interface ContenidoTraducido {
@@ -71,9 +72,9 @@ export function MarcaDeTraduccion({ origen, verOriginal, onAlternar, puedeVerOri
         ? t('traduccion_portal.marca_original', { idioma })
         : t('traduccion_portal.marca_auto', { idioma })}</span>
       {puedeVerOriginal && (
-        <button type="button" className="trad-enlace" aria-pressed={verOriginal} onClick={onAlternar}>
+        <Button variant="link" size="xs" className="trad-enlace" aria-pressed={verOriginal} onClick={onAlternar}>
           {verOriginal ? t('traduccion_portal.ver_traduccion') : t('traduccion_portal.ver_original')}
-        </button>
+        </Button>
       )}
     </div>
   )

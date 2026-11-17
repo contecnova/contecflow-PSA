@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { MessageSquare, Search, Send, X, ExternalLink, Plus, User, Minus, Volume2, VolumeX, Hash, Users } from 'lucide-react'
-import { EmptyState, IconButton } from '../ui'
+import { Checkbox, EmptyState, IconButton, Pulsable, Select } from '../ui'
 import { collabApi } from '../../services/collaborationApi'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
@@ -460,7 +460,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
 
   if (minimized) {
     return (
-      <button type="button" className={`glchpa-row-14 globalch-sx1 ${visible ? 'global-chat-panel-m1' : 'global-chat-panel-m2'}`}
+      <Pulsable className={`glchpa-row-14 globalch-sx1 ${visible ? 'global-chat-panel-m1' : 'global-chat-panel-m2'}`}
         onClick={() => setMinimized(false)}
         aria-label={t('globalchat.abrir_chat')}
         title={t('globalchat.abrir_chat')}
@@ -470,7 +470,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
         {panelBadgeVisible && (
           <span className={`glchpa-row-15 ${unread > 0 ? 'global-chat-panel-m3' : 'global-chat-panel-m4'}`}>{panelBadgeCount > 99 ? '99+' : panelBadgeCount}</span>
         )}
-      </button>
+      </Pulsable>
     )
   }
 
@@ -528,7 +528,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
 
         <div className="glchpa-row-7">
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="u-text3-xs">{t('nav.notifications')}</label>
-          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
+          <Select suelto placeholder={false} id={`${idCampo}-1`}
             value={notifyMode}
             onChange={(e) => updateNotifyMode(e.target.value)}
             className="glchpa-fieldstyle3"
@@ -536,11 +536,8 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
             <option value="all">{t('globalchat.todas')}</option>
             <option value="mentions">{t('globalchat.solo_menciones')}</option>
             <option value="none">{t('globalchat.silencio')}</option>
-          </select>
-          <label className="glchpa-row-8">
-            <input type="checkbox" aria-label={t('globalchat.no_molestar_22_00_08_00')} checked={dndEnabled} onChange={(e) => updateDnd(e.target.checked)} />
-            {t('globalchat.no_molestar_22_00_08_00')}
-          </label>
+          </Select>
+          <Checkbox className="glchpa-row-8" label={t('globalchat.no_molestar_22_00_08_00')} checked={dndEnabled} onChange={(marcado) => updateDnd(marcado)} />
         </div>
 
         {newDirectOpen && (
@@ -553,15 +550,14 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
             />
             <div className="glchpa-stack-1">
               {(suggestions.users || []).slice(0, 8).map(u => (
-                <button
-                  type="button"
+                <Pulsable
                   key={u.id}
                   onClick={() => openDirect.mutate(u.id)}
                   className="glchpa-row-9"
                 >
                   <User size={13} aria-hidden="true" />
                   <span className="glchpa-ellipsis">{u.full_name || u.username || t('chat.user')}</span>
-                </button>
+                </Pulsable>
               ))}
               {(suggestions.users || []).length === 0 && (
                 <div className="glchpa-box-4">{t('globalchat.sin_resultados')}</div>
@@ -577,7 +573,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
               const rawUnread = Number(c.unread_count || c.unread || 0)
               const convUnread = (active || clearedUnreadMap[c.id]) ? 0 : rawUnread
               return (
-                <button type="button" className={`glchpa-box-13 ${active ? 'global-chat-panel-m11' : 'global-chat-panel-m12'}`}
+                <Pulsable className={`glchpa-box-13 ${active ? 'global-chat-panel-m11' : 'global-chat-panel-m12'}`}
                   key={c.id}
                   aria-current={active ? 'true' : undefined}
                   onClick={() => {
@@ -594,7 +590,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
                       </span>
                     )}
                   </div>
-                </button>
+                </Pulsable>
               )
             })}
             {visibleConversations.length === 0 && (

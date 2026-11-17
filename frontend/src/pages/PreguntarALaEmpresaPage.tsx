@@ -17,7 +17,7 @@ import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Too
 import { BadgeCheck, Database, MessageSquareText, MousePointerClick, Send, ShieldAlert, Sigma } from 'lucide-react'
 import { conectoresApi, mensajeDeConector, apiStream } from '../services/api'
 import type { Metrica, RespuestaCI } from '../services/api'
-import { Button, EmptyState, Page, Spinner, Tabs } from '../components/ui'
+import { Button, EmptyState, Page, Spinner, Tabs, Pulsable, Select, TablaSimple } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { useAuth } from '../context/AuthContext'
 import { localeActivo } from '../utils/helpers'
@@ -141,9 +141,9 @@ function Preguntar({ fuentePorDefecto, preguntaInicial }: { fuentePorDefecto: st
           {fuentes.isError
             ? <span className="pae-sub pae-text-danger" role="alert">{mensajeDeConector(fuentes.error, t('ci.error'))}</span>
             : (
-              <select className="pae-campo" id="ci-fuente" value={fuente} onChange={e => { setFuente(e.target.value); setConversacion(null) }}>
+              <Select suelto placeholder={false} className="pae-campo" id="ci-fuente" value={fuente} onChange={e => { setFuente(e.target.value); setConversacion(null) }}>
                 {(fuentes.data?.items ?? []).map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-              </select>
+              </Select>
             )}
           {conversacion && (
             <Button size="xs" variant="ghost" onClick={() => { setConversacion(null); setRespuesta(null); setTexto('') }}>{t('ci.nueva_conversacion')}</Button>
@@ -224,12 +224,12 @@ function Datos({ g }: { g: Grafico }) {
         </div>
       )}
       <div className="pae-box-2">
-        <table className="u-table-sm">
+        <TablaSimple claseTabla="u-table-sm">
           <thead><tr>{columnas.map(c => <th className="pae-th" key={c}>{c}</th>)}</tr></thead>
           <tbody>{(g.data ?? []).slice(0, 500).map((d, i) => (
             <tr key={i}>{columnas.map(c => <td className="pae-td" key={c} style={{ '--pae-td-text-align': typeof d[c] === 'number' ? 'right' : 'left', '--pae-td-font-family': typeof d[c] === 'number' ? 'var(--font-mono)' : undefined } as CSSProperties}>{valorTexto(d[c])}</td>)}</tr>
           ))}</tbody>
-        </table>
+        </TablaSimple>
       </div>
     </div>
   )
@@ -254,10 +254,10 @@ function Metricas({ analista }: { analista: boolean }) {
       <ul className="pae-caja pae-ul" aria-label={t('ci.tab_metricas')}>
         {lista.map(m => (
           <li key={m.id || m.name}>
-            <button className="pae-btn" type="button" aria-pressed={elegida?.name === m.name} onClick={() => setElegida(m)} style={{ '--pae-btn-background': elegida?.name === m.name ? 'var(--accent-muted)' : 'transparent' } as CSSProperties}>
+            <Pulsable className="pae-btn" aria-pressed={elegida?.name === m.name} onClick={() => setElegida(m)} style={{ '--pae-btn-background': elegida?.name === m.name ? 'var(--accent-muted)' : 'transparent' } as CSSProperties}>
               <div className="pae-text-sm-2">{m.label}</div>
               <div className="pae-sub">{m.description || m.name}</div>
-            </button>
+            </Pulsable>
           </li>
         ))}
       </ul>
@@ -292,10 +292,10 @@ function DetalleMetrica({ m }: { m: Metrica }) {
       </div>
       <div className="u-wrap-center-8">
         <label className="pae-sub" htmlFor="ci-dim">{t('ci.desglose')}</label>
-        <select className="pae-campo" id="ci-dim" value={dim} onChange={e => setDim(e.target.value)}>
+        <Select suelto placeholder={false} className="pae-campo" id="ci-dim" value={dim} onChange={e => setDim(e.target.value)}>
           <option value="">{t('ci.sin_desglose')}</option>
           {m.dimensions.map(d => <option key={d} value={d}>{d}</option>)}
-        </select>
+        </Select>
         <Button size="sm" loading={consulta.isPending} onClick={() => consulta.mutate()}>{t('ci.consultar')}</Button>
       </div>
       {consulta.isError && <div className="pae-text-danger-sm" role="alert">{mensajeDeConector(consulta.error, t('ci.error'))}</div>}

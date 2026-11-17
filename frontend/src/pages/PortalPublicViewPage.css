@@ -41,7 +41,7 @@
 .ppv-text-accent-sm-strong {
   font-size: var(--text-sm);
   letter-spacing: .08em;
-  text-transform: uppercase;
+
   color: var(--accent);
   font-weight: 700;
 }

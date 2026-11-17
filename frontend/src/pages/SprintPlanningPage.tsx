@@ -14,7 +14,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, sprintsApi, tasksApi, semanticApi, sprintPlansApi } from '../services/api'
 import type { EstadoDePlanDeSprint, PlanDeSprint, PlanDeSprintGenerado } from '../services/api/tipos-proyectos'
 import type { EstimacionDelBacklog } from '../services/api/tipos-analitica'
-import { Button, Card, EmptyState, IconButton, Modal, Spinner } from '../components/ui'
+import { Button, Card, EmptyState, IconButton, Modal, Spinner, Select } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import PageHeader from '../components/layout/PageHeader'
@@ -120,10 +120,10 @@ function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () 
               </div>
               <div>
                 <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={ls}>{t('sprint_planning.sprint_optional')}</label>
-                <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} className={is} value={form.sprint_id} onChange={e => set('sprint_id')(e.target.value)}>
+                <Select suelto placeholder={false} id={`${idCampo}-3`} className={is} value={form.sprint_id} onChange={e => set('sprint_id')(e.target.value)}>
                   <option value="">{t('sprint_planning.no_specific_sprint')}</option>
                   {(sprints as Array<{ id: string | number; name: string }>).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
+                </Select>
               </div>
             </div>
             <div className="spl-info">
@@ -245,10 +245,10 @@ export default function SprintPlanningPage() {
       <div className="u-stack-16">
       <Card className="spl-filtros">
         <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={ls}>{t('sprint_planning.project_label')}</label>
-        <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e => setProject(e.target.value)} className={`${is} spl-input--project`}>
+        <Select suelto placeholder={false} id={`${idCampo}-1`} value={project} onChange={e => setProject(e.target.value)} className={`${is} spl-input--project`}>
           <option value="">{t('sprint_planning.select_project_opt')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
+        </Select>
       </Card>
 
       {!project && <EmptyState icon={<FolderKanban size={28} />} title={t('sprint_planning.select_project_title')} description={t('sprint_planning.select_project_desc2')} />}

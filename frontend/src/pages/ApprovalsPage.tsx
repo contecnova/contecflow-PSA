@@ -28,7 +28,7 @@ import {
   Palmtree, Package, ClipboardList, Handshake, GitBranch, UserPlus, Tag, Plug, Laptop, Undo2, Circle,
   ArrowLeft, FolderOpen, Pencil, Check, Plus, X, AlertTriangle, Download,
 } from 'lucide-react'
-import { Button, Modal, EmptyState, Tabs, Page, Table, KpiCard, IconButton, StatusBadge, SelectorDePeriodo } from '../components/ui'
+import { Button, Modal, EmptyState, Tabs, Page, Table, KpiCard, IconButton, StatusBadge, SelectorDePeriodo, Pulsable, Select, TablaSimple, Checkbox } from '../components/ui'
 import { usePeriodo } from '../hooks/usePeriodo'
 import { CON_HORA, codigoDeErrorDePeriodo, formatearTramo } from '../utils/periodo'
 import { useAppT } from '../i18n/AppLangContext'
@@ -186,38 +186,38 @@ function StepModal({ workflowId, step, onClose }: { workflowId: string; step: Ap
         </div>
         <div className="u-col-full">
           <label htmlFor={id('approver-type')} className="apv-label">{t('approvals.approver_type')}</label>
-          <select id={id('approver-type')} value={form.approver_type} onChange={e => setForm(f => ({ ...f, approver_type: e.target.value }))} className="apv-input">
+          <Select suelto placeholder={false} id={id('approver-type')} value={form.approver_type} onChange={e => setForm(f => ({ ...f, approver_type: e.target.value }))} className="apv-input">
             {Object.entries(approverTypeLabels(t)).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </select>
+          </Select>
         </div>
 
         {form.approver_type === 'role' && (
           <div className="u-col-full">
             <label htmlFor={id('approver-role')} className="apv-label">{t('approvals.required_role')}</label>
-            <select id={id('approver-role')} value={form.approver_role} onChange={e => setForm(f => ({ ...f, approver_role: e.target.value }))} className="apv-input">
+            <Select suelto placeholder={false} id={id('approver-role')} value={form.approver_role} onChange={e => setForm(f => ({ ...f, approver_role: e.target.value }))} className="apv-input">
               <option value="">{t('approvals.select_role')}</option>
               {ROLES.map(r => <option key={r} value={r}>{t(`pol.rol_${r}`, r)}</option>)}
-            </select>
+            </Select>
           </div>
         )}
 
         {form.approver_type === 'user' && (
           <div className="u-col-full">
             <label htmlFor={id('approver-user')} className="apv-label">{t('approvals.approver_user_label')}</label>
-            <select id={id('approver-user')} value={form.approver_user_id} onChange={e => setForm(f => ({ ...f, approver_user_id: e.target.value }))} className="apv-input">
+            <Select suelto placeholder={false} id={id('approver-user')} value={form.approver_user_id} onChange={e => setForm(f => ({ ...f, approver_user_id: e.target.value }))} className="apv-input">
               <option value="">{t('approvals.select_user')}</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>)}
-            </select>
+            </Select>
           </div>
         )}
 
         {form.approver_type === 'any_in_department' && (
           <div className="u-col-full">
             <label htmlFor={id('approver-department')} className="apv-label">{t('approvals.department')}</label>
-            <select id={id('approver-department')} value={form.approver_department} onChange={e => setForm(f => ({ ...f, approver_department: e.target.value }))} className="apv-input">
+            <Select suelto placeholder={false} id={id('approver-department')} value={form.approver_department} onChange={e => setForm(f => ({ ...f, approver_department: e.target.value }))} className="apv-input">
               <option value="">{t('approvals.sin_departamento')}</option>
               {depts.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-            </select>
+            </Select>
           </div>
         )}
 
@@ -227,15 +227,15 @@ function StepModal({ workflowId, step, onClose }: { workflowId: string; step: Ap
         </div>
         <div>
           <label htmlFor={id('on-timeout')} className="apv-label">{t('approvals.on_timeout')}</label>
-          <select id={id('on-timeout')} value={form.on_timeout} onChange={e => setForm(f => ({ ...f, on_timeout: e.target.value }))} className="apv-input">
+          <Select suelto placeholder={false} id={id('on-timeout')} value={form.on_timeout} onChange={e => setForm(f => ({ ...f, on_timeout: e.target.value }))} className="apv-input">
             <option value="escalate">{t('approvals.timeout_escalate')}</option>
             <option value="auto_approve">{t('approvals.timeout_auto_approve')}</option>
             <option value="reject">{t('approvals.timeout_reject')}</option>
-          </select>
+          </Select>
         </div>
         <div className="u-col-full">
           <label htmlFor={id('is-optional')} className="apv-check">
-            <input id={id('is-optional')} type="checkbox" checked={form.is_optional} onChange={e => setForm(f => ({ ...f, is_optional: e.target.checked }))} />
+            <Checkbox id={id('is-optional')} checked={form.is_optional} onChange={(_, e) => setForm(f => ({ ...f, is_optional: e.target.checked }))} />
             {t('approvals.optional_step_label')}
           </label>
         </div>
@@ -243,16 +243,16 @@ function StepModal({ workflowId, step, onClose }: { workflowId: string; step: Ap
         {form.approver_type === 'group' && (
           <div className="u-col-full">
             <label htmlFor={id('group')} className="apv-label">{t('approvals.grupo_de_aprobadores')}</label>
-            <select id={id('group')} value={form.approver_group_id} onChange={e => setForm(f => ({ ...f, approver_group_id: e.target.value }))} className="apv-input">
+            <Select suelto placeholder={false} id={id('group')} value={form.approver_group_id} onChange={e => setForm(f => ({ ...f, approver_group_id: e.target.value }))} className="apv-input">
               <option value="">{t('approvals.seleccionar_grupo')}</option>
               {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-            </select>
+            </Select>
           </div>
         )}
 
         <div className="u-col-full">
           <label htmlFor={id('quorum')} className="apv-check">
-            <input id={id('quorum')} type="checkbox" checked={form.parallel_quorum} onChange={e => setForm(f => ({ ...f, parallel_quorum: e.target.checked }))} />
+            <Checkbox id={id('quorum')} checked={form.parallel_quorum} onChange={(_, e) => setForm(f => ({ ...f, parallel_quorum: e.target.checked }))} />
             {t('approvals.quorum_paralelo_varios_aprobadores_simultaneos')}
           </label>
         </div>
@@ -273,12 +273,12 @@ function StepModal({ workflowId, step, onClose }: { workflowId: string; step: Ap
 
         <div className="u-col-full">
           <label htmlFor={id('adjunto')} className="apv-check">
-            <input id={id('adjunto')} type="checkbox" checked={form.requires_attachment} onChange={e => setForm(f => ({ ...f, requires_attachment: e.target.checked }))} />
+            <Checkbox id={id('adjunto')} checked={form.requires_attachment} onChange={(_, e) => setForm(f => ({ ...f, requires_attachment: e.target.checked }))} />
             {t('approvals.requiere_adjunto_obligatorio_para_aprobar')}
           </label>
         </div>
 
-        <fieldset className="u-col-full apr-regla">
+        <fieldset className="ds-grupo-opciones u-col-full apr-regla">
           <legend className="apv-label">{t('approvals.condicion_de_paso')}</legend>
           <CondicionDePaso raw={form.step_condition} onChange={raw => setForm(f => ({ ...f, step_condition: raw }))} />
           <p className="apv-ayuda">{t('approvals.si_se_define_este_paso_solo_se')}</p>
@@ -359,22 +359,22 @@ function WorkflowDetail({ workflowId, onBack }: { workflowId: string; onBack: ()
             {wf.entity_type === 'document' && (
               <span className="apv-separado">
                 {editingCategory ? (
-                  <select
+                  <Select suelto placeholder={false}
                     autoFocus
                     aria-label={t('approvals.cambiar_categoria_del_documento')}
-                    defaultValue={configuredCategory}
+                    value={configuredCategory}
                     onBlur={e => { updateCategory(e.target.value); setEditingCategory(false) }}
                     onChange={e => { updateCategory(e.target.value); setEditingCategory(false) }}
                     className="apv-categoria-select"
                   >
                     <option value="">{t('approvals.doc_cat_todos')}</option>
                     {CATEGORIAS_DE_DOCUMENTO.map(c => <option key={c} value={c}>{categoria(c)}</option>)}
-                  </select>
+                  </Select>
                 ) : (
-                  <button type="button" title={t('approvals.cambiar_categoria_del_documento')} onClick={() => setEditingCategory(true)}
+                  <Pulsable type="button" title={t('approvals.cambiar_categoria_del_documento')} onClick={() => setEditingCategory(true)}
                     className={`apv-categoria${configuredCategory ? ' apv-categoria--puesta' : ''}`}>
                     <FolderOpen size={13} aria-hidden /> {configuredCategory ? categoria(configuredCategory) : t('approvals.todos_los_documentos')} <Pencil size={12} aria-hidden />
-                  </button>
+                  </Pulsable>
                 )}
               </span>
             )}
@@ -584,19 +584,19 @@ function MyPendingTab() {
       </div>
 
       <div className="ds-toolbar">
-        <select aria-label={t('approvals.filter_by_entity')} value={entityFilter} onChange={e => setEntityFilter(e.target.value)} className="ds-input apv-input--auto">
+        <Select suelto placeholder={false} aria-label={t('approvals.filter_by_entity')} value={entityFilter} onChange={e => setEntityFilter(e.target.value)} className="ds-input apv-input--auto">
           <option value="all">{t('approvals.all_entities')}</option>
           {Object.entries(entityLabels(t)).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-        </select>
-        <select aria-label={t('approvals.sort_requests')} value={sortMode} onChange={e => setSortMode(e.target.value)} className="ds-input apv-input--auto">
+        </Select>
+        <Select suelto placeholder={false} aria-label={t('approvals.sort_requests')} value={sortMode} onChange={e => setSortMode(e.target.value)} className="ds-input apv-input--auto">
           <option value="oldest">{t('approvals.sort_oldest')}</option>
           <option value="newest">{t('approvals.sort_newest')}</option>
-        </select>
+        </Select>
       </div>
 
       <div className="ds-row-between">
         <label htmlFor="approvals-select-all" className="apv-seleccion">
-          <input id="approvals-select-all" type="checkbox" className="apv-casilla"
+          <Checkbox id="approvals-select-all" className="apv-casilla"
             checked={queue.length > 0 && selectedIds.size === queue.length} onChange={toggleAll} />
           {selectedIds.size === 0
             ? t('approvals.queue_for_approval', { count: queue.length })
@@ -617,7 +617,7 @@ function MyPendingTab() {
           return (
             <div key={req.id} className={`ds-card apv-solicitud${marcada ? ' apv-solicitud--marcada' : isUrgent ? ' apv-solicitud--urgente' : ''}`}>
               <div className="apv-solicitud__fila">
-                <input type="checkbox" className="apv-casilla apv-casilla--arriba"
+                <Checkbox className="apv-casilla apv-casilla--arriba"
                   aria-label={t('approvals.select_request_aria', { name: req.entity_summary || req.entity_id })}
                   checked={marcada} onChange={() => toggleSelect(req.id)} />
                 <div className="u-flex1-min0">
@@ -784,17 +784,17 @@ function WorkflowTemplatesTab() {
             </div>
             <div>
               <label htmlFor={id('scratch-entity')} className="apv-label">{t('approvals.entidad')}</label>
-              <select id={id('scratch-entity')} value={scratch.entity_type} onChange={e => setScratch(s => ({ ...s, entity_type: e.target.value }))} className="apv-input">
+              <Select suelto placeholder={false} id={id('scratch-entity')} value={scratch.entity_type} onChange={e => setScratch(s => ({ ...s, entity_type: e.target.value }))} className="apv-input">
                 {Object.entries(entityLabels(t)).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-              </select>
+              </Select>
             </div>
             {scratch.entity_type === 'document' && (
               <div className="u-col-full">
                 <label htmlFor={id('scratch-category')} className="apv-label">{t('approvals.categoria_documento_opcional')}</label>
-                <select id={id('scratch-category')} value={scratch.document_category} onChange={e => setScratch(s => ({ ...s, document_category: e.target.value }))} className="apv-input">
+                <Select suelto placeholder={false} id={id('scratch-category')} value={scratch.document_category} onChange={e => setScratch(s => ({ ...s, document_category: e.target.value }))} className="apv-input">
                   <option value="">{t('approvals.fallback_aplica_a_todos_los_documentos')}</option>
                   {CATEGORIAS_DE_DOCUMENTO.map(c => <option key={c} value={c}>{t(`approvals.doc_cat_${c}`, c)}</option>)}
-                </select>
+                </Select>
               </div>
             )}
             <div className="u-col-full">
@@ -802,7 +802,7 @@ function WorkflowTemplatesTab() {
               <input id={id('scratch-description')} value={scratch.description} onChange={e => setScratch(s => ({ ...s, description: e.target.value }))} className="apv-input" placeholder={t('approvals.descripcion_ejemplo')} />
             </div>
             <label htmlFor={id('scratch-default')} className="apv-check apv-check--fila">
-              <input id={id('scratch-default')} type="checkbox" checked={scratch.is_default} onChange={e => setScratch(s => ({ ...s, is_default: e.target.checked }))} />
+              <Checkbox id={id('scratch-default')} checked={scratch.is_default} onChange={(_, e) => setScratch(s => ({ ...s, is_default: e.target.checked }))} />
               {t('approvals.marcar_como_flujo_por_defecto')}
             </label>
           </div>
@@ -822,11 +822,11 @@ function WorkflowTemplatesTab() {
                   </div>
                   <div>
                     <label htmlFor={id(`step-type-${idx}`)} className="apv-label">{t('approvals.aprobador')}</label>
-                    <select id={id(`step-type-${idx}`)} value={step.approver_type} onChange={e => updateScratchStep(idx, 'approver_type', e.target.value)} className="apv-input">
+                    <Select suelto placeholder={false} id={id(`step-type-${idx}`)} value={step.approver_type} onChange={e => updateScratchStep(idx, 'approver_type', e.target.value)} className="apv-input">
                       <option value="role">{t('approvals.approver_role')}</option>
                       <option value="manager">{t('approvals.approver_manager')}</option>
                       <option value="any_in_department">{t('approvals.department')}</option>
-                    </select>
+                    </Select>
                   </div>
                   <div>
                     <label htmlFor={id(`step-timeout-${idx}`)} className="apv-label">{t('approvals.timeout_hours')}</label>
@@ -834,11 +834,11 @@ function WorkflowTemplatesTab() {
                   </div>
                   <div>
                     <label htmlFor={id(`step-ontimeout-${idx}`)} className="apv-label">{t('approvals.on_timeout')}</label>
-                    <select id={id(`step-ontimeout-${idx}`)} value={step.on_timeout} onChange={e => updateScratchStep(idx, 'on_timeout', e.target.value)} className="apv-input">
+                    <Select suelto placeholder={false} id={id(`step-ontimeout-${idx}`)} value={step.on_timeout} onChange={e => updateScratchStep(idx, 'on_timeout', e.target.value)} className="apv-input">
                       <option value="escalate">{t('approvals.timeout_escalate')}</option>
                       <option value="auto_approve">{t('approvals.timeout_auto_approve')}</option>
                       <option value="reject">{t('approvals.timeout_reject')}</option>
-                    </select>
+                    </Select>
                   </div>
                   <Button size="sm" variant="ghost" icon={<Trash2 size={14} />} onClick={() => removeScratchStep(idx)} disabled={scratch.steps.length === 1}>{t('approvals.eliminar')}</Button>
                 </div>
@@ -846,20 +846,20 @@ function WorkflowTemplatesTab() {
                 {step.approver_type === 'role' && (
                   <div className="apv-mt-8">
                     <label htmlFor={id(`step-role-${idx}`)} className="apv-label">{t('approvals.required_role')}</label>
-                    <select id={id(`step-role-${idx}`)} value={step.approver_role || ''} onChange={e => updateScratchStep(idx, 'approver_role', e.target.value)} className="apv-input">
+                    <Select suelto placeholder={false} id={id(`step-role-${idx}`)} value={step.approver_role || ''} onChange={e => updateScratchStep(idx, 'approver_role', e.target.value)} className="apv-input">
                       <option value="">{t('approvals.select_role')}</option>
                       {ROLES.map(r => <option key={r} value={r}>{t(`pol.rol_${r}`, r)}</option>)}
-                    </select>
+                    </Select>
                   </div>
                 )}
 
                 {step.approver_type === 'any_in_department' && (
                   <div className="apv-mt-8">
                     <label htmlFor={id(`step-dept-${idx}`)} className="apv-label">{t('approvals.department')}</label>
-                    <select id={id(`step-dept-${idx}`)} value={step.approver_department || ''} onChange={e => updateScratchStep(idx, 'approver_department', e.target.value)} className="apv-input">
+                    <Select suelto placeholder={false} id={id(`step-dept-${idx}`)} value={step.approver_department || ''} onChange={e => updateScratchStep(idx, 'approver_department', e.target.value)} className="apv-input">
                       <option value="">{t('approvals.sin_departamento')}</option>
                       {depts.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-                    </select>
+                    </Select>
                   </div>
                 )}
               </div>
@@ -907,9 +907,9 @@ function WorkflowSimulatorTab() {
         <div className="apv-simulador__rejilla">
           <div>
             <label htmlFor={id('tipo')} className="apv-label">{t('approvals.entity_type')}</label>
-            <select id={id('tipo')} value={entityType} onChange={e => setEntityType(e.target.value)} className="apv-input">
+            <Select suelto placeholder={false} id={id('tipo')} value={entityType} onChange={e => setEntityType(e.target.value)} className="apv-input">
               {['document', 'expense', 'timesheet', 'milestone', 'purchase'].map(k => <option key={k} value={k}>{entityLabels(t)[k].label}</option>)}
-            </select>
+            </Select>
           </div>
           <div>
             <label htmlFor={id('cat')} className="apv-label">{t('approvals.categoria')}</label>
@@ -917,10 +917,10 @@ function WorkflowSimulatorTab() {
           </div>
           <div>
             <label htmlFor={id('dep')} className="apv-label">{t('approvals.department')}</label>
-            <select id={id('dep')} value={department} onChange={e => setDepartment(e.target.value)} className="apv-input">
+            <Select suelto placeholder={false} id={id('dep')} value={department} onChange={e => setDepartment(e.target.value)} className="apv-input">
               <option value="">{t('approvals.sin_departamento')}</option>
               {depts.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-            </select>
+            </Select>
           </div>
           <div>
             <label htmlFor={id('imp')} className="apv-label">{t('approvals.importe')}</label>
@@ -1036,10 +1036,10 @@ function WorkflowBottlenecksTab() {
         <span className="u-text2-sm">{t('approvals.ventana')}</span>
         <SelectorDePeriodo {...periodo.selector} />
         <label htmlFor={`${idCampo}-flujo`} className="u-text2-sm">{t('approvals.flujo')}</label>
-        <select id={`${idCampo}-flujo`} value={workflowFilter} onChange={e => setWorkflowFilter(e.target.value)} className="apv-input apv-input--w200">
+        <Select suelto placeholder={false} id={`${idCampo}-flujo`} value={workflowFilter} onChange={e => setWorkflowFilter(e.target.value)} className="apv-input apv-input--w200">
           <option value="">{t('approvals.todos_los_flujos')}</option>
           {workflowsData.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-        </select>
+        </Select>
         <Button size="sm" variant="secondary" icon={<RefreshCw size={14} />} onClick={() => refetch()} loading={isFetching}>{t('approvals.actualizar')}</Button>
         {items.length > 0 && (
           <Button size="sm" variant="ghost" icon={<Download size={14} />} onClick={() => exportBottlenecksCSV(t, items, recommendations, textoDelPeriodo, selectedWorkflowName)}>
@@ -1241,7 +1241,7 @@ function ApprovalGroupsTab() {
               <div role="group" aria-labelledby={`${idCampo}-miembros`} className="apv-miembros">
                 {users.map(u => (
                   <label key={u.id} className="apv-miembro">
-                    <input type="checkbox" checked={form.member_ids.includes(u.id)} onChange={() => toggleMember(u.id)} />
+                    <Checkbox checked={form.member_ids.includes(u.id)} onChange={() => toggleMember(u.id)} />
                     {u.full_name} <span className="u-text3-xs">({t(`pol.rol_${u.role}`, u.role)})</span>
                   </label>
                 ))}
@@ -1326,7 +1326,7 @@ function ApprovalMatrixTab({ workflows = [] }: { workflows?: ApprovalWorkflow[] 
     <div>
       <p className="apv-intro">{t('approvals.vista_de_que_flujos_estan_activos_por')}</p>
       <div className="u-scroll-x">
-        <table className="apv-matriz">
+        <TablaSimple claseTabla="apv-matriz">
           <thead>
             <tr>
               <th scope="col">{t('approvals.entidad')}</th>
@@ -1353,7 +1353,7 @@ function ApprovalMatrixTab({ workflows = [] }: { workflows?: ApprovalWorkflow[] 
               )
             })}
           </tbody>
-        </table>
+        </TablaSimple>
       </div>
     </div>
   )
@@ -1579,18 +1579,18 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
             </div>
             <div>
               <label htmlFor={`${createIdPrefix}-entity-type`} className="apv-label">{t('approvals.entity_type')}</label>
-              <select id={`${createIdPrefix}-entity-type`} value={form.entity_type} onChange={e => setForm(f => ({ ...f, entity_type: e.target.value }))} className="apv-input">
+              <Select suelto placeholder={false} id={`${createIdPrefix}-entity-type`} value={form.entity_type} onChange={e => setForm(f => ({ ...f, entity_type: e.target.value }))} className="apv-input">
                 {Object.entries(entityLabels(t)).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-              </select>
+              </Select>
             </div>
             {form.entity_type === 'document' && (
               <div>
                 <label htmlFor={`${createIdPrefix}-doc-category`} className="apv-label">{t('approvals.categoria_del_documento')}</label>
-                <select id={`${createIdPrefix}-doc-category`} value={form.document_category} onChange={e => setForm(f => ({ ...f, document_category: e.target.value }))} className="apv-input"
+                <Select suelto placeholder={false} id={`${createIdPrefix}-doc-category`} value={form.document_category} onChange={e => setForm(f => ({ ...f, document_category: e.target.value }))} className="apv-input"
                   aria-describedby={`${createIdPrefix}-doc-category-ayuda`}>
                   <option value="">{t('approvals.fallback_aplica_a_todos_los_documentos')}</option>
                   {CATEGORIAS_DE_DOCUMENTO.map(c => <option key={c} value={c}>{t(`approvals.doc_cat_${c}`, c)}</option>)}
-                </select>
+                </Select>
                 <div id={`${createIdPrefix}-doc-category-ayuda`} className="apv-ayuda apv-ayuda--2xs">{t('approvals.si_no_se_especifica_categoria_este_flujo')}</div>
               </div>
             )}
@@ -1599,22 +1599,22 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
               <input id={`${createIdPrefix}-description`} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="apv-input" placeholder={t('approvals.description_placeholder')} />
             </div>
             <label htmlFor={`${createIdPrefix}-is-default`} className="apv-check">
-              <input id={`${createIdPrefix}-is-default`} type="checkbox" checked={form.is_default} onChange={e => setForm(f => ({ ...f, is_default: e.target.checked }))} />
+              <Checkbox id={`${createIdPrefix}-is-default`} checked={form.is_default} onChange={(_, e) => setForm(f => ({ ...f, is_default: e.target.checked }))} />
               {t('approvals.default_flow_label')}
             </label>
             <div>
               <label htmlFor={`${createIdPrefix}-chain`} className="apv-label">{t('approvals.encadenar_con_flujo_al_aprobar_opcional')}</label>
-              <select id={`${createIdPrefix}-chain`} value={form.chain_on_approval_workflow_id}
+              <Select suelto placeholder={false} id={`${createIdPrefix}-chain`} value={form.chain_on_approval_workflow_id}
                 onChange={e => setForm(f => ({ ...f, chain_on_approval_workflow_id: e.target.value }))} className="apv-input">
                 <option value="">{t('approvals.sin_encadenamiento')}</option>
                 {workflows.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-              </select>
+              </Select>
             </div>
             <label htmlFor={`${createIdPrefix}-sla`} className="apv-check">
-              <input id={`${createIdPrefix}-sla`} type="checkbox" checked={form.sla_block_on_breach} onChange={e => setForm(f => ({ ...f, sla_block_on_breach: e.target.checked }))} />
+              <Checkbox id={`${createIdPrefix}-sla`} checked={form.sla_block_on_breach} onChange={(_, e) => setForm(f => ({ ...f, sla_block_on_breach: e.target.checked }))} />
               {t('approvals.bloquear_entidad_si_se_supera_el_sla')}
             </label>
-            <fieldset className="apr-regla">
+            <fieldset className="ds-grupo-opciones apr-regla">
               <legend className="apv-label">{t('approvals.reglas_de_auto_aprobacion')}</legend>
               <EditorDeReglasDeAutoaprobacion raw={form.auto_approval_rules} onChange={raw => setForm(f => ({ ...f, auto_approval_rules: raw }))} />
             </fieldset>

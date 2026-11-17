@@ -7,7 +7,7 @@ import { imputationsApi, projectsApi, tasksApi, aiCopilotApi } from '../services
 import type { AnomaliasDeImputacion } from '../services/api/tipos-analitica'
 import type { Imputacion, ResumenSemanal, SesionDeCronometro } from '../services/api/tipos-personas'
 import { queueImputation } from '../services/offlineQueue'
-import { Button, Card, Drawer, EmptyState, IconButton, Page } from '../components/ui'
+import { Button, Card, Drawer, EmptyState, IconButton, Page, Select, Checkbox } from '../components/ui'
 import { AlertTriangle, CalendarClock, Check, CheckCircle2, Clock, FolderX, Lightbulb, Pencil, Timer, Trash2, TrendingDown, X } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { fmtDate, fmtNumber, extractErr, localeActivo } from '../utils/helpers'
@@ -387,7 +387,7 @@ export default function ImputarPage(): JSX.Element {
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="imput-label-5">
             {t('imputa_page.project_label')} <span className="u-danger">*</span>
           </label>
-          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
+          <Select suelto placeholder={false} id={`${idCampo}-1`}
             value={form.project_id}
             onChange={e => set('project_id')(e.target.value)}
             className={`imput-input ${form.project_id ? 'imputarp-sx2' : 'imputarp-sx3'}`}
@@ -396,7 +396,7 @@ export default function ImputarPage(): JSX.Element {
             {projects.map(p => (
               <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
             ))}
-          </select>
+          </Select>
         </div>
 
         {/* Task */}
@@ -404,7 +404,7 @@ export default function ImputarPage(): JSX.Element {
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="imput-label-5">
             {t('imputa_page.task_label')}
           </label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`}
+          <Select suelto placeholder={false} id={`${idCampo}-2`}
             value={form.task_id}
             onChange={e => set('task_id')(e.target.value)}
             disabled={!form.project_id}
@@ -414,7 +414,7 @@ export default function ImputarPage(): JSX.Element {
             {tasks.map(t => (
               <option key={t.id} value={t.id}>{t.code} — {t.title}</option>
             ))}
-          </select>
+          </Select>
         </div>
 
         {/* Date */}
@@ -489,11 +489,11 @@ export default function ImputarPage(): JSX.Element {
         {/* Billable toggle */}
         <div className="imput-box-7">
           <label className="imput-label-7">
-            <input
-              type="checkbox"
+            <Checkbox
+             
               checked={form.is_billable}
               aria-label={t('imputa_page.billable_label')}
-              onChange={e => set('is_billable')(e.target.checked)}
+              onChange={(_, e) => set('is_billable')(e.target.checked)}
               className="imput-input-4"
             />
             <div aria-hidden="true" className={`imput-box-8 ${form.is_billable ? 'imputarp-sx10' : 'imputarp-sx11'}`}>
@@ -517,11 +517,11 @@ export default function ImputarPage(): JSX.Element {
               <AlertTriangle size={14} aria-hidden /><span>{duplicateError}</span>
             </div>
             <label className="imput-label-9">
-              <input
-                type="checkbox"
+              <Checkbox
+               
                 checked={forceDuplicate}
                 aria-label={traducir('imputar.permitir_imputacion_duplicada_y_avisar_al_manager')}
-                onChange={e => setForceDuplicate(e.target.checked)}
+                onChange={(_, e) => setForceDuplicate(e.target.checked)}
                 className="imput-input-5"
               />
               <span>{traducir('imputar.permitir_imputacion_duplicada_y_avisar_al_manager')}</span>
@@ -572,11 +572,11 @@ export default function ImputarPage(): JSX.Element {
                   </div>
                   <div className="imput-box-12">
                     <label className={`imput-label-11 ${editForm.is_billable ? 'imputarp-sx14' : 'imputarp-sx17'}`}>
-                      <input
-                        type="checkbox"
+                      <Checkbox
+                       
                         checked={editForm.is_billable}
                         aria-label={t('imputa_page.billable_label')}
-                        onChange={e => setEditForm(f => ({ ...f, is_billable: e.target.checked }))}
+                        onChange={(_, e) => setEditForm(f => ({ ...f, is_billable: e.target.checked }))}
                         className="imput-input-8"
                       />
                       {t('imputa_page.billable_label')}

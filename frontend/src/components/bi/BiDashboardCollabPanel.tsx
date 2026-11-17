@@ -22,7 +22,7 @@ import { biCollaborationApi } from '../../services/api'
 import type { ComentarioBi } from '../../services/api/tipos-grc'
 import { useAppT } from '../../i18n/AppLangContext'
 import { MessageCircle, Eye, Share2, Plus, Trash2, Lock, CheckCircle, Clock, Bell, History } from 'lucide-react'
-import { Card, Button, Tabs, Spinner, EmptyState, IconButton } from '../ui'
+import { Card, Button, Tabs, Spinner, EmptyState, IconButton, Select } from '../ui'
 import { UserSelect } from '../ui/EntitySelect'
 import { useToast } from '../../context/ToastContext'
 import { useConfirm } from '../../context/ConfirmContext'
@@ -323,14 +323,13 @@ export default function BiDashboardCollabPanel({ dashboardKey = 'main' }: BiDash
               placeholder={t('bidashboardcollab.usuario')}
               className="bidacopa-inputbase2"
             />
-            <select
+            <Select suelto
               aria-label={t('bidashboardcollab.compartir_con_un_usuario')}
               value={sharePermission}
               onChange={e => setSharePermission(e.target.value)}
-              className="bidacopa-inputbase4"
-            >
+              className="bidacopa-inputbase4" placeholder={false}>
               {SHARE_PERMISSIONS.map(p => <option key={p.value} value={p.value}>{t(`bidashboardcollab.permiso_${p.value}`)}</option>)}
-            </select>
+            </Select>
             <Button
               onClick={() => shareUserId.trim() && shareUserName.trim() && shareDashboardMutation.mutate({
                 target_user_id: shareUserId.trim(),

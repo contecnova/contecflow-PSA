@@ -5,6 +5,8 @@
  */
 import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
+import { X } from 'lucide-react'
+import IconButton from '../components/ui/IconButton'
 import { useTextosUiGlobales } from '../components/ui/useTextoUi'
 import { subscribeQueryErrors } from '../lib/queryErrorBus'
 import { mensajeDeError } from '../utils/mensajeDeError'
@@ -118,7 +120,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
               <div className="toast-context-e3">
                 {item.message}
               </div>
-              <button type="button" onClick={() => dismiss(item.id)} aria-label={t('toast.close')} className="toast-context-e4"><span aria-hidden="true">×</span></button>
+              <IconButton onClick={() => dismiss(item.id)} ariaLabel={t('toast.close')} className="toast-context-e4"><X size={14} aria-hidden /></IconButton>
             </div>
           )
         })}

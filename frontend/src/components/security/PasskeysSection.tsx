@@ -14,6 +14,7 @@ import { useAppLang } from '../../i18n/AppLangContext'
 import { extractErr } from '../../utils/helpers'
 import { useConfirm } from '../../context/ConfirmContext'
 import { pedirReautenticacion, esFalloDeReautenticacion } from './reautenticacion'
+import { Button, Pulsable } from '../ui'
 import './PasskeysSection.css'
 
 export default function PasskeysSection() {
@@ -70,7 +71,7 @@ export default function PasskeysSection() {
               <>
                 <input aria-label={t('passkeys.name')} value={editando.name} onChange={e => setEditando({ id: p.id, name: e.target.value })}
                   className="ds-input u-flex1" />
-                <button type="button" className="ui-btn ui-btn--secondary ui-btn--sm" onClick={() => renombrar(editando)}>{t('common.save')}</button>
+                <Button variant="secondary" size="sm" onClick={() => renombrar(editando)}>{t('common.save')}</Button>
               </>
             ) : (
               <>
@@ -79,10 +80,10 @@ export default function PasskeysSection() {
                     {p.last_used_at ? `${t('passkeys.last_used')} ${String(p.last_used_at).slice(0, 10)}` : t('passkeys.never_used')}
                   </span>
                 </span>
-                <button type="button" aria-label={`${t('passkeys.rename')} ${p.name || ''}`} onClick={() => setEditando({ id: p.id, name: p.name || '' })}
-                  className="passsect-box-6">✏</button>
-                <button type="button" aria-label={`${t('passkeys.remove')} ${p.name || ''}`} onClick={() => quitar(p.id)}
-                  className="passsect-box-7">🗑</button>
+                <Pulsable aria-label={`${t('passkeys.rename')} ${p.name || ''}`} onClick={() => setEditando({ id: p.id, name: p.name || '' })}
+                  className="passsect-box-6">✏</Pulsable>
+                <Pulsable aria-label={`${t('passkeys.remove')} ${p.name || ''}`} onClick={() => quitar(p.id)}
+                  className="passsect-box-7">🗑</Pulsable>
               </>
             )}
           </li>
@@ -92,10 +93,10 @@ export default function PasskeysSection() {
         <div className="u-row-8">
           <input aria-label={t('passkeys.name')} placeholder={t('passkeys.name_ph')} value={nombre}
             onChange={e => setNombre(e.target.value)} className="ds-input u-flex1" />
-          <button type="button" onClick={() => anadir()} disabled={anadiendo}
+          <Pulsable onClick={() => anadir()} disabled={anadiendo}
             className="passsect-box-8">
             {anadiendo ? '…' : t('passkeys.add')}
-          </button>
+          </Pulsable>
         </div>
       ) : (
         <div className="passsect-txt-1">{t('passkeys.unsupported')}</div>

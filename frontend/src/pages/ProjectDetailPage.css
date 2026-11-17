@@ -4,7 +4,6 @@
   font-size: var(--text-2xs);
   font-weight: 700;
   color: var(--text-3);
-  text-transform: uppercase;
   letter-spacing: 0.07em;
   margin-bottom: 3px;
 }
@@ -37,7 +36,7 @@
 .pd-text-accent-strong-mono {
   color: var(--accent);
   font-weight: 700;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .pd-grid {
@@ -52,7 +51,7 @@
 
 .pd-text-strong-mono {
   font-weight: 700;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .pd-text-muted-xs {
@@ -65,7 +64,6 @@
   font-size: var(--text-xs);
   font-weight: 700;
   color: var(--text-3);
-  text-transform: uppercase;
   letter-spacing: 0.07em;
   margin-bottom: 10px;
 }
@@ -147,7 +145,6 @@
   border-radius: 4px;
   flex-shrink: 0;
   font-weight: 700;
-  text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
@@ -176,7 +173,7 @@
   font-size: var(--text-sm);
   font-weight: 700;
   color: var(--accent);
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .pd-card-2 {
@@ -218,7 +215,6 @@
   padding: 2px 7px;
   border-radius: 4px;
   font-weight: 700;
-  text-transform: uppercase;
 }
 
 .pd-card-muted {
@@ -228,7 +224,6 @@
   background: var(--surface-4);
   color: var(--text-2);
   font-weight: 600;
-  text-transform: uppercase;
 }
 
 .pd-stack {
@@ -242,7 +237,6 @@
   font-size: var(--text-2xs);
   font-weight: 700;
   color: var(--text-3);
-  text-transform: uppercase;
   letter-spacing: 0.07em;
   display: block;
   margin-bottom: 4px;
@@ -332,7 +326,7 @@
   position: sticky;
   top: 0;
   z-index: var(--z-sticky);
-  box-shadow: 0 1px 0 var(--surface-4), 0 8px 16px -8px rgba(0,0,0,0.5);
+  box-shadow: 0 1px 0 var(--surface-4), 0 8px 16px -8px var(--overlay-light);
 }
 
 .pd-row-7 {
@@ -387,7 +381,6 @@
   padding: 3px 10px;
   border-radius: 20px;
   border: var(--pd-box-5-border);
-  text-transform: uppercase;
   letter-spacing: 0.06em;
   background: var(--pd-box-5-background);
   color: var(--pd-box-5-color);
@@ -399,7 +392,6 @@
   padding: 3px 10px;
   border-radius: 20px;
   border: var(--pd-box-6-border);
-  text-transform: uppercase;
   letter-spacing: 0.06em;
   background: var(--pd-box-6-background);
   color: var(--pd-box-6-color);
@@ -539,3 +531,6 @@
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+.pd-btn-sm-2:hover { color: var(--text-1); }
+.pd-btn-sm-3:hover { border-color: var(--accent-glow); color: var(--accent); }
+.pd-btn-ghost-base:not([data-activa]):hover { color: var(--text-1); }

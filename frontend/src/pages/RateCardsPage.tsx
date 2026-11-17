@@ -21,7 +21,7 @@ import type { TablaDeTarifas, TarifaAplicaA, TarifaEntrada } from '../services/a
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Tag, Plus, ArrowLeft, Copy, Pencil, Trash2, Check, Coins, Table2 } from 'lucide-react'
-import { Button, Card, EmptyState, Input, Modal, Select, Spinner } from '../components/ui'
+import { Button, Card, EmptyState, Input, Modal, Select, Spinner, Checkbox, Pulsable, TablaSimple } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import { useAppT } from '../i18n/AppLangContext'
 import { z } from 'zod'
@@ -251,7 +251,7 @@ function RateTableDetail({ tableId, onBack }: { tableId: string | number; onBack
         ) : (
           <Card className="rc-tabla-card">
             <div className="rc-tabla-scroll">
-            <table className="rc-tabla">
+            <TablaSimple claseTabla="rc-tabla">
               <thead>
                 <tr>
                   {[t('tarifas_ui.rol_perfil'), t('tarifas_ui.col_facturacion'), t('tarifas_ui.col_coste'), t('tarifas_ui.col_margen'), t('tarifas_ui.col_escalado'), t('tarifas_ui.col_vigencia'), ''].map((h, i) => (
@@ -285,15 +285,15 @@ function RateTableDetail({ tableId, onBack }: { tableId: string | number; onBack
                       <td className="rc-td rc-td--suave">{vigencia(e)}</td>
                       <td className="rc-td">
                         <div className="u-row-center-6">
-                          <button type="button" className="rc-icono" aria-label={t('common.edit')} title={t('common.edit')} onClick={() => setEditEntry(e)}><Pencil size={14} aria-hidden /></button>
-                          <button type="button" className="rc-icono rc-icono--borrar" aria-label={t('common.delete')} title={t('common.delete')} onClick={() => { openConfirmGlobal({ message: t('tarifas_ui.eliminar_tarifa_confirm', { nombre: e.label }), onConfirm: () => deleteEntry(e.id), danger: true }) }}><Trash2 size={14} aria-hidden /></button>
+                          <Pulsable className="rc-icono" aria-label={t('common.edit')} title={t('common.edit')} onClick={() => setEditEntry(e)}><Pencil size={14} aria-hidden /></Pulsable>
+                          <Pulsable className="rc-icono rc-icono--borrar" aria-label={t('common.delete')} title={t('common.delete')} onClick={() => { openConfirmGlobal({ message: t('tarifas_ui.eliminar_tarifa_confirm', { nombre: e.label }), onConfirm: () => deleteEntry(e.id), danger: true }) }}><Trash2 size={14} aria-hidden /></Pulsable>
                         </div>
                       </td>
                     </tr>
                   )
                 })}
               </tbody>
-            </table>
+            </TablaSimple>
             </div>
           </Card>
         )}
@@ -403,10 +403,10 @@ export default function RateCardsPage() {
                   <Coins size={13} aria-hidden />
                   {tabla.entry_count === 1 ? t('tarifas_ui.una_tarifa') : t('tarifas_ui.n_tarifas', { n: tabla.entry_count || 0 })}
                 </span>
-                <button className="rc-icono rc-icono--borrar" type="button" aria-label={t('tarifas_ui.eliminar_tabla')} title={t('tarifas_ui.eliminar_tabla')} onClick={e => { e.stopPropagation(); openConfirmGlobal({message: t('tarifas_ui.eliminar_tabla_confirm', { nombre: tabla.name }), onConfirm: () => del(tabla.id),danger:true}) }}
+                <Pulsable className="rc-icono rc-icono--borrar" aria-label={t('tarifas_ui.eliminar_tabla')} title={t('tarifas_ui.eliminar_tabla')} onClick={e => { e.stopPropagation(); openConfirmGlobal({message: t('tarifas_ui.eliminar_tabla_confirm', { nombre: tabla.name }), onConfirm: () => del(tabla.id),danger:true}) }}
                   onKeyDown={e => e.stopPropagation()}>
                   <Trash2 size={14} aria-hidden />
-                </button>
+                </Pulsable>
               </div>
             </div>
           ))}
@@ -423,10 +423,7 @@ export default function RateCardsPage() {
               { value: 'department', label: t('ratecards.por_departamento') },
               { value: 'client', label: t('ratecards.por_cliente') },
             ]} />
-            <label className="rc-check">
-              <input type="checkbox" checked={form.is_default} onChange={e => setForm(f=>({...f,is_default:e.target.checked}))} />
-              {t('ratecards.tabla_por_defecto_se_usa_cuando_no')}
-            </label>
+            <Checkbox className="rc-check" checked={!!form.is_default} onChange={v => setForm(f=>({...f,is_default:v}))} label={t('ratecards.tabla_por_defecto_se_usa_cuando_no')} />
             <div className="rc-acciones">
               <Button variant="secondary" onClick={() => setShowCreate(false)}>{t('common.cancel')}</Button>
               <Button icon={<Plus size={14} />} onClick={createTable} loading={isPending} disabled={!form.name}>{t('tarifas_ui.crear_tabla')}</Button>

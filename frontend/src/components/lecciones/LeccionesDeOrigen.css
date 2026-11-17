@@ -31,7 +31,7 @@
   font-size: var(--text-sm);
 }
 .ledeor-txt-1 {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   color: var(--accent);
 }
 

@@ -19,7 +19,7 @@ import type { ClausulaDeContratoIa, ContratoIa, ContratoIaDetalle } from '../ser
 import { useToast } from '../context/ToastContext'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Button, Card, Spinner, EmptyState, Drawer, Tabs, IconButton } from '../components/ui'
+import { Button, Card, Spinner, EmptyState, Drawer, Tabs, IconButton, Select } from '../components/ui'
 import { Coins, DoorOpen, FileText, Flag, Lock, Package, Paperclip, Ruler, ShieldAlert, Sparkles, Timer, TriangleAlert, Upload, X, type LucideIcon } from 'lucide-react'
 import { extractErr, fmtDate, fmtDateTime, fmtNumber } from '../utils/helpers'
 import { useAppLang } from '../i18n/AppLangContext'
@@ -279,14 +279,14 @@ export default function ContractsAIPage(): JSX.Element {
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cai-label">
               {t('contractsaipage.proyecto_opcional')}
             </label>
-            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
+            <Select suelto placeholder={false} id={`${idCampo}-1`}
               value={projectId}
               onChange={e => setProjectId(e.target.value)}
               className="cai-input"
             >
               <option value="">{t('contractsai.sin_proyecto_ad_hoc')}</option>
               {projects.map((p) => <option key={p.id} value={String(p.id)}>{p.code} — {p.name}</option>)}
-            </select>
+            </Select>
           </div>
           <div className="u-flex1">
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cai-label">

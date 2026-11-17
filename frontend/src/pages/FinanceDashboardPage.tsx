@@ -11,7 +11,7 @@ import {
 import { useAppLang } from '../i18n/AppLangContext'
 import { useToast } from '../context/ToastContext'
 import { extractErr, fmtDate } from '../utils/helpers'
-import { Button, EmptyState, KpiCard, Page, SelectorDePeriodo } from '../components/ui'
+import { Button, EmptyState, KpiCard, Page, SelectorDePeriodo, TablaSimple } from '../components/ui'
 import {
   COLOR, KpiCardSkeleton, GaugeCard, BarRow, SectionCard,
   fmtCur, typePalette,
@@ -292,7 +292,7 @@ export default function FinanceDashboardPage(): JSX.Element {
       {topProjects.length > 0 && (
         <SectionCard title={t('financedashboard.rentabilidad_por_proyecto')} badge={topProjects.length}>
           <div className="u-scroll-x">
-            <table className="u-table">
+            <TablaSimple claseTabla="u-table">
               <thead>
                 <tr className="findash-row">
                   {[t('pagina_findash.proyecto'), t('pagina_findash.ingresos'), t('pagina_findash.costes'), t('pagina_findash.margen'), '%'].map((col, i) => (
@@ -335,7 +335,7 @@ export default function FinanceDashboardPage(): JSX.Element {
                   )
                 })}
               </tbody>
-            </table>
+            </TablaSimple>
           </div>
         </SectionCard>
       )}

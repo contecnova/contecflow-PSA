@@ -14,7 +14,7 @@ import { cmdb3dApi } from '../../services/api'
 import type { SdGrafo3d, SdNodo3d, SdRadioDeImpacto } from '../../services/api/tipos-sd'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Network } from 'lucide-react'
-import { Card, Button, EmptyState, Spinner } from '../ui'
+import { Card, Button, EmptyState, Select, Spinner } from '../ui'
 import './Cmdb3dGraph.css'
 
 /** Nodo del grafo (`SdNodo3d`) con el estado que añade la simulación de d3. */
@@ -170,14 +170,16 @@ export default function Cmdb3dGraph({ className = '' }: { className?: string }) 
         </h2>
         <div className="u-row-center-8">
           <span className="u-text3-xs">{t('cmdb3dgraph.max_nodos')}</span>
-          <select
+          <Select
+            suelto
+            placeholder={false}
             aria-label={t('cmdb3dgraph.max_nodos')}
             value={maxNodes}
             onChange={e => setMaxNodes(Number(e.target.value))}
-            className="ds-input cmdb3d-select"
+            className="cmdb3d-select"
           >
             {[50, 80, 120, 200].map(n => <option key={n} value={n}>{n}</option>)}
-          </select>
+          </Select>
         </div>
       </div>
 

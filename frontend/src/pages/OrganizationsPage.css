@@ -215,6 +215,6 @@
   font-size: var(--text-base);
   box-sizing: border-box;
   user-select: all;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }

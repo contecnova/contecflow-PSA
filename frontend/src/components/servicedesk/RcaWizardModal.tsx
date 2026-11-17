@@ -22,7 +22,7 @@ import { problemsApi } from '../../services/api'
 import { problemasApi } from '../../services/api/serviceDeskMercado'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import type { SdAsistenteRca, SdRcaCompletado } from '../../services/api/tipos-sd'
-import { Button, Spinner, Modal } from '../ui'
+import { Button, Radio, Spinner, Modal } from '../ui'
 import { useToast } from '../../context/ToastContext'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { STALE_ALWAYS } from '../../constants/timings'
@@ -52,8 +52,8 @@ function TemplateSelector({ onStart, isPending }: { onStart: (template: string) 
         {activas.map(p => {
           const nombre = p.is_system ? etiquetaCodigo(t, 'sd_mercado.rca_tipo', p.template_type, p.name) : p.name
           return (
-            <label className={`rcwimo-row-4 rcawizar-sx1 rca-wizard-modal-e1 ${elegida === p.id ? 'rca-wizard-modal-m2' : 'rca-wizard-modal-m3'}`} key={p.id} style={{ '--rca-wizard-modal-border': `1px solid ${elegida === p.id ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
-              <input type="radio" name="tpl" value={p.id} aria-label={nombre} checked={elegida === p.id} onChange={() => setTpl(p.id)} className="rcwimo-box-1" />
+            <label htmlFor={`tpl-${p.id}`} className={`rcwimo-row-4 rcawizar-sx1 rca-wizard-modal-e1 ${elegida === p.id ? 'rca-wizard-modal-m2' : 'rca-wizard-modal-m3'}`} key={p.id} style={{ '--rca-wizard-modal-border': `1px solid ${elegida === p.id ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
+              <Radio id={`tpl-${p.id}`} name="tpl" value={p.id} aria-label={nombre} checked={elegida === p.id} onChange={() => setTpl(p.id)} className="rcwimo-box-1" />
               <div>
                 <div className={`rcwimo-txt-2 ${elegida === p.id ? 'rca-wizard-modal-m4' : 'rca-wizard-modal-m5'}`}>{nombre}</div>
                 <div className="rcwimo-box-2">{p.is_system ? t(`sd_mercado.rca_tipo_desc.${p.template_type}`, p.description || '') : (p.description || '')} · {t('sd_mercado.n_pasos', { n: p.total_steps })}</div>

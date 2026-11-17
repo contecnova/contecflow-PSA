@@ -3,10 +3,10 @@
    maqueta propia. Solo tokens de index.css. */
 
 /* Formularios */
-.sdcfg-label { font-size: var(--text-xs); font-weight: 600; color: var(--text-2); display: block; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.06em; }
+.sdcfg-label { font-size: var(--text-xs); font-weight: 600; color: var(--text-2); display: block; margin-bottom: 5px; letter-spacing: 0.06em; }
 textarea.sdcfg-input { resize: vertical; }
 .sdcfg-input--icon { width: 60px; text-align: center; }
-.sdcfg-input--color { width: 60px; padding: 4px; height: 36px; }
+.sdcfg-input--color { width: 60px; padding: 4px; min-height: 36px; }
 .sdcfg-input--auto { width: auto; max-width: 220px; }
 .sdcfg-input--flex2 { flex: 2 1 160px; min-width: 0; }
 .sdcfg-input--flex1 { flex: 1 1 90px; min-width: 0; }
@@ -81,7 +81,7 @@ textarea.sdcfg-input { resize: vertical; }
 .sdcfg-canned-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
 .sdcfg-canned-edit { padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--accent-border); border-radius: var(--radius-md); }
 .sdcfg-canned-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: var(--radius-md); }
-.sdcfg-shortcut { font-size: var(--text-2xs); color: var(--accent); margin-left: 8px; font-family: var(--font-mono); background: var(--accent-muted); padding: 1px 6px; border-radius: 4px; }
+.sdcfg-shortcut { font-size: var(--text-2xs); color: var(--accent); margin-left: 8px; font-variant-numeric: tabular-nums; background: var(--accent-muted); padding: 1px 6px; border-radius: 4px; }
 .sdcfg-category { font-size: var(--text-2xs); color: var(--text-3); margin-left: 6px; }
 .sdcfg-canned-body { font-size: var(--text-xs); color: var(--text-2); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -97,3 +97,4 @@ textarea.sdcfg-input { resize: vertical; }
   .sdcfg-grid2-8, .sdcfg-ann-form { grid-template-columns: 1fr; }
   .sdcfg-span2 { grid-column: auto; }
 }
+.ui-select--suelto.sdcfg-sel { width: 100%; }

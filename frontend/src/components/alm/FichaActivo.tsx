@@ -11,7 +11,7 @@ import {
   RotateCcw, ShieldAlert, Trash2, Undo2, Upload, UserPlus, Wrench, X,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { Button, Drawer, Modal, Spinner, Tabs } from '../ui'
+import { Button, Drawer, Modal, Spinner, Tabs, Pulsable, Select } from '../ui'
 import { LicenseSelect } from '../ui/EntitySelect'
 import DateInput from '../ui/DateInput'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -71,16 +71,16 @@ function AccionModal({ assetId, accion, onClose }: { assetId: string; accion: st
         )}
         {accion === 'retired' && (
           <div><label className="alm-label" htmlFor={`${id}-r`}>{t('alm.disposal_reason')}</label>
-            <select id={`${id}-r`} className="alm-input" value={datos.reason} onChange={campo('reason')}>
+            <Select suelto placeholder={false} id={`${id}-r`} className="alm-input" value={datos.reason} onChange={campo('reason')}>
               {MOTIVOS_DE_BAJA.map(m => <option key={m} value={m}>{t(`alm.disposal_reason_${m}`)}</option>)}
-            </select></div>
+            </Select></div>
         )}
         {accion === 'disposed' && (
           <div className="almf-rejilla-2">
             <div><label className="alm-label" htmlFor={`${id}-m`}>{t('alm.disposal_method')}</label>
-              <select id={`${id}-m`} className="alm-input" value={datos.method} onChange={campo('method')}>
+              <Select suelto placeholder={false} id={`${id}-m`} className="alm-input" value={datos.method} onChange={campo('method')}>
                 {METODOS.map(m => <option key={m} value={m}>{t(`alm.disposal_method_${m}`)}</option>)}
-              </select></div>
+              </Select></div>
             <div><label className="alm-label" htmlFor={`${id}-val`}>{t('alm.disposal_value')}</label>
               <input id={`${id}-val`} type="number" min={0} className="alm-input" value={datos.value ?? ''} onChange={campo('value')} /></div>
           </div>
@@ -260,7 +260,7 @@ export default function FichaActivo({ assetId, onClose }: { assetId: string; onC
               <div className="almf-ficha__sub">{[a?.brand, a?.model, a?.asset_tag].filter(Boolean).join(' · ')}</div>
             </div>
           </div>
-          <button type="button" className="alm-icon-btn" aria-label={t('common.close')} onClick={onClose}><X size={16} aria-hidden="true" /></button>
+          <Pulsable type="button" className="alm-icon-btn" aria-label={t('common.close')} onClick={onClose}><X size={16} aria-hidden="true" /></Pulsable>
         </div>
         {isLoading || !a ? <Spinner /> : (
           <div className="almf-ficha__cuerpo">

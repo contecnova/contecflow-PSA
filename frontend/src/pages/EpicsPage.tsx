@@ -9,7 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, epicsApi, tasksApi } from '../services/api'
 import type { EpicaDelRoadmap, EpicaSerializada, RoadmapDeEpicas } from '../services/api/tipos-proyectos'
 import { useAuth } from '../context/AuthContext'
-import { Button, Spinner, EmptyState, Modal, KpiCard, Tabs, IconButton } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, KpiCard, Tabs, IconButton, Pulsable, Select } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { CalendarDays, CalendarRange, FolderKanban, Layers, List, ListChecks, Map as MapIcon, Pencil, Plus, Target, Trash2 } from 'lucide-react'
@@ -96,14 +96,14 @@ function EpicForm({ projectId, epic, onClose }: { projectId: string; epic?: Epic
         <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="epics-page-e13">{t('common.description')}</label><textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} className="epics-page-e1" value={form.description} onChange={e=>set('description')(e.target.value)}/></div>
         <div className="u-grid2-12">
           <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="epics-page-e13">{t('common.status')}</label>
-            <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} className="epics-page-e14" value={form.status} onChange={e=>set('status')(e.target.value)}>
+            <Select suelto placeholder={false} id={`${idCampo}-3`} className="epics-page-e14" value={form.status} onChange={e=>set('status')(e.target.value)}>
               {Object.entries(STATUS_CFG).map(([v,c])=><option key={v} value={v}>{c.label}</option>)}
-            </select>
+            </Select>
           </div>
           <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="epics-page-e13">{t('common.priority')}</label>
-            <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} className="epics-page-e14" value={form.priority} onChange={e=>set('priority')(e.target.value)}>
+            <Select suelto placeholder={false} id={`${idCampo}-4`} className="epics-page-e14" value={form.priority} onChange={e=>set('priority')(e.target.value)}>
               {Object.entries(PRIORITY_CFG).map(([v,c])=><option key={v} value={v}>{c.label}</option>)}
-            </select>
+            </Select>
           </div>
         </div>
         <div className="u-grid2-12">
@@ -113,8 +113,8 @@ function EpicForm({ projectId, epic, onClose }: { projectId: string; epic?: Epic
         <div><label className="epics-page-e13">{t('epics.color_label')}</label>
           <div className="u-wrap-8">
             {COLORS.map(c=>(
-              <button type="button" key={c} aria-pressed={form.color===c} onClick={()=>set('color')(c)} aria-label={`${t('epics.color_label')} ${c}`}
-                className={`epics-btn epicspag-sx1 ${form.color===c ? 'epicspag-sx2' : 'epicspag-sx3'} epics-page-e2`} style={{ '--epics-page-background': c } as CSSProperties}/>
+              <Pulsable type="button" key={c} aria-pressed={form.color===c} onClick={()=>set('color')(c)} aria-label={`${t('epics.color_label')} ${c}`}
+                className={`epics-btn epicspag-sx1 ${form.color===c ? 'epicspag-sx2' : 'epicspag-sx3'} epics-page-e2`} style={{ '--epics-page-background': c } as CSSProperties}><span aria-hidden="true" /></Pulsable>
             ))}
             <input type="color" aria-label={t('epics.color_label')} value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR.purple} onChange={e=>set('color')(e.target.value)}
               className="epics-input"/>
@@ -162,11 +162,11 @@ function EpicDetail({ epic, projectId, canEdit, onClose }: { epic: EpicItem; pro
             </div>))}
         {canEdit && (
           <div className="u-wrap-8">
-            <select aria-label={t('epics.anadir_tarea')} value={elegida} onChange={e => setElegida(e.target.value)}
+            <Select suelto placeholder={false} aria-label={t('epics.anadir_tarea')} value={elegida} onChange={e => setElegida(e.target.value)}
               className="epics-input-2">
               <option value="">{t('epics.anadir_tarea')}</option>
               {libres.map(x => <option key={x.id} value={x.id}>{x.title}</option>)}
-            </select>
+            </Select>
             <Button size="sm" disabled={!elegida} onClick={() => enlazar(elegida)}>{t('epics.enlazar')}</Button>
           </div>
         )}
@@ -302,10 +302,10 @@ export default function EpicsPage(): JSX.Element {
       {/* Selector proyecto */}
       <div className="ds-toolbar epics-filtros">
         <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="u-sr-only">{t('epics.project_label')}</label>
-        <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e=>setProject(e.target.value)} className="ds-input epics-proyecto">
+        <Select suelto placeholder={false} id={`${idCampo}-1`} value={project} onChange={e=>setProject(e.target.value)} className="ds-input epics-proyecto">
           <option value="">{t('epics.select_project_placeholder')}</option>
           {projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
+        </Select>
       </div>
 
       {project && epics.length > 0 && (

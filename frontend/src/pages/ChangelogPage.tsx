@@ -6,7 +6,7 @@ import { useState, useId, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import api, { projectsApi } from '../services/api'
-import { Spinner, EmptyState, Button, Modal, Tabs, IconButton } from '../components/ui'
+import { Spinner, EmptyState, Button, Modal, Tabs, IconButton, Select } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Bug, Flag, Plus, ScrollText, Sparkles, Trash2, TriangleAlert, Wand2, Zap, type LucideIcon } from 'lucide-react'
@@ -163,9 +163,9 @@ function ManualEntryModal({ projectId, onClose, onSaved }: { projectId: string; 
         </div>
         <div>
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="chl-label">{t('changelog.type')}</label>
-          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.entry_type} onChange={e => { setForm((f) => ({ ...f, entry_type: e.target.value as EntryType })); validation.clearFieldError('entry_type') }} className="chl-input" aria-invalid={!!validation.errors.entry_type}>
+          <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.entry_type} onChange={e => { setForm((f) => ({ ...f, entry_type: e.target.value as EntryType })); validation.clearFieldError('entry_type') }} className="chl-input" aria-invalid={!!validation.errors.entry_type}>
             {Object.entries(typeMeta).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-          </select>
+          </Select>
         </div>
       </div>
       <div>
@@ -303,11 +303,11 @@ export default function ChangelogPage(): JSX.Element {
 
       <div className="ds-page">
         <div className="ds-toolbar">
-          <select value={selectedProject} onChange={e => { setSelectedProject(e.target.value); setTypeFilter('all') }}
+          <Select suelto placeholder={false} value={selectedProject} onChange={e => { setSelectedProject(e.target.value); setTypeFilter('all') }}
             className="chl-project" aria-label={t('changelog.project_aria')}>
             <option value="">{t('changelog.select_project')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-          </select>
+          </Select>
         </div>
 
         {selectedProject && allEntries.length > 0 && (

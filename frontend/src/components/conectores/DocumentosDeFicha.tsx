@@ -14,7 +14,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, ExternalLink, FileText, Link2, MessageSquareText, Search, Sparkles, Trash2, Upload } from 'lucide-react'
 import { conectoresApi, mensajeDeConector } from '../../services/api'
 import type { DocHit, Enlace, FichaDocumental } from '../../services/api'
-import { Button, Spinner } from '../ui'
+import { Button, Spinner, Pulsable } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
@@ -113,10 +113,10 @@ export default function DocumentosDeFicha({ ficha, id, sugerir = false, pregunta
           : lista.map(e => (
             <div key={e.id} className="dodefi-fila">
               <FileText size={15} color="var(--accent)" aria-hidden />
-              <button type="button" onClick={() => setAbierto(e.document_id)}
+              <Pulsable onClick={() => setAbierto(e.document_id)}
                 className="dodefi-box-1">
                 {e.title}
-              </button>
+              </Pulsable>
               <span className="dodefi-sub">{tamano(e.size_bytes)}</span>
               <span className="dodefi-sub5">{t(`docs.origen_${e.origen}`)}</span>
               <Button size="xs" variant="ghost" title={t('docs.descargar')} icon={<Download size={13} />}
@@ -167,11 +167,11 @@ export default function DocumentosDeFicha({ ficha, id, sugerir = false, pregunta
             <div className="dodefi-stack-2">
               <div className="dodefi-txt-1">{preguntarCarpeta.data.answer || t('docs.sin_respuesta')}</div>
               {preguntarCarpeta.data.citations.map((c, i) => (
-                <button key={i} type="button" onClick={() => setAbierto(c.document_id)}
+                <Pulsable key={i} onClick={() => setAbierto(c.document_id)}
                   className="dodefi-box-3">
                   <strong className="u-text1">[{i + 1}] {c.title || c.document_id}{c.page ? ` · ${t('docs.pagina')} ${c.page}` : ''}</strong>
                   <div className="dodefi-sp-1">{c.text}</div>
-                </button>
+                </Pulsable>
               ))}
             </div>
           )}
@@ -189,7 +189,7 @@ function Resultado({ h, onAbrir, onEnlazar, ya }: { h: DocHit; onAbrir: () => vo
     <div className="dodefi-fila2">
       <ExternalLink size={14} color="var(--text-3)" className="document-sx1" aria-hidden />
       <div className="u-flex1-min0">
-        <button type="button" onClick={onAbrir} className="dodefi-box-4">{h.title}</button>
+        <Pulsable onClick={onAbrir} className="dodefi-box-4">{h.title}</Pulsable>
         {h.snippet && <div className="dodefi-sub6">{h.snippet}</div>}
       </div>
       <Button size="xs" variant={ya ? 'ghost' : 'secondary'} disabled={ya} icon={<Link2 size={12} />} onClick={onEnlazar}>

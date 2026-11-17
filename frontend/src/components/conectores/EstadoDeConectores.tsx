@@ -13,7 +13,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { CheckCircle2, PlugZap, XCircle } from 'lucide-react'
 import { conectoresApi, mensajeDeConector } from '../../services/api'
 import type { EstadoProducto } from '../../services/api'
-import { Button, Spinner } from '../ui'
+import { Button, Spinner, TablaSimple, Pulsable } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { fmtDate } from '../../utils/helpers'
 import { POLL_DEFAULT_MS } from '../../constants/timings'
@@ -80,11 +80,11 @@ function Producto({ p }: { p: EstadoProducto }) {
       )}
       {p.operaciones.length > 0 && (
         <div>
-          <button type="button" onClick={() => setAbierto(v => !v)} className="esdeco-box-2">
+          <Pulsable onClick={() => setAbierto(v => !v)} className="esdeco-box-2">
             {abierto ? t('conectores.ocultar_operaciones') : t('conectores.ver_operaciones', { n: p.operaciones.length })}
-          </button>
+          </Pulsable>
           {abierto && (
-            <table className="esdeco-box-3">
+            <TablaSimple claseTabla="esdeco-box-3">
               <thead><tr className="esdeco-txt-2">
                 <th className="esdeco-sp-2">{t('conectores.operacion')}</th><th className="esdeco-sp-2">{t('conectores.llamadas')}</th>
                 <th className="esdeco-sp-2">{t('conectores.fallos')}</th><th className="esdeco-sp-2">p50</th><th className="esdeco-sp-2">p95</th>
@@ -95,7 +95,7 @@ function Producto({ p }: { p: EstadoProducto }) {
                   <td className={`esdeco-sp-3 ${o.fallos ? 'estado-de-conectores-m4' : ''}`}>{o.fallos}</td>
                   <td className="esdeco-sp-2">{o.p50_ms ?? '—'}</td><td className="esdeco-sp-2">{o.p95_ms ?? '—'}</td>
                 </tr>))}</tbody>
-            </table>
+            </TablaSimple>
           )}
         </div>
       )}

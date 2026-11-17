@@ -26,7 +26,7 @@ import { portalClientsApi, settingsApi, type IntegrationProvider, type Integrati
 import { settingsApi as ajustesGeneralesApi, type SettingOut } from '../../services/settingsApi'
 import type { PortalDictionary } from '../../i18n/portalTranslations'
 import { alpha } from '../../constants/theme'
-import { Button, Tabs } from '../../components/ui'
+import { Button, Pulsable, Select, Tabs } from '../../components/ui'
 import { AlertTriangle, BarChart3, Bot, Check, CheckCircle2, Download, FileText, Globe, Languages, Lock, Mail, MonitorSmartphone, Package, Phone, Plug, Save, Server, Settings2, ShieldAlert, Wrench, XCircle, Zap } from 'lucide-react'
 import './SettingsAdvancedSections.css'
 
@@ -218,11 +218,10 @@ export function IdiomasSection() {
             <div className="u-wrap-10">
               {/* Operator-facing picker: only well-covered locales (pl/zh hidden). */}
               {AVAILABLE_LANGUAGES.map(l => (
-                <button className={`seadse-box-31 settings-sx2 settings-advanced-sections-e1 ${operatorLang === l.code ? 'settings-advanced-sections-m2' : 'settings-advanced-sections-m4'}`} key={l.code} onClick={() => setOperatorLang(l.code)}
-                  style={{ '--settings-advanced-sections-border': `2px solid ${operatorLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
+                <Pulsable className={`seadse-box-31 settings-sx2 settings-advanced-sections-e1 ${operatorLang === l.code ? 'settings-advanced-sections-m2' : 'settings-advanced-sections-m4'}`} key={l.code} onClick={() => setOperatorLang(l.code)} style={{ '--settings-advanced-sections-border': `2px solid ${operatorLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
                   {l.label}
                   {operatorLang === l.code && <span className="seadse-box-3"><Check size={14} aria-hidden /></span>}
-                </button>
+                </Pulsable>
               ))}
             </div>
             <div className="seadse-box-4">
@@ -239,10 +238,9 @@ export function IdiomasSection() {
               <div className="u-text2-xs-mb4">{t('settingsadvanced.idioma_a_editar')}</div>
               <div className="u-row-6">
                 {APP_LANGUAGES.filter(l => l.code !== 'es').map(l => (
-                  <button className={`seadse-box-30 settings-sx1 settings-advanced-sections-e1 ${appLang === l.code ? 'settings-advanced-sections-m2' : 'settings-advanced-sections-m3'}`} key={l.code} onClick={() => setAppLang(l.code)}
-                    style={{ '--settings-advanced-sections-border': `1px solid ${appLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
+                  <Pulsable className={`seadse-box-30 settings-sx1 settings-advanced-sections-e1 ${appLang === l.code ? 'settings-advanced-sections-m2' : 'settings-advanced-sections-m3'}`} key={l.code} onClick={() => setAppLang(l.code)} style={{ '--settings-advanced-sections-border': `1px solid ${appLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
                     {l.label}
-                  </button>
+                  </Pulsable>
                 ))}
               </div>
             </div>
@@ -253,9 +251,9 @@ export function IdiomasSection() {
             </div>
             <div>
               <div className="u-text2-xs-mb4">{t('settingsadvanced.modulo')}</div>
-              <select value={activeModule} onChange={e => setActiveModule(e.target.value)} aria-label={t('settingsadvanced.modulo')} className="ds-input seadse-fs2">
+              <Select suelto placeholder={false} value={activeModule} onChange={e => setActiveModule(e.target.value)} aria-label={t('settingsadvanced.modulo')} className="seadse-fs2">
                 {modules.map(m => <option key={m} value={m}>{m === 'all' ? t('settingsadvanced.todos_los_modulos') : m}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <div className="u-text2-xs-mb4">{t('settingsadvanced.importar_json')}</div>
@@ -285,7 +283,7 @@ export function IdiomasSection() {
                 <div className={`seadse-grid-7 ${idx % 2 === 0 ? 'settings-advanced-sections-m5' : 'settings-advanced-sections-m6'}`} key={item.full_key}>
                   <div>
                     <span className="seadse-box-9">{item.module}</span>
-                    <span className={`seadse-txt-3 ${isModified ? 'settings-advanced-sections-m7' : 'settings-advanced-sections-m8'}`}>{item.key}</span>
+                    <span className={`ds-codigo seadse-txt-3 ${isModified ? 'settings-advanced-sections-m7' : 'settings-advanced-sections-m8'}`}>{item.key}</span>
                   </div>
                   <div className="seadse-box-10">
                     {item.base_es}
@@ -326,10 +324,9 @@ export function IdiomasSection() {
               <div className="u-text2-xs-mb4">{t('settingsadvanced.idioma_a_editar')}</div>
               <div className="u-row-6">
                 {PORTAL_LANGUAGES.filter(l => l.code !== 'es').map(l => (
-                  <button className={`seadse-box-30 settings-sx1 settings-advanced-sections-e1 ${portalLang === l.code ? 'settings-advanced-sections-m2' : 'settings-advanced-sections-m3'}`} key={l.code} onClick={() => setPortalLang(l.code)}
-                    style={{ '--settings-advanced-sections-border': `1px solid ${portalLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
+                  <Pulsable className={`seadse-box-30 settings-sx1 settings-advanced-sections-e1 ${portalLang === l.code ? 'settings-advanced-sections-m2' : 'settings-advanced-sections-m3'}`} key={l.code} onClick={() => setPortalLang(l.code)} style={{ '--settings-advanced-sections-border': `1px solid ${portalLang === l.code ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
                     <span className="u-text3-xs">{l.code.toUpperCase()}</span> {l.label}
-                  </button>
+                  </Pulsable>
                 ))}
               </div>
             </div>
@@ -394,7 +391,7 @@ export function IdiomasSection() {
                 const isModified = portalEdits[key]?.[portalLang] !== undefined
                 return (
                   <div className={`seadse-grid-8 ${idx % 2 === 0 ? 'settings-advanced-sections-m5' : 'settings-advanced-sections-m6'}`} key={key}>
-                    <span className={`seadse-txt-3 ${isModified ? 'settings-advanced-sections-m7' : 'settings-advanced-sections-m8'}`}>{key}</span>
+                    <span className={`ds-codigo seadse-txt-3 ${isModified ? 'settings-advanced-sections-m7' : 'settings-advanced-sections-m8'}`}>{key}</span>
                     <span className="seadse-box-10">{base_es}</span>
                     <input className={`seadse-fs3 ${isModified ? 'settings-advanced-sections-m9' : 'settings-advanced-sections-m10'}`}
                       aria-label={key}
@@ -500,10 +497,9 @@ export function LogLevelSection() {
           )}
           <div className="u-wrap-8">
             {LEVELS.map(l => (
-              <button className="seadse-box-33 settings-sx3 settings-advanced-sections-e13" key={l} onClick={() => handleSetBackend(l)}
-                style={{ '--settings-advanced-sections-border': `1px solid ${backendLevel === l ? LEVEL_COLORS[l] : 'var(--surface-4)'}`, '--settings-advanced-sections-background': backendLevel === l ? (alpha(LEVEL_COLORS[l], '22')) : 'var(--surface-3)', '--settings-advanced-sections-color': backendLevel === l ? LEVEL_COLORS[l] : 'var(--text-2)' } as CSSProperties}>
+              <Pulsable className="seadse-box-33 settings-sx3 settings-advanced-sections-e13" key={l} onClick={() => handleSetBackend(l)} style={{ '--settings-advanced-sections-border': `1px solid ${backendLevel === l ? LEVEL_COLORS[l] : 'var(--surface-4)'}`, '--settings-advanced-sections-background': backendLevel === l ? (alpha(LEVEL_COLORS[l], '22')) : 'var(--surface-3)', '--settings-advanced-sections-color': backendLevel === l ? LEVEL_COLORS[l] : 'var(--text-2)' } as CSSProperties}>
                 {l}
-              </button>
+              </Pulsable>
             ))}
           </div>
         </div>
@@ -518,10 +514,9 @@ export function LogLevelSection() {
           </div>
           <div className="u-wrap-8">
             {['DEBUG', 'INFO', 'WARN', 'ERROR', 'SILENT'].map(l => (
-              <button className="seadse-box-33 settings-sx3 settings-advanced-sections-e13" key={l} onClick={() => handleSetFrontend(l.toLowerCase())}
-                style={{ '--settings-advanced-sections-border': `1px solid ${frontendLevel.toUpperCase() === l ? (LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']) : 'var(--surface-4)'}`, '--settings-advanced-sections-background': frontendLevel.toUpperCase() === l ? (alpha((LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']), '22')) : 'var(--surface-3)', '--settings-advanced-sections-color': frontendLevel.toUpperCase() === l ? (LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']) : 'var(--text-2)' } as CSSProperties}>
+              <Pulsable className="seadse-box-33 settings-sx3 settings-advanced-sections-e13" key={l} onClick={() => handleSetFrontend(l.toLowerCase())} style={{ '--settings-advanced-sections-border': `1px solid ${frontendLevel.toUpperCase() === l ? (LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']) : 'var(--surface-4)'}`, '--settings-advanced-sections-background': frontendLevel.toUpperCase() === l ? (alpha((LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']), '22')) : 'var(--surface-3)', '--settings-advanced-sections-color': frontendLevel.toUpperCase() === l ? (LEVEL_COLORS[l] || LEVEL_COLORS['ERROR']) : 'var(--text-2)' } as CSSProperties}>
                 {l}
-              </button>
+              </Pulsable>
             ))}
           </div>
         </div>
@@ -629,19 +624,15 @@ function SystemSettingItem({ setting }: { setting: FilaAjuste }) {
   return (
     <div className="seadse-box-19">
       <div className="seadse-row-4">
-        <code className="seadse-box-20">{setting.key}</code>
-        <button
-          type="button"
-          onClick={() => setExpanded(v => !v)}
-          className="seadse-box-21"
-        >{expanded ? t('settingsadvanced.ocultar') : t('settingsadvanced.ver_completo')}</button>
+        <code className="ds-codigo seadse-box-20">{setting.key}</code>
+        <Pulsable onClick={() => setExpanded(v => !v)} className="seadse-box-21">{expanded ? t('settingsadvanced.ocultar') : t('settingsadvanced.ver_completo')}</Pulsable>
       </div>
       {setting.description && (
         <div className="seadse-box-22">
           {setting.description}
         </div>
       )}
-      <pre className={`settings-advanced-sections-e14 ${expanded ? 'settings-advanced-sections-m15' : 'settings-advanced-sections-m16'}`}>{expanded ? (formatted || '—') : preview}</pre>
+      <pre className={`ds-codigo ds-codigo--bloque settings-advanced-sections-e14 ${expanded ? 'settings-advanced-sections-m15' : 'settings-advanced-sections-m16'}`}>{expanded ? (formatted || '—') : preview}</pre>
       <div className="seadse-box-23">
         {isJson ? t('settingsadvanced.n_lineas_json', { n: lineCount }) : t('settingsadvanced.n_caracteres', { n: (setting.value || '').length })}
       </div>
@@ -853,10 +844,10 @@ function RuntimeFlagRow({ item, current, isBool, dirty, disabled, onChange, onSa
       </div>
       <div>
         {isBool ? (
-          <select value={String(current)} onChange={(e) => onChange(e.target.value)} aria-label={item.label} className="ds-input seadse-inputstyle" disabled={disabled && item.plataforma}>
+          <Select suelto placeholder={false} value={String(current)} onChange={(e) => onChange(e.target.value)} aria-label={item.label} className="seadse-inputstyle" disabled={disabled && item.plataforma}>
             <option value="true">{t('settingsadvanced.activado')}</option>
             <option value="false">{t('settingsadvanced.desactivado')}</option>
-          </select>
+          </Select>
         ) : (
           <input
             aria-label={item.label}

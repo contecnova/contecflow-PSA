@@ -32,6 +32,7 @@ import { localeActivo } from '../utils/helpers'
 import StatusBadge from '../components/ui/StatusBadge'
 import { CLOCK_TICK_MS } from '../constants/timings'
 import './CallPage.css'
+import { Pulsable } from '../components/ui'
 
 type TFn = (moduleOrFullKey: string, keyOrParams?: string | Record<string, unknown>) => string
 
@@ -417,12 +418,12 @@ export default function CallPage(): JSX.Element {
         <CtrlBtn icon={Disc} active={recording} onClick={toggleRecording} label={t('call.record')} />
         <CtrlBtn icon={Users} active={showParticipants} onClick={() => setShowParticipants(p => !p)} label={t('call.participants')} />
         <CtrlBtn icon={MessageSquare} active={showChat} onClick={() => setShowChat(s => !s)} label={t('call.chat')} />
-        <button type="button" onClick={leave} className="call-leave">
+        <Pulsable type="button" onClick={leave} className="call-leave">
           <Phone size={14} className="call-leave__icon" aria-hidden="true" /> {t('call.leave')}
-        </button>
-        <button type="button" onClick={endCall} title={t('call.end_for_all_tooltip')} className="call-end">
+        </Pulsable>
+        <Pulsable type="button" onClick={endCall} title={t('call.end_for_all_tooltip')} className="call-end">
           {t('call.end_for_all')}
-        </button>
+        </Pulsable>
       </div>
 
       {!isLiveKitReal && (
@@ -500,9 +501,9 @@ function CtrlBtn({ icon: Icon, active, onClick, label, dangerWhenOff }: {
 }) {
   const estado = dangerWhenOff ? 'call-ctrl call-ctrl--danger' : (active ? 'call-ctrl call-ctrl--active' : 'call-ctrl')
   return (
-    <button type="button" aria-label={label} onClick={onClick} title={label} className={estado}>
+    <Pulsable type="button" aria-label={label} onClick={onClick} title={label} className={estado}>
       <Icon size={16} aria-hidden="true" />
-    </button>
+    </Pulsable>
   )
 }
 
@@ -518,7 +519,7 @@ function ChatLateral({ items, value, onChange, onSend, onClose, t }: {
     <aside className="call-side" aria-label={t('call.meeting_chat')}>
       <div className="call-side__head">
         <h2 className="call-side__title">{t('call.meeting_chat')}</h2>
-        <button type="button" onClick={onClose} className="call-side__close" aria-label={t('call.cerrar_chat')} title={t('call.cerrar_chat')}><X size={14} aria-hidden="true" /></button>
+        <Pulsable type="button" onClick={onClose} className="call-side__close" aria-label={t('call.cerrar_chat')} title={t('call.cerrar_chat')}><X size={14} aria-hidden="true" /></Pulsable>
       </div>
       <div className="call-side__body" aria-live="polite">
         {items.length === 0 && <div className="call-side__empty">{t('call.no_messages_yet')}</div>}
@@ -534,7 +535,7 @@ function ChatLateral({ items, value, onChange, onSend, onClose, t }: {
           onKeyDown={e => e.key === 'Enter' && onSend()}
           placeholder={t('call.write_placeholder')}
           className="call-side__input" />
-        <button type="button" onClick={onSend} className="call-side__send" aria-label={t('call.enviar')} title={t('call.enviar')}><Send size={13} aria-hidden="true" /></button>
+        <Pulsable type="button" onClick={onSend} className="call-side__send" aria-label={t('call.enviar')} title={t('call.enviar')}><Send size={13} aria-hidden="true" /></Pulsable>
       </div>
     </aside>
   )
@@ -549,7 +550,7 @@ function ParticipantsPanel({ onClose, participants, t }: {
     <aside className="call-side call-side--narrow" aria-label={t('call.participants')}>
       <div className="call-side__head">
         <h2 className="call-side__title">{t('call.participants')} ({participants.length})</h2>
-        <button type="button" onClick={onClose} className="call-side__close" aria-label={t('call.cerrar_participantes')} title={t('call.cerrar_participantes')}><X size={14} aria-hidden="true" /></button>
+        <Pulsable type="button" onClick={onClose} className="call-side__close" aria-label={t('call.cerrar_participantes')} title={t('call.cerrar_participantes')}><X size={14} aria-hidden="true" /></Pulsable>
       </div>
       {participants.length === 0 && <div className="call-side__body call-side__empty">{t('call.waiting_participants')}</div>}
       {participants.length > 0 && (

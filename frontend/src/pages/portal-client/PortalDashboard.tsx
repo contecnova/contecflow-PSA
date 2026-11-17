@@ -39,6 +39,7 @@ import { STALE_DEFAULT_MS, STALE_SHORT_MS } from '../../constants/timings'
 import './PortalDashboard.css'
 import TraduccionAutomatica, { type ContenidoTraducido } from './TraduccionAutomatica'
 import { px } from '../../utils/estilos'
+import { Pulsable } from '../../components/ui'
 
 // ── Lo que devuelven los endpoints del portal que usa la pizarra ─────────────
 interface DashProject {
@@ -478,7 +479,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
             {actionItems.map((it, i) => {
               const Icon = it.icon
               return (
-                <button key={i} type="button" onClick={() => go(it.target)} className="portdash-row-3">
+                <Pulsable key={i} onClick={() => go(it.target)} className="portdash-row-3">
                   <div className={`portdash-row-13 ${it.tone === 'warning' ? 'portal-dashboard-m2' : 'portal-dashboard-m3'}`}><Icon size={15} /></div>
                   <div className="u-flex1-min0">
                     <div className="u-sm-700">
@@ -486,7 +487,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
                     </div>
                   </div>
                   <ArrowRight size={14} aria-hidden="true" className="portalda-sx2" />
-                </button>
+                </Pulsable>
               )
             })}
           </div>
@@ -872,14 +873,14 @@ function MetricBlock({ icon: Icon, label, value, tone }: { icon: PortalIcon; lab
 
 function QuickLink({ icon: Icon, label, hint, onClick }: { icon: PortalIcon; label: ReactNode; hint?: ReactNode; onClick?: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="portdash-row-11">
+    <Pulsable onClick={onClick} className="portdash-row-11">
       <div className="portdash-row-12"><Icon size={16} /></div>
       <div className="u-flex1-min0">
         <div className="u-sm-700">{label}</div>
         <div className="u-text3-xs">{hint}</div>
       </div>
       <ArrowRight size={14} className="portalda-sx2" aria-hidden="true" />
-    </button>
+    </Pulsable>
   )
 }
 

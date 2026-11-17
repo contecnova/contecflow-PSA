@@ -46,7 +46,7 @@
 }
 .bietpa-txt-3 {
   color: var(--text-2);
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 .bietpa-row-3 {
   margin-left: auto;
@@ -85,7 +85,7 @@
 }
 .bietpa-box-1 {
   color: var(--text-3);
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   flex-shrink: 0;
 }
 .bietpa-box-2 {

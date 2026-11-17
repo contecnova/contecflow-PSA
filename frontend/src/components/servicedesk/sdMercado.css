@@ -29,7 +29,7 @@
 /* 16-11-2026 (pasada de diseño): elegido = --accent; direcciones legibles; select usado como acción. */
 .sdm-chip { display: inline-flex; align-items: center; gap: 6px; text-align: left; }
 .sdm-chip[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-muted); color: var(--accent); }
-.sdm-code { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-2); }
+.sdm-code { font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--text-2); }
 .sdm-select-accion { width: auto; max-width: 260px; }
 @media (max-width: 640px) {
   .sdm-step { grid-template-columns: 1fr; }

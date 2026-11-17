@@ -16,7 +16,7 @@ import { useMemo, useState, useCallback, useRef } from 'react'
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { Network } from 'lucide-react'
-import { Button, EmptyState } from '../ui'
+import { Button, EmptyState, Pulsable } from '../ui'
 import { CI_TYPE_LUCIDE } from './iconosCi'
 import './CMDBTopologyGraph.css'
 
@@ -552,7 +552,7 @@ export default function CMDBTopologyGraph({ nodes: rawNodes = [], edges: rawEdge
         {/* 2D / 3D toggle */}
         <div className="ds-segmented" role="group" aria-label={t('cmdbtopologygraph.vista')}>
           {[['2d', '2D'], ['3d', '3D']].map(([mode, label]) => (
-            <button key={mode} type="button" aria-pressed={viewMode === mode} onClick={() => setViewMode(mode)}>{label}</button>
+            <Pulsable key={mode} aria-pressed={viewMode === mode} onClick={() => setViewMode(mode)}>{label}</Pulsable>
           ))}
         </div>
 
@@ -563,7 +563,7 @@ export default function CMDBTopologyGraph({ nodes: rawNodes = [], edges: rawEdge
           </span>
           <div className="ds-segmented" role="group" aria-label={t('cmdbtopologygraph.radio_impacto')}>
             {[1, 2, 3].map(r => (
-              <button key={r} type="button" aria-pressed={impactRadius === r} onClick={() => setImpactRadius(r)}>{r}</button>
+              <Pulsable key={r} aria-pressed={impactRadius === r} onClick={() => setImpactRadius(r)}>{r}</Pulsable>
             ))}
           </div>
         </div>

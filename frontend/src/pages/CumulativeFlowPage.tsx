@@ -7,7 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { projectsApi, epicsApi } from '../services/api'
 import type { FlujoAcumulado } from '../services/api/tipos-proyectos'
-import { Button, Spinner, EmptyState, KpiCard, SelectorDePeriodo } from '../components/ui'
+import { Button, Spinner, EmptyState, KpiCard, SelectorDePeriodo, Select, TablaSimple } from '../components/ui'
 import { usePeriodo } from '../hooks/usePeriodo'
 import { SIN_HORA, codigoDeErrorDePeriodo, formatearTramo } from '../utils/periodo'
 import PageHeader from '../components/layout/PageHeader'
@@ -100,10 +100,10 @@ export default function CumulativeFlowPage(): JSX.Element {
         <div className="cfd-controls">
           <div className="cfd-controls__project">
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cfd-label">{t('cumulative_flow.project')}</label>
-            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e=>setProject(e.target.value)} className="cfd-input">
+            <Select suelto placeholder={false} id={`${idCampo}-1`} value={project} onChange={e=>setProject(e.target.value)} className="cfd-input">
               <option value="">{t('cumulative_flow.select_project')}</option>
               {projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+            </Select>
           </div>
           <div>
             <span className="cfd-label">{t('cumulative_flow.period')}</span>
@@ -171,7 +171,7 @@ export default function CumulativeFlowPage(): JSX.Element {
           <div className="cfd-panel cfd-panel--table">
             <h2 className="cfd-title cfd-title--table">{t('cumulative_flow.table_title')}</h2>
             <div className="u-scroll-x">
-              <table className="u-table-sm cfd-table">
+              <TablaSimple claseTabla="u-table-sm cfd-table">
                 <thead>
                   <tr className="u-border-b">
                     <th scope="col" className="cfd-col-date">{t('cumulative_flow.col_date')}</th>
@@ -195,7 +195,7 @@ export default function CumulativeFlowPage(): JSX.Element {
                     )
                   })}
                 </tbody>
-              </table>
+              </TablaSimple>
             </div>
           </div>
         </div>

@@ -16,7 +16,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Download, ArrowRight } from 'lucide-react'
 import { presupuestosApi } from '../../services/api'
 import type { FichaPresupuesto, MetodoPrevision, PedidoDePresupuesto as Pedido, TraspasoDePresupuesto as Traspaso } from '../../services/api'
-import { Button, Spinner } from '../ui'
+import { Button, Spinner, Select, TablaSimple, Pulsable } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr, localeActivo } from '../../utils/helpers'
@@ -73,10 +73,10 @@ export function ControlDelPresupuesto({ p, dinero, accion, ocupado }: { p: Ficha
               <div className="segupres-row-1">
                 <strong className="u-sm">{t(`pres.tipo_${x.tipo}`, x.tipo)}</strong>
                 <label className="segupres-row-2">{t('pres.metodo_prevision')}
-                  <select aria-label={`${t('pres.metodo_prevision')} · ${x.tipo}`} value={manual?.tipo === x.tipo ? 'manual' : x.metodo} disabled={!p.puedo_gestionar || ocupado === `prev-${x.tipo}`}
-                    onChange={e => elegir(x.tipo, e.target.value as MetodoPrevision)} className={`${CLASE_CAMPO} fodepa-campo--auto fodepa-campo--compacto`}>
+                  <Select suelto aria-label={`${t('pres.metodo_prevision')} · ${x.tipo}`} value={manual?.tipo === x.tipo ? 'manual' : x.metodo} disabled={!p.puedo_gestionar || ocupado === `prev-${x.tipo}`}
+                    onChange={e => elegir(x.tipo, e.target.value as MetodoPrevision)} className={`${CLASE_CAMPO} fodepa-campo--auto fodepa-campo--compacto`} placeholder={false}>
                     {(['plan', 'ritmo', 'manual'] as const).map(m => <option key={m} value={m}>{t(`pres.metodo_${m}`)}</option>)}
-                  </select></label>
+                  </Select></label>
               </div>
               <div role="progressbar" aria-label={`${t('pres.consumo')} · ${x.tipo}`} aria-valuenow={Math.round(x.consumo_pct ?? 0)} aria-valuemin={0} aria-valuemax={100}
                 className="segupres-row-3">
@@ -176,20 +176,19 @@ export function CierreDelPresupuesto({ p, dinero, accion, ocupado }: { p: FichaP
       <div className="segupres-caja">
         <div className="segupres-row-7">
           <div className="segupres-box-5">{t('pres.detalle_del_real')}</div>
-          <select aria-label={t('pres.mes')} value={mes} onChange={e => setMes(e.target.value)} className={`${CLASE_CAMPO} fodepa-campo--auto`}>
+          <Select suelto aria-label={t('pres.mes')} value={mes} onChange={e => setMes(e.target.value)} className={`${CLASE_CAMPO} fodepa-campo--auto`} placeholder={false}>
             {meses.map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
-          <select aria-label={t('pres.tipo')} value={tipo} onChange={e => setTipo(e.target.value)} className={`${CLASE_CAMPO} fodepa-campo--auto`}>
-            <option value="">{t('pres.todos_los_tipos')}</option>
+          </Select>
+          <Select suelto aria-label={t('pres.tipo')} value={tipo} onChange={e => setTipo(e.target.value)} className={`${CLASE_CAMPO} fodepa-campo--auto`} placeholder={t('pres.todos_los_tipos')}>
             {p.tipos.map(tp => <option key={tp} value={tp}>{t(`pres.tipo_${tp}`, tp)}</option>)}
-          </select>
+          </Select>
           <Button size="sm" variant="secondary" icon={<Download size={13} />} onClick={exportar}>CSV</Button>
         </div>
         {detalle.isLoading ? <Spinner /> : detalle.isError ? <div role="alert" className="u-danger">{extractErr(detalle.error, GENERIC_ERROR_FALLBACK)}</div>
           : (detalle.data ?? []).length === 0 ? <div className="u-text3-sm">{t('pres.sin_apuntes')}</div>
           : (
             // Dos columnas (qué y quién debajo; importe a la derecha): caben a 390 px.
-            <table className="cabe segupres-box-6">
+            <TablaSimple claseTabla="cabe segupres-box-6">
               <colgroup><col /><col className="segupres-box-7" /></colgroup>
               <tbody>{(detalle.data ?? []).map(a => (
                 <tr key={`${a.origen}-${a.id}`}>
@@ -201,7 +200,7 @@ export function CierreDelPresupuesto({ p, dinero, accion, ocupado }: { p: FichaP
                 </tr>))}</tbody>
               <tfoot><tr><td className="segupres-box-9">{t('pres.total')}</td>
                 <td className="seguir-presupuesto-e8">{dinero((detalle.data ?? []).reduce((x, a) => x + a.importe, 0))}</td></tr></tfoot>
-            </table>
+            </TablaSimple>
           )}
       </div>
     </div>
@@ -240,8 +239,8 @@ export function PedidosYTraspasos({ p, dinero, onCambio }: { p: FichaPresupuesto
         {p.puedo_gestionar && (
           <div className="segupres-rejilla">
             <label><span className="segupres-lbl">{t('pres.tipo')}</span>
-              <select aria-label={t('pres.tipo')} value={ped.tipo} onChange={e => setPed(v => ({ ...v, tipo: e.target.value }))} className={CLASE_CAMPO}>
-                {p.tipos.map(tp => <option key={tp} value={tp}>{t(`pres.tipo_${tp}`, tp)}</option>)}</select></label>
+              <Select suelto aria-label={t('pres.tipo')} value={ped.tipo} onChange={e => setPed(v => ({ ...v, tipo: e.target.value }))} className={CLASE_CAMPO} placeholder={false}>
+                {p.tipos.map(tp => <option key={tp} value={tp}>{t(`pres.tipo_${tp}`, tp)}</option>)}</Select></label>
             <label className="u-col-full"><span className="segupres-lbl">{t('pres.descripcion')}</span>
               <input aria-label={t('pres.descripcion')} value={ped.descripcion} onChange={e => setPed(v => ({ ...v, descripcion: e.target.value }))} className={CLASE_CAMPO} /></label>
             <label><span className="segupres-lbl">{t('pres.proveedor')}</span>
@@ -293,16 +292,14 @@ export function PedidosYTraspasos({ p, dinero, onCambio }: { p: FichaPresupuesto
         {p.puedo_gestionar && (
           <div className="segupres-rejilla">
             <label><span className="segupres-lbl">{t('pres.desde_partida')}</span>
-              <select aria-label={t('pres.desde_partida')} value={tr.desde} onChange={e => setTr(v => ({ ...v, desde: e.target.value }))} className={CLASE_CAMPO}>
-                <option value="">{t('pres.ampliacion')}</option>
-                {gastos.map(l => <option key={l.id} value={l.id}>{l.descripcion}</option>)}</select></label>
+              <Select suelto aria-label={t('pres.desde_partida')} value={tr.desde} onChange={e => setTr(v => ({ ...v, desde: e.target.value }))} className={CLASE_CAMPO} placeholder={t('pres.ampliacion')}>
+                {gastos.map(l => <option key={l.id} value={l.id}>{l.descripcion}</option>)}</Select></label>
             <label><span className="segupres-lbl">{t('pres.hacia_partida')}</span>
-              <select aria-label={t('pres.hacia_partida')} value={tr.hacia} onChange={e => setTr(v => ({ ...v, hacia: e.target.value }))} className={CLASE_CAMPO}>
-                <option value="">{t('pres.partida_nueva')}</option>
-                {gastos.filter(l => l.id !== tr.desde).map(l => <option key={l.id} value={l.id}>{l.descripcion}</option>)}</select></label>
+              <Select suelto aria-label={t('pres.hacia_partida')} value={tr.hacia} onChange={e => setTr(v => ({ ...v, hacia: e.target.value }))} className={CLASE_CAMPO} placeholder={t('pres.partida_nueva')}>
+                {gastos.filter(l => l.id !== tr.desde).map(l => <option key={l.id} value={l.id}>{l.descripcion}</option>)}</Select></label>
             {!tr.hacia && <label><span className="segupres-lbl">{t('pres.tipo')}</span>
-              <select aria-label={t('pres.tipo_de_la_nueva')} value={tr.hacia_tipo} onChange={e => setTr(v => ({ ...v, hacia_tipo: e.target.value }))} className={CLASE_CAMPO}>
-                {p.tipos.map(tp => <option key={tp} value={tp}>{t(`pres.tipo_${tp}`, tp)}</option>)}</select></label>}
+              <Select suelto aria-label={t('pres.tipo_de_la_nueva')} value={tr.hacia_tipo} onChange={e => setTr(v => ({ ...v, hacia_tipo: e.target.value }))} className={CLASE_CAMPO} placeholder={false}>
+                {p.tipos.map(tp => <option key={tp} value={tp}>{t(`pres.tipo_${tp}`, tp)}</option>)}</Select></label>}
             <label><span className="segupres-lbl">{t('pres.importe')}</span>
               <input aria-label={`${t('pres.importe')} · ${t('pres.traspasos')}`} type="number" min={0} step="any" value={tr.importe} onChange={e => setTr(v => ({ ...v, importe: e.target.value }))} className={CLASE_CAMPO} /></label>
             <label className="u-col-full"><span className="segupres-lbl">{t('pres.motivo')}</span>
@@ -360,7 +357,7 @@ export function CuadroDeControl({ year, onAbrir }: { year: number; onAbrir: (id:
       </div>
       {filas.length === 0 && <div className="u-text3-sm">{t('pres.cuadro_vacio')}</div>}
       {filas.map(f => (
-        <button className="segupres-caja2 seguir-presupuesto-e10" key={f.id} type="button" onClick={() => onAbrir(f.id)} style={{ '--seguir-presupuesto-border-left': `4px solid ${SEMAFORO[f.semaforo]}` } as CSSProperties}>
+        <Pulsable className="segupres-caja2 seguir-presupuesto-e10" key={f.id} onClick={() => onAbrir(f.id)} style={{ '--seguir-presupuesto-border-left': `4px solid ${SEMAFORO[f.semaforo]}` } as CSSProperties}>
           <span className="segupres-row-13">
             <strong className="segupres-box-12">{f.name}</strong>
             <span className="u-text3-xs">{t(`pres.ambito_${f.ambito}`)} · v{f.version} · <span className="seguir-presupuesto-e1" style={{ '--seguir-presupuesto-color': SEMAFORO[f.semaforo] } as CSSProperties}>{t(`pres.semaforo_${f.semaforo}`)}</span></span>
@@ -386,7 +383,7 @@ export function CuadroDeControl({ year, onAbrir }: { year: number; onAbrir: (id:
                   f.traspasos_pendientes && t('pres.n_traspasos', { n: f.traspasos_pendientes })].filter(Boolean).join(' · ')}
               </span>)}
           </> : <span className="u-text3-xs">{t(`pres.estado_${f.estado}`)} · {t('pres.sin_seguimiento')} · {t('pres.plan')} {dinero(f.plan, f.currency)}</span>}
-        </button>
+        </Pulsable>
       ))}
       <div className="u-text3-xs">{t('pres.cuadro_ayuda')}</div>
     </div>

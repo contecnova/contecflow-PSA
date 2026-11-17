@@ -41,7 +41,7 @@
 .fidele-txt-1 {
   font-size: var(--text-lg);
   font-weight: 700;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .fidele-box-1 {
@@ -61,7 +61,7 @@
 .fidele-titulo {
   font-size: var(--text-xs);
   font-weight: 700;
-  text-transform: uppercase;
+
   letter-spacing: .04em;
   color: var(--text-2);
   margin: 0 0 6px;

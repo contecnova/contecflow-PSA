@@ -17,7 +17,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, projectWorkflowsApi } from '../services/api'
 import type { EstadoDelFlujoDeProyecto, FlujoDelProyecto } from '../services/api/tipos-rendimiento'
-import { Button, Spinner, EmptyState, Modal } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, Select, IconButton, Pulsable, Checkbox } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { FolderOpen, GitBranch, MessageSquare, Pencil, Plus, RotateCcw, Trash2, Workflow, X, Zap } from 'lucide-react'
@@ -97,7 +97,7 @@ function StateForm({ projectId, state, onClose }: { projectId: string; state: Wo
         </div>
         <div>
           <label id={`${idCampo}-valor-et`} htmlFor={`${idCampo}-valor`} className="wf-label">{t('workflows.valor_interno')}</label>
-          <input id={`${idCampo}-valor`} aria-labelledby={`${idCampo}-valor-et`} className="ds-input wf-input--mono"
+          <input id={`${idCampo}-valor`} aria-labelledby={`${idCampo}-valor-et`} className="ds-input wf-input--mono ds-campo-codigo"
             value={form.value} disabled={isEdit}
             onChange={e => set('value')(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
             placeholder={t('workflows.valor_interno_ph')} />
@@ -111,22 +111,18 @@ function StateForm({ projectId, state, onClose }: { projectId: string; state: Wo
           <div id={`${idCampo}-color-et`} className="wf-label">{t('workflows.color')}</div>
           <div className="u-wrap-8" role="group" aria-labelledby={`${idCampo}-color-et`}>
             {COLORS.map(c => (
-              <button key={c} type="button" aria-label={t('workflows.color_n', { color: c })} aria-pressed={form.color === c} onClick={() => set('color')(c)}
-                className={`wf-swatch${form.color === c ? ' wf-swatch--active' : ''}`} style={colorVars(c)} />
+              <Pulsable key={c} type="button" aria-label={t('workflows.color_n', { color: c })} aria-pressed={form.color === c} onClick={() => set('color')(c)}
+                className={`wf-swatch${form.color === c ? ' wf-swatch--active' : ''}`} style={colorVars(c)}>{null}</Pulsable>
             ))}
             <input type="color" aria-label={t('workflows.color_personalizado')} value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={e => set('color')(e.target.value)}
               className="wf-color-input" />
           </div>
         </div>
         <div className="u-grid2-12">
-          <label className="u-row-center-8-pointer">
-            <input type="checkbox" aria-label={t('workflows.estado_inicial_punto_de_entrada')} checked={form.is_initial} onChange={e => set('is_initial')(e.target.checked)} />
-            {t('workflows.estado_inicial_punto_de_entrada')}
-          </label>
-          <label className="u-row-center-8-pointer">
-            <input type="checkbox" aria-label={t('workflows.estado_final_cuenta_como_completado')} checked={form.is_final} onChange={e => set('is_final')(e.target.checked)} />
-            {t('workflows.estado_final_cuenta_como_completado')}
-          </label>
+          <Checkbox className="u-row-center-8-pointer" checked={!!form.is_initial} onChange={v => set('is_initial')(v)}
+            label={t('workflows.estado_inicial_punto_de_entrada')} />
+          <Checkbox className="u-row-center-8-pointer" checked={!!form.is_final} onChange={v => set('is_final')(v)}
+            label={t('workflows.estado_final_cuenta_como_completado')} />
         </div>
         <div className="wf-actions">
           <Button variant="secondary" onClick={onClose}>{t('workflows.cancelar')}</Button>
@@ -165,19 +161,19 @@ function TransitionForm({ projectId, states, onClose }: { projectId: string; sta
         <div className="u-grid2-12">
           <div>
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="wf-label">{t('workflows.desde')}</label>
-            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="ds-input" value={form.from_state_id} onChange={e => set('from_state_id')(e.target.value)}>
+            <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.from_state_id} onChange={e => set('from_state_id')(e.target.value)}>
               <option value="">{t('workflows.selecciona_estado')}</option>
               {states.map(s => <option key={s.id} value={String(s.id)}>{s.icon} {s.name}</option>)}
-            </select>
+            </Select>
           </div>
           <div>
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="wf-label">{t('workflows.hasta')}</label>
-            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} className="ds-input" value={form.to_state_id} onChange={e => set('to_state_id')(e.target.value)}>
+            <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.to_state_id} onChange={e => set('to_state_id')(e.target.value)}>
               <option value="">{t('workflows.selecciona_estado')}</option>
               {states.filter(s => String(s.id) !== form.from_state_id).map(s => (
                 <option key={s.id} value={String(s.id)}>{s.icon} {s.name}</option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
         <div>
@@ -186,15 +182,13 @@ function TransitionForm({ projectId, states, onClose }: { projectId: string; sta
         </div>
         <div>
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="wf-label">{t('workflows.solo_puede_ejecutarla_este_rol')}</label>
-          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} className="ds-input" value={form.required_role} onChange={e => set('required_role')(e.target.value)}>
+          <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.required_role} onChange={e => set('required_role')(e.target.value)}>
             <option value="">{t('workflows.cualquier_rol')}</option>
             {ROLES.map(r => <option key={r} value={r}>{t(`workflows.rol_${r}`)}</option>)}
-          </select>
+          </Select>
         </div>
-        <label className="u-row-center-8-pointer">
-          <input type="checkbox" aria-label={t('workflows.requiere_comentario_obligatorio_al_ejecutar')} checked={form.requires_comment} onChange={e => set('requires_comment')(e.target.checked)} />
-          {t('workflows.requiere_comentario_obligatorio_al_ejecutar')}
-        </label>
+        <Checkbox className="u-row-center-8-pointer" checked={!!form.requires_comment} onChange={v => set('requires_comment')(v)}
+          label={t('workflows.requiere_comentario_obligatorio_al_ejecutar')} />
         <div className="wf-actions">
           <Button variant="secondary" onClick={onClose}>{t('workflows.cancelar')}</Button>
           <Button onClick={() => mutate(form)} disabled={isPending || !form.from_state_id || !form.to_state_id} loading={isPending}>
@@ -286,11 +280,11 @@ export default function WorkflowsPage() {
       {/* Selector de proyecto */}
       <div className="ds-toolbar wf-barra">
         <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="wf-label wf-label--inline">{t('workflows.proyecto')}</label>
-        <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-          className="ds-input wf-input--project">
+        <Select suelto placeholder={false} id={`${idCampo}-1`} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
+          className="wf-input--project">
           <option value="">{t('workflows.selecciona_un_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
-        </select>
+        </Select>
       </div>
 
       {!selectedProject && (
@@ -335,12 +329,12 @@ export default function WorkflowsPage() {
                     {s.is_final  && <span className="wf-tag wf-tag--final">{t('workflows.tag_final')}</span>}
                   </div>
                   <div className="u-row-6">
-                    <button type="button" onClick={() => { setEditingState(s); setShowStateForm(true) }}
-                      aria-label={t('workflows.editar_estado_n', { nombre: s.name })} title={t('workflows.editar_estado')}
-                      className="wf-icon-btn"><Pencil size={14} aria-hidden /></button>
-                    <button type="button" onClick={() => { openConfirmGlobal({ message: t('workflows.confirmar_eliminar_estado', { nombre: s.name }), onConfirm: () => deleteState(s.id), danger: true }) }}
-                      aria-label={t('workflows.eliminar_estado_n', { nombre: s.name })} title={t('workflows.eliminar_estado')}
-                      className="wf-icon-btn wf-icon-btn--danger"><Trash2 size={14} aria-hidden /></button>
+                    <IconButton type="button" onClick={() => { setEditingState(s); setShowStateForm(true) }}
+                      ariaLabel={t('workflows.editar_estado_n', { nombre: s.name })} title={t('workflows.editar_estado')}
+                      className="wf-icon-btn"><Pencil size={14} aria-hidden /></IconButton>
+                    <IconButton type="button" onClick={() => { openConfirmGlobal({ message: t('workflows.confirmar_eliminar_estado', { nombre: s.name }), onConfirm: () => deleteState(s.id), danger: true }) }}
+                      ariaLabel={t('workflows.eliminar_estado_n', { nombre: s.name })} title={t('workflows.eliminar_estado')}
+                      className="wf-icon-btn wf-icon-btn--danger"><Trash2 size={14} aria-hidden /></IconButton>
                   </div>
                 </div>
               ))}
@@ -379,9 +373,9 @@ export default function WorkflowsPage() {
                           <span className="wf-tag wf-tag--comment" title={t('workflows.requiere_comentario')} aria-label={t('workflows.requiere_comentario')}><MessageSquare size={12} aria-hidden /></span>
                         )}
                       </div>
-                      <button type="button" onClick={() => { openConfirmGlobal({ message: t('workflows.confirmar_eliminar_transicion'), onConfirm: () => deleteTransition(tr.id), danger: true }) }}
-                        aria-label={t('workflows.eliminar_transicion')} title={t('workflows.eliminar_transicion')}
-                        className="wf-transition-del"><X size={14} aria-hidden /></button>
+                      <IconButton type="button" onClick={() => { openConfirmGlobal({ message: t('workflows.confirmar_eliminar_transicion'), onConfirm: () => deleteTransition(tr.id), danger: true }) }}
+                        ariaLabel={t('workflows.eliminar_transicion')} title={t('workflows.eliminar_transicion')}
+                        className="wf-transition-del"><X size={14} aria-hidden /></IconButton>
                     </div>
                   )
                 })

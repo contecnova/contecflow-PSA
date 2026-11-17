@@ -9,7 +9,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { CheckCircle2, Sparkles } from 'lucide-react'
 import { ausenciasApi } from '../../../services/api/ausencias'
-import { Button } from '../../ui'
+import { Button, Pulsable } from '../../ui'
 import { AvisoDeError, useT } from './comun'
 
 export default function EjemplosDeAusencias({ puedeCargar, onIr }: { puedeCargar: boolean; onIr: (tab: string) => void }) {
@@ -46,8 +46,8 @@ export default function EjemplosDeAusencias({ puedeCargar, onIr }: { puedeCargar
               <li key={p}>
                 {p === 'publicar_politica' && <Link to="/settings/policies?dominio=ausencias">{ta('paso_publicar_politica')}</Link>}
                 {p === 'activar_flujo' && <Link to="/settings/approval-workflows">{ta('paso_activar_flujo')}</Link>}
-                {p === 'elegir_flujo_en_vacaciones' && <button type="button" className="ausadm-enlace" onClick={() => onIr('tipos')}>{ta('paso_elegir_flujo')}</button>}
-                {p === 'asignar_cuadrante' && <button type="button" className="ausadm-enlace" onClick={() => onIr('cuadrante')}>{ta('paso_asignar_cuadrante')}</button>}
+                {p === 'elegir_flujo_en_vacaciones' && <Pulsable className="ausadm-enlace" onClick={() => onIr('tipos')}>{ta('paso_elegir_flujo')}</Pulsable>}
+                {p === 'asignar_cuadrante' && <Pulsable className="ausadm-enlace" onClick={() => onIr('cuadrante')}>{ta('paso_asignar_cuadrante')}</Pulsable>}
               </li>
             ))}
           </ol>

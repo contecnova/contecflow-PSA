@@ -75,6 +75,7 @@ import { PortalSurveys } from './portal-client/PortalSurveys'
 import { PortalNotificaciones } from './portal-client/PortalNotificaciones'
 import { CLAVE_AVISOS_DEL_PORTAL } from './portal-client/CampanaDelPortal'
 import PortalAIChatWidget from './portal-client/PortalAIChatWidget'
+import { Pulsable } from '../components/ui'
 import './PortalClientePage.css'
 
 // ── Inner app (con cliente autenticado) ──────────────────────────────────────
@@ -236,7 +237,7 @@ function PortalAppContenido({ changeLang }: { changeLang: ChangeLangFn }) {
   return (
     <PortalShell section={section} onSection={setSection} branding={branding} badges={badges} avisosEnVivo={avisosEnVivo}>
       {pendingSurveys > 0 && section !== 'profile' && section !== 'surveys' && (
-        <button className="pcl-btn-ghost" type="button"
+        <Pulsable className="pcl-btn-ghost"
           onClick={() => setSection('surveys')}
         >
           <PortalBanner
@@ -245,7 +246,7 @@ function PortalAppContenido({ changeLang }: { changeLang: ChangeLangFn }) {
             title={(pendingSurveys === 1 ? t('surveys_banner_title_one') : t('surveys_banner_title_other')).replace('{{n}}', String(pendingSurveys))}
             body={t('surveys_banner_body')}
           />
-        </button>
+        </Pulsable>
       )}
 
       {section === 'dashboard'  && <PortalDashboard onNavigate={setSection} />}
@@ -448,12 +449,12 @@ function PortalMyProfile({ changeLang }: { changeLang: ChangeLangFn }) {
               {THEMES.map(th => {
                 const active = themeMode === th.id
                 return (
-                  <button className="pcl-btn" key={th.id} onClick={() => applyTheme(th.id)} style={{ '--pcl-btn-border': `1px solid ${active ? 'var(--accent)' : 'var(--surface-4)'}`, '--pcl-btn-background': active ? 'var(--accent-muted)' : 'var(--surface-3)' } as CSSProperties}>
+                  <Pulsable className="pcl-btn" key={th.id} aria-pressed={active} onClick={() => applyTheme(th.id)} style={{ '--pcl-btn-border': `1px solid ${active ? 'var(--accent)' : 'var(--surface-4)'}`, '--pcl-btn-background': active ? 'var(--accent-muted)' : 'var(--surface-3)' } as CSSProperties}>
                     <div className="pcl-text-sm-strong" style={{ '--pcl-text-sm-strong-color': active ? 'var(--accent)' : 'var(--text-1)' } as CSSProperties}>
                       <span className="pcl-text" aria-hidden="true">{th.icon}</span>{th.label}
                     </div>
                     <div className="u-text3-xs">{th.desc}</div>
-                  </button>
+                  </Pulsable>
                 )
               })}
             </div>

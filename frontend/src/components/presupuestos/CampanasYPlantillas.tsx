@@ -12,7 +12,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { presupuestosApi } from '../../services/api'
-import { Button, EmptyState, Spinner } from '../ui'
+import { Button, EmptyState, Spinner, Select } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr, fmtDate } from '../../utils/helpers'
@@ -97,10 +97,9 @@ export function PlantillasDePresupuesto() {
       <div className="campanas-yplantillas-e1">
         <label><span className="campypla-lbl">{t('pres.plantilla_nombre')}</span><input aria-label={t('pres.plantilla_nombre')} value={nombre} onChange={e => setNombre(e.target.value)} className={CLASE_CAMPO} /></label>
         <label><span className="campypla-lbl">{t('pres.desde_presupuesto')}</span>
-          <select aria-label={t('pres.desde_presupuesto')} value={desde} onChange={e => setDesde(e.target.value)} className={CLASE_CAMPO}>
-            <option value="">{t('pres.elige_presupuesto')}</option>
+          <Select suelto aria-label={t('pres.desde_presupuesto')} value={desde} onChange={e => setDesde(e.target.value)} className={CLASE_CAMPO} placeholder={t('pres.elige_presupuesto')}>
             {(lista.data ?? []).map(b => <option key={b.id} value={b.id}>{b.name} · {b.year} · v{b.version}</option>)}
-          </select></label>
+          </Select></label>
         <div><Button loading={ocupado} disabled={!nombre.trim() || !desde} onClick={crear}>{t('pres.guardar_como_plantilla')}</Button></div>
       </div>
       {q.isLoading ? <Spinner /> : (q.data ?? []).length === 0 ? <EmptyState icon={<LayoutTemplate size={28} />} title={t('pres.sin_plantillas')} description={t('pres.plantillas_ayuda')} />

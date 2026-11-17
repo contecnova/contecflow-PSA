@@ -31,7 +31,7 @@ import {
   KeyRound, Loader2, Pause, Pencil, Play, Plus, RefreshCw, RotateCcw, ScrollText, Search, ShieldAlert, ShieldCheck,
   Timer, Trash2, UserCheck, X, Zap,
 } from 'lucide-react'
-import { Button, Spinner, EmptyState, Modal, Page, Tabs, KpiCard, StatusBadge, IconButton } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, Page, Tabs, KpiCard, StatusBadge, IconButton, Select, TablaSimple } from '../components/ui'
 import { extractErr, downloadBlob, fmtDate, fmtDateTime } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
@@ -175,7 +175,7 @@ function MatrixTab({ roles }: { roles: Role[] }) {
       </div>
 
       <div className="u-scroll-x">
-        <table className="grc-table">
+        <TablaSimple claseTabla="grc-table">
           <thead>
             <tr className="grc-row-3">
               <th className="grc-th">{t('grc.module')}</th>
@@ -228,7 +228,7 @@ function MatrixTab({ roles }: { roles: Role[] }) {
               </tr>
             ))}
           </tbody>
-        </table>
+        </TablaSimple>
       </div>
 
       <div className="grc-row-4">
@@ -300,46 +300,46 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
         <div className="grc-grid">
           <div>
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="grc-page-e18">{t('grc.module_a')}</label>
-            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.module_a} onChange={e => setForm(f => ({ ...f, module_a: e.target.value }))} className="grc-page-e19">
+            <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.module_a} onChange={e => setForm(f => ({ ...f, module_a: e.target.value }))} className="grc-page-e19">
               {MODULES.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
-            </select>
+            </Select>
           </div>
           <div>
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="grc-page-e18">{t('grc.action_a')}</label>
-            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.action_a} onChange={e => setForm(f => ({ ...f, action_a: e.target.value }))} className="grc-page-e19">
+            <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.action_a} onChange={e => setForm(f => ({ ...f, action_a: e.target.value }))} className="grc-page-e19">
               {acciones.map(a => <option key={a} value={a}>{accionDe(t)(a)}</option>)}
-            </select>
+            </Select>
           </div>
         </div>
         <div className="grc-box">{traducir('grc.en_conflicto_con')}</div>
         <div className="grc-grid-2">
           <div>
             <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="grc-page-e18">{t('grc.module_b')}</label>
-            <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.module_b} onChange={e => setForm(f => ({ ...f, module_b: e.target.value }))} className="grc-page-e19">
+            <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.module_b} onChange={e => setForm(f => ({ ...f, module_b: e.target.value }))} className="grc-page-e19">
               {MODULES.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
-            </select>
+            </Select>
           </div>
           <div>
             <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="grc-page-e18">{t('grc.action_b')}</label>
-            <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.action_b} onChange={e => setForm(f => ({ ...f, action_b: e.target.value }))} className="grc-page-e19">
+            <Select suelto placeholder={false} id={`${idCampo}-4`} value={form.action_b} onChange={e => setForm(f => ({ ...f, action_b: e.target.value }))} className="grc-page-e19">
               {acciones.map(a => <option key={a} value={a}>{accionDe(t)(a)}</option>)}
-            </select>
+            </Select>
           </div>
         </div>
 
         <div className="u-grid2-10">
           <div>
             <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="grc-page-e18">{t('grc.risk_level')}</label>
-            <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.risk} onChange={e => setForm(f => ({ ...f, risk: e.target.value }))} className="grc-page-e19">
+            <Select suelto placeholder={false} id={`${idCampo}-5`} value={form.risk} onChange={e => setForm(f => ({ ...f, risk: e.target.value }))} className="grc-page-e19">
               {RIESGOS.map(r => <option key={r} value={r}>{t(`grc.riesgo_${r}`)}</option>)}
-            </select>
+            </Select>
           </div>
           <div>
             <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="grc-page-e18">{t('grc.mitigation_flow')}</label>
-            <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.mitigated_by_workflow_id || ''} onChange={e => setForm(f => ({ ...f, mitigated_by_workflow_id: e.target.value }))} className="grc-page-e19">
+            <Select suelto placeholder={false} id={`${idCampo}-6`} value={form.mitigated_by_workflow_id || ''} onChange={e => setForm(f => ({ ...f, mitigated_by_workflow_id: e.target.value }))} className="grc-page-e19">
               <option value="">{t('grc.no_mitigation')}</option>
               {(workflows || []).map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-            </select>
+            </Select>
           </div>
         </div>
 
@@ -624,7 +624,7 @@ function AuditLogTab() {
                 <div className="u-text2-xs">
                   {e.user_name && <span>{t('pagina_grc.actor')}{' '}<strong>{e.user_name}</strong>{e.ip_address ? t('pagina_grc.ip', { ip_address: e.ip_address }) : ''}</span>}
                   {e.detail && typeof e.detail === 'object' && (
-                    <span className="grc-label-10">
+                    <span className="ds-codigo grc-label-10">
                       {JSON.stringify(e.detail).slice(0, 120)}
                     </span>
                   )}
@@ -750,7 +750,7 @@ function RetencionTab() {
           <Button size="sm" variant="secondary" onClick={aplicar}>{t('grc.retencion_aplicar_ya')}</Button>
         </div>
         <p className="grc-text">{t('grc.retencion_intro', { min: data.min_days })}</p>
-        <table className="u-table-sm">
+        <TablaSimple claseTabla="u-table-sm">
           <thead><tr><th className="grc-page-e20">{t('grc.retencion_tipo')}</th><th className="grc-page-e20">{t('grc.retencion_dias')}</th><th className="grc-page-e20">{t('grc.retencion_previa')}</th><th className="grc-page-e20">{t('grc.retencion_estado')}</th><th className="grc-page-e20"><span className="u-sr-only">{t('pagina_grc.acciones')}</span></th></tr></thead>
           <tbody>
             {data.policies.map(p => {
@@ -779,25 +779,25 @@ function RetencionTab() {
               )
             })}
           </tbody>
-        </table>
+        </TablaSimple>
       </section>
       <section>
         <h3 className="grc-title-2">{t('grc.bloqueo_titulo')}</h3>
         <p className="grc-text">{t('grc.bloqueo_intro')}</p>
         <div className="grc-row-20">
           <input aria-label={t('grc.bloqueo_caso')} placeholder={t('grc.bloqueo_caso')} value={nuevo.case_reference} onChange={e => setNuevo({ ...nuevo, case_reference: e.target.value })} className="grc-page-e21" />
-          <select aria-label={t('grc.retencion_tipo')} value={nuevo.entity} onChange={e => cambiarTipo(e.target.value)} className="grc-page-e21">
+          <Select suelto placeholder={false} aria-label={t('grc.retencion_tipo')} value={nuevo.entity} onChange={e => cambiarTipo(e.target.value)} className="grc-page-e21">
             <option value="*">{t('grc.bloqueo_todos')}</option>
             {data.policies.map(p => <option key={p.entity} value={p.entity}>{t(`grc.retencion_tipo_${p.entity}`)}</option>)}
-          </select>
-          <select aria-label={t('grc.bloqueo_campo')} value={nuevo.field} onChange={e => setNuevo({ ...nuevo, field: e.target.value })} className="grc-page-e21">
+          </Select>
+          <Select suelto placeholder={false} aria-label={t('grc.bloqueo_campo')} value={nuevo.field} onChange={e => setNuevo({ ...nuevo, field: e.target.value })} className="grc-page-e21">
             {campos.map(c => <option key={c} value={c}>{t(`grc.bloqueo_campo_${c}`)}</option>)}
-          </select>
-          <input aria-label={t('grc.bloqueo_valor')} placeholder={t('grc.bloqueo_valor')} value={nuevo.value} onChange={e => setNuevo({ ...nuevo, value: e.target.value })} className="grc-page-e15" />
+          </Select>
+          <input aria-label={t('grc.bloqueo_valor')} placeholder={t('grc.bloqueo_valor')} value={nuevo.value} onChange={e => setNuevo({ ...nuevo, value: e.target.value })} className="ds-codigo grc-page-e15" />
           <Button size="sm" onClick={crear} disabled={!nuevo.case_reference.trim() || !nuevo.value.trim()}>{t('grc.bloqueo_crear')}</Button>
         </div>
         {bloqueos.length === 0 ? <div className="u-text3-sm">{t('grc.bloqueo_ninguno')}</div> : (
-          <table className="u-table-sm">
+          <TablaSimple claseTabla="u-table-sm">
             <tbody>
               {bloqueos.map(b => (
                 <tr key={b.id} className={`grc-row-19 ${b.is_active ? 'grcpage-sx7' : 'grcpage-sx14'}`}>
@@ -811,7 +811,7 @@ function RetencionTab() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </TablaSimple>
         )}
       </section>
     </div>
@@ -884,7 +884,7 @@ function EvidenciasTab() {
 
       <section>
         {cargandoEstado || !estado ? <Spinner /> : (
-          <table className="u-table-sm">
+          <TablaSimple claseTabla="u-table-sm">
             <thead><tr className="grc-row-23">
               <th className="grc-th-5">{t('grc.informe_col_estado')}</th><th className="grc-th-5">{t('grc.evidencias_col_control')}</th>
               <th className="grc-th-5">{t('grc.evidencias_col_evidencias')}</th><th className="grc-th-5">{t('grc.evidencias_col_medido')}</th>
@@ -908,26 +908,26 @@ function EvidenciasTab() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </TablaSimple>
         )}
       </section>
 
       <section>
         <h3 className="grc-title-2">{t('grc.evidencias_registrar')}</h3>
         <div className="grc-row-20">
-          <select aria-label={t('grc.evidencias_control')} value={control} onChange={e => setNueva({ ...nueva, control_id: e.target.value })} className="grc-page-e21">
+          <Select suelto placeholder={false} aria-label={t('grc.evidencias_control')} value={control} onChange={e => setNueva({ ...nueva, control_id: e.target.value })} className="grc-page-e21">
             {controles.map(c => <option key={c} value={c}>{c} — {t(`grc.marco_control_${claveDeControl(c)}`)}</option>)}
-          </select>
-          <select aria-label={t('grc.evidencias_tipo')} value={nueva.evidence_type} onChange={e => setNueva({ ...nueva, evidence_type: e.target.value })} className="grc-page-e21">
+          </Select>
+          <Select suelto placeholder={false} aria-label={t('grc.evidencias_tipo')} value={nueva.evidence_type} onChange={e => setNueva({ ...nueva, evidence_type: e.target.value })} className="grc-page-e21">
             {marcos.evidence_types.map(x => <option key={x} value={x}>{t(`grc.evidencia_tipo_${x}`)}</option>)}
-          </select>
+          </Select>
           <input aria-label={t('grc.evidencias_titulo')} placeholder={t('grc.evidencias_titulo')} maxLength={255} value={nueva.title} onChange={e => setNueva({ ...nueva, title: e.target.value })} className="grc-page-e21" />
           <input aria-label={t('grc.evidencias_uri')} placeholder={t('grc.evidencias_uri')} maxLength={1000} value={nueva.artifact_uri} onChange={e => setNueva({ ...nueva, artifact_uri: e.target.value })} className="grc-page-e21" />
-          <input aria-label={t('grc.evidencias_sha256')} placeholder={t('grc.evidencias_sha256')} maxLength={64} value={nueva.artifact_sha256} onChange={e => setNueva({ ...nueva, artifact_sha256: e.target.value })} className="grc-page-e15" aria-invalid={!shaValido} />
+          <input aria-label={t('grc.evidencias_sha256')} placeholder={t('grc.evidencias_sha256')} maxLength={64} value={nueva.artifact_sha256} onChange={e => setNueva({ ...nueva, artifact_sha256: e.target.value })} className="ds-codigo grc-page-e15" aria-invalid={!shaValido} />
           <Button size="sm" onClick={() => registrar()} loading={isPending} disabled={isPending || !control || !nueva.title.trim() || !shaValido}>{t('grc.evidencias_registrar')}</Button>
         </div>
         {(pagina?.items.length ?? 0) === 0 ? <div className="u-text3-sm">{t('grc.evidencias_ninguna')}</div> : (
-          <table className="u-table-sm">
+          <TablaSimple claseTabla="u-table-sm">
             <tbody>
               {pagina?.items.map(ev => (
                 <tr key={ev.id} className="grc-row-19">
@@ -935,11 +935,11 @@ function EvidenciasTab() {
                   <td className="grc-td-5">{ev.control_id}</td>
                   <td className="grc-td-5">{t(`grc.evidencia_tipo_${ev.evidence_type}`)}</td>
                   <td className="grc-td-4">{ev.title}</td>
-                  <td className="grc-td-8">{ev.artifact_uri || '—'}{ev.artifact_hash ? ` · sha256 ${ev.artifact_hash.slice(0, 12)}…` : ''}</td>
+                  <td className="grc-td-8"><code className="ds-codigo">{ev.artifact_uri || '—'}{ev.artifact_hash ? ` · sha256 ${ev.artifact_hash.slice(0, 12)}…` : ''}</code></td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </TablaSimple>
         )}
         {paginas > 1 && <Pagination page={page} totalPages={paginas} onChange={setPage} />}
       </section>
@@ -980,7 +980,7 @@ function InformeDeCumplimientoTab() {
           <div className="grc-box-12">
             {t('grc.informe_generado', { fecha: fmtDateTime(data.generated_at) })}
           </div>
-          <table className="u-table-sm">
+          <TablaSimple claseTabla="u-table-sm">
             <thead><tr className="grc-row-23">
               <th className="grc-th-5">{t('grc.informe_col_estado')}</th><th className="grc-th-5">{t('grc.informe_col_control')}</th>
               <th className="grc-th-5">{t('grc.informe_col_medido')}</th><th className="grc-th-5">{t('grc.informe_col_marcos')}</th>
@@ -1000,7 +1000,7 @@ function InformeDeCumplimientoTab() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </TablaSimple>
         </>
       )}
     </div>
@@ -1041,15 +1041,15 @@ function ExplicarAccesoTab() {
     <div>
       <p className="grc-text-3">{t('grc.acceso_intro')}</p>
       <div className="u-wrap-center-8">
-        <select aria-label={t('grc.acceso_usuario')} value={usuario} onChange={e => setUsuario(e.target.value)} className="grc-page-e16">
+        <Select suelto placeholder={false} aria-label={t('grc.acceso_usuario')} value={usuario} onChange={e => setUsuario(e.target.value)} className="grc-page-e16">
           <option value="">{t('grc.acceso_usuario')}</option>
           {usuarios.map(u => <option key={u.id} value={u.id}>{u.full_name || u.email} {u.role ? `(${u.role})` : ''}</option>)}
-        </select>
-        <select aria-label="HTTP" value={metodo} onChange={e => setMetodo(e.target.value)} className="grc-page-e22">
+        </Select>
+        <Select suelto placeholder={false} aria-label="HTTP" value={metodo} onChange={e => setMetodo(e.target.value)} className="grc-page-e22">
           {['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map(m => <option key={m}>{m}</option>)}
-        </select>
+        </Select>
         <input aria-label={t('grc.acceso_ruta')} list="grc-rutas" value={camino} onChange={e => setCamino(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') explicar() }} className="grc-page-e17" />
+          onKeyDown={e => { if (e.key === 'Enter') explicar() }} className="ds-codigo grc-page-e17" />
         <datalist id="grc-rutas">
           {rutas.filter(r => r.method === metodo).slice(0, 3000).map(r => <option key={r.path} value={r.path} aria-label={r.path} />)}
         </datalist>
@@ -1062,7 +1062,7 @@ function ExplicarAccesoTab() {
             <div className="grc-box-16 grc-page-e4" style={{ '--grc-page-color': COLOR_VEREDICTO[res.verdict] } as CSSProperties}>
               {t(`grc.acceso_veredicto_${res.verdict}`)}{res.decided_by ? ` — ${t(`grc.acceso_capa_${res.decided_by}`)}` : ''}
             </div>
-            <div className="grc-box-17">
+            <div className="ds-codigo grc-box-17">
               {res.method} {res.template || res.path}
             </div>
           </div>

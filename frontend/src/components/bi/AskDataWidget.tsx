@@ -7,7 +7,7 @@ import type { RespuestaDeAskTheData } from '../../services/api/tipos-analitica'
 import { Search, Send, AlertTriangle, Info, ChevronDown, ChevronUp, Check, RotateCcw, ArrowRight } from 'lucide-react'
 import { COLOR, alpha } from '../../constants/theme'
 import { useAppLang } from '../../i18n/AppLangContext'
-import { Button, Table } from '../ui'
+import { Button, Table, Pulsable } from '../ui'
 import { STALE_DEFAULT_MS } from '../../constants/timings'
 import './AskDataWidget.css'
 
@@ -46,7 +46,7 @@ function PistasSinFilas({ pistas }: { pistas: AskResult['zero_result_hints'] }) 
             {!p.sample.length ? t('askdatawidget.pista_sin_datos') : (
               <>
                 {t(p.closest.length ? 'askdatawidget.pista_parecidos' : 'askdatawidget.pista_existen')}{' '}
-                {(p.closest.length ? p.closest : p.sample).map(v => <code key={v} className="asdawi-box-2">{v}</code>)}
+                {(p.closest.length ? p.closest : p.sample).map(v => <code key={v} className="ds-codigo asdawi-box-2">{v}</code>)}
               </>
             )}
           </span>
@@ -138,24 +138,23 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
         </form>
 
         {/* Examples toggle */}
-        <button
-          type="button"
+        <Pulsable
           aria-expanded={showExamples}
           onClick={() => setShowExamples(v => !v)}
           className="asdawi-row-2"
         >
           {showExamples ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
           {t('askdatawidget.ver_preguntas_de_ejemplo')}
-        </button>
+        </Pulsable>
 
         {showExamples && (
           <div className="asdawi-stack-1">
             {EXAMPLE_QUESTIONS.map(clave => {
               const q = t(`askdatawidget.${clave}`)
               return (
-                <button key={clave} type="button" onClick={() => handleExample(q)} className="asdawi-box-4">
+                <Pulsable key={clave} onClick={() => handleExample(q)} className="asdawi-box-4">
                   {q}
-                </button>
+                </Pulsable>
               )
             })}
           </div>

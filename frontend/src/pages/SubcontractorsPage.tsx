@@ -24,7 +24,7 @@ import type { SkillDelCatalogo, SubAsignacion, SubConciliacion, SubFactura, SubP
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AlertTriangle, ArrowLeft, Award, Briefcase, Clock, Coins, Handshake, HardHat, Mail, Pencil, Plus, Receipt, Scale, Square, Trash2, UserRound, Users, X } from 'lucide-react'
-import { Button, Card, EmptyState, IconButton, KpiCard, Modal, Spinner, useSort, SortableTH, ViewToggle, Tabs, Table } from '../components/ui'
+import { Button, Card, EmptyState, IconButton, KpiCard, Modal, Spinner, useSort, SortableTH, ViewToggle, Tabs, Table, Select, TablaSimple, Checkbox } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import { useAppT } from '../i18n/AppLangContext'
@@ -140,8 +140,8 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
                 {s.skill_name}
                 <span className="sub-skill-level">({etiquetaNivel(s.level)})</span>
                 {s.certified && <span title={t('subcontractors.certified')} role="img" aria-label={t('subcontractors.certified')}><Award size={12} aria-hidden /></span>}
-                <button type="button" className="sub-skill-remove" onClick={() => removeSkill(s.skill_id)}
-                  aria-label={t('subcontractors.quitar_skill', { skill: s.skill_name })} title={t('subcontractors.quitar_skill', { skill: s.skill_name })}><X size={12} aria-hidden /></button>
+                <IconButton type="button" className="sub-skill-remove" onClick={() => removeSkill(s.skill_id)}
+                  ariaLabel={t('subcontractors.quitar_skill', { skill: s.skill_name })} title={t('subcontractors.quitar_skill', { skill: s.skill_name })}><X size={12} aria-hidden /></IconButton>
               </span>
             ))}
             {(worker.skills || []).length === 0 && !showSkillForm && (
@@ -154,28 +154,28 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
             <div className="sub-skill-form">
               <div className="u-col-full">
                 <label id={`${idCampo}-9-et`} htmlFor={`${idCampo}-9`} className="sub-label">{t('subcontractors.add_skill')} *</label>
-                <select id={`${idCampo}-9`} aria-labelledby={`${idCampo}-9-et`} value={skillForm.skill_id} onChange={e => setSkillForm(f => ({ ...f, skill_id: e.target.value }))} className="sub-input">
+                <Select suelto placeholder={false} id={`${idCampo}-9`} value={skillForm.skill_id} onChange={e => setSkillForm(f => ({ ...f, skill_id: e.target.value }))} className="sub-input">
                   <option value="">{t('subcontractors.select_skill')}</option>
                   {Object.entries(byCategory).map(([cat, skills]) => (
                     <optgroup key={cat} label={cat.charAt(0).toUpperCase() + cat.slice(1)}>
                       {skills.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </optgroup>
                   ))}
-                </select>
+                </Select>
               </div>
               <div>
                 <label id={`${idCampo}-10-et`} htmlFor={`${idCampo}-10`} className="sub-label">{t('subcontractors.level')}</label>
-                <select id={`${idCampo}-10`} aria-labelledby={`${idCampo}-10-et`} value={skillForm.level} onChange={e => setSkillForm(f => ({ ...f, level: e.target.value }))} className="sub-input">
+                <Select suelto placeholder={false} id={`${idCampo}-10`} value={skillForm.level} onChange={e => setSkillForm(f => ({ ...f, level: e.target.value }))} className="sub-input">
                   {NIVELES.map(l => <option key={l} value={l}>{etiquetaNivel(l)}</option>)}
-                </select>
+                </Select>
               </div>
               <div>
                 <label id={`${idCampo}-11-et`} htmlFor={`${idCampo}-11`} className="sub-label">{t('subcontractors.years_experience')}</label>
                 <input id={`${idCampo}-11`} aria-labelledby={`${idCampo}-11-et`} type="number" value={skillForm.years_experience} onChange={e => setSkillForm(f => ({ ...f, years_experience: e.target.value }))} className="sub-input" min="0" step="0.5" />
               </div>
               <div className="sub-check-row">
-                <input type="checkbox" id={`${idCampo}-cert`} aria-labelledby={`${idCampo}-cert-et`} checked={skillForm.certified} onChange={e => setSkillForm(f => ({ ...f, certified: e.target.checked }))} />
-                <label id={`${idCampo}-cert-et`} htmlFor={`${idCampo}-cert`} className="sub-check-label">{t('subcontractors.certified')}</label>
+                <Checkbox className="sub-check-label" checked={!!skillForm.certified} onChange={v => setSkillForm(f => ({ ...f, certified: v }))}
+                  label={t('subcontractors.certified')} />
                 {skillForm.certified && (
                   <input aria-label={t('subcontractors.placeholder_cert')} value={skillForm.cert_name} onChange={e => setSkillForm(f => ({ ...f, cert_name: e.target.value }))} className="sub-input sub-input--flex" placeholder={t('subcontractors.placeholder_cert')} />
                 )}
@@ -571,7 +571,7 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
             <EmptyState icon={<Receipt size={28} />} title={t('subcontractors.empty_invoices_title')} description={t('subcontractors.empty_invoices_desc')} />
           ) : (
             <div className="sub-panel sub-panel--clip u-scroll-x">
-              <table className="u-table">
+              <TablaSimple claseTabla="u-table">
                 <thead>
                   <tr className="u-border-b">
                     {[t('subcontractors.col_n_factura'), t('subcontractors.col_fecha'), t('subcontractors.col_importe'), t('subcontractors.col_total_iva'), t('subcontractors.col_estado'), t('subcontractors.col_acciones')].map(h => (
@@ -604,7 +604,7 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </TablaSimple>
             </div>
           )}
 
@@ -619,7 +619,7 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
               <EmptyState icon={<Scale size={28} />} title={t('externos.conciliacion_vacia')} description={t('externos.conciliacion_vacia_desc')} />
             ) : (
               <div className="sub-panel sub-panel--clip u-scroll-x">
-                <table className="u-table">
+                <TablaSimple claseTabla="u-table">
                   <thead>
                     <tr className="u-border-b">
                       {[t('subcontractors.col_n_factura'), t('subcontractors.col_proyecto'), t('externos.col_periodo'), t('externos.col_imputadas'), t('externos.col_manuales'), t('externos.col_esperado'), t('subcontractors.col_importe'), t('externos.col_diferencia')].map(h => (
@@ -649,7 +649,7 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
                       )
                     })}
                   </tbody>
-                </table>
+                </TablaSimple>
               </div>
             )}
           </div>
@@ -664,17 +664,17 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
           <div className="sub-form-grid">
             <div className="u-col-full">
               <label id={`${idCampo}-tlw-et`} htmlFor={`${idCampo}-tlw`} className="sub-label">{t('externos.persona_sin_acceso')} *</label>
-              <select id={`${idCampo}-tlw`} aria-labelledby={`${idCampo}-tlw-et`} value={tlForm.worker_id} onChange={e => setTlForm(f=>({...f,worker_id:e.target.value}))} className="sub-input">
+              <Select suelto placeholder={false} id={`${idCampo}-tlw`} value={tlForm.worker_id} onChange={e => setTlForm(f=>({...f,worker_id:e.target.value}))} className="sub-input">
                 <option value="">{sinAcceso.length ? t('subcontractors.seleccionar') : t('externos.nadie_sin_acceso')}</option>
                 {sinAcceso.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label id={`${idCampo}-1-et`} htmlFor={`${idCampo}-1`} className="sub-label">{t('subcontractors.asignacion')}</label>
-              <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-1-et`} value={tlForm.assignment_id} onChange={e => setTlForm(f=>({...f,assignment_id:e.target.value}))} className="sub-input">
+              <Select suelto placeholder={false} id={`${idCampo}-1`} value={tlForm.assignment_id} onChange={e => setTlForm(f=>({...f,assignment_id:e.target.value}))} className="sub-input">
                 <option value="">{t('subcontractors.sin_asignacion')}</option>
                 {assignments.map(a => <option key={a.id} value={a.id}>{a.project_code} — {a.project_name}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label id={`${idCampo}-2-et`} htmlFor={`${idCampo}-2`} className="sub-label">{t('subcontractors.col_fecha')}</label>
@@ -743,31 +743,31 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
           <div className="sub-form-grid">
             <div className="u-col-full">
               <label id={`${idCampo}-8-et`} htmlFor={`${idCampo}-8`} className="sub-label">{t('subcontractors.proyecto_obligatorio')}</label>
-              <select id={`${idCampo}-8`} aria-labelledby={`${idCampo}-8-et`} value={asgForm.project_id} onChange={e => setAsgForm(f=>({...f,project_id:e.target.value}))} className="sub-input">
+              <Select suelto placeholder={false} id={`${idCampo}-8`} value={asgForm.project_id} onChange={e => setAsgForm(f=>({...f,project_id:e.target.value}))} className="sub-input">
                 <option value="">{t('subcontractors.seleccionar')}</option>
                 {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label id={`${idCampo}-asw-et`} htmlFor={`${idCampo}-asw`} className="sub-label">{t('externos.persona')} *</label>
-              <select id={`${idCampo}-asw`} aria-labelledby={`${idCampo}-asw-et`} value={asgForm.worker_id} onChange={e => setAsgForm(f=>({...f,worker_id:e.target.value}))} className="sub-input">
+              <Select suelto placeholder={false} id={`${idCampo}-asw`} value={asgForm.worker_id} onChange={e => setAsgForm(f=>({...f,worker_id:e.target.value}))} className="sub-input">
                 <option value="">{t('subcontractors.seleccionar')}</option>
                 {trabajadoresActivos.map(w => <option key={w.id} value={w.id}>{w.name}{w.role ? ` (${w.role})` : ''}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label id={`${idCampo}-asr-et`} htmlFor={`${idCampo}-asr`} className="sub-label">{t('externos.tarifa')}</label>
-              <select id={`${idCampo}-asr`} aria-labelledby={`${idCampo}-asr-et`} value={asgForm.rate_id} onChange={e => setAsgForm(f=>({...f,rate_id:e.target.value}))} className="sub-input">
+              <Select suelto placeholder={false} id={`${idCampo}-asr`} value={asgForm.rate_id} onChange={e => setAsgForm(f=>({...f,rate_id:e.target.value}))} className="sub-input">
                 <option value="">{tarifas.length ? t('externos.tarifa_de_la_persona') : t('externos.sin_tarifas')}</option>
                 {tarifas.map(r => <option key={r.id} value={r.id}>{[r.description, r.cost_rate != null ? fmtMoneda(r.cost_rate, { moneda: r.currency }) : null].filter(Boolean).join(' · ')}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label id={`${idCampo}-asp-et`} htmlFor={`${idCampo}-asp`} className="sub-label">{t('externos.papel')}</label>
-              <select id={`${idCampo}-asp`} aria-labelledby={`${idCampo}-asp-et`} value={asgForm.member_role} onChange={e => setAsgForm(f=>({...f,member_role:e.target.value}))} className="sub-input">
+              <Select suelto placeholder={false} id={`${idCampo}-asp`} value={asgForm.member_role} onChange={e => setAsgForm(f=>({...f,member_role:e.target.value}))} className="sub-input">
                 <option value="">{t('externos.papel_por_defecto')}</option>
                 {PAPELES.map(r => <option key={r} value={r}>{t(`externos.papel_${r}`)}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label id={`${idCampo}-asa-et`} htmlFor={`${idCampo}-asa`} className="sub-label">{t('externos.dedicacion')}</label>
@@ -997,9 +997,9 @@ export default function SubcontractorsPage() {
             </div>
             <div>
               <label id={`${idCampo}-5-et`} htmlFor={`${idCampo}-5`} className="sub-label">{t('subcontractors.moneda')}</label>
-              <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-5-et`} value={form.currency} onChange={e => setForm(f=>({...f,currency:e.target.value}))} className="sub-input">
+              <Select suelto placeholder={false} id={`${idCampo}-5`} value={form.currency} onChange={e => setForm(f=>({...f,currency:e.target.value}))} className="sub-input">
                 {monedasDeLaEmpresa.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+              </Select>
             </div>
           </div>
           <div className="u-mb-16">
@@ -1038,9 +1038,9 @@ export default function SubcontractorsPage() {
             </div>
             <div>
               <label id={`${idCampo}-12-et`} htmlFor={`${idCampo}-12`} className="sub-label">{t('subcontractors.moneda')}</label>
-              <select id={`${idCampo}-12`} aria-labelledby={`${idCampo}-12-et`} value={editForm.currency} onChange={e => setEditForm(f=>({...f,currency:e.target.value}))} className="sub-input">
+              <Select suelto placeholder={false} id={`${idCampo}-12`} value={editForm.currency} onChange={e => setEditForm(f=>({...f,currency:e.target.value}))} className="sub-input">
                 {monedasDeLaEmpresa.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+              </Select>
             </div>
           </div>
           <div className="u-mb-16">

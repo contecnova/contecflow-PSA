@@ -13,7 +13,7 @@ import { gastosApi, politicasApi, projectsApi } from '../../services/api'
 import type { Gasto } from '../../services/api/tipos-finanzas'
 import ExplicacionDeEntidad from '../politicas/ExplicacionDeEntidad'
 import './gastos-politicas.css'
-import { Button, Modal, Spinner } from '../ui'
+import { Button, Modal, Spinner, Pulsable, Select } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr, localeActivo } from '../../utils/helpers'
@@ -101,11 +101,11 @@ export default function DetalleDeGasto({ gasto, editable, onClose }: { gasto: Ga
           <h4 className="gp-titulo"><FileText size={14} aria-hidden />{t('gas.justificantes')}
             {editable && (
               <>
-                <select className="gp-campo gp-campo--auto" aria-label={t('gas.tipo_de_documento_nuevo')} value={tipoNuevo}
+                <Select suelto placeholder={false} className="gp-campo gp-campo--auto" aria-label={t('gas.tipo_de_documento_nuevo')} value={tipoNuevo}
                   onChange={e => setTipoNuevo(e.target.value)} disabled={tipos.isLoading}>
                   <option value="">{t('gas.sin_tipo')}</option>
                   {(tipos.data?.tipos ?? []).map(d => <option key={d} value={d}>{doc(d)}</option>)}
-                </select>
+                </Select>
                 <input ref={fichero} type="file" hidden aria-label={t('gas.adjuntar')} accept="image/*,application/pdf"
                   onChange={e => { const f = e.target.files?.[0]; if (f) subir(f); e.target.value = '' }} />
                 <span className="gp-empuja"><Button size="xs" variant="secondary" icon={<Upload size={12} />} loading={subiendo} onClick={() => fichero.current?.click()}>{t('gas.adjuntar')}</Button></span>
@@ -116,13 +116,13 @@ export default function DetalleDeGasto({ gasto, editable, onClose }: { gasto: Ga
             ? <div className="u-text3-sm">{t('gas.sin_justificantes')}</div>
             : adj.data!.items.map(a => (
               <div key={a.id} className="gp-adjunto">
-                <button type="button" className="gp-enlace" onClick={() => abrir(a.id)}>{a.filename}</button>
+                <Pulsable type="button" className="gp-enlace" onClick={() => abrir(a.id)}>{a.filename}</Pulsable>
                 {editable ? (
-                  <select className="gp-campo" aria-label={t('gas.tipo_de_documento_de', { fichero: a.filename })} value={a.document_type ?? ''}
+                  <Select suelto placeholder={false} className="gp-campo" aria-label={t('gas.tipo_de_documento_de', { fichero: a.filename })} value={a.document_type ?? ''}
                     onChange={e => tipar(a.id, e.target.value)}>
                     <option value="">{t('gas.sin_tipo')}</option>
                     {(tipos.data?.tipos ?? []).map(d => <option key={d} value={d}>{doc(d)}</option>)}
-                  </select>
+                  </Select>
                 ) : <span className="gp-ayuda">{a.document_type ? doc(a.document_type) : t('gas.sin_tipo')}</span>}
                 <span className="u-text3-xs">{a.size_bytes ? `${Math.max(1, Math.round(a.size_bytes / 1024))} KB` : ''}</span>
                 {editable && <Button size="xs" variant="ghost" title={t('gas.quitar')} icon={<Trash2 size={12} />} onClick={() => quitar(a.id)}>{''}</Button>}
@@ -135,10 +135,10 @@ export default function DetalleDeGasto({ gasto, editable, onClose }: { gasto: Ga
           <p className="gp-ayuda gp-mb">{t('gas.reparto_ayuda')}</p>
           {partes.map((p, i) => (
             <div key={i} className="gp-parte">
-              <select aria-label={t('gas.proyecto')} disabled={!editable} value={p.project_id} onChange={e => setPartes(v => v.map((x, j) => j === i ? { ...x, project_id: e.target.value } : x))} className="gp-campo">
+              <Select suelto placeholder={false} aria-label={t('gas.proyecto')} disabled={!editable} value={p.project_id} onChange={e => setPartes(v => v.map((x, j) => j === i ? { ...x, project_id: e.target.value } : x))} className="gp-campo">
                 <option value="">{t('gas.elige_proyecto')}</option>
                 {(proyectos.data ?? []).map(pr => <option key={pr.id} value={pr.id}>{pr.code ? `${pr.code} — ` : ''}{pr.name}</option>)}
-              </select>
+              </Select>
               <input aria-label={t('gas.porcentaje')} type="number" min={0} max={100} step="0.01" disabled={!editable} value={p.percentage}
                 onChange={e => setPartes(v => v.map((x, j) => j === i ? { ...x, percentage: e.target.value } : x))} className="gp-campo" />
               <span className="gp-cifra">{dinero(importe * (Number(p.percentage) || 0) / 100)}</span>

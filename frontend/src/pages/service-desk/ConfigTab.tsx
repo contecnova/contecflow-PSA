@@ -14,7 +14,7 @@ import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useToast } from '../../context/ToastContext'
 import { useAppT } from '../../i18n/AppLangContext'
 import { CalendarDays, Eye, FileText, Folder, Lock, Megaphone, MessageSquareText, Pencil, Plus, Star, Timer, Trash2, Users, X } from 'lucide-react'
-import { Button, Spinner, EmptyState, Modal, StatusBadge, Tabs } from '../../components/ui'
+import { Button, Spinner, EmptyState, Modal, StatusBadge, Tabs, Pulsable, Select, TablaSimple, Checkbox } from '../../components/ui'
 import type { StatusBadgeKind } from '../../components/ui/StatusBadge'
 import { COLOR_DATO_POR_DEFECTO } from '../../constants/theme'
 import { sdCatalogApi, sdSlaPoliciesApi, sdGroupsApi, sdTemplatesApi, sdCannedApi, sdAnnouncementsApi, usersApi, approvalsApi, slaCalendarsApi, clientsApi, contractsApi, type SlaCalendar, type UserListItem } from '../../services/api'
@@ -128,7 +128,7 @@ function CatalogConfig() {
               </div>
             </div>
             {(cat.services?.length ?? 0) > 0 && (
-              <div className="u-scroll-x"><table className="u-table">
+              <div className="u-scroll-x"><TablaSimple claseTabla="u-table">
                 <tbody>
                   {(cat.services ?? []).map((svc: Svc) => (
                     <tr key={svc.id} className="u-border-b">
@@ -146,7 +146,7 @@ function CatalogConfig() {
                     </tr>
                   ))}
                 </tbody>
-              </table></div>
+              </TablaSimple></div>
             )}
           </div>
         ))}
@@ -243,60 +243,58 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial 
         <div className="u-col-full"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('common.name')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={set('name')} className={IS} /></div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('service_desk.tab_catalog')}</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.category_id} onChange={set('category_id')} className={IS}>
+          <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.category_id} onChange={set('category_id')} className="sdcfg-sel">
             {catalog.map((c: Cat) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={LS}>{t('service_desk.svc_ticket_type')}</label>
-          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.ticket_type} onChange={set('ticket_type')} className={IS}>
+          <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.ticket_type} onChange={set('ticket_type')} className="sdcfg-sel">
             {['incident','service_request','change','question'].map(tk => <option key={tk} value={tk}>{etiquetaSd('type', tk)}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className={LS}>{t('service_desk.svc_default_priority')}</label>
-          <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.default_priority} onChange={set('default_priority')} className={IS}>
+          <Select suelto placeholder={false} id={`${idCampo}-4`} value={form.default_priority} onChange={set('default_priority')} className="sdcfg-sel">
             {['p1_critical','p2_high','p3_medium','p4_low'].map(p => <option key={p} value={p}>{PRIORITY_LABEL_MAP[p]}</option>)}
-          </select>
+          </Select>
         </div>
         <div className="sdcfg-grid2-8">
           <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className={LS}>{t('service_desk.sla_response_h')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" value={form.sla_response_hours} onChange={set('sla_response_hours')} className={IS} /></div>
           <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className={LS}>{t('service_desk.sla_resolution_h')}</label><input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="number" value={form.sla_resolution_hours} onChange={set('sla_resolution_hours')} className={IS} /></div>
         </div>
         <div className="u-row-center-10">
-          <input type="checkbox" id="svc_visible" aria-label={t('sd_cfg.svc_visible')} checked={form.is_visible_to_clients} onChange={set('is_visible_to_clients')} />
-          <label htmlFor="svc_visible" className="sdcfg-check-label">{t('sd_cfg.svc_visible')}</label>
+          <Checkbox id="svc_visible" aria-label={t('sd_cfg.svc_visible')} checked={!!form.is_visible_to_clients} onChange={v => setForm(f => ({...f, is_visible_to_clients: v}))} label={t('sd_cfg.svc_visible')} />
         </div>
         <div className="u-row-center-10">
-          <input type="checkbox" id="req_appr" aria-labelledby="req_appr-et" checked={form.requires_approval} onChange={set('requires_approval')} />
-          <label id="req_appr-et" htmlFor="req_appr" className="sdcfg-check-label">{t('service_desk.svc_requires_approval')}</label>
+          <Checkbox id="req_appr" checked={!!form.requires_approval} onChange={v => setForm(f => ({...f, requires_approval: v}))} label={t('service_desk.svc_requires_approval')} />
         </div>
         {form.requires_approval && (
           <div className="u-col-full">
             <label className={LS} htmlFor="svc_appr_mode">{t('sd_mercado.modo_aprobacion')}</label>
-            <select id="svc_appr_mode" value={form.approval_mode} onChange={set('approval_mode')} className={IS}>
+            <Select suelto placeholder={false} id="svc_appr_mode" value={form.approval_mode} onChange={set('approval_mode')} className="sdcfg-sel">
               <option value="single">{t('sd_mercado.aprobacion_single')}</option>
               <option value="engine">{t('sd_mercado.aprobacion_engine')}</option>
-            </select>
+            </Select>
             {form.approval_mode === 'engine' && <span className="u-text3-xs">{t('sd_mercado.aprobacion_engine_hint')}</span>}
           </div>
         )}
         {form.requires_approval && form.approval_mode === 'engine' && (
           <div className="u-col-full">
             <label className={LS} htmlFor="svc_appr_wf">{t('sd_mercado.flujo_aprobacion')}</label>
-            <select id="svc_appr_wf" value={form.approval_workflow_id} onChange={set('approval_workflow_id')} className={IS}>
+            <Select suelto placeholder={false} id="svc_appr_wf" value={form.approval_workflow_id} onChange={set('approval_workflow_id')} className="sdcfg-sel">
               <option value="">{t('sd_mercado.flujo_por_condiciones')}</option>
               {flujos.filter(f => f.is_active && f.entity_type === 'catalog_request').map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-            </select>
+            </Select>
           </div>
         )}
         {form.requires_approval && (
           <div className="u-col-full">
             <label className={LS} htmlFor="svc_approver">{t(form.approval_mode === 'engine' ? 'sd_mercado.aprobador_respaldo' : 'sd_cfg.svc_approver')}{form.approval_mode === 'engine' ? '' : ' *'}</label>
-            <select id="svc_approver" aria-label={t('sd_cfg.svc_approver')} value={form.approval_user_id} onChange={set('approval_user_id')} className={IS}>
+            <Select suelto placeholder={false} id="svc_approver" aria-label={t('sd_cfg.svc_approver')} value={form.approval_user_id} onChange={set('approval_user_id')} className="sdcfg-sel">
               <option value="">—</option>
               {usuarios.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-            </select>
+            </Select>
           </div>
         )}
         <div className="sdcfg-full-stack" role="group" aria-labelledby={`${idCampo}-ff-et`}>
@@ -306,16 +304,16 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial 
             <div key={i} className="u-wrap-8">
               <input aria-label={t('sd_cfg.ff_title')} placeholder={t('sd_cfg.ff_title')} value={tarea.title} className={`${IS} sdcfg-input--flex2`}
                 onChange={e => setTareas(ts => ts.map((x, j) => j === i ? { ...x, title: e.target.value } : x))} />
-              <select aria-label={t('sd_cfg.oc_queue')} value={tarea.group_id} className={`${IS} sdcfg-input--flex1`}
+              <Select suelto placeholder={false} aria-label={t('sd_cfg.oc_queue')} value={tarea.group_id} className="sdcfg-input--flex1"
                 onChange={e => setTareas(ts => ts.map((x, j) => j === i ? { ...x, group_id: e.target.value } : x))}>
                 <option value="">—</option>
                 {colas.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-              <select aria-label={t('sd_mercado.tarea_persona')} value={tarea.assignee_user_id || ''} className={`${IS} sdcfg-input--flex1`}
+              </Select>
+              <Select suelto placeholder={false} aria-label={t('sd_mercado.tarea_persona')} value={tarea.assignee_user_id || ''} className="sdcfg-input--flex1"
                 onChange={e => setTareas(ts => ts.map((x, j) => j === i ? { ...x, assignee_user_id: e.target.value || null } : x))}>
                 <option value="">{t('sd_mercado.tarea_persona_auto')}</option>
                 {usuarios.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-              </select>
+              </Select>
               <input type="number" min={0} step={0.5} aria-label={t('sd_mercado.tarea_sla')} placeholder={t('sd_mercado.tarea_sla')} value={tarea.sla_hours ?? ''} className={`${IS} sdcfg-input--flex1`}
                 onChange={e => setTareas(ts => ts.map((x, j) => j === i ? { ...x, sla_hours: e.target.value } : x))} />
               <input type="number" min={1} aria-label={t('sd_mercado.tarea_etapa')} placeholder={t('sd_mercado.tarea_etapa')} value={tarea.stage ?? 1} className={`${IS} sdcfg-input--flex1`}
@@ -426,7 +424,7 @@ function SLAConfig() {
       )}
       {asignando && (
         <Modal open title={`${t('sd_cfg.sla_assign')} · ${asignando.name}`} onClose={() => setAsignando(null)}>
-          <AsignarPolitica politica={asignando} IS={IS} LS={LS} onHecho={() => { qc.invalidateQueries({queryKey:['sd-sla-policies']}); setAsignando(null) }} />
+          <AsignarPolitica politica={asignando} LS={LS} onHecho={() => { qc.invalidateQueries({queryKey:['sd-sla-policies']}); setAsignando(null) }} />
         </Modal>
       )}
       {editing && (
@@ -440,7 +438,7 @@ function SLAConfig() {
   )
 }
 
-function AsignarPolitica({ politica, IS, LS, onHecho }: { politica: Policy; IS: string; LS: string; onHecho: () => void }) {
+function AsignarPolitica({ politica, LS, onHecho }: { politica: Policy; LS: string; onHecho: () => void }) {
   const t = useAppT()
   const toast = useToast()
   const [tipo, setTipo] = useState<'client' | 'contract'>('client')
@@ -458,15 +456,15 @@ function AsignarPolitica({ politica, IS, LS, onHecho }: { politica: Policy; IS: 
   return (
     <div className="u-stack-12">
       <div><label className={LS} htmlFor="sla-asig-tipo">{t('sd_cfg.sla_target_type')}</label>
-        <select id="sla-asig-tipo" aria-label={t('sd_cfg.sla_target_type')} value={tipo} onChange={e => { setTipo(e.target.value as 'client' | 'contract'); setDestino('') }} className={IS}>
+        <Select suelto placeholder={false} id="sla-asig-tipo" aria-label={t('sd_cfg.sla_target_type')} value={tipo} onChange={e => { setTipo(e.target.value as 'client' | 'contract'); setDestino('') }} className="sdcfg-sel">
           <option value="client">{t('sd_cfg.sla_target_client')}</option>
           <option value="contract">{t('sd_cfg.sla_target_contract')}</option>
-        </select></div>
+        </Select></div>
       <div><label className={LS} htmlFor="sla-asig-destino">{tipo === 'client' ? t('sd_cfg.sla_target_client') : t('sd_cfg.sla_target_contract')}</label>
-        <select id="sla-asig-destino" aria-label={t('sd_cfg.sla_target_client')} value={destino} onChange={e => setDestino(e.target.value)} className={IS}>
+        <Select suelto placeholder={false} id="sla-asig-destino" aria-label={t('sd_cfg.sla_target_client')} value={destino} onChange={e => setDestino(e.target.value)} className="sdcfg-sel">
           <option value="">—</option>
           {opciones.map(o => <option key={o.id} value={o.id}>{o.name ?? o.title ?? o.id}</option>)}
-        </select></div>
+        </Select></div>
       <div className="u-row-end">
         <Button disabled={!destino || asignar.isPending} loading={asignar.isPending} onClick={() => asignar.mutate()}>{t('common.save')}</Button>
       </div>
@@ -540,7 +538,7 @@ function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: strin
       <div className="sdcfg-box sdcfg-box--full">
         <div>
           <label className={LS} htmlFor="sla-horario">{t('sd_cfg.schedule')}</label>
-          <select id="sla-horario" value={horario} onChange={e => setHorario(e.target.value)} className={IS}>
+          <Select suelto placeholder={false} id="sla-horario" value={horario} onChange={e => setHorario(e.target.value)} className="sdcfg-sel">
             <option value="247">{t('sd_cfg.schedule_247')}</option>
             {calendarios.length > 0 && (
               <optgroup label={t('sd_cfg.schedule_calendars')}>
@@ -548,7 +546,7 @@ function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: strin
               </optgroup>
             )}
             <option value="own">{t('sd_cfg.schedule_own')}</option>
-          </select>
+          </Select>
           <div className="sdcfg-hint">
             {t('sd_cfg.schedule_hint')} <a href="/sla-calendars" className="u-accent">{t('sd_cfg.manage_calendars')}</a>
           </div>
@@ -569,9 +567,9 @@ function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: strin
                   const d = i + 1
                   const on = dias.includes(d)
                   return (
-                    <button key={d} type="button" aria-pressed={on}
+                    <Pulsable key={d} aria-pressed={on}
                       onClick={() => setDias(on ? dias.filter(x => x !== d) : [...dias, d])}
-                      className="sdcfg-day">{nombre}</button>
+                      className="sdcfg-day">{nombre}</Pulsable>
                   )
                 })}
               </div>
@@ -580,10 +578,7 @@ function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: strin
         )}
       </div>
       <div className="sdcfg-full-row">
-        <label className="sdcfg-check-row">
-          <input type="checkbox" aria-label={t('service_desk.sla_default_policy')} checked={form.is_default} onChange={set('is_default')} />
-          {t('service_desk.sla_default_policy')}
-        </label>
+        <Checkbox className="sdcfg-check-row" aria-label={t('service_desk.sla_default_policy')} checked={!!form.is_default} onChange={v => setForm(f => ({...f, is_default: v}))} label={t('service_desk.sla_default_policy')} />
       </div>
       <div className="sdcfg-full-actions">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -661,11 +656,11 @@ function GroupsConfig() {
                 </div>
                 <div className="sdcfg-group-actions">
                   {available.length > 0 && (
-                    <select defaultValue="" onChange={e => { if(e.target.value) addMember({gid:g.id, uid:e.target.value}); e.target.value='' }}
-                      className={`${IS} sdcfg-input--auto`} aria-label={t('sd_cfg.cfg_add_member')}>
+                    <Select suelto placeholder={false} value="" onChange={e => { if(e.target.value) addMember({gid:g.id, uid:e.target.value}) }}
+                      className="sdcfg-input--auto" aria-label={t('sd_cfg.cfg_add_member')}>
                       <option value="" disabled>{t('sd_cfg.cfg_add_member')}</option>
                       {available.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-                    </select>
+                    </Select>
                   )}
                   <Button size="xs" variant="secondary" icon={<Pencil size={12} />} onClick={() => setEditing(g)}>{t('common.edit')}</Button>
                   <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} onClick={() => { openConfirmGlobal({ message: t('config.confirmar_eliminar_grupo', { name: g.name }), onConfirm: () => deleteGroup(g.id), danger: true }) }}>{t('common.delete')}</Button>
@@ -677,8 +672,8 @@ function GroupsConfig() {
                   <div key={m.id} className="sdcfg-member">
                     <span className="sdcfg-member__name">{m.full_name}</span>
                     {m.is_lead && <span className="sdcfg-member__lead" role="img" aria-label={t('config.responsable')} title={t('config.responsable')}><Star size={12} aria-hidden="true" /></span>}
-                    <button type="button" onClick={() => removeMember({gid:g.id, uid:m.id})} aria-label={t('config.quitar_miembro', { name: m.full_name ?? '' })}
-                      title={t('config.quitar_miembro', { name: m.full_name ?? '' })} className="sdcfg-member__remove"><X size={12} aria-hidden="true" /></button>
+                    <Pulsable onClick={() => removeMember({gid:g.id, uid:m.id})} aria-label={t('config.quitar_miembro', { name: m.full_name ?? '' })}
+                      title={t('config.quitar_miembro', { name: m.full_name ?? '' })} className="sdcfg-member__remove"><X size={12} aria-hidden="true" /></Pulsable>
                   </div>
                 ))}
                 {(!g.members || g.members.length === 0) &&
@@ -723,10 +718,10 @@ function NewGroupForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: str
     <>
       <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('common.name')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={set('name')} className={IS} /></div>
       <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('service_desk.groups_support_level')}</label>
-        <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.support_level} onChange={set('support_level')} className={IS}>
+        <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.support_level} onChange={set('support_level')} className="sdcfg-sel">
           {['l1','l2','l3'].map(v =>
             <option key={v} value={v}>{t(`config.nivel_${v}`)}</option>)}
-        </select>
+        </Select>
       </div>
       <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={LS}>{t('common.description')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.description} onChange={set('description')} className={IS} /></div>
       <div><label id="grp-ola-et" className={LS} htmlFor="grp-ola">{t('sd_cfg.ola_hours')}</label>
@@ -847,17 +842,17 @@ function NewTemplateForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: 
       <div className="u-grid2-10">
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('service_desk.svc_ticket_type')}</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.ticket_type} onChange={set('ticket_type')} className={IS}>
+          <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.ticket_type} onChange={set('ticket_type')} className="sdcfg-sel">
             {['incident','service_request','change','question','problem'].map(tk =>
               <option key={tk} value={tk}>{etiquetaSd('type', tk)}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={LS}>{t('service_desk.templates_priority')}</label>
-          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.default_priority} onChange={set('default_priority')} className={IS}>
+          <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.default_priority} onChange={set('default_priority')} className="sdcfg-sel">
             {['p1_critical','p2_high','p3_medium','p4_low'].map(p =>
               <option key={p} value={p}>{PRIORITY_LABEL_MAP[p]}</option>)}
-          </select>
+          </Select>
         </div>
       </div>
       <div>
@@ -936,7 +931,7 @@ function CannedResponsesManager() {
             <div key={r.id} className="sdcfg-canned-row">
               <div className="u-flex1-min0">
                 <div className="u-base-700">{r.title}
-                  {r.shortcut && <span className="sdcfg-shortcut">{r.shortcut}</span>}
+                  {r.shortcut && <span className="ds-codigo sdcfg-shortcut">{r.shortcut}</span>}
                   {r.category && <span className="sdcfg-category">{r.category}</span>}
                 </div>
                 <div className="sdcfg-canned-body">{r.body?.slice(0,100)}</div>
@@ -1039,13 +1034,12 @@ export function AnnouncementsConfig() {
           <div className="sdcfg-ann-form">
             <div className="u-col-full"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('sd_cfg.cfg_ann_title')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} className={IS} /></div>
             <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('sd_mercado.tipo')}</label>
-              <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} className={IS}>
+              <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} className="sdcfg-sel">
                 {ANN_TYPES.map(tp=><option key={tp} value={tp}>{t(`config.ann_tipo_${tp}`)}</option>)}
-              </select>
+              </Select>
             </div>
             <div className="sdcfg-ann-check">
-              <input type="checkbox" id="showCl" aria-labelledby="showCl-et" checked={form.show_to_clients} onChange={e=>setForm(f=>({...f,show_to_clients:e.target.checked}))} />
-              <label id="showCl-et" htmlFor="showCl" className="sdcfg-check-label">{t('service_desk.ann_visible_clients')}</label>
+              <Checkbox id="showCl" checked={form.show_to_clients} onChange={v=>setForm(f=>({...f,show_to_clients:v}))} label={t('service_desk.ann_visible_clients')} />
             </div>
             <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={LS}>{t('service_desk.ann_starts')}</label><DateInput id={`${idCampo}-3`} withTime value={form.starts_at} onChange={e=>setForm(f=>({...f,starts_at:e.target.value}))} className={IS} /></div>
             <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className={LS}>{t('service_desk.ann_ends')}</label><DateInput id={`${idCampo}-4`} withTime value={form.ends_at} onChange={e=>setForm(f=>({...f,ends_at:e.target.value}))} className={IS} /></div>

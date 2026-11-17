@@ -14,7 +14,7 @@ import StatusBadge from '../../components/ui/StatusBadge'
 import { useDialogo } from '../../components/ui/useDialogo'
 import { TextosDeInterfazProvider, type TraductorDeCodigos } from '../../components/ui/useTextoUi'
 import { mensajeDeError } from '../../utils/mensajeDeError'
-import { Button } from '../../components/ui'
+import { Button, Pulsable } from '../../components/ui'
 import { Timer, Map as MapIcon, Headphones, FlaskConical, Receipt } from 'lucide-react'
 import './portalClientContext.css'
 
@@ -409,11 +409,11 @@ export function LangSelector({ onChange, current, dark = false }: LangSelectorPr
   return (
     <div className="u-row-6">
       {LANGUAGES.map(l => (
-        <button className="poclco-box-12 portalcl-sx3 portal-client-context-e3" key={l.code} onClick={() => onChange(l.code)}
+        <Pulsable className="poclco-box-12 portalcl-sx3 portal-client-context-e3" key={l.code} onClick={() => onChange(l.code)}
           title={l.label}
           style={{ '--portal-client-context-background': current === l.code ? (dark ? 'var(--surface-4)' : 'var(--accent-glow)') : 'transparent', '--portal-client-context-border': `1px solid ${current === l.code ? 'var(--accent-glow)' : (dark ? 'var(--surface-4)' : 'rgba(255,255,255,0.12)')}` } as CSSProperties}>
           {l.code.toUpperCase()}
-        </button>
+        </Pulsable>
       ))}
     </div>
   )

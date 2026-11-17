@@ -25,7 +25,7 @@ import {
   AlertTriangle, Briefcase, Building2, CalendarOff, ChevronDown, ChevronRight, Clock, CornerDownRight,
   GitBranch, Info, Network, Pencil, Receipt, Search, ShieldCheck, Tag, UserRound,
 } from 'lucide-react'
-import { Button, Card, DataTable, EmptyState, IconButton, Modal, Section, Spinner, Tabs } from '../components/ui'
+import { Button, Card, DataTable, EmptyState, IconButton, Modal, Pulsable, Section, Select, Spinner, Tabs } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import { extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
@@ -149,17 +149,17 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }: {
         </div>
         <div className="ds-field">
           <label htmlFor={`${idCampo}-2`} className="ds-field__label">{t('pagina_orgc.departamento')}</label>
-          <select id={`${idCampo}-2`} value={department} onChange={e => setDepartment(e.target.value)} className="ds-input">
+          <Select suelto placeholder={false} id={`${idCampo}-2`} value={department} onChange={e => setDepartment(e.target.value)}>
             <option value="">{t('orgchart.sin_departamento')}</option>
             {departments.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-          </select>
+          </Select>
         </div>
         <div className="ds-field">
           <label htmlFor={`${idCampo}-3`} className="ds-field__label">{t('pagina_orgc.reporta_a_aprobador_directo')}</label>
           <div className="orgc-ayuda">
             {t('orgchart.esta_persona_aprobara_los')} <strong>{t('pagina_orgc.gastos_min')}</strong>, <strong>{t('pagina_orgc.ausencias_min')}</strong> {t('pagina_orgc.y')} <strong>{t('pagina_orgc.imputaciones_min')}</strong> {t('orgchart.de')} {user.full_name.split(' ')[0]}.
           </div>
-          <select id={`${idCampo}-3`} value={managerId} onChange={e => setManagerId(e.target.value)} className="ds-input">
+          <Select suelto placeholder={false} id={`${idCampo}-3`} value={managerId} onChange={e => setManagerId(e.target.value)}>
             <option value="">{t('orgchart.sin_manager_nivel_raiz_aprobacion_manual')}</option>
             {eligible.map(u => (
               <option key={u.id} value={u.id}>
@@ -168,7 +168,7 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }: {
                 {u.department ? ` (${u.department})` : ''}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
 
         <div className="orgc-nota">
@@ -281,10 +281,10 @@ function ArbolTab({ nodes, allUsers, isAdmin }: {
             {searchResults.length > 0 && (
               <div className="orgc-resultados">
                 {searchResults.map(u => (
-                  <button key={u.id} type="button" onClick={() => { setSearch(''); setEditing(u) }} className="orgc-resultado">
+                  <Pulsable key={u.id} onClick={() => { setSearch(''); setEditing(u) }} className="orgc-resultado">
                     <span className="orgc-resultado__nombre">{u.full_name}</span>
                     <span className="orgc-resultado__meta">{u.job_title || getRoleLabel(u.role, t)}</span>
-                  </button>
+                  </Pulsable>
                 ))}
               </div>
             )}
@@ -382,11 +382,11 @@ function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: bo
         <div className="orgc-filtros">
           <input aria-label={t('pagina_orgc.buscar_persona_2')} value={search} onChange={e => setSearch(e.target.value)}
             placeholder={t('pagina_orgc.buscar_persona_2')} className="ds-input orgc-filtros__buscar" />
-          <select value={filterDept} onChange={e => setFilterDept(e.target.value)} className="ds-input orgc-filtros__depto"
+          <Select suelto placeholder={false} value={filterDept} onChange={e => setFilterDept(e.target.value)} className="orgc-filtros__depto"
             aria-label={t('pagina_orgc.departamento')}>
             <option value="">{t('orgchart.todos_los_departamentos')}</option>
             {depts.map(d => <option key={d} value={d}>{d}</option>)}
-          </select>
+          </Select>
           <span className="orgc-filtros__total">{t(filtered.length === 1 ? 'pagina_orgc.personas_uno' : 'pagina_orgc.personas_otros', { n: filtered.length })}</span>
         </div>
       </Card>
@@ -488,18 +488,18 @@ function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
           {puedeVerOtras && <input aria-label={t('pagina_orgc.buscar_persona_2')} value={search} onChange={e => setSearch(e.target.value)}
             placeholder={t('pagina_orgc.buscar_persona_2')} className="ds-input orgc-aprob__buscar" />}
           <div className="orgc-aprob__personas">
-            <button type="button" onClick={() => setSelectedUserId('')} aria-pressed={!selectedUserId}
+            <Pulsable onClick={() => setSelectedUserId('')} aria-pressed={!selectedUserId}
               className={`orgc-persona${!selectedUserId ? ' orgc-persona--activa' : ''}`}>
               <span className="orgc-persona__nombre">{t('pagina_orgc.mi_propia_cadena')}</span>
-            </button>
+            </Pulsable>
             {puedeVerOtras && filteredUsers.map(u => (
-              <button key={u.id} type="button" onClick={() => setSelectedUserId(u.id)} aria-pressed={selectedUserId === u.id}
+              <Pulsable key={u.id} onClick={() => setSelectedUserId(u.id)} aria-pressed={selectedUserId === u.id}
                 className={`orgc-persona${selectedUserId === u.id ? ' orgc-persona--activa' : ''}`}>
                 <span className="orgc-persona__nombre">{u.full_name}</span>
                 <span className="orgc-persona__meta">
                   {u.job_title || getRoleLabel(u.role, t)}{u.department ? ` · ${u.department}` : ''}
                 </span>
-              </button>
+              </Pulsable>
             ))}
           </div>
         </Section>

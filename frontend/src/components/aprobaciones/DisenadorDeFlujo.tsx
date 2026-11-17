@@ -14,7 +14,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Bell, CheckCircle, GitBranch, GitMerge, Play, Save, Split, Square, UserCheck } from 'lucide-react'
 import { politicasApi } from '../../services/api'
 import type { DatosDeNodoDeFlujo, GrupoDeCondiciones, TipoDeNodoDeFlujo } from '../../services/api/tipos-politicas'
-import { Button, Spinner } from '../ui'
+import { Button, Spinner, Pulsable, Select, Checkbox } from '../ui'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
 import { LienzoDeFlujo, NodoDeFlujo } from '../flujos/LienzoDeFlujo'
@@ -134,9 +134,9 @@ function Editor({ workflowId, onCerrar }: { workflowId: string; onCerrar: () => 
       <div className="flujo-editor">
         <nav className="flujo-paleta" aria-label={t('pol.paleta')}>
           {PALETA.map(tipo => (
-            <button key={tipo} type="button" style={{ ['--flujo-color' as string]: VISUAL[tipo].color }} onClick={() => anadir(tipo)}>
+            <Pulsable key={tipo} type="button" style={{ ['--flujo-color' as string]: VISUAL[tipo].color }} onClick={() => anadir(tipo)}>
               {VISUAL[tipo].icono} {t(`pol.nodo_${tipo}`)}
-            </button>
+            </Pulsable>
           ))}
           <p className="pol-ayuda">{t('pol.paleta_ayuda')}</p>
         </nav>
@@ -188,9 +188,9 @@ function Propiedades({ nodo, dominio, onChange }: { nodo: NodoAp; dominio: strin
                 <input type="number" min={1} className="pol-campo pol-campo--corto" value={d.timeout_hours ?? 72}
                   onChange={e => onChange({ timeout_hours: Number(e.target.value) || 72 })} /></label>
               <label className="pol-fila"><span className="pol-ayuda">{t('pol.al_caducar')}</span>
-                <select className="pol-campo" value={d.on_timeout ?? 'escalate'} onChange={e => onChange({ on_timeout: e.target.value as DatosNodo['on_timeout'] })}>
+                <Select suelto placeholder={false} className="pol-campo" value={d.on_timeout ?? 'escalate'} onChange={e => onChange({ on_timeout: e.target.value as DatosNodo['on_timeout'] })}>
                   {(['escalate', 'auto_approve', 'reject'] as const).map(o => <option key={o} value={o}>{t(`pol.caducar_${o}`)}</option>)}
-                </select></label>
+                </Select></label>
               {d.on_timeout === 'escalate' && (
                 <div><span className="pol-etiqueta">{t('pol.escalar_a')}</span>
                   <UserSelect value={d.escalate_to_user_id ?? ''} onChange={id => onChange({ escalate_to_user_id: id || null })} placeholder={t('pol.elige_persona')} /></div>
@@ -198,8 +198,8 @@ function Propiedades({ nodo, dominio, onChange }: { nodo: NodoAp; dominio: strin
               <label className="pol-fila"><span className="pol-ayuda">{t('pol.recordar_cada')}</span>
                 <input type="number" min={0} className="pol-campo pol-campo--corto" value={d.reminder_hours ?? ''}
                   onChange={e => onChange({ reminder_hours: e.target.value ? Number(e.target.value) : null })} /></label>
-              <label className="pol-chip"><input type="checkbox" checked={!!d.requires_attachment}
-                onChange={e => onChange({ requires_attachment: e.target.checked })} />{t('pol.exige_adjunto')}</label>
+              <label className="pol-chip"><Checkbox checked={!!d.requires_attachment}
+                onChange={(_, e) => onChange({ requires_attachment: e.target.checked })} />{t('pol.exige_adjunto')}</label>
             </>
           )}
         </>

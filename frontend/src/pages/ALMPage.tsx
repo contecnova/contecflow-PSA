@@ -11,7 +11,7 @@ import { assetsApi, licensesApi, vendorsApi, almExtApi, usersApi, cmdbApi } from
 import type { UserListItem } from '../services/api'
 import type { AlmActivo, AlmCentroDeCoste, AlmContrato, AlmKpis, AlmLicencia, AlmProveedor } from '../services/api/tipos-alm'
 import type { MetaDeLista } from '../services/api/tipos-plataforma'
-import { Button, Spinner, EmptyState, Modal, Tabs, Page, KpiCard, SelectorDePeriodo } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, Tabs, Page, KpiCard, SelectorDePeriodo, Pulsable, Select, Checkbox } from '../components/ui'
 import { usePeriodo } from '../hooks/usePeriodo'
 import { SIN_HORA } from '../utils/periodo'
 import Pagination from '../components/ui/Pagination'
@@ -165,7 +165,7 @@ const StatusBadge = ({ status, cfg, prefijo }: { status: string; cfg: Record<str
 const KPI = ({ icon, label, value, sub, alert, danger, onClick }: { icon: ReactNode; label: ReactNode; value: ReactNode; sub?: ReactNode; alert?: boolean; danger?: boolean; onClick?: () => void }) => {
   const tarjeta = <KpiCard icon={icon} label={label} value={value} sub={sub} warning={!!alert && !danger} danger={!!alert && !!danger} />
   return onClick
-    ? <button type="button" onClick={onClick} className="alm-kpi-link">{tarjeta}</button>
+    ? <Pulsable type="button" onClick={onClick} className="alm-kpi-link">{tarjeta}</Pulsable>
     : tarjeta
 }
 
@@ -255,11 +255,11 @@ function ALMDashboard({ onNavigate }: { onNavigate: (tab: string) => void }) {
               { icon: <Briefcase size={16} />, label: t('alm.action_cost_centers'), tab: 'cost' },
               { icon: <ShieldAlert size={16} />, label: t('alm.action_compliance_report'), tab: 'compliance' },
             ].map(a => (
-              <button key={a.tab} type="button" onClick={() => onNavigate(a.tab)} className="alm-quick">
+              <Pulsable key={a.tab} type="button" onClick={() => onNavigate(a.tab)} className="alm-quick">
                 <span className="alm-quick__icon" aria-hidden="true">{a.icon}</span>
                 <span className="alm-quick__label">{a.label}</span>
                 <ChevronRight size={14} aria-hidden="true" className="alm-quick__chevron" />
-              </button>
+              </Pulsable>
             ))}
           </div>
         </div>
@@ -298,9 +298,9 @@ function VendorModal({ vendor, onClose }: { vendor: Partial<Vendor> | null; onCl
         <div className="u-col-full"><label id={`${idPrefix}-name-et`} htmlFor={`${idPrefix}-name`} className="alm-label">{t('alm.vendor_label_name')} *</label><input id={`${idPrefix}-name`} aria-labelledby={`${idPrefix}-name-et`} value={form.name} onChange={s('name')} className="alm-input" placeholder={t('alm.vendor_placeholder_name')} /></div>
         <div>
           <label htmlFor={`${idPrefix}-category`} className="alm-label">{t('alm.vendor_label_category')}</label>
-          <select id={`${idPrefix}-category`} value={form.category} onChange={s('category')} className="alm-input">
+          <Select suelto placeholder={false} id={`${idPrefix}-category`} value={form.category} onChange={s('category')} className="alm-input">
             {Object.keys(VENDOR_CATS).map(k => <option key={k} value={k}>{t(`alm.vendor_cat_${k}`)}</option>)}
-          </select>
+          </Select>
         </div>
         <div><label id={`${idPrefix}-country-et`} htmlFor={`${idPrefix}-country`} className="alm-label">{t('alm.vendor_label_country')}</label><input id={`${idPrefix}-country`} aria-labelledby={`${idPrefix}-country-et`} value={form.country} onChange={s('country')} className="alm-input" placeholder={t('alm.ej_espana')} /></div>
         <div><label id={`${idPrefix}-website-et`} htmlFor={`${idPrefix}-website`} className="alm-label">{t('alm.vendor_label_web')}</label><input id={`${idPrefix}-website`} aria-labelledby={`${idPrefix}-website-et`} value={form.website} onChange={s('website')} className="alm-input" placeholder={t('alm.vendor_placeholder_web')} /></div>
@@ -352,10 +352,10 @@ function VendorsTab() {
       <div className="alm-toolbar alm-toolbar--vendors">
         <input type="search" aria-label={t('alm.vendors_search_placeholder')} value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder={t('alm.vendors_search_placeholder')}
           className="alm-input alm-toolbar__search" />
-        <select aria-label={t('alm.vendors_filter_aria')} value={catFilter} onChange={e => { setCatFilter(e.target.value); setPage(1) }} className="alm-input alm-toolbar__select">
+        <Select suelto placeholder={false} aria-label={t('alm.vendors_filter_aria')} value={catFilter} onChange={e => { setCatFilter(e.target.value); setPage(1) }} className="alm-input alm-toolbar__select">
           <option value="">{t('alm.vendors_filter_all_categories')}</option>
           {Object.keys(VENDOR_CATS).map(k => <option key={k} value={k}>{t(`alm.vendor_cat_${k}`)}</option>)}
-        </select>
+        </Select>
         <Button onClick={() => setModal({})} icon={<Plus size={14} />}>{t('alm.vendors_new')}</Button>
       </div>
 
@@ -379,9 +379,9 @@ function VendorsTab() {
                     </div>
                   </div>
                   <div className="u-row-6">
-                    <button type="button" aria-label={t('alm.aria_edit_vendor', { name: v.name })} onClick={() => setModal(v)} className="alm-icon-btn alm-icon-btn--sm"><Pencil size={14} aria-hidden="true" /></button>
-                    <button type="button" aria-label={`${t('common.delete')} ${v.name}`} onClick={() => { openConfirmGlobal({ message: `${t('alm.vendors_delete_confirm')} "${v.name}"?`, onConfirm: () => del(v.id), danger: true }) }}
-                      className="alm-icon-btn alm-icon-btn--sm alm-icon-btn--danger"><Trash2 size={14} aria-hidden="true" /></button>
+                    <Pulsable type="button" aria-label={t('alm.aria_edit_vendor', { name: v.name })} onClick={() => setModal(v)} className="alm-icon-btn alm-icon-btn--sm"><Pencil size={14} aria-hidden="true" /></Pulsable>
+                    <Pulsable type="button" aria-label={`${t('common.delete')} ${v.name}`} onClick={() => { openConfirmGlobal({ message: `${t('alm.vendors_delete_confirm')} "${v.name}"?`, onConfirm: () => del(v.id), danger: true }) }}
+                      className="alm-icon-btn alm-icon-btn--sm alm-icon-btn--danger"><Trash2 size={14} aria-hidden="true" /></Pulsable>
                   </div>
                 </div>
                 <div className="alm-vendor__info">
@@ -567,28 +567,28 @@ function ContractModal({ contract, vendors, users, costCenters, onClose }: { con
         </div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="alm-label">{t('alm.contracts_label_vendor')}</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.vendor_id} onChange={s('vendor_id')} className="alm-input">
+          <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.vendor_id} onChange={s('vendor_id')} className="alm-input">
             <option value="">{t('alm.contracts_none_vendor')}</option>
             {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="alm-label">{t('alm.contracts_label_type')}</label>
-          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.type} onChange={s('type')} className="alm-input">
+          <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.type} onChange={s('type')} className="alm-input">
             {Object.entries(CONTRACT_TYPES).map(([k,v]) => <option key={k} value={k}>{v.icon} {t(`alm.contract_type_${k}`)}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="alm-label">{t('alm.contracts_label_status')}</label>
-          <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.status} onChange={s('status')} className="alm-input">
+          <Select suelto placeholder={false} id={`${idCampo}-4`} value={form.status} onChange={s('status')} className="alm-input">
             {Object.keys(CONTRACT_STATUS).map(k => <option key={k} value={k}>{t(`alm.contract_status_${k}`)}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="alm-label">{t('alm.contracts_label_billing_cycle')}</label>
-          <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.billing_cycle} onChange={s('billing_cycle')} className="alm-input">
+          <Select suelto placeholder={false} id={`${idCampo}-5`} value={form.billing_cycle} onChange={s('billing_cycle')} className="alm-input">
             {[['one_time',t('alm.contracts_cycle_one_time')],['monthly',t('alm.contracts_cycle_monthly')],['quarterly',t('alm.contracts_cycle_quarterly')],['annual',t('alm.contracts_cycle_annual')],['biennial',t('alm.contracts_cycle_biennial')]].map(([k,l]) => <option key={k} value={k}>{l}</option>)}
-          </select>
+          </Select>
         </div>
         <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="alm-label">{t('alm.contracts_label_start_date')}</label><DateInput id={`${idCampo}-6`} value={form.start_date} onChange={s('start_date')} className={claseCampo(validation.errors.start_date)} aria-invalid={!!validation.errors.start_date} /></div>
         <div>
@@ -605,10 +605,10 @@ function ContractModal({ contract, vendors, users, costCenters, onClose }: { con
           <span id={`${idCampo}-auto-et`} className="alm-label">{t('alm.contracts_label_auto_renew')}</span>
           <div className="alm-toggle-row" role="group" aria-labelledby={`${idCampo}-auto-et`}>
             {[true, false].map(v => (
-              <button key={String(v)} type="button" aria-pressed={form.auto_renew === v} onClick={() => setForm(f => ({ ...f, auto_renew: v }))}
+              <Pulsable key={String(v)} type="button" aria-pressed={form.auto_renew === v} onClick={() => setForm(f => ({ ...f, auto_renew: v }))}
                 className="alm-toggle">
                 {v ? <><CheckCircle2 size={14} aria-hidden="true" /> {t('alm.contracts_yes')}</> : <><XCircle size={14} aria-hidden="true" /> {t('alm.contracts_no')}</>}
-              </button>
+              </Pulsable>
             ))}
           </div>
         </div>
@@ -641,17 +641,17 @@ function ContractModal({ contract, vendors, users, costCenters, onClose }: { con
         </div>
         <div>
           <label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} className="alm-label">{t('alm.contracts_label_owner')}</label>
-          <select id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} value={form.owner_id} onChange={s('owner_id')} className="alm-input">
+          <Select suelto placeholder={false} id={`${idCampo}-12`} value={form.owner_id} onChange={s('owner_id')} className="alm-input">
             <option value="">{t('alm.contracts_none_owner')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} className="alm-label">{t('alm.contracts_label_cost_center')}</label>
-          <select id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} value={form.cost_center_id} onChange={s('cost_center_id')} className="alm-input">
+          <Select suelto placeholder={false} id={`${idCampo}-13`} value={form.cost_center_id} onChange={s('cost_center_id')} className="alm-input">
             <option value="">{t('alm.contracts_none_cost_center')}</option>
             {costCenters.map(c => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
-          </select>
+          </Select>
         </div>
         <div><label id={`${idCampo}-et14`} htmlFor={`${idCampo}-14`} className="alm-label">{t('alm.contracts_label_po')}</label><input id={`${idCampo}-14`} aria-labelledby={`${idCampo}-et14`} value={form.po_number} onChange={s('po_number')} className="alm-input" /></div>
         <div><label id={`${idCampo}-et15`} htmlFor={`${idCampo}-15`} className="alm-label">{t('alm.contracts_label_payment_method')}</label><input id={`${idCampo}-15`} aria-labelledby={`${idCampo}-et15`} value={form.payment_method} onChange={s('payment_method')} className="alm-input" placeholder={t('alm.contracts_placeholder_payment_method')} /></div>
@@ -714,14 +714,14 @@ function ContractsTab() {
       <div className="alm-toolbar">
         <input type="search" aria-label={t('alm.contracts_search_placeholder')} value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder={t('alm.contracts_search_placeholder')}
           className="alm-input alm-toolbar__search alm-toolbar__search--wide" />
-        <select aria-label={t('alm.contracts_filter_status_aria')} value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }} className="alm-input alm-toolbar__select--fixed">
+        <Select suelto placeholder={false} aria-label={t('alm.contracts_filter_status_aria')} value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }} className="alm-input alm-toolbar__select--fixed">
           <option value="">{t('alm.contracts_filter_all_statuses')}</option>
           {Object.keys(CONTRACT_STATUS).map(k => <option key={k} value={k}>{t(`alm.contract_status_${k}`)}</option>)}
-        </select>
-        <button type="button" aria-pressed={urgentOnly} aria-label={t('alm.contracts_urgent_only_aria')} onClick={() => { setUrgentOnly(u => !u); setPage(1) }}
+        </Select>
+        <Pulsable type="button" aria-pressed={urgentOnly} aria-label={t('alm.contracts_urgent_only_aria')} onClick={() => { setUrgentOnly(u => !u); setPage(1) }}
           className="alm-urgent">
           <AlertTriangle size={14} aria-hidden="true" /> {t('alm.contracts_urgent_only')}
-        </button>
+        </Pulsable>
         <Button onClick={() => setModal({})} icon={<Plus size={14} />}>{t('alm.action_new_contract')}</Button>
       </div>
 
@@ -760,9 +760,9 @@ function ContractsTab() {
                   </div>
                 </div>
                 <div className="alm-actions">
-                  <button type="button" aria-label={t('alm.aria_edit_contract', { name: c.title })} onClick={() => setModal(c)} className="alm-icon-btn"><Pencil size={15} aria-hidden="true" /></button>
-                  <button type="button" aria-label={t('alm.aria_delete_contract', { name: c.title })} onClick={() => { openConfirmGlobal({ message: t('alm.contracts_delete_confirm_named', { name: c.title }), onConfirm: () => del(c.id), danger: true }) }}
-                    className="alm-icon-btn alm-icon-btn--danger"><Trash2 size={15} aria-hidden="true" /></button>
+                  <Pulsable type="button" aria-label={t('alm.aria_edit_contract', { name: c.title })} onClick={() => setModal(c)} className="alm-icon-btn"><Pencil size={15} aria-hidden="true" /></Pulsable>
+                  <Pulsable type="button" aria-label={t('alm.aria_delete_contract', { name: c.title })} onClick={() => { openConfirmGlobal({ message: t('alm.contracts_delete_confirm_named', { name: c.title }), onConfirm: () => del(c.id), danger: true }) }}
+                    className="alm-icon-btn alm-icon-btn--danger"><Trash2 size={15} aria-hidden="true" /></Pulsable>
                 </div>
               </div>
             )
@@ -829,15 +829,15 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }: { l
         <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="alm-label">{t('alm.licenses_label_version')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.version} onChange={s('version')} className="alm-input" placeholder={t('alm.licenses_placeholder_version')} /></div>
         <div>
           <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="alm-label">{t('alm.licenses_label_type')}</label>
-          <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.type} onChange={s('type')} className="alm-input">
+          <Select suelto placeholder={false} id={`${idCampo}-5`} value={form.type} onChange={s('type')} className="alm-input">
             {Object.keys(LICENSE_TYPES).map(k => <option key={k} value={k}>{t(`alm.license_type_${k}`)}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label htmlFor={`${idCampo}-metric`} className="alm-label">{t('alm.metric')}</label>
-          <select id={`${idCampo}-metric`} value={form.metric} onChange={s('metric')} className="alm-input">
+          <Select suelto placeholder={false} id={`${idCampo}-metric`} value={form.metric} onChange={s('metric')} className="alm-input">
             {METRICAS.map(k => <option key={k} value={k}>{t(`alm.metric_${k}`)}</option>)}
-          </select>
+          </Select>
           <p className="alm-hint">{t(`alm.metric_${form.metric}_hint`)}</p>
         </div>
         <div>
@@ -855,23 +855,23 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }: { l
         </div>
         <div>
           <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="alm-label">{t('alm.licenses_label_platform')}</label>
-          <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.platform} onChange={s('platform')} className="alm-input">
+          <Select suelto placeholder={false} id={`${idCampo}-6`} value={form.platform} onChange={s('platform')} className="alm-input">
             {[['any',t('alm.licenses_platform_all')],['windows','Windows'],['mac','macOS'],['linux','Linux'],['web',t('alm.licenses_platform_web')],['mobile',t('alm.licenses_platform_mobile')]].map(([k,l]) => <option key={k} value={k}>{l}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="alm-label">{t('alm.licenses_label_vendor')}</label>
-          <select id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.vendor_id} onChange={s('vendor_id')} className="alm-input">
+          <Select suelto placeholder={false} id={`${idCampo}-7`} value={form.vendor_id} onChange={s('vendor_id')} className="alm-input">
             <option value="">{t('alm.licenses_none_vendor')}</option>
             {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="alm-label">{t('alm.licenses_label_contract')}</label>
-          <select id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={form.contract_id} onChange={s('contract_id')} className="alm-input">
+          <Select suelto placeholder={false} id={`${idCampo}-8`} value={form.contract_id} onChange={s('contract_id')} className="alm-input">
             <option value="">{t('alm.licenses_none_contract')}</option>
             {contracts.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="alm-label">{t('alm.licenses_label_total_seats')}</label>
@@ -890,10 +890,10 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }: { l
         </div>
         <div>
           <label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} className="alm-label">{t('alm.licenses_label_cost_center')}</label>
-          <select id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} value={form.cost_center_id} onChange={s('cost_center_id')} className="alm-input">
+          <Select suelto placeholder={false} id={`${idCampo}-12`} value={form.cost_center_id} onChange={s('cost_center_id')} className="alm-input">
             <option value="">{t('alm.licenses_none_cost_center')}</option>
             {costCenters.map(c => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
-          </select>
+          </Select>
         </div>
         <div><label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} className="alm-label">{t('alm.licenses_label_purchase_date')}</label><DateInput id={`${idCampo}-13`} value={form.purchase_date} onChange={s('purchase_date')} className={claseCampo(validation.errors.purchase_date)} aria-invalid={!!validation.errors.purchase_date} /></div>
         <div>
@@ -903,9 +903,9 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }: { l
         </div>
         <div>
           <label id={`${idCampo}-et15`} htmlFor={`${idCampo}-15`} className="alm-label">{t('alm.licenses_label_environment')}</label>
-          <select id={`${idCampo}-15`} aria-labelledby={`${idCampo}-et15`} value={form.environment} onChange={s('environment')} className="alm-input">
+          <Select suelto placeholder={false} id={`${idCampo}-15`} value={form.environment} onChange={s('environment')} className="alm-input">
             {[['all',t('alm.licenses_env_all')],['prod',t('alm.licenses_env_production')],['staging',t('alm.licenses_env_staging')],['dev',t('alm.licenses_env_dev')]].map(([k,l]) => <option key={k} value={k}>{l}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label htmlFor={`${idCampo}-amort`} className="alm-label">{t('alm.amortization_months')}</label>
@@ -913,16 +913,16 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }: { l
           <p className="alm-hint">{t('alm.amortization_months_hint')}</p>
         </div>
         <div className="alm-check-row">
-          <input type="checkbox" id={`${idCampo}-compliance`} checked={form.is_compliance_req} onChange={e => setForm(f => ({ ...f, is_compliance_req: e.target.checked }))} />
+          <Checkbox id={`${idCampo}-compliance`} checked={form.is_compliance_req} onChange={(_, e) => setForm(f => ({ ...f, is_compliance_req: e.target.checked }))} />
           <label htmlFor={`${idCampo}-compliance`} className="alm-check-label">{t('alm.licenses_requires_compliance')}</label>
         </div>
         <div className="alm-check-row">
-          <input type="checkbox" id={`${idCampo}-rebill`} checked={form.rebillable} onChange={e => setForm(f => ({ ...f, rebillable: e.target.checked }))} />
+          <Checkbox id={`${idCampo}-rebill`} checked={form.rebillable} onChange={(_, e) => setForm(f => ({ ...f, rebillable: e.target.checked }))} />
           <label htmlFor={`${idCampo}-rebill`} className="alm-check-label">{t('alm.rebillable_default')}</label>
         </div>
         <div className="u-col-full">
           <label htmlFor={`${idCampo}-16`} className="alm-label">{t('alm.licenses_label_key')}</label>
-          <input id={`${idCampo}-16`} value={form.license_key} onChange={s('license_key')} className="alm-input alm-input--mono" autoComplete="off"
+          <input id={`${idCampo}-16`} value={form.license_key} onChange={s('license_key')} className="ds-codigo alm-input alm-input--mono ds-campo-codigo" autoComplete="off"
             placeholder={license?.has_key ? t('alm.key_keep', { hint: license.license_key_hint ?? '' }) : t('alm.licenses_placeholder_key')} />
           <p className="alm-hint">{t('alm.key_encrypted_hint')}</p>
         </div>
@@ -988,14 +988,14 @@ function LicensesTab() {
       <div className="alm-toolbar">
         <input type="search" aria-label={t('alm.licenses_search_placeholder')} value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder={t('alm.licenses_search_placeholder')}
           className="alm-input alm-toolbar__search" />
-        <select aria-label={t('alm.licenses_filter_type_aria')} value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1) }} className="alm-input alm-toolbar__select--fixed">
+        <Select suelto placeholder={false} aria-label={t('alm.licenses_filter_type_aria')} value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1) }} className="alm-input alm-toolbar__select--fixed">
           <option value="">{t('alm.licenses_filter_all_types')}</option>
           {Object.keys(LICENSE_TYPES).map(k => <option key={k} value={k}>{t(`alm.license_type_${k}`)}</option>)}
-        </select>
-        <select aria-label={t('alm.licenses_filter_status_aria')} value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }} className="alm-input alm-toolbar__select--fixed">
+        </Select>
+        <Select suelto placeholder={false} aria-label={t('alm.licenses_filter_status_aria')} value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }} className="alm-input alm-toolbar__select--fixed">
           <option value="">{t('alm.licenses_filter_all_statuses')}</option>
           {Object.keys(LICENSE_STATUS_CFG).map(k => <option key={k} value={k}>{t(`alm.license_status_${k}`)}</option>)}
-        </select>
+        </Select>
         <Button onClick={() => setModal({})} icon={<Plus size={14} />}>{t('alm.action_register_license')}</Button>
       </div>
 
@@ -1024,7 +1024,7 @@ function LicensesTab() {
                   <div className="alm-license__icon" aria-hidden="true">{LICENSE_TYPES[lic.type]?.icon ?? ICONO_LICENCIA_DEFECTO}</div>
                   <div className="u-flex1-min0">
                     <div className="alm-row-item__title">
-                      <button type="button" className="alm-link-btn u-md-700" onClick={() => setFicha(lic.id)}>{lic.name}</button>
+                      <Pulsable type="button" className="alm-link-btn u-md-700" onClick={() => setFicha(lic.id)}>{lic.name}</Pulsable>
                       <StatusBadge status={lic.status} cfg={LICENSE_STATUS_CFG} prefijo="license_status" />
                       {lic.tier && <span className="alm-compliance-tag">{lic.tier}</span>}
                       {lic.pending_count > 0 && <span className="alm-flag">{t('alm.pending_n', { n: lic.pending_count })}</span>}
@@ -1060,14 +1060,14 @@ function LicensesTab() {
                     )}
                   </div>
                   <div className="alm-actions">
-                    <button type="button" aria-label={t('alm.aria_assign_license', { name: lic.name })} onClick={() => setAssignModal(lic)}
+                    <Pulsable type="button" aria-label={t('alm.aria_assign_license', { name: lic.name })} onClick={() => setAssignModal(lic)}
                       className="alm-icon-btn alm-icon-btn--accent alm-meta-ico">
                       <UserPlus size={14} aria-hidden="true" />{t('alm.licenses_assign')}
-                    </button>
-                    <button type="button" aria-label={t('alm.aria_detail', { name: lic.name })} onClick={() => setFicha(lic.id)} className="alm-icon-btn"><History size={15} aria-hidden="true" /></button>
-                    <button type="button" aria-label={t('alm.aria_edit_license', { name: lic.name })} onClick={() => setModal(lic)} className="alm-icon-btn"><Pencil size={15} aria-hidden="true" /></button>
-                    <button type="button" aria-label={t('alm.aria_delete_license', { name: lic.name })} onClick={() => { openConfirmGlobal({ message: t('alm.licenses_delete_confirm', { name: lic.name }), onConfirm: () => del(lic.id), danger: true }) }}
-                      className="alm-icon-btn alm-icon-btn--danger"><Trash2 size={15} aria-hidden="true" /></button>
+                    </Pulsable>
+                    <Pulsable type="button" aria-label={t('alm.aria_detail', { name: lic.name })} onClick={() => setFicha(lic.id)} className="alm-icon-btn"><History size={15} aria-hidden="true" /></Pulsable>
+                    <Pulsable type="button" aria-label={t('alm.aria_edit_license', { name: lic.name })} onClick={() => setModal(lic)} className="alm-icon-btn"><Pencil size={15} aria-hidden="true" /></Pulsable>
+                    <Pulsable type="button" aria-label={t('alm.aria_delete_license', { name: lic.name })} onClick={() => { openConfirmGlobal({ message: t('alm.licenses_delete_confirm', { name: lic.name }), onConfirm: () => del(lic.id), danger: true }) }}
+                      className="alm-icon-btn alm-icon-btn--danger"><Trash2 size={15} aria-hidden="true" /></Pulsable>
                   </div>
                 </div>
               </div>
@@ -1144,16 +1144,16 @@ function AssetModal({ asset, vendors, onClose }: { asset: Partial<Asset> | null;
         </div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="alm-label">{t('alm.assets_label_type')}</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.type} onChange={s('type')} className="alm-input">
+          <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.type} onChange={s('type')} className="alm-input">
             {Object.keys(ASSET_TYPES).map(k => <option key={k} value={k}>{t(`alm.asset_type_${k}`)}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="alm-label">{t('alm.assets_label_status')}</label>
           {estadoEditable ? (
-            <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.status} onChange={s('status')} className="alm-input">
+            <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.status} onChange={s('status')} className="alm-input">
               {['ordered', 'available'].map(k => <option key={k} value={k}>{t(`alm.asset_status_${k}`)}</option>)}
-            </select>
+            </Select>
           ) : (
             <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={t(`alm.asset_status_${form.status}`)} readOnly className="alm-input" />
           )}
@@ -1165,24 +1165,24 @@ function AssetModal({ asset, vendors, onClose }: { asset: Partial<Asset> | null;
         <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="alm-label">{t('alm.assets_label_tag')}</label><input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.asset_tag} onChange={s('asset_tag')} className="alm-input" placeholder={t('alm.assets_placeholder_tag')} /></div>
         <div>
           <label htmlFor={`${idCampo}-cc`} className="alm-label">{t('alm.licenses_label_cost_center')}</label>
-          <select id={`${idCampo}-cc`} value={form.cost_center_id} onChange={s('cost_center_id')} className="alm-input">
+          <Select suelto placeholder={false} id={`${idCampo}-cc`} value={form.cost_center_id} onChange={s('cost_center_id')} className="alm-input">
             <option value="">{t('alm.licenses_none_cost_center')}</option>
             {costCenters.map(c => <option key={c.id} value={c.id}>{c.code} · {c.name}</option>)}
-          </select>
+          </Select>
         </div>
         <div><label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="alm-label">{t('alm.assets_label_location')}</label><input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} value={form.location} onChange={s('location')} className="alm-input" placeholder={t('alm.assets_placeholder_location')} /></div>
         <div>
           <label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} className="alm-label">{t('alm.assets_label_vendor')}</label>
-          <select id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} value={form.vendor_id} onChange={s('vendor_id')} className="alm-input">
+          <Select suelto placeholder={false} id={`${idCampo}-10`} value={form.vendor_id} onChange={s('vendor_id')} className="alm-input">
             <option value="">{t('alm.assets_none_vendor')}</option>
             {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label id={`${idCampo}-et11`} htmlFor={`${idCampo}-11`} className="alm-label">{t('alm.assets_label_condition')}</label>
-          <select id={`${idCampo}-11`} aria-labelledby={`${idCampo}-et11`} value={form.condition} onChange={s('condition')} className="alm-input">
+          <Select suelto placeholder={false} id={`${idCampo}-11`} value={form.condition} onChange={s('condition')} className="alm-input">
             {[['new',t('alm.assets_condition_new')],['good',t('alm.assets_condition_good')],['fair',t('alm.assets_condition_fair')],['poor',t('alm.assets_condition_poor')]].map(([k,l]) => <option key={k} value={k}>{l}</option>)}
-          </select>
+          </Select>
         </div>
         <div><label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} className="alm-label">{t('alm.assets_label_purchase_date')}</label><DateInput id={`${idCampo}-12`} value={form.purchase_date} onChange={s('purchase_date')} className={claseCampo(validation.errors.purchase_date)} aria-invalid={!!validation.errors.purchase_date} /></div>
         <div>
@@ -1209,7 +1209,7 @@ function AssetModal({ asset, vendors, onClose }: { asset: Partial<Asset> | null;
           <input id={`${idCampo}-lease`} type="number" min={0} value={form.lease_monthly_cost} onChange={s('lease_monthly_cost')} className={claseCampo(validation.errors.lease_monthly_cost)} />
         </div>
         <div className="alm-check-row">
-          <input type="checkbox" id={`${idCampo}-rebill`} checked={form.rebillable} onChange={e => setForm(f => ({ ...f, rebillable: e.target.checked }))} />
+          <Checkbox id={`${idCampo}-rebill`} checked={form.rebillable} onChange={(_, e) => setForm(f => ({ ...f, rebillable: e.target.checked }))} />
           <label htmlFor={`${idCampo}-rebill`} className="alm-check-label">{t('alm.rebillable_default')}</label>
         </div>
         {showNetwork && <>
@@ -1233,10 +1233,10 @@ function AssetModal({ asset, vendors, onClose }: { asset: Partial<Asset> | null;
         </div>
         <div className="u-col-full">
           <label className="alm-label" htmlFor="asset-ci">{t('alm.assets_label_ci')}</label>
-          <select id="asset-ci" value={form.ci_id} onChange={s('ci_id')} className="alm-input">
+          <Select suelto placeholder={false} id="asset-ci" value={form.ci_id} onChange={s('ci_id')} className="alm-input">
             <option value="">{t('alm.assets_none_ci')}</option>
             {cis.map(c => <option key={c.id} value={c.id}>{c.code} · {c.name}</option>)}
-          </select>
+          </Select>
           <p className="alm-hint">{t('alm.assets_ci_hint')}</p>
         </div>
         <div><label className="alm-label" htmlFor="asset-eol">{t('alm.assets_label_eol')}</label><DateInput id="asset-eol" value={form.eol_date} onChange={s('eol_date')} className="alm-input" /></div>
@@ -1342,14 +1342,14 @@ function AssetsTab() {
       <div className="alm-toolbar">
         <input type="search" aria-label={t('alm.assets_search_placeholder')} value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder={t('alm.assets_search_placeholder')}
           className="alm-input alm-toolbar__search" />
-        <select aria-label={t('alm.assets_filter_type_aria')} value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1) }} className="alm-input alm-toolbar__select--fixed">
+        <Select suelto placeholder={false} aria-label={t('alm.assets_filter_type_aria')} value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1) }} className="alm-input alm-toolbar__select--fixed">
           <option value="">{t('alm.assets_filter_all_types')}</option>
           {Object.entries(ASSET_TYPES).map(([k,v]) => <option key={k} value={k}>{v.icon} {t(`alm.asset_type_${k}`)}</option>)}
-        </select>
-        <select aria-label={t('alm.assets_filter_status_aria')} value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }} className="alm-input alm-toolbar__select--fixed">
+        </Select>
+        <Select suelto placeholder={false} aria-label={t('alm.assets_filter_status_aria')} value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }} className="alm-input alm-toolbar__select--fixed">
           <option value="">{t('alm.assets_filter_all_statuses')}</option>
           {Object.keys(ASSET_STATUS_CFG).map(k => <option key={k} value={k}>{t(`alm.asset_status_${k}`)}</option>)}
-        </select>
+        </Select>
         <Button onClick={() => setModal({})} icon={<Plus size={14} />}>{t('alm.action_add_asset')}</Button>
       </div>
 
@@ -1376,7 +1376,7 @@ function AssetsTab() {
                   <div className="u-row-center-10">
                     <span className="alm-asset__icon" aria-hidden="true">{at.icon}</span>
                     <div>
-                      <button type="button" className="alm-link-btn u-md-700" onClick={() => setFicha(a.id)}>{a.name}</button>
+                      <Pulsable type="button" className="alm-link-btn u-md-700" onClick={() => setFicha(a.id)}>{a.name}</Pulsable>
                       <div className="u-text2-xs">{a.brand} {a.model}</div>
                     </div>
                   </div>
@@ -1400,11 +1400,11 @@ function AssetsTab() {
                   {a.next_maintenance_date && <span>{t('alm.expiry_maintenance')}: {fmtDate(a.next_maintenance_date)}</span>}
                 </div>
                 <div className="alm-actions alm-actions--end">
-                  <button type="button" aria-label={t('alm.aria_detail', { name: a.name })} title={t('alm.asset_detail')} onClick={() => setFicha(a.id)} className="alm-icon-btn alm-icon-btn--md"><History size={15} aria-hidden="true" /></button>
-                  <button type="button" aria-label={`${t('alm.renewal_open_ticket')} — ${a.name}`} title={t('alm.renewal_open_ticket')} onClick={() => renovar(a)} className="alm-icon-btn alm-icon-btn--md"><RefreshCw size={15} aria-hidden="true" /></button>
-                  <button type="button" aria-label={t('alm.aria_edit_asset', { name: a.name })} onClick={() => setModal(a)} className="alm-icon-btn alm-icon-btn--md"><Pencil size={15} aria-hidden="true" /></button>
-                  <button type="button" aria-label={t('alm.aria_delete_asset', { name: a.name })} onClick={() => { openConfirmGlobal({ message: t('alm.assets_delete_confirm', { name: a.name }), onConfirm: () => del(a.id), danger: true }) }}
-                    className="alm-icon-btn alm-icon-btn--md alm-icon-btn--danger"><Trash2 size={15} aria-hidden="true" /></button>
+                  <Pulsable type="button" aria-label={t('alm.aria_detail', { name: a.name })} title={t('alm.asset_detail')} onClick={() => setFicha(a.id)} className="alm-icon-btn alm-icon-btn--md"><History size={15} aria-hidden="true" /></Pulsable>
+                  <Pulsable type="button" aria-label={`${t('alm.renewal_open_ticket')} — ${a.name}`} title={t('alm.renewal_open_ticket')} onClick={() => renovar(a)} className="alm-icon-btn alm-icon-btn--md"><RefreshCw size={15} aria-hidden="true" /></Pulsable>
+                  <Pulsable type="button" aria-label={t('alm.aria_edit_asset', { name: a.name })} onClick={() => setModal(a)} className="alm-icon-btn alm-icon-btn--md"><Pencil size={15} aria-hidden="true" /></Pulsable>
+                  <Pulsable type="button" aria-label={t('alm.aria_delete_asset', { name: a.name })} onClick={() => { openConfirmGlobal({ message: t('alm.assets_delete_confirm', { name: a.name }), onConfirm: () => del(a.id), danger: true }) }}
+                    className="alm-icon-btn alm-icon-btn--md alm-icon-btn--danger"><Trash2 size={15} aria-hidden="true" /></Pulsable>
                 </div>
               </div>
             )
@@ -1480,9 +1480,9 @@ function CostCentersTab() {
                   <div className="alm-cc__name">{c.name}</div>
                 </div>
                 <div className="u-row-6">
-                  <button type="button" aria-label={t('alm.aria_edit_cost_center', { name: c.name })} onClick={() => openEdit(c)} className="alm-icon-btn alm-icon-btn--xs"><Pencil size={13} aria-hidden="true" /></button>
-                  <button type="button" aria-label={t('alm.aria_delete_cost_center', { name: c.name })} onClick={() => { openConfirmGlobal({ message: t('alm.cost_centers_delete_confirm', { name: c.name }), onConfirm: () => del(c.id), danger: true }) }}
-                    className="alm-icon-btn alm-icon-btn--xs alm-icon-btn--danger"><Trash2 size={13} aria-hidden="true" /></button>
+                  <Pulsable type="button" aria-label={t('alm.aria_edit_cost_center', { name: c.name })} onClick={() => openEdit(c)} className="alm-icon-btn alm-icon-btn--xs"><Pencil size={13} aria-hidden="true" /></Pulsable>
+                  <Pulsable type="button" aria-label={t('alm.aria_delete_cost_center', { name: c.name })} onClick={() => { openConfirmGlobal({ message: t('alm.cost_centers_delete_confirm', { name: c.name }), onConfirm: () => del(c.id), danger: true }) }}
+                    className="alm-icon-btn alm-icon-btn--xs alm-icon-btn--danger"><Trash2 size={13} aria-hidden="true" /></Pulsable>
                 </div>
               </div>
               {c.budget_annual && <div className="alm-cc__budget">{fmtCurrency(c.budget_annual)}{t('alm.ano')}</div>}

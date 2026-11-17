@@ -14,7 +14,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { z } from 'zod'
 import { portalApi, portalClientsApi, projectsApi, deliverablesApi, wikiApi, type PathId } from '../services/api'
 import type { Entregable, PortalPeticion, PortalSesionUat, PortalUsuario, VisibilidadDeWiki, WikiPaginaEnArbol } from '../services/api/tipos-alm'
-import { Button, Modal, Spinner, EmptyState, Page, KpiCard, Tabs } from '../components/ui'
+import { Button, Checkbox, IconButton, Modal, Pulsable, Select, Spinner, EmptyState, Page, KpiCard, Tabs } from '../components/ui'
 import Pagination from '../components/ui/Pagination'
 import { SMALL_PAGE_SIZE } from '../constants/pagination'
 import {
@@ -285,28 +285,22 @@ function CreateClientModal({ projectId, onClose }: { projectId: string; onClose:
           {msg('password')}
         </div>
         {allProjects.length > 1 && (
-          <fieldset className="u-col-full cpp-fieldset">
+          <fieldset className="u-col-full cpp-fieldset ds-grupo-opciones">
             <legend className="cpp-label cpp-label--group">{t('client_portal.additional_projects_access')}</legend>
             <div className="cpp-projects-box">
               {allProjects.filter(p => p.id !== projectId).map(p => (
-                <label key={p.id} className="u-row-center-8-pointer">
-                  <input type="checkbox" aria-label={`${p.code} ${p.name}`} checked={extraProjectIds.includes(p.id)}
-                    onChange={e => setExtraProjectIds(prev => e.target.checked ? [...prev, p.id] : prev.filter(id => id !== p.id))} />
-                  <span className="cpp-project-code">{p.code}</span>
-                  <span className="u-text2-sm">{p.name}</span>
-                </label>
+                <Checkbox key={p.id} checked={extraProjectIds.includes(p.id)}
+                  onChange={marcado => setExtraProjectIds(prev => marcado ? [...prev, p.id] : prev.filter(id => id !== p.id))}
+                  label={<><span className="cpp-project-code">{p.code}</span> <span className="u-text2-sm">{p.name}</span></>} />
               ))}
             </div>
           </fieldset>
         )}
-        <fieldset className="u-col-full cpp-fieldset">
+        <fieldset className="u-col-full cpp-fieldset ds-grupo-opciones">
           <legend className="cpp-label cpp-label--group">{t('client_portal.permissions')}</legend>
           <div className="u-stack-8">
             {([['can_approve_deliverables', t('client_portal.perm_approve_desc')],['can_request_changes', t('client_portal.perm_request_desc')],['can_view_budget', t('client_portal.perm_budget_desc')],['can_view_team', t('client_portal.perm_team_desc')]] as Array<[PermisoCliente, string]>).map(([k, label]) => (
-              <label key={k} className="cpp-check">
-                <input type="checkbox" aria-label={label} checked={form[k]} onChange={e => setForm(f => ({ ...f, [k]: e.target.checked }))} />
-                {label}
-              </label>
+              <Checkbox key={k} className="cpp-check" label={label} checked={form[k]} onChange={marcado => setForm(f => ({ ...f, [k]: marcado }))} />
             ))}
           </div>
         </fieldset>
@@ -383,25 +377,22 @@ function EditClientModal({ client, onClose, onSaved }: { client: ClientePortal; 
         <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.label_job_title')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.job_title} onChange={set('job_title')} className="cpp-input" placeholder={t('client_portal.label_job_title')} /></div>
         <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.label_company')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.company} onChange={set('company')} className="cpp-input" /></div>
         <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="cpp-label">{t('client_portal.label_phone')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.phone} onChange={set('phone')} className="cpp-input" /></div>
-        <div className="u-col-full">
-          <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="cpp-label">{t('client_portal.additional_projects_access')}</label>
-          <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`}
-            multiple
-            value={form.project_ids}
-            onChange={e => setForm(f => ({ ...f, project_ids: Array.from(e.target.selectedOptions).map(opt => opt.value).filter(Boolean) }))}
-            className="cpp-input cpp-input--multi"
-            style={{ '--cpp-h': `${38 + Math.min(allProjects.length, 5) * 28}px` } as CSSProperties}>
+        <fieldset className="u-col-full cpp-fieldset ds-grupo-opciones">
+          <legend className="cpp-label cpp-label--group">{t('client_portal.additional_projects_access')}</legend>
+          <div className="cpp-projects-box">
             {allProjects.map(project => (
-              <option key={project.id} value={project.id}>{project.code} — {project.name}</option>
+              <Checkbox key={project.id} checked={form.project_ids.includes(String(project.id))}
+                onChange={marcado => setForm(f => ({ ...f, project_ids: marcado ? [...f.project_ids, String(project.id)] : f.project_ids.filter(id => id !== String(project.id)) }))}
+                label={<><span className="cpp-project-code">{project.code}</span> <span className="u-text2-sm">{project.name}</span></>} />
             ))}
-          </select>
-        </div>
+          </div>
+        </fieldset>
         <div className="u-col-full">
           <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="cpp-label">{t('client_portal.label_password')}</label>
           <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} type="password" value={form.password} onChange={set('password')} className="cpp-input" placeholder={t('client_portal.password_placeholder')} />
           <div className="u-hint">{t('client_portal.password_placeholder')}</div>
         </div>
-        <fieldset className="u-col-full cpp-fieldset">
+        <fieldset className="u-col-full cpp-fieldset ds-grupo-opciones">
           <legend className="cpp-label cpp-label--group">{t('client_portal.permissions')}</legend>
           <div className="u-stack-8">
             {([
@@ -410,10 +401,7 @@ function EditClientModal({ client, onClose, onSaved }: { client: ClientePortal; 
               ['can_view_budget', t('client_portal.perm_budget_desc')],
               ['can_view_team', t('client_portal.perm_team_desc')],
             ] as Array<[PermisoCliente, string]>).map(([k, label]) => (
-              <label key={k} className="cpp-check">
-                <input type="checkbox" aria-label={label} checked={form[k]} onChange={e => setForm(f => ({ ...f, [k]: e.target.checked }))} />
-                {label}
-              </label>
+              <Checkbox key={k} className="cpp-check" label={label} checked={form[k]} onChange={marcado => setForm(f => ({ ...f, [k]: marcado }))} />
             ))}
           </div>
         </fieldset>
@@ -457,7 +445,7 @@ function UATTab({ projectId }: { projectId: string }) {
       ) : (
         <div className="u-stack-10">
           {sessions.map(s => (
-            <button key={s.id} type="button"
+            <Pulsable key={s.id}
               className={STATUS_CFG[s.status] ? 'cpp-uat has-color' : 'cpp-uat'}
               style={STATUS_CFG[s.status] ? colorVar(STATUS_CFG[s.status].color) : undefined}
               onClick={() => setSelectedId(s.id)}>
@@ -487,7 +475,7 @@ function UATTab({ projectId }: { projectId: string }) {
                   <Bug size={12} aria-hidden="true" />{`${s.issues.filter(i => i.status === 'open').length} ${t('client_portal.uat_open_issues')}`}
                 </div>
               )}
-            </button>
+            </Pulsable>
           ))}
         </div>
       )}
@@ -542,10 +530,9 @@ function CreateUATModal({ projectId, deliverables, onClose }: { projectId: strin
             {msg('title')}
           </div>
           <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cpp-label">{t('client_portal.uat_label_deliverable')}</label>
-            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.deliverable_id} onChange={set('deliverable_id')} className="cpp-input">
-              <option value="">{t('client_portal.uat_unlinked')}</option>
+            <Select suelto id={`${idCampo}-2`} placeholder={t('client_portal.uat_unlinked')} value={form.deliverable_id} onChange={set('deliverable_id')} className="cpp-input">
               {deliverables.map(d => <option key={d.id} value={d.id}>{d.code} — {d.name}</option>)}
-            </select>
+            </Select>
           </div>
         </div>
         <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.uat_label_description')}</label><textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.description} onChange={set('description')} rows={2} className="cpp-input" /></div>
@@ -567,8 +554,8 @@ function CreateUATModal({ projectId, deliverables, onClose }: { projectId: strin
               <input aria-label={t('client_portal.uat_test_case_title_placeholder', { index: i + 1 })} value={tc.title} onChange={e => setTestCases(tcs => tcs.map((c, j) => j === i ? { ...c, title: e.target.value } : c))} className="cpp-input" placeholder={t('client_portal.uat_test_case_title_placeholder', { index: i + 1 })} />
               <input aria-label={t('client_portal.uat_test_case_steps_placeholder')} value={tc.steps} onChange={e => setTestCases(tcs => tcs.map((c, j) => j === i ? { ...c, steps: e.target.value } : c))} className="cpp-input" placeholder={t('client_portal.uat_test_case_steps_placeholder')} />
               <input aria-label={t('client_portal.uat_test_case_expected_placeholder')} value={tc.expected_result} onChange={e => setTestCases(tcs => tcs.map((c, j) => j === i ? { ...c, expected_result: e.target.value } : c))} className="cpp-input" placeholder={t('client_portal.uat_test_case_expected_placeholder')} />
-              <button type="button" onClick={() => setTestCases(tcs => tcs.filter((_, j) => j !== i))} className="cpp-case__remove"
-                aria-label={t('clientportalpage.quitar_caso', { index: i + 1 })} title={t('clientportalpage.quitar_caso', { index: i + 1 })}><X size={14} aria-hidden="true" /></button>
+              <IconButton onClick={() => setTestCases(tcs => tcs.filter((_, j) => j !== i))} className="cpp-case__remove"
+                ariaLabel={t('clientportalpage.quitar_caso', { index: i + 1 })}><X size={14} aria-hidden="true" /></IconButton>
             </div>
           ))}
           <Button variant="secondary" size="sm" icon={<Plus size={14} />} onClick={() => setTestCases(tcs => [...tcs, { title: '', steps: '', expected_result: '' }])}>
@@ -665,14 +652,14 @@ function UATDetailModal({ session: initialSession, onClose }: { session: SesionU
                       <p className="cpp-issue__desc">{issue.description}</p>
                     </div>
                     {issue.status === 'open' && (
-                      <select defaultValue={issue.status} onChange={e => updateIssue({ id: issue.id, status: e.target.value })}
+                      <Select suelto tamano="sm" placeholder={false} value={issue.status} onChange={e => updateIssue({ id: issue.id, status: e.target.value })}
                         aria-label={t('clientportalpage.estado_incidencia', { title: issue.title })}
                         className="cpp-select-sm">
                         <option value="open">{t('client_portal.uat_issue_open')}</option>
                         <option value="fixed">{t('client_portal.uat_issue_fixed')}</option>
                         <option value="deferred">{t('client_portal.uat_issue_deferred')}</option>
                         <option value="wontfix">{t('client_portal.uat_issue_wontfix')}</option>
-                      </select>
+                      </Select>
                     )}
                     {issue.status !== 'open' && <span className="cpp-resolved cpp-con-icono"><Check size={12} aria-hidden="true" />{ISSUE_STATUS.includes(issue.status) ? t(`client_portal.uat_issue_${issue.status}`) : issue.status}</span>}
                   </div>
@@ -783,11 +770,11 @@ function FeatureRequestsTab({ projectId }: { projectId: string }) {
               <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.fr_label_weeks')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={responseForm.estimated_delivery_weeks} onChange={e => setResponseForm(f => ({ ...f, estimated_delivery_weeks: e.target.value }))} className="cpp-input" placeholder={t('clientportalpage.ejemplo', { valor: 4 })} /></div>
             </div>
             <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="cpp-label">{t('client_portal.fr_label_status')}</label>
-              <select id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={responseForm.status} onChange={e => setResponseForm(f => ({ ...f, status: e.target.value }))} className="cpp-input">
+              <Select suelto placeholder={false} id={`${idCampo}-5`} value={responseForm.status} onChange={e => setResponseForm(f => ({ ...f, status: e.target.value }))} className="cpp-input">
                 <option value="estimated">{t('client_portal.fr_status_estimated')}</option>
                 <option value="reviewing">{t('client_portal.fr_status_reviewing')}</option>
                 <option value="rejected">{t('client_portal.fr_status_rejected')}</option>
-              </select>
+              </Select>
             </div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setResponding(null)}>{t('common.cancel')}</Button>
@@ -895,16 +882,13 @@ function DocumentsTab({ projectId }: { projectId: string }) {
           <div className="u-stack-14">
             <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cpp-label">{t('client_portal.docs_label_title')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={docForm.title} onChange={e => setDocForm(f => ({ ...f, title: e.target.value }))} className="cpp-input" /></div>
             <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cpp-label">{t('client_portal.docs_label_category')}</label>
-              <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={docForm.category} onChange={e => setDocForm(f => ({ ...f, category: e.target.value }))} className="cpp-input">
+              <Select suelto placeholder={false} id={`${idCampo}-2`} value={docForm.category} onChange={e => setDocForm(f => ({ ...f, category: e.target.value }))} className="cpp-input">
                 {Object.entries(CAT_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
+              </Select>
             </div>
             <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.docs_label_file_url')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="url" value={docForm.file_url} onChange={e => setDocForm(f => ({ ...f, file_url: e.target.value }))} className="cpp-input" placeholder="https://..." /></div>
             <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.docs_label_file_name')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={docForm.file_name} onChange={e => setDocForm(f => ({ ...f, file_name: e.target.value }))} className="cpp-input" placeholder={t('client_portal.docs_placeholder_file_name')} /></div>
-            <label className="u-row-center-8-pointer">
-              <input type="checkbox" aria-label={t('client_portal.docs_requires_signature')} checked={docForm.requires_signature} onChange={e => setDocForm(f => ({ ...f, requires_signature: e.target.checked }))} />
-              {t('client_portal.docs_requires_signature')}
-            </label>
+            <Checkbox label={t('client_portal.docs_requires_signature')} checked={docForm.requires_signature} onChange={marcado => setDocForm(f => ({ ...f, requires_signature: marcado }))} />
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowAdd(false)}>{t('common.cancel')}</Button>
               <Button onClick={() => addDoc(docForm)} disabled={!docForm.title}>{t('client_portal.docs_share')}</Button>
@@ -952,12 +936,11 @@ function WikiPortalTab({ projectId }: { projectId: string }) {
         {' '}— {t('client_portal.wiki_info_desc')}
       </div>
       <div className="cpp-wiki-filter">
-        <select value={selectedSpace} onChange={e => setSelectedSpace(e.target.value)}
-          aria-label={t('client_portal.wiki_select_space')}
+        <Select suelto value={selectedSpace} onChange={e => setSelectedSpace(e.target.value)}
+          aria-label={t('client_portal.wiki_select_space')} placeholder={t('client_portal.wiki_select_space')}
           className="cpp-input cpp-input--roomy u-flex1">
-          <option value="">{t('client_portal.wiki_select_space')}</option>
           {spaces.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
+        </Select>
       </div>
       {isLoading && <Spinner />}
       {selectedSpace && !isLoading && pages.length === 0 && (
@@ -974,11 +957,11 @@ function WikiPortalTab({ projectId }: { projectId: string }) {
               </div>
               <div className="u-row-6" role="group" aria-label={t('clientportalpage.visibilidad_de', { title: page.title })}>
                 {(Object.entries(VIS) as Array<[VisibilidadDeWiki, { label: string; color: string }]>).map(([val, cfg]) => (
-                  <button key={val} type="button" onClick={() => setVis({ id: page.id, visibility: val })}
+                  <Pulsable key={val} onClick={() => setVis({ id: page.id, visibility: val })}
                     aria-pressed={page.visibility === val}
                     className="cpp-vis" style={colorVar(cfg.color)}>
                     {cfg.label}
-                  </button>
+                  </Pulsable>
                 ))}
               </div>
             </div>
@@ -1042,12 +1025,11 @@ export default function ClientPortalPage(): JSX.Element {
       {/* 16-11-2026 (pasada de diseño): el selector de proyecto es un filtro y va
           en la barra de filtros, no en la cabecera. */}
       <div className="ds-toolbar">
-        <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
-          aria-label={t('client_portal.select_project')}
-          className="ds-input cpp-project-select">
-          <option value="">{t('client_portal.select_project')}</option>
+        <Select suelto value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
+          aria-label={t('client_portal.select_project')} placeholder={t('client_portal.select_project')}
+          className="cpp-project-select">
           {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-        </select>
+        </Select>
       </div>
 
       {selectedProject && <StatsPanel projectId={selectedProject} />}

@@ -17,7 +17,7 @@ import { useAuth } from '../../context/AuthContext'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { extractErr, fmtDateTime, fmtMonth, formateadorDeFecha } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { Button, EmptyState, IconButton, Modal, Spinner, StatusBadge } from '../../components/ui'
+import { Button, EmptyState, IconButton, Modal, Pulsable, Select, Spinner, StatusBadge } from '../../components/ui'
 import type { StatusBadgeKind } from '../../components/ui/StatusBadge'
 import { sdChangePlanningApi } from '../../services/api'
 import type { SdCambioEnCalendario, SdComiteDeCambio, SdCongelacion, SdVersionDeCambios } from '../../services/api/tipos-sd'
@@ -86,7 +86,7 @@ export function CalendarioCambios({ onOpen }: { onOpen: (id: string) => void }) 
             <div className="cambplan-ls2">{formateadorDeFecha(FORMATO_DIA).format(new Date(dia))}</div>
             <div className="ds-card cambplan-box-3">
               {cambios.map(c => (
-                <button className="cambplan-row-4" key={c.id} type="button" onClick={() => onOpen(c.id)}>
+                <Pulsable className="cambplan-row-4" key={c.id} onClick={() => onOpen(c.id)}>
                   <span className="cambplan-box-4">
                     {hora(c.planned_start)}
                     {c.planned_end ? `–${hora(c.planned_end)}` : ''}
@@ -100,7 +100,7 @@ export function CalendarioCambios({ onOpen }: { onOpen: (id: string) => void }) 
                       <AlertTriangle size={11} aria-hidden /> {t('sd_cfg.chg_conflict', { list: c.conflicts.map(x => `${x.number} (${x.cis.join(', ')})`).join(' · ') })}
                     </StatusBadge>
                   )}
-                </button>
+                </Pulsable>
               ))}
             </div>
           </div>
@@ -210,9 +210,9 @@ export function Versiones({ onOpen }: { onOpen: (id: string) => void }) {
           <div className="u-wrap-6">
             {(r.changes ?? []).length === 0 ? <span className="u-text2-sm">{t('sd_cfg.chg_no_changes')}</span>
               : (r.changes ?? []).map(c => (
-                <button key={c.id} type="button" onClick={() => onOpen(c.id)} className="cambplan-box-7">
+                <Pulsable key={c.id} onClick={() => onOpen(c.id)} className="cambplan-box-7">
                   {c.number} · {etiquetaSd('chg_st', c.status)}
-                </button>
+                </Pulsable>
               ))}
           </div>
         </div>
@@ -240,9 +240,9 @@ function FormVersion({ inicial, pendiente, onCancelar, onGuardar }: { inicial: V
       <div className="u-grid2-10">
         <div><label className="cambplan-ls" htmlFor="rel-date">{t('sd_cfg.chg_planned_date')}</label><DateInput id="rel-date" aria-label={t('sd_cfg.chg_planned_date')} withTime value={f.date} onChange={e => setF({ ...f, date: e.target.value })} className="ds-input" /></div>
         <div><label className="cambplan-ls" htmlFor="rel-status">{t('sd_cfg.chg_status')}</label>
-          <select id="rel-status" aria-label={t('sd_cfg.chg_status')} value={f.status} onChange={e => setF({ ...f, status: e.target.value })} className="ds-input">
+          <Select suelto placeholder={false} id="rel-status" aria-label={t('sd_cfg.chg_status')} value={f.status} onChange={e => setF({ ...f, status: e.target.value })}>
             {ESTADOS_VERSION.map(s => <option key={s} value={s}>{t(`sd_cfg.chg_rel_${s}`)}</option>)}
-          </select></div>
+          </Select></div>
       </div>
       <div><label className="cambplan-ls" htmlFor="rel-notes">{t('changemanagement.notas')}</label><textarea id="rel-notes" aria-label={t('changemanagement.notas')} rows={3} value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} className="ds-input cambplan-textarea" /></div>
       <div className="u-actions-10">

@@ -5,13 +5,13 @@
 /* Formularios de los diálogos */
 .tm-form { display: flex; flex-direction: column; gap: var(--space-4); }
 .tm-textarea { width: 100%; resize: vertical; font-family: inherit; }
-.tm-elapsed-inline { color: var(--accent); font-family: var(--font-mono); }
+.tm-elapsed-inline { color: var(--accent); font-variant-numeric: tabular-nums; }
 .tm-check {
   display: flex; align-items: center; gap: var(--space-2); cursor: pointer;
   font-size: var(--text-sm); color: var(--text-1);
 }
 .tm-check--top { align-items: flex-start; color: var(--text-2); line-height: 1.5; }
-.tm-check-input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+.tm-check-input { width: 16px; min-height: 16px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
 .tm-check--top .tm-check-input { margin-top: 2px; }
 .tm-modal-actions { display: flex; gap: var(--space-2); justify-content: flex-end; flex-wrap: wrap; }
 .tm-modal-actions--split { justify-content: space-between; align-items: center; }
@@ -38,7 +38,7 @@
 }
 .tm-session-task { font-size: var(--text-sm); color: var(--text-3); font-weight: 500; }
 .tm-clock {
-  font-size: var(--text-56); font-weight: 700; font-family: var(--font-mono);
+  font-size: var(--text-56); font-weight: 700; font-variant-numeric: tabular-nums;
   color: var(--text-1); letter-spacing: 2px; line-height: 1;
 }
 .tm-meta { font-size: var(--text-sm); color: var(--text-3); }
@@ -54,4 +54,4 @@
 .tm-cell-desc {
   display: block; color: var(--text-2); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.tm-cell-hours { color: var(--text-1); font-weight: 600; font-family: var(--font-mono); }
+.tm-cell-hours { color: var(--text-1); font-weight: 600; font-variant-numeric: tabular-nums; }

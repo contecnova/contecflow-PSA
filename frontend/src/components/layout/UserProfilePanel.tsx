@@ -17,7 +17,7 @@ import { useToast } from '../../context/ToastContext'
 import useUserPreferences from '../../hooks/useUserPreferences'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { Bell, Languages, Palette, ShieldCheck, UserRound } from 'lucide-react'
-import { Avatar } from '../ui'
+import { Avatar, Checkbox, IconButton, Pulsable } from '../ui'
 import { Drawer } from '../ui/Drawer'
 import { useTabListKeys } from '../ui/Tabs'
 import PasskeysSection from '../security/PasskeysSection'
@@ -183,18 +183,17 @@ export default function UserProfilePanel({ onClose }: Props) {
               {user?.role} · {user?.department || traducir('userprofilepanel.sin_departamento')}
             </div>
           </div>
-          <button type="button" aria-label={traducir('common.close')} onClick={onClose}
-            className="usprpa-box-3">✕</button>
+          <Pulsable aria-label={traducir('common.close')} onClick={onClose} className="usprpa-box-3">✕</Pulsable>
         </div>
 
         {/* Tabs */}
         <div className="usprpa-grid-4 user-profile-panel-e2" role="tablist" ref={teclasTabs.listRef} onKeyDown={teclasTabs.onKeyDown} aria-label={traducir('perfilpanel.tab_perfil')} style={{ '--user-profile-panel-grid-template-columns': `repeat(${TABS.length}, minmax(0, 1fr))` } as CSSProperties}>
           {TABS.map(({ id, label, Icono }) => (
-            <button className={`usprpa-stack-1 userprof-sx1 user-profile-panel-e3 ${tab === id ? 'user-profile-panel-m4' : 'user-profile-panel-m5'}`} key={id} type="button" role="tab" data-tab-id={id} aria-selected={tab === id} tabIndex={teclasTabs.focusId === id ? 0 : -1} onClick={() => setTab(id)} title={label}
+            <IconButton ariaLabel={label} className={`usprpa-stack-1 userprof-sx1 user-profile-panel-e3 ${tab === id ? 'user-profile-panel-m4' : 'user-profile-panel-m5'}`} key={id} role="tab" data-tab-id={id} aria-selected={tab === id} tabIndex={teclasTabs.focusId === id ? 0 : -1} onClick={() => setTab(id)} title={label}
               style={{ '--user-profile-panel-border': `1px solid ${tab === id ? 'var(--accent)' : 'transparent'}` } as CSSProperties}>
               <Icono size={16} aria-hidden />
               <span className="usprpa-box-4">{label}</span>
-            </button>
+            </IconButton>
           ))}
         </div>
 
@@ -263,9 +262,9 @@ export default function UserProfilePanel({ onClose }: Props) {
                 )}
               </div>
 
-              <button type="button" className={`usprpa-box-25 ${savingProfile ? 'user-profile-panel-m6' : 'user-profile-panel-m7'}`} onClick={() => saveProfile(profileForm)} disabled={savingProfile}>
+              <Pulsable className={`usprpa-box-25 ${savingProfile ? 'user-profile-panel-m6' : 'user-profile-panel-m7'}`} onClick={() => saveProfile(profileForm)} disabled={savingProfile}>
                 {savingProfile ? traducir('userprofilepanel.guardando') : `✓ ${traducir('userprofilepanel.guardar_perfil')}`}
-              </button>
+              </Pulsable>
             </div>
           )}
 
@@ -282,8 +281,7 @@ export default function UserProfilePanel({ onClose }: Props) {
                 </div>
                 <div className="u-stack-6">
                   {THEMES.map(t => (
-                    <button type="button" aria-pressed={localTheme === t.id} className={`usprpa-row-4 userprof-sx2 user-profile-panel-e3 ${localTheme === t.id ? 'user-profile-panel-m8' : 'user-profile-panel-m9'}`} key={t.id} onClick={() => applyTheme(t.id)}
-                      style={{ '--user-profile-panel-border': `1px solid ${localTheme === t.id ? 'color-mix(in srgb, var(--accent) 50%, transparent)' : 'var(--surface-4)'}` } as CSSProperties}>
+                    <Pulsable aria-pressed={localTheme === t.id} className={`usprpa-row-4 userprof-sx2 user-profile-panel-e3 ${localTheme === t.id ? 'user-profile-panel-m8' : 'user-profile-panel-m9'}`} key={t.id} onClick={() => applyTheme(t.id)} style={{ '--user-profile-panel-border': `1px solid ${localTheme === t.id ? 'color-mix(in srgb, var(--accent) 50%, transparent)' : 'var(--surface-4)'}` } as CSSProperties}>
                       <span className="usprpa-box-10">{t.icon}</span>
                       <div className="u-flex1-min0">
                         <div className={`usprpa-txt-9 ${localTheme === t.id ? 'user-profile-panel-m10' : 'user-profile-panel-m11'}`}>
@@ -296,7 +294,7 @@ export default function UserProfilePanel({ onClose }: Props) {
                       {localTheme === t.id && (
                         <span className="usprpa-txt-1">✓</span>
                       )}
-                    </button>
+                    </Pulsable>
                   ))}
                 </div>
               </div>
@@ -306,14 +304,14 @@ export default function UserProfilePanel({ onClose }: Props) {
                 <div className="usprpa-box-9">
                   {traducir('userprofile.color_de_acento')}
                 </div>
-                <button className={`usprpa-box-26 ${localAccent === null ? 'user-profile-panel-m4' : 'user-profile-panel-m12'}`} onClick={() => applyAccent(null)} aria-pressed={localAccent === null}>
+                <Pulsable className={`usprpa-box-26 ${localAccent === null ? 'user-profile-panel-m4' : 'user-profile-panel-m12'}`} onClick={() => applyAccent(null)} aria-pressed={localAccent === null}>
                   {localAccent === null ? '✓ ' : ''}{traducir('userprofile.acento_del_tema')}
-                </button>
+                </Pulsable>
                 <div className="usprpa-grid-1">
                   {ACCENT_PRESETS.map(p => (
-                    <button type="button" aria-pressed={localAccent === p.color} className={`usprpa-box-27 user-profile-panel-e13 ${localAccent === p.color ? 'user-profile-panel-m14' : 'user-profile-panel-m15'}`} aria-label={traducir(`userprofilepanel.acento_${p.clave}`)} key={p.color} onClick={() => applyAccent(p.color)}
+                    <Pulsable aria-pressed={localAccent === p.color} className={`usprpa-box-27 user-profile-panel-e13 ${localAccent === p.color ? 'user-profile-panel-m14' : 'user-profile-panel-m15'}`} aria-label={traducir(`userprofilepanel.acento_${p.clave}`)} key={p.color} onClick={() => applyAccent(p.color)}
                       title={traducir(`userprofilepanel.acento_${p.clave}`)}
-                      style={{ '--user-profile-panel-background': p.color, '--user-profile-panel-outline': localAccent === p.color ? `3px solid ${p.color}` : 'none' } as CSSProperties} />
+                      style={{ '--user-profile-panel-background': p.color, '--user-profile-panel-outline': localAccent === p.color ? `3px solid ${p.color}` : 'none' } as CSSProperties}>{null}</Pulsable>
                   ))}
                 </div>
                 <div className="u-row-center-10">
@@ -321,7 +319,7 @@ export default function UserProfilePanel({ onClose }: Props) {
                     onChange={e => applyAccent(e.target.value)}
                     className="usprpa-box-12" />
                   <div>
-                    <div className="usprpa-txt-2">
+                    <div className="ds-codigo usprpa-txt-2">
                       {localAccent ?? traducir('userprofile.acento_del_tema')}
                     </div>
                     <div className="u-text3-2xs">{traducir('userprofile.color_personalizado')}</div>
@@ -345,18 +343,16 @@ export default function UserProfilePanel({ onClose }: Props) {
                     ['normal',      '▥ Normal'],
                     ['comfortable', '▦ Confortable'],
                   ] as Array<[string, string]>).map(([val, label]) => (
-                    <button className={`usprpa-box-28 userprof-sx1 user-profile-panel-e3 ${localDensity === val ? 'user-profile-panel-m4' : 'user-profile-panel-m16'}`} key={val} onClick={() => setLocalDensity(val)}
-                      style={{ '--user-profile-panel-border': `1px solid ${localDensity === val ? 'color-mix(in srgb, var(--accent) 50%, transparent)' : 'var(--surface-4)'}` } as CSSProperties}>
+                    <Pulsable className={`usprpa-box-28 userprof-sx1 user-profile-panel-e3 ${localDensity === val ? 'user-profile-panel-m4' : 'user-profile-panel-m16'}`} key={val} onClick={() => setLocalDensity(val)} style={{ '--user-profile-panel-border': `1px solid ${localDensity === val ? 'color-mix(in srgb, var(--accent) 50%, transparent)' : 'var(--surface-4)'}` } as CSSProperties}>
                       {label}
-                    </button>
+                    </Pulsable>
                   ))}
                 </div>
               </div>
 
-              <button type="button" onClick={saveAppearance}
-                className="usprpa-box-15">
+              <Pulsable onClick={saveAppearance} className="usprpa-box-15">
                 ✓ {traducir('userprofilepanel.guardar_apariencia')}
-              </button>
+              </Pulsable>
             </div>
           )}
 
@@ -373,26 +369,22 @@ export default function UserProfilePanel({ onClose }: Props) {
               {LANGUAGES.map(lang => {
                 const isPending = pendingLang === lang.code
                 return (
-                  <button type="button" aria-pressed={isPending} className={`usprpa-row-5 userprof-sx3 user-profile-panel-e3 ${isPending ? 'user-profile-panel-m8' : 'user-profile-panel-m9'}`} key={lang.code}
-                    onClick={() => setPendingLang(lang.code)}
-                    style={{ '--user-profile-panel-border': `1px solid ${isPending ? 'color-mix(in srgb, var(--accent) 50%, transparent)' : 'var(--surface-4)'}` } as CSSProperties}>
+                  <Pulsable aria-pressed={isPending} className={`usprpa-row-5 userprof-sx3 user-profile-panel-e3 ${isPending ? 'user-profile-panel-m8' : 'user-profile-panel-m9'}`} key={lang.code} onClick={() => setPendingLang(lang.code)} style={{ '--user-profile-panel-border': `1px solid ${isPending ? 'color-mix(in srgb, var(--accent) 50%, transparent)' : 'var(--surface-4)'}` } as CSSProperties}>
                     <span className="usprpa-txt-4">{lang.code.toUpperCase()}</span>
                     <span className={`usprpa-box-29 ${isPending ? 'user-profile-panel-m10' : 'user-profile-panel-m11'}`}>
                       {lang.label}
                     </span>
                     {isPending && <span className="usprpa-txt-5">✓</span>}
-                  </button>
+                  </Pulsable>
                 )
               })}
-              <button type="button" className={`usprpa-box-30 ${pendingLang === activeLang ? 'user-profile-panel-m17' : 'user-profile-panel-m7'}`}
-                onClick={() => {
+              <Pulsable className={`usprpa-box-30 ${pendingLang === activeLang ? 'user-profile-panel-m17' : 'user-profile-panel-m7'}`} onClick={() => {
                   setLang(pendingLang)  // lo guarda en el servidor (Layout)
                   const label = LANGUAGES.find(l => l.code === pendingLang)?.label
                   toast.success(traducir('userprofilepanel.idioma_cambiado', { idioma: label ?? pendingLang }))
-                }}
-                disabled={pendingLang === activeLang}>
+                }} disabled={pendingLang === activeLang}>
                 ✓ {traducir('userprofilepanel.guardar_idioma')}
-              </button>
+              </Pulsable>
             </div>
           )}
 
@@ -456,25 +448,22 @@ export default function UserProfilePanel({ onClose }: Props) {
                     ? traducir('userprofilepanel.mfa_activado')
                     : traducir('userprofilepanel.mfa_desactivado')}
                 </div>
-                <button type="button" className={`usprpa-box-31 ${user?.mfa_enabled ? 'user-profile-panel-m18' : 'user-profile-panel-m19'}`}
-                  onClick={() => window.location.href = '/mfa'}>
+                <Pulsable className={`usprpa-box-31 ${user?.mfa_enabled ? 'user-profile-panel-m18' : 'user-profile-panel-m19'}`} onClick={() => window.location.href = '/mfa'}>
                   {user?.mfa_enabled ? traducir('userprofilepanel.gestionar_mfa') : `🛡 ${traducir('userprofilepanel.activar_mfa')}`}
-                </button>
+                </Pulsable>
               </div>
 
               <PasskeysSection />
 
               {!user?.sso_provider && (
-                <button className={`usprpa-box-25 ${changingPw || !pwForm.current || !pwForm.new ||
-                      pwForm.new !== pwForm.confirm || pwForm.new.length < 8 ? 'user-profile-panel-m17' : 'user-profile-panel-m7'}`}
-                  disabled={changingPw || !pwForm.current || !pwForm.new ||
-                    pwForm.new !== pwForm.confirm || pwForm.new.length < 8}
-                  onClick={() => changePassword({
+                <Pulsable className={`usprpa-box-25 ${changingPw || !pwForm.current || !pwForm.new ||
+                      pwForm.new !== pwForm.confirm || pwForm.new.length < 8 ? 'user-profile-panel-m17' : 'user-profile-panel-m7'}`} disabled={changingPw || !pwForm.current || !pwForm.new ||
+                    pwForm.new !== pwForm.confirm || pwForm.new.length < 8} onClick={() => changePassword({
                     current_password: pwForm.current,
                     new_password: pwForm.new,
                   })}>
                   {changingPw ? traducir('userprofilepanel.guardando') : `✓ ${traducir('userprofilepanel.guardar_seguridad')}`}
-                </button>
+                </Pulsable>
               )}
             </div>
           )}
@@ -520,21 +509,18 @@ function PreferenciasDeAviso() {
           {['app', 'email'].map(c => (
             <span key={c} className="usprpa-txt-7">
               {t.channels.includes(c) ? (
-                <input type="checkbox" aria-label={traducir(c === 'app' ? 'userprofilepanel.aviso_por_app' : 'userprofilepanel.aviso_por_correo', { aviso: nombreDelAviso(t.type) })}
-                  checked={actuales[t.type]?.[c] ?? true} onChange={e => cambiar(t.type, c, e.target.checked)} />
+                <Checkbox aria-label={traducir(c === 'app' ? 'userprofilepanel.aviso_por_app' : 'userprofilepanel.aviso_por_correo', { aviso: nombreDelAviso(t.type) })}
+                  checked={actuales[t.type]?.[c] ?? true} onChange={m => cambiar(t.type, c, m)} />
               ) : <span className="usprpa-txt-8">—</span>}
             </span>
           ))}
         </div>
       ))}
-      <label className="usprpa-row-3">
-        <input type="checkbox" aria-label={traducir('userprofile.resumen_diario')} checked={resumenActual} onChange={e => setResumen(e.target.checked)} />
-        {traducir('userprofile.resumen_diario')}
-      </label>
+      <Checkbox className="usprpa-row-3" label={traducir('userprofile.resumen_diario')} checked={resumenActual} onChange={m => setResumen(m)} />
       <div className="usprpa-sp-2">
-        <button className={`usprpa-box-32 ${prefs === null && resumen === null ? 'user-profile-panel-m20' : 'user-profile-panel-m21'}`} type="button" disabled={isPending || (prefs === null && resumen === null)} onClick={() => guardar()}>
+        <Pulsable className={`usprpa-box-32 ${prefs === null && resumen === null ? 'user-profile-panel-m20' : 'user-profile-panel-m21'}`} disabled={isPending || (prefs === null && resumen === null)} onClick={() => guardar()}>
           {isPending ? traducir('userprofilepanel.guardando') : traducir('common.save')}
-        </button>
+        </Pulsable>
       </div>
     </div>
   )

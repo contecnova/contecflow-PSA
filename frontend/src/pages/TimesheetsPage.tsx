@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { timesheetsApi, imputationsApi } from '../services/api'
 import type { FiltroDeTimesheets, FiltroDeTimesheetsDelEquipo } from '../services/api'
 import type { EstadoDeTimesheet, LineaDeTimesheet, Timesheet } from '../services/api/tipos-personas'
-import { Button, IconButton, Modal, Spinner, EmptyState, Tabs, SortableTH, ariaSort } from '../components/ui'
+import { Button, IconButton, Modal, Spinner, EmptyState, Tabs, SortableTH, ariaSort, Select, TablaSimple } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Clock, Hourglass, ClipboardList, Search, CircleCheck, Users, Pencil, Trash2, Check, X, MessageSquare } from 'lucide-react'
@@ -336,10 +336,10 @@ export default function TimesheetsPage() {
           ) : (
             <div data-export-table="timesheets-list" className="u-stack-10">
               <div className="ds-toolbar ts-toolbar">
-                <select value={mineStatusFilter} onChange={e => setMineStatusFilter(e.target.value)} aria-label={t('timesheets.status')} className="ds-input">
+                <Select suelto placeholder={false} value={mineStatusFilter} onChange={e => setMineStatusFilter(e.target.value)} aria-label={t('timesheets.status')}>
                   <option value="">{t('timesheets.estado_todos')}</option>
                   {statusOptions}
-                </select>
+                </Select>
                 <DateInput value={mineFrom} onChange={e => setMineFrom(e.target.value)} aria-label={t('timesheets.semana_desde')} className="ds-input" />
                 <span className="u-text3" aria-hidden="true">—</span>
                 <DateInput value={mineTo} onChange={e => setMineTo(e.target.value)} aria-label={t('timesheets.semana_hasta')} className="ds-input" />
@@ -401,7 +401,7 @@ export default function TimesheetsPage() {
                 <EmptyState icon={<Search size={28} />} title={t('timesheets.sin_resultados')} description={t('timesheets.sin_coincidencias_pendientes')} />
               ) : (
                 <div className="ds-card ds-card--plano ts-table-wrap">
-                  <table className="contecflow-table ts-table">
+                  <TablaSimple claseTabla="ts-table">
                     <thead>
                       <tr>
                         <th>{t('timesheets.col_persona')}</th>
@@ -424,7 +424,7 @@ export default function TimesheetsPage() {
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </TablaSimple>
                 </div>
               )}
               <Pagination page={pendingPage} totalPages={totalPaginas(pendingTotal)} onChange={setPendingPage}
@@ -442,10 +442,10 @@ export default function TimesheetsPage() {
             <div className="u-stack-10">
               <div className="ds-toolbar ts-toolbar">
                 <input value={teamSearch} onChange={e => { setTeamSearch(e.target.value); setTeamPage(1) }} placeholder={t('timesheets.buscar_placeholder')} aria-label={t('timesheets.buscar_equipo')} className="ds-input ts-search" />
-                <select value={teamStatusFilter} onChange={e => { setTeamStatusFilter(e.target.value); setTeamPage(1) }} aria-label={t('timesheets.status')} className="ds-input">
+                <Select suelto placeholder={false} value={teamStatusFilter} onChange={e => { setTeamStatusFilter(e.target.value); setTeamPage(1) }} aria-label={t('timesheets.status')}>
                   <option value="">{t('timesheets.estado_todos')}</option>
                   {statusOptions}
-                </select>
+                </Select>
                 <DateInput value={teamFrom} onChange={e => { setTeamFrom(e.target.value); setTeamPage(1) }} aria-label={t('timesheets.equipo_desde')} className="ds-input" />
                 <span className="u-text3" aria-hidden="true">—</span>
                 <DateInput value={teamTo} onChange={e => { setTeamTo(e.target.value); setTeamPage(1) }} aria-label={t('timesheets.equipo_hasta')} className="ds-input" />
@@ -458,7 +458,7 @@ export default function TimesheetsPage() {
                 <EmptyState icon={<Search size={28} />} title={t('timesheets.sin_resultados')} description={t('timesheets.sin_coincidencias_equipo')} />
               ) : (
                 <div className="ds-card ds-card--plano ts-table-wrap">
-                  <table className="contecflow-table ts-table">
+                  <TablaSimple claseTabla="ts-table">
                     <thead>
                       <tr>
                         {teamColumns.map(([key, label]) => (
@@ -484,7 +484,7 @@ export default function TimesheetsPage() {
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </TablaSimple>
                 </div>
               )}
               <Pagination page={teamPage} totalPages={totalPaginas(teamTotal)} onChange={setTeamPage}

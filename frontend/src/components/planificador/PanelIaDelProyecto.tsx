@@ -10,7 +10,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Brain, HeartPulse, Sparkles, UserCheck } from 'lucide-react'
 import { iaDeProyectosApi, tasksApi, type EstimacionIa, type Simulacion } from '../../services/api'
 import type { SugerenciaDeAsignacion } from '../../services/api/tipos-rendimiento'
-import { Button, EmptyState, KpiCard, Spinner } from '../ui'
+import { Button, EmptyState, KpiCard, Spinner, TablaSimple } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
@@ -124,7 +124,7 @@ export default function PanelIaDelProyecto({ projectId }: { projectId: string })
         <h3 className="plan-card__titulo"><Brain size={14} />{t('planificador.ia_tareas')}</h3>
         {tareas.length === 0 ? <EmptyState title={t('planificador.sin_tareas_abiertas')} /> : (
           <div className="plan-tabla-scroll">
-            <table className="plan-tabla">
+            <TablaSimple claseTabla="plan-tabla">
               <thead><tr><th>{t('planificador.col_tarea')}</th><th>{t('planificador.ia_estimacion')}</th><th>{t('planificador.ia_persona')}</th></tr></thead>
               <tbody>
                 {tareas.map(x => {
@@ -155,7 +155,7 @@ export default function PanelIaDelProyecto({ projectId }: { projectId: string })
                   )
                 })}
               </tbody>
-            </table>
+            </TablaSimple>
           </div>
         )}
       </div>

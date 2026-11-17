@@ -34,7 +34,6 @@ select.res-input { cursor: pointer; }
   font-size: var(--text-xs);
   font-weight: 600;
   color: var(--text-2);
-  text-transform: uppercase;
   letter-spacing: 0.07em;
   display: block;
   margin-bottom: 5px;
@@ -101,8 +100,8 @@ select.res-input { cursor: pointer; }
 
 .res-metrics { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; }
 .res-metric { background: var(--surface-3); border-radius: var(--radius-md); padding: 10px 12px; text-align: center; }
-.res-metric__value { font-size: var(--text-xl); font-weight: 800; font-family: var(--font-mono); color: var(--res-color); line-height: 1.1; }
-.res-metric__label { font-size: var(--text-2xs); color: var(--text-3); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.06em; }
+.res-metric__value { font-size: var(--text-xl); font-weight: 800; font-variant-numeric: tabular-nums; color: var(--res-color); line-height: 1.1; }
+.res-metric__label { font-size: var(--text-2xs); color: var(--text-3); margin-top: 3px; letter-spacing: 0.06em; }
 .res-util__head { display: flex; justify-content: space-between; font-size: var(--text-xs); color: var(--text-3); margin-bottom: 6px; }
 .res-util__value { color: var(--res-color); font-weight: 700; }
 .res-rate {
@@ -115,7 +114,7 @@ select.res-input { cursor: pointer; }
   justify-content: space-between;
   align-items: center;
 }
-.res-rate__value { font-family: var(--font-mono); color: var(--success); font-weight: 700; }
+.res-rate__value { font-variant-numeric: tabular-nums; color: var(--success); font-weight: 700; }
 
 /* Vista de lista */
 .res-table { background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: 12px; overflow-x: auto; }
@@ -136,7 +135,6 @@ select.res-input { cursor: pointer; }
   font-size: var(--text-xs);
   font-weight: 700;
   color: var(--text-2);
-  text-transform: uppercase;
   letter-spacing: 0.07em;
 }
 .res-initial {
@@ -152,10 +150,10 @@ select.res-input { cursor: pointer; }
   color: var(--accent);
   flex-shrink: 0;
 }
-.res-mono { font-size: var(--text-sm); font-family: var(--font-mono); }
+.res-mono { font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
 .res-track { flex: 1; height: 6px; background: var(--surface-4); border-radius: 3px; overflow: hidden; }
 .res-fill { height: 100%; width: var(--pct, 0%); background: var(--res-color); border-radius: 3px; }
-.res-pct { font-size: var(--text-xs); font-family: var(--font-mono); color: var(--text-1); min-width: 34px; }
+.res-pct { font-size: var(--text-xs); font-variant-numeric: tabular-nums; color: var(--text-1); min-width: 34px; }
 .res-pct--over { color: var(--danger); }
 
 /* Burnout */
@@ -226,8 +224,8 @@ select.res-input { cursor: pointer; }
 }
 .res-bo-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px; }
 .res-bo-stat { background: var(--surface-3); border-radius: 8px; padding: 8px 10px; text-align: center; }
-.res-bo-stat__value { font-size: var(--text-17); font-weight: 800; font-family: var(--font-mono); color: var(--res-color); }
-.res-bo-stat__label { font-size: var(--text-3xs); color: var(--text-3); text-transform: uppercase; margin-top: 2px; }
+.res-bo-stat__value { font-size: var(--text-17); font-weight: 800; font-variant-numeric: tabular-nums; color: var(--res-color); }
+.res-bo-stat__label { font-size: var(--text-3xs); color: var(--text-3); margin-top: 2px; }
 .res-spark { display: flex; gap: 3px; align-items: flex-end; height: 28px; margin-bottom: 8px; }
 .res-spark__bar {
   flex: 1;

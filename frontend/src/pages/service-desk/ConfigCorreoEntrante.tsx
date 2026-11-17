@@ -16,7 +16,7 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { Button, EmptyState, Spinner, StatusBadge } from '../../components/ui'
+import { Button, EmptyState, Spinner, StatusBadge, TablaSimple } from '../../components/ui'
 import type { StatusBadgeKind } from '../../components/ui/StatusBadge'
 import { sdInboundApi, apiUrlAbsoluta } from '../../services/api'
 import type { SdPruebaDeBuzon } from '../../services/api/tipos-sd'
@@ -84,7 +84,7 @@ export default function ConfigCorreoEntrante() {
           <div className="u-text2-sm">{t('sd_cfg.mail_gateway_help')}</div>
           <div className="cocoen-copy">
             <input readOnly value={webhook} aria-label={t('sd_cfg.mail_gateway')}
-              className="ds-input cocoen-url" />
+              className="ds-input cocoen-url ds-campo-codigo" />
             <Button variant="secondary" icon={<Copy size={14} />} onClick={() => { navigator.clipboard.writeText(webhook); toast.success(t('sd_cfg.cfg_copied')) }}>
               {t('sd_cfg.mail_copy')}
             </Button>
@@ -98,7 +98,7 @@ export default function ConfigCorreoEntrante() {
           <EmptyState icon={<Inbox size={28} />} title={t('sd_cfg.mail_log_empty')} />
         ) : (
           <div className="u-scroll-x">
-            <table className="u-table-sm">
+            <TablaSimple claseTabla="u-table-sm">
               <tbody>
                 {entradas.map(e => (
                   <tr key={e.id} className="u-border-b">
@@ -115,7 +115,7 @@ export default function ConfigCorreoEntrante() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </TablaSimple>
           </div>
         )}
       </div>

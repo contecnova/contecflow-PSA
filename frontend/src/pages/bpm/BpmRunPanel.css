@@ -1,7 +1,7 @@
 /* BpmRunPanel.tsx: estilos que antes iban en linea (#17). Solo tokens de index.css. */
 .bprupa-box-1 {
   font-size: var(--text-xs);
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   background: var(--surface-3);
   border-radius: 8px;
   padding: 10px;
@@ -42,7 +42,7 @@
   color: var(--text-1);
   font-size: var(--text-sm);
   box-sizing: border-box;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 /* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */

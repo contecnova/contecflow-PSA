@@ -10,7 +10,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, CalendarClock, GitBranch, RefreshCw } from 'lucide-react'
 import { planificacionApi, tasksApi, type NodoDelPlan } from '../../services/api'
-import { Button, EmptyState, KpiCard, Spinner } from '../ui'
+import { Button, EmptyState, KpiCard, Spinner, Select, TablaSimple } from '../ui'
 import DateInput from '../ui/DateInput'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
@@ -98,7 +98,7 @@ export default function PanelDelPlan({ projectId }: { projectId: string }) {
       )}
 
       <div className="plan-card plan-tabla-scroll">
-        <table className="plan-tabla">
+        <TablaSimple claseTabla="plan-tabla">
           <thead>
             <tr>
               <th>{t('planificador.col_tarea')}</th>
@@ -117,7 +117,7 @@ export default function PanelDelPlan({ projectId }: { projectId: string }) {
                 onRestriccion={(tipo, fecha) => restriccion.mutate({ id: n.id, tipo, fecha })} />
             ))}
           </tbody>
-        </table>
+        </TablaSimple>
       </div>
     </div>
   )
@@ -143,10 +143,10 @@ function FilaDelPlan({ n, editable, onRestriccion }: {
       <td>
         {editable ? (
           <span className="plan-row">
-            <select className="plan-select" aria-label={t('planificador.col_restriccion')} value={n.constraint_type ?? ''}
-              onChange={e => onRestriccion(e.target.value, n.constraint_date ?? n.early_start)}>
+            <Select suelto className="plan-select" aria-label={t('planificador.col_restriccion')} value={n.constraint_type ?? ''}
+              onChange={e => onRestriccion(e.target.value, n.constraint_date ?? n.early_start)} placeholder={false}>
               {RESTRICCIONES.map(r => <option key={r} value={r}>{t(`planificador.restriccion_${r || 'ninguna'}`)}</option>)}
-            </select>
+            </Select>
             {n.constraint_type && (
               <DateInput className="plan-input plan-input--fecha" aria-label={t('planificador.fecha_restriccion')}
                 value={n.constraint_date ?? ''} onChange={e => e.target.value && onRestriccion(n.constraint_type ?? '', e.target.value)} />

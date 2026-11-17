@@ -58,7 +58,7 @@
   padding: 8px 4px;
   border-bottom: 1px solid var(--surface-4);
   font-size: var(--text-xs);
-  text-transform: uppercase;
+
   color: var(--text-3);
   font-weight: 600;
 }

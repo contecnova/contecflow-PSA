@@ -1,5 +1,6 @@
 import { Component } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
+import { Button } from './ui'
 import { traducirSinHook } from '../i18n/traducirSinHook'
 import './ErrorBoundary.css'
 
@@ -36,12 +37,9 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
           <p className="erroboun-box-2">
             {traducirSinHook('errorboundary.se_produjo_un_error_inesperado')}
           </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="erroboun-box-3"
-          >
+          <Button onClick={() => window.location.reload()}>
             {traducirSinHook('errorboundary.recargar_pagina')}
-          </button>
+          </Button>
           {import.meta.env.DEV && this.state.error && (
             <pre className="erroboun-box-4">
               {this.state.error.toString()}

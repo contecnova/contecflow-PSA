@@ -7,7 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FileText, Plus, ShieldAlert, Trash2 } from 'lucide-react'
 import { ausenciasApi } from '../../../services/api/ausencias'
 import type { TipoDeDocumentoIn } from '../../../services/api/tipos-ausencias'
-import { Button, EmptyState, Modal, Spinner } from '../../ui'
+import { Button, EmptyState, Modal, Spinner, Pulsable } from '../../ui'
 import { confirmar } from '../../../context/ConfirmContext'
 import { useToast } from '../../../context/ToastContext'
 import { AvisoDeError, Casilla, NombresPorIdioma, errorDe, nombreEn, useT } from './comun'
@@ -35,7 +35,7 @@ export default function EditorDeDocumentos() {
           <ul className="ausadm-lista">
             {docs.map(d => (
               <li key={d.id}>
-                <button type="button" className={`ausadm-item${d.activo ? '' : ' ausadm-item--inactivo'}`}
+                <Pulsable className={`ausadm-item${d.activo ? '' : ' ausadm-item--inactivo'}`}
                   onClick={() => { const { id: _id, ...resto } = d; setAbierto({ id: d.id, datos: resto }) }}>
                   <FileText size={16} aria-hidden />
                   <span className="ausadm-item-nombre">{nombreEn(d, lang)} <span className="ausadm-ayuda">({d.clave})</span></span>
@@ -43,7 +43,7 @@ export default function EditorDeDocumentos() {
                     {d.categoria_especial && <span className="ausadm-chip ausadm-chip--aviso"><ShieldAlert size={12} aria-hidden /> {ta('categoria_especial')}</span>}
                     {!d.activo && <span className="ausadm-chip">{ta('inactivo')}</span>}
                   </span>
-                </button>
+                </Pulsable>
               </li>
             ))}
           </ul>

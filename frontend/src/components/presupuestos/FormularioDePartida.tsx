@@ -10,8 +10,8 @@
  *  - vacante: salario anual + cargas del país, desde su alta.
  * Un gasto puede ser CAPEX (con vida para amortizarlo). Se puede acotar a unos meses.
  */
-import { type CSSProperties, useState } from 'react'
-import { Button, UserSelect } from '../ui'
+import { useState } from 'react'
+import { Button, UserSelect, Select, GrupoDeOpciones } from '../ui'
 import DateInput from '../ui/DateInput'
 import type { FichaPresupuesto, Partida } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -98,32 +98,29 @@ export default function FormularioDePartida({ p, inicial, onGuardar, onCancelar,
     <section aria-label={inicial ? t('pres.editar_partida') : t('pres.nueva_partida')}
       className="fodepa-grid-1">
       <label><span className="fodepa-etiqueta">{t('pres.sentido')}</span>
-        <select aria-label={t('pres.sentido')} value={f.sentido} className="fodepa-campo"
-          onChange={e => setF(v => ({ ...v, sentido: e.target.value as 'gasto' | 'ingreso', tipo: (e.target.value === 'ingreso' ? p.tipos_ingreso : p.tipos)[0] ?? '', modo: 'importe' }))}>
+        <Select suelto aria-label={t('pres.sentido')} value={f.sentido} className="fodepa-campo"
+          onChange={e => setF(v => ({ ...v, sentido: e.target.value as 'gasto' | 'ingreso', tipo: (e.target.value === 'ingreso' ? p.tipos_ingreso : p.tipos)[0] ?? '', modo: 'importe' }))} placeholder={false}>
           <option value="gasto">{t('pres.gasto')}</option><option value="ingreso">{t('pres.ingreso')}</option>
-        </select></label>
+        </Select></label>
       <label><span className="fodepa-etiqueta">{t('pres.tipo')}</span>
-        <select aria-label={t('pres.tipo')} value={f.tipo} onChange={set('tipo')} className="fodepa-campo">
+        <Select suelto aria-label={t('pres.tipo')} value={f.tipo} onChange={set('tipo')} className="fodepa-campo" placeholder={false}>
           {tipos.map(x => <option key={x} value={x}>{t(`pres.tipo_${x}`, x)}</option>)}
-        </select></label>
+        </Select></label>
       {entrada({ k: 'descripcion', label: t('pres.descripcion'), tipo: 'text', ancho: true })}
-      <label className="u-col-full"><span className="fodepa-etiqueta">{t('pres.como_se_calcula_la_partida')}</span>
-        <div role="radiogroup" aria-label={t('pres.como_se_calcula_la_partida')} className="u-wrap-6">
-          {modos.map(m => (
-            <button className={`fodepa-box-1 formular-sx1 formulario-de-partida-e1 ${f.modo === m ? 'formulario-de-partida-m2' : 'formulario-de-partida-m3'}`} key={m} type="button" role="radio" aria-checked={f.modo === m} onClick={() => setF(v => ({ ...v, modo: m }))}
-              style={{ '--formulario-de-partida-border': `1px solid ${f.modo === m ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>{t(`pres.modo_${m}`)}</button>
-          ))}
-        </div>
+      <div className="u-col-full">
+        <GrupoDeOpciones forma="fila" leyenda={t('pres.como_se_calcula_la_partida')} valor={f.modo}
+          onChange={v => setF(x => ({ ...x, modo: v as Modo }))}
+          opciones={modos.map(m => ({ valor: m, titulo: t(`pres.modo_${m}`) }))} />
         <span className="fodepa-etiqueta2">{t(`pres.modo_${f.modo}_ayuda`)}</span>
-      </label>
+      </div>
       {f.modo === 'importe' && entrada({ k: 'importe', label: t('pres.importe') })}
       {f.modo === 'conductor' && <>
         {entrada({ k: 'unidades', label: t('pres.unidades') })}
         {entrada({ k: 'precio_unitario', label: f.sentido === 'ingreso' ? t('pres.tarifa') : t('pres.precio_unitario') })}
         <label><span className="fodepa-etiqueta">{t('pres.recurrencia')}</span>
-          <select aria-label={t('pres.recurrencia')} value={f.recurrencia} onChange={set('recurrencia')} className="fodepa-campo">
+          <Select suelto aria-label={t('pres.recurrencia')} value={f.recurrencia} onChange={set('recurrencia')} className="fodepa-campo" placeholder={false}>
             {(['unica', 'mensual', 'trimestral', 'anual'] as const).map(r => <option key={r} value={r}>{t(`pres.rec_${r}`)}</option>)}
-          </select></label>
+          </Select></label>
       </>}
       {(f.modo === 'persona' || f.modo === 'horas') && (
         <div><span className="fodepa-etiqueta">{t('pres.persona')}</span>
@@ -144,9 +141,9 @@ export default function FormularioDePartida({ p, inicial, onGuardar, onCancelar,
       </>}
       {f.sentido === 'gasto' && (
         <label><span className="fodepa-etiqueta">{t('pres.naturaleza')}</span>
-          <select aria-label={t('pres.naturaleza')} value={f.naturaleza} onChange={set('naturaleza')} className="fodepa-campo">
+          <Select suelto aria-label={t('pres.naturaleza')} value={f.naturaleza} onChange={set('naturaleza')} className="fodepa-campo" placeholder={false}>
             <option value="opex">OPEX</option><option value="capex">CAPEX</option>
-          </select></label>
+          </Select></label>
       )}
       {f.sentido === 'gasto' && f.naturaleza === 'capex' && entrada({ k: 'vida_meses', label: t('pres.vida_meses') })}
       <label><span className="fodepa-etiqueta">{t('pres.desde_mes')}</span>

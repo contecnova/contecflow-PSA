@@ -11,6 +11,7 @@ import { resolveLoginResponse } from '../utils/loginFlow'
 import type { OrganizacionElegible } from '../utils/loginFlow'
 import { startAuthentication, webauthnSupported } from '../lib/webauthn'
 import './LoginPage.css'
+import { Pulsable } from '../components/ui'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -454,23 +455,25 @@ export default function LoginPage(): JSX.Element {
             </p>
             <div role="list" className="u-stack-8">
               {eleccion.organizations.map(o => (
-                <button key={o.id} role="listitem" type="button" disabled={loading}
+                <div key={o.id} role="listitem">
+                <Pulsable type="button" disabled={loading}
                   onClick={() => { void elegirEmpresa(o.id) }}
                   className="login-page-e1">
                   {o.logo_url
                     ? <img src={o.logo_url} alt="" className="lgn-box" />
                     : <span aria-hidden="true" className="lgn-row">{o.name.slice(0, 1)}</span>}
                   <span>{o.name}</span>
-                </button>
+                </Pulsable>
+                </div>
               ))}
             </div>
             {error && (
               <div style={st.errorBanner} role="alert"><span>⚠</span><span>{error}</span></div>
             )}
-            <button type="button" onClick={() => { setEleccion(null); setError('') }}
+            <Pulsable type="button" onClick={() => { setEleccion(null); setError('') }}
               className="login-page-e2">
               {t('login.mfa_cancel')}
-            </button>
+            </Pulsable>
           </div>
 
         ) : mfaChallengeToken ? (
@@ -499,30 +502,30 @@ export default function LoginPage(): JSX.Element {
               </p>
             </div>
             {mfaMethods.includes('webauthn') && (
-              <button type="button" onClick={() => { void handleMfaPasskey() }} disabled={passkeyLoading}
+              <Pulsable type="button" onClick={() => { void handleMfaPasskey() }} disabled={passkeyLoading}
                 className="login-page-e3">
                 {passkeyLoading ? t('login.passkey_busy') : t('login.mfa_use_passkey')}
-              </button>
+              </Pulsable>
             )}
             {error && (
               <div style={st.errorBanner} role="alert">
                 <span>⚠</span><span>{error}</span>
               </div>
             )}
-            <button
+            <Pulsable
               type="submit"
               disabled={loading || mfaCode.trim().length < 6}
               className={`login-page-e4 ${loading || mfaCode.trim().length < 6 ? 'login-page-m5' : 'login-page-m6'}`}
             >
               {loading ? t('login.mfa_verifying') : t('login.mfa_verify_button')}
-            </button>
-            <button
+            </Pulsable>
+            <Pulsable
               type="button"
               onClick={cancelMfa}
               className="login-page-e2"
             >
               {t('login.mfa_cancel')}
-            </button>
+            </Pulsable>
           </form>
 
         ) : forgotMode ? (
@@ -552,20 +555,20 @@ export default function LoginPage(): JSX.Element {
             {message && (
               <div style={st.successBanner} role="status"><span>✓</span><span>{message}</span></div>
             )}
-            <button
+            <Pulsable
               type="submit"
               disabled={forgotLoading}
               className={`login-page-e4 ${forgotLoading ? 'login-page-m5' : 'login-page-m6'}`}
             >
               {forgotLoading ? t('login.forgot_sending') : t('login.forgot_send_button')}
-            </button>
-            <button
+            </Pulsable>
+            <Pulsable
               type="button"
               onClick={() => { setForgotMode(false); setError(''); setMessage('') }}
               className="login-page-e2"
             >
               {t('login.forgot_back')}
-            </button>
+            </Pulsable>
           </form>
 
         ) : (
@@ -576,7 +579,7 @@ export default function LoginPage(): JSX.Element {
               <>
                 <div className="lgn-stack">
                   {ssoProviders.map(p => (
-                    <button
+                    <Pulsable
                       key={p.id}
                       type="button"
                       onClick={() => { void handleSso(p) }}
@@ -589,7 +592,7 @@ export default function LoginPage(): JSX.Element {
                           ? t('login.sso_redirecting')
                           : t('login.sso_continue_with', { name: p.name })}
                       </span>
-                    </button>
+                    </Pulsable>
                   ))}
                 </div>
                 <div style={st.divider}>
@@ -658,13 +661,13 @@ export default function LoginPage(): JSX.Element {
                   <label id="login_password-et" className="login-page-e8" htmlFor="login_password">
                     {t('login.password_label')}
                   </label>
-                  <button
+                  <Pulsable
                     type="button"
                     onClick={() => { setForgotMode(true); setError(''); setMessage('') }}
                     style={st.linkBtn}
                   >
                     {t('login.forgot_password')}
-                  </button>
+                  </Pulsable>
                 </div>
                 <div className="lgn-box-3">
                   <input
@@ -678,14 +681,14 @@ export default function LoginPage(): JSX.Element {
                     onFocus={focusIn}
                     onBlur={focusOut}
                   />
-                  <button
+                  <Pulsable
                     type="button"
                     onClick={() => setShowPassword(v => !v)}
                     aria-label={showPassword ? t('login.hide_password_aria') : t('login.show_password_aria')}
                     className="lgn-btn"
                   >
                     {showPassword ? <IconEyeOff /> : <IconEye />}
-                  </button>
+                  </Pulsable>
                 </div>
               </div>
 
@@ -697,16 +700,16 @@ export default function LoginPage(): JSX.Element {
               )}
 
               {/* Submit */}
-              <button
+              <Pulsable
                 type="submit"
                 disabled={loading}
                 className={`login-page-e4 ${loading ? 'login-page-m5' : 'login-page-m6'}`}
               >
                 {loading ? t('login.loading_button') : t('login.login_button')}
-              </button>
+              </Pulsable>
 
               {/* Passkey */}
-              <button
+              <Pulsable
                 type="button"
                 onClick={() => { void handlePasskeyLogin() }}
                 disabled={passkeyLoading}
@@ -714,7 +717,7 @@ export default function LoginPage(): JSX.Element {
               >
                 <IconPasskey />
                 <span>{passkeyLoading ? t('login.passkey_busy') : t('login.passkey_button')}</span>
-              </button>
+              </Pulsable>
             </form>
           </>
         )}

@@ -37,7 +37,7 @@
   border-radius: 8px;
   padding: 10px 12px;
   font-size: var(--text-xs);
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   color: var(--text-2);
   overflow-x: auto;
 }
@@ -91,7 +91,7 @@
 }
 .bigdpa-txt-3 {
   font-size: var(--text-sm);
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   color: var(--text-1);
 }
 .bigdpa-box-5 {

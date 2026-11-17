@@ -6,7 +6,7 @@
 import { useId, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, RefreshCw } from 'lucide-react'
-import { Button, EmptyState, Modal, SelectorDePeriodo, Spinner, StatusBadge } from '../../components/ui'
+import { Button, EmptyState, Modal, SelectorDePeriodo, Spinner, StatusBadge, GrupoDeOpciones } from '../../components/ui'
 import { usePeriodo } from '../../hooks/usePeriodo'
 import { codigoDeErrorDePeriodo, SIN_HORA } from '../../utils/periodo'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -73,14 +73,9 @@ function DecisionModal({ r, onClose }: { r: Renovacion; onClose: () => void }) {
           {r.total_seats != null && <Dato etiqueta={t('alm.licenses_label_total_seats')}>{r.total_seats}</Dato>}
           <Dato etiqueta={t('alm.usage')}><ResumenDeUso r={r} /></Dato>
         </dl>
-        <div className="almf-titular__tipos" role="radiogroup" aria-label={t('alm.decision')}>
-          {(['renew', 'reduce', 'cancel'] as const).map(d => (
-            <button key={d} type="button" role="radio" aria-checked={decision === d}
-              className={`almf-chip${decision === d ? ' almf-chip--on' : ''}`} onClick={() => setDecision(d)}>
-              {t(`alm.decision_${d}`)}
-            </button>
-          ))}
-        </div>
+        <GrupoDeOpciones forma="fila" className="almf-titular__tipos" aria-label={t('alm.decision')}
+          valor={decision} onChange={v => setDecision(v as typeof decision)}
+          opciones={(['renew', 'reduce', 'cancel'] as const).map(d => ({ valor: d, titulo: t(`alm.decision_${d}`) }))} />
         <p className="alm-hint">{t(`alm.decision_${decision}_hint`)}</p>
         <div className="almf-rejilla-2">
           {decision === 'reduce' && r.entity_type === 'license' && (

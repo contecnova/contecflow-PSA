@@ -18,7 +18,7 @@ import { useToast } from '../../context/ToastContext'
 import { sdRoutingApi, sdGroupsApi, sdSlaPoliciesApi, usersApi, ticketsApi } from '../../services/api'
 import type { SdIncidenteMayor, SdReglaDeEnrutado, SdTicket } from '../../services/api/tipos-sd'
 import type { AxiosResponse } from 'axios'
-import { Button, Spinner, EmptyState, Modal, useSort, SortableTH, ariaSort } from '../../components/ui'
+import { Button, IconButton, Pulsable, Select, TablaSimple, Spinner, EmptyState, Modal, useSort, SortableTH, ariaSort } from '../../components/ui'
 import StatusBadge from '../../components/ui/StatusBadge'
 import Pagination from '../../components/ui/Pagination'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -140,21 +140,21 @@ export function TicketList({ queueOnly, onSelect }: { queueOnly?: boolean; onSel
           <input placeholder={t('service_desk.search_tickets')} value={search}
             aria-label={t('service_desk.search_tickets')} onChange={e => setSearch(e.target.value)} className="ds-input sdqr-search__input" />
         </div>
-        <select aria-label={t('service_desk.filter_all_priorities')} value={filterPrio} onChange={e => setFilterPrio(e.target.value)} className="ds-input sdqr-filter">
+        <Select suelto placeholder={false} aria-label={t('service_desk.filter_all_priorities')} value={filterPrio} onChange={e => setFilterPrio(e.target.value)} className="sdqr-filter">
           <option value="">{t('service_desk.filter_all_priorities')}</option>
           {['p1_critical', 'p2_high', 'p3_medium', 'p4_low'].map(p =>
             <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}
-        </select>
-        <select aria-label={t('service_desk.filter_all_statuses')} value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="ds-input sdqr-filter">
+        </Select>
+        <Select suelto placeholder={false} aria-label={t('service_desk.filter_all_statuses')} value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="sdqr-filter">
           <option value="">{t('service_desk.filter_all_statuses')}</option>
           {['new', 'assigned', 'in_progress', 'pending_client', 'pending_third', 'resolved', 'closed', 'cancelled'].map(s =>
             <option key={s} value={s}>{t(`service_desk.${TICKET_STATUS_KEY[s]}`)}</option>)}
-        </select>
-        <select aria-label={t('service_desk.filter_all_types')} value={filterType} onChange={e => setFilterType(e.target.value)} className="ds-input sdqr-filter">
+        </Select>
+        <Select suelto placeholder={false} aria-label={t('service_desk.filter_all_types')} value={filterType} onChange={e => setFilterType(e.target.value)} className="sdqr-filter">
           <option value="">{t('service_desk.filter_all_types')}</option>
           {['incident', 'service_request', 'change', 'problem', 'question'].map(tk =>
             <option key={tk} value={tk}>{etiquetaSd('type', tk)}</option>)}
-        </select>
+        </Select>
       </div>
 
       {isLoading ? <div className="sdqr-loading"><Spinner /></div> :
@@ -164,7 +164,7 @@ export function TicketList({ queueOnly, onSelect }: { queueOnly?: boolean; onSel
        ) :
       <div data-export-table="service-desk-export" className="ds-card sdqr-card">
         <div className="u-scroll-x">
-          <table className="contecflow-table">
+          <TablaSimple>
             <thead>
               <tr aria-label={t('queueandrouting.columnas')}>
                 <th aria-sort={ariaSort(ticketSort, 'number')} className="u-cell-nowrap"><SortableTH col="number" sort={ticketSort} onSort={setTicketSort}>{t('service_desk.col_number')}</SortableTH></th>
@@ -179,7 +179,7 @@ export function TicketList({ queueOnly, onSelect }: { queueOnly?: boolean; onSel
             <tbody>
               {sortedTickets.map(tk => <TRow key={tk.id} t={tk} onClick={() => onSelect(tk)} />)}
             </tbody>
-          </table>
+          </TablaSimple>
         </div>
         <div className="sdqr-footer">
           <span>{t('queueandrouting.n_tickets', { n: total })}</span>
@@ -238,7 +238,7 @@ export function MajorIncidents() {
           </div>
           <div data-export-table="service-desk-export" className="ds-card sdqr-card">
             <div className="u-scroll-x">
-              <table className="contecflow-table">
+              <TablaSimple>
                 <thead>
                   <tr aria-label={t('queueandrouting.columnas')}>
                     <th aria-sort={ariaSort(miSort, 'number')} className="u-cell-nowrap"><SortableTH col="number" sort={miSort} onSort={setMiSort}>{t('service_desk.col_number')}</SortableTH></th>
@@ -263,7 +263,7 @@ export function MajorIncidents() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </TablaSimple>
             </div>
           </div>
         </>
@@ -301,10 +301,10 @@ function DeclareMIModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
         </div>
         <div>
           <label htmlFor={`${idPrefix}-severity`} className="campo-etiqueta">{t('service_desk.mi_severity_lbl')}</label>
-          <select id={`${idPrefix}-severity`} value={form.severity} onChange={set('severity')} className="campo-form">
+          <Select suelto placeholder={false} id={`${idPrefix}-severity`} value={form.severity} onChange={set('severity')} className="campo-form">
             <option value="P1">{t('service_desk.priority_p1')}</option>
             <option value="P2">{t('service_desk.priority_p2')}</option>
-          </select>
+          </Select>
         </div>
         <div>
           <label id={`${idPrefix}-impact-et`} htmlFor={`${idPrefix}-impact`} className="campo-etiqueta">{t('service_desk.mi_impact_lbl')}</label>
@@ -424,14 +424,14 @@ export function RoutingRules() {
                     <span className="sdqr-rule__name">{rule.name}</span>
                   </div>
                   <div className="u-wrap-center-8">
-                    <button type="button" onClick={() => toggleRule({ id: rule.id, is_active: !rule.is_active })}
+                    <Pulsable onClick={() => toggleRule({ id: rule.id, is_active: !rule.is_active })}
                       aria-pressed={rule.is_active}
                       aria-label={t(rule.is_active ? 'queueandrouting.desactivar_regla' : 'queueandrouting.activar_regla', { name: rule.name })}
                       className="sdqr-toggle">
                       <StatusBadge kind={rule.is_active ? 'success' : 'neutral'} dot caps={false}>
                         {rule.is_active ? t('service_desk.routing_active') : t('service_desk.routing_inactive')}
                       </StatusBadge>
-                    </button>
+                    </Pulsable>
                     <Button size="xs" variant="secondary" icon={<Pencil size={12} />} onClick={() => setEditingRule(rule)}>{t('common.edit')}</Button>
                     <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} onClick={() => deleteRule(rule.id)}>{t('common.delete')}</Button>
                   </div>
@@ -532,23 +532,23 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
   const renderCondValue = (cond: Entry, i: number) => {
     const upd = (v: string) => updateCond(i, { value: v })
     if (cond.key === 'ticket_type') return (
-      <select id={`${idCampo}-cv-${i}`} aria-labelledby={`${idCampo}-cv-${i}-et`} value={cond.value} onChange={e => upd(e.target.value)} className={IS}>
+      <Select suelto placeholder={false} id={`${idCampo}-cv-${i}`} value={cond.value} onChange={e => upd(e.target.value)} className={IS}>
         <option value="">{t('service_desk.cond_any_type')}</option>
         {['incident', 'service_request', 'change', 'problem'].map(v =>
           <option key={v} value={v}>{etiquetaSd('type', v)}</option>)}
-      </select>
+      </Select>
     )
     if (cond.key === 'priority') return (
-      <select id={`${idCampo}-cv-${i}`} aria-labelledby={`${idCampo}-cv-${i}-et`} value={cond.value} onChange={e => upd(e.target.value)} className={IS}>
+      <Select suelto placeholder={false} id={`${idCampo}-cv-${i}`} value={cond.value} onChange={e => upd(e.target.value)} className={IS}>
         <option value="">{t('service_desk.cond_any_priority')}</option>
         {Object.entries(PRIORITY_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-      </select>
+      </Select>
     )
     if (cond.key === 'sla_policy_id') return (
-      <select id={`${idCampo}-cv-${i}`} aria-labelledby={`${idCampo}-cv-${i}-et`} value={cond.value} onChange={e => upd(e.target.value)} className={IS}>
+      <Select suelto placeholder={false} id={`${idCampo}-cv-${i}`} value={cond.value} onChange={e => upd(e.target.value)} className={IS}>
         <option value="">{t('service_desk.cond_any_policy')}</option>
         {slaPolices.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-      </select>
+      </Select>
     )
     if (cond.key === 'day_of_week') {
       // Nombre corto del dia en el idioma activo: el 1-1-2024 fue lunes.
@@ -559,14 +559,14 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
       return (
         <div id={`${idCampo}-cv-${i}`} role="group" aria-labelledby={`${idCampo}-cv-${i}-et`} className="sdqr-days">
           {DAYS.map(([v, l]) => (
-            <button key={v} type="button" aria-pressed={selected.includes(v)}
+            <Pulsable key={v} aria-pressed={selected.includes(v)}
               onClick={() => {
                 const next = selected.includes(v) ? selected.filter(d => d !== v) : [...selected, v]
                 upd(next.join(','))
               }}
               className="sdqr-day">
               {l}
-            </button>
+            </Pulsable>
           ))}
         </div>
       )
@@ -586,28 +586,28 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
   const renderActValue = (act: Entry, i: number) => {
     const upd = (v: string) => updateAct(i, { value: v })
     if (act.key === 'assign_group') return (
-      <select id={`${idCampo}-av-${i}`} aria-labelledby={`${idCampo}-av-${i}-et`} value={act.value} onChange={e => upd(e.target.value)} className={IS}>
+      <Select suelto placeholder={false} id={`${idCampo}-av-${i}`} value={act.value} onChange={e => upd(e.target.value)} className={IS}>
         <option value="">{t('service_desk.act_no_group')}</option>
         {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-      </select>
+      </Select>
     )
     if (act.key === 'assign_user') return (
-      <select id={`${idCampo}-av-${i}`} aria-labelledby={`${idCampo}-av-${i}-et`} value={act.value} onChange={e => upd(e.target.value)} className={IS}>
+      <Select suelto placeholder={false} id={`${idCampo}-av-${i}`} value={act.value} onChange={e => upd(e.target.value)} className={IS}>
         <option value="">{t('service_desk.act_no_agent')}</option>
         {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-      </select>
+      </Select>
     )
     if (act.key === 'set_support_level') return (
-      <select id={`${idCampo}-av-${i}`} aria-labelledby={`${idCampo}-av-${i}-et`} value={act.value} onChange={e => upd(e.target.value)} className={IS}>
+      <Select suelto placeholder={false} id={`${idCampo}-av-${i}`} value={act.value} onChange={e => upd(e.target.value)} className={IS}>
         <option value="">{t('service_desk.act_no_change')}</option>
         {['l1', 'l2', 'l3'].map(v => <option key={v} value={v}>{t(`queueandrouting.level_${v}`)}</option>)}
-      </select>
+      </Select>
     )
     if (act.key === 'set_priority') return (
-      <select id={`${idCampo}-av-${i}`} aria-labelledby={`${idCampo}-av-${i}-et`} value={act.value} onChange={e => upd(e.target.value)} className={IS}>
+      <Select suelto placeholder={false} id={`${idCampo}-av-${i}`} value={act.value} onChange={e => upd(e.target.value)} className={IS}>
         <option value="">{t('queueandrouting.no_cambiar')}</option>
         {Object.entries(PRIORITY_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-      </select>
+      </Select>
     )
     return <input id={`${idCampo}-av-${i}`} aria-labelledby={`${idCampo}-av-${i}-et`} value={act.value} onChange={e => upd(e.target.value)} className={IS} />
   }
@@ -668,23 +668,23 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
             <div key={i} className="sdqr-entry">
               <div>
                 <label htmlFor={`${idCampo}-ck-${i}`} className={LS}>{t('service_desk.cond_field')}</label>
-                <select id={`${idCampo}-ck-${i}`} value={cond.key}
+                <Select suelto placeholder={false} id={`${idCampo}-ck-${i}`} value={cond.key}
                   onChange={e => updateCond(i, { key: e.target.value, value: '' })}
                   className={IS}>
                   {COND_TYPES.filter(type => type.key === cond.key || !usedCondKeys.filter((_, idx) => idx !== i).includes(type.key)).map(type =>
                     <option key={type.key} value={type.key}>{type.label}</option>
                   )}
-                </select>
+                </Select>
               </div>
               <div>
                 <label id={`${idCampo}-cv-${i}-et`} htmlFor={`${idCampo}-cv-${i}`} className={LS}>{t('service_desk.cond_value')}</label>
                 {renderCondValue(cond, i)}
               </div>
               <div className="sdqr-entry__remove-cell">
-                <button type="button" onClick={() => removeCondition(i)} aria-label={t('queueandrouting.quitar_condicion')}
+                <IconButton onClick={() => removeCondition(i)} ariaLabel={t('queueandrouting.quitar_condicion')}
                   title={t('queueandrouting.quitar_condicion')} className="sdqr-remove">
                   <X size={14} aria-hidden="true" />
-                </button>
+                </IconButton>
               </div>
             </div>
           ))}
@@ -701,23 +701,23 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
             <div key={i} className="sdqr-entry">
               <div>
                 <label htmlFor={`${idCampo}-ak-${i}`} className={LS}>{t('service_desk.act_label')}</label>
-                <select id={`${idCampo}-ak-${i}`} value={act.key}
+                <Select suelto placeholder={false} id={`${idCampo}-ak-${i}`} value={act.key}
                   onChange={e => updateAct(i, { key: e.target.value, value: '' })}
                   className={IS}>
                   {ACT_TYPES.filter(type => type.key === act.key || !actions.filter((_, idx) => idx !== i).map(a => a.key).includes(type.key)).map(type =>
                     <option key={type.key} value={type.key}>{type.label}</option>
                   )}
-                </select>
+                </Select>
               </div>
               <div>
                 <label id={`${idCampo}-av-${i}-et`} htmlFor={`${idCampo}-av-${i}`} className={LS}>{t('service_desk.cond_value')}</label>
                 {renderActValue(act, i)}
               </div>
               <div className="sdqr-entry__remove-cell">
-                <button type="button" onClick={() => removeAction(i)} aria-label={t('queueandrouting.quitar_accion')}
+                <IconButton onClick={() => removeAction(i)} ariaLabel={t('queueandrouting.quitar_accion')}
                   title={t('queueandrouting.quitar_accion')} className="sdqr-remove">
                   <X size={14} aria-hidden="true" />
-                </button>
+                </IconButton>
               </div>
             </div>
           ))}

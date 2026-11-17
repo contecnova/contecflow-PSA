@@ -103,7 +103,6 @@
   font-size: var(--text-2xs);
   font-weight: 700;
   color: var(--text-3);
-  text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 .prof-fila--cabecera:hover { background: var(--surface-3); }
@@ -123,7 +122,7 @@
   background: var(--success-bg);
   border-color: var(--success-border);
 }
-.prof-input { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
+.prof-input { width: 16px; min-height: 16px; cursor: pointer; accent-color: var(--accent); }
 .prof-hito__nombre {
   font-size: var(--text-sm);
   font-weight: 600;

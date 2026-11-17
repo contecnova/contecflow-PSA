@@ -8,7 +8,7 @@ import type {
   Canal, Destinatario, DominioDePoliticas, ParametroDeResultado, PasoAnadido, Resultado, ResultadoPropio, TipoDeAprobador,
   TipoDeDestinatario, TipoDeResultado,
 } from '../../services/api/tipos-politicas'
-import { Button } from '../ui'
+import { Button, Select, Checkbox } from '../ui'
 import { EntradaDeValor, ListaDeValores, SelectorDeEntidad, useCatalogo, useOpciones, useTextos } from './comun'
 
 /** Un resultado propio del dominio (rev. 167, p. ej. el cupo de ausencias) con los valores por defecto de sus parámetros. */
@@ -52,10 +52,10 @@ export default function EditorDeResultados({ dominio, valor, onChange, titulo, a
       {valor.length === 0 && <p className="pol-ayuda">{t('pol.sin_resultados')}</p>}
       {valor.map((r, i) => (
         <div key={i} className="pol-resultado">
-          <select className="pol-campo" aria-label={t('pol.tipo_de_resultado')} value={r.tipo}
-            onChange={e => cambiar(i, nuevo(e.target.value, dominio))}>
+          <Select suelto className="pol-campo" aria-label={t('pol.tipo_de_resultado')} value={r.tipo}
+            onChange={e => cambiar(i, nuevo(e.target.value, dominio))} placeholder={false}>
             {tiposDe(dominio, catalogo?.resultados ?? [], anidado).map(x => <option key={x} value={x}>{t(`pol.res_${x}`)}</option>)}
-          </select>
+          </Select>
           <DatosDeResultado dominio={dominio} r={r} onChange={n => cambiar(i, n)} />
           <Button size="xs" variant="ghost" icon={<Trash2 size={13} />} onClick={() => onChange(valor.filter((_, j) => j !== i))}
             title={t('pol.quitar_resultado')}><span className="u-sr-only">{t('pol.quitar_resultado')}</span></Button>
@@ -108,11 +108,10 @@ function DatosDeResultado({ dominio, r, onChange }: { dominio: DominioDePolitica
       const campo = asignables.find(c => c.clave === r.campo)
       return (
         <div className="pol-fila">
-          <select className="pol-campo pol-campo--medio" aria-label={t('pol.campo_a_fijar')} value={r.campo ?? ''}
-            onChange={e => onChange({ ...r, campo: e.target.value, valor: null })}>
-            <option value="">{asignables.length ? t('pol.elige') : t('pol.sin_campos_asignables')}</option>
+          <Select suelto className="pol-campo pol-campo--medio" aria-label={t('pol.campo_a_fijar')} value={r.campo ?? ''}
+            onChange={e => onChange({ ...r, campo: e.target.value, valor: null })} placeholder={asignables.length ? t('pol.elige') : t('pol.sin_campos_asignables')}>
             {asignables.map(c => <option key={c.clave} value={c.clave}>{etiquetaDeCampo(dominio.clave, c)}</option>)}
-          </select>
+          </Select>
           {campo && <EntradaDeValor dominio={dominio.clave} campo={campo} operador="eq" valor={r.valor} opciones={opciones}
             onChange={v => onChange({ ...r, valor: v })} etiqueta={t('pol.nuevo_valor')} />}
         </div>
@@ -135,11 +134,8 @@ function DatosDeResultado({ dominio, r, onChange }: { dominio: DominioDePolitica
           <Destinatarios valor={r.destinatarios ?? []} onChange={d => onChange({ ...r, destinatarios: d })} />
           <div className="pol-fila" role="group" aria-label={t('pol.canales')}>
             {(catalogo?.canales ?? []).map((c: Canal) => (
-              <label key={c} className="pol-chip">
-                <input type="checkbox" checked={(r.canales ?? []).includes(c)}
-                  onChange={e => onChange({ ...r, canales: e.target.checked ? [...(r.canales ?? []), c] : (r.canales ?? []).filter(x => x !== c) })} />
-                {t(`pol.canal_${c}`)}
-              </label>
+              <Checkbox key={c} className="pol-chip" label={t(`pol.canal_${c}`)} checked={(r.canales ?? []).includes(c)}
+                onChange={m => onChange({ ...r, canales: m ? [...(r.canales ?? []), c] : (r.canales ?? []).filter(x => x !== c) })} />
             ))}
           </div>
           <Mensaje r={r} onChange={onChange} />
@@ -187,16 +183,14 @@ function Parametro({ dominio, propio, p, valor, onChange }: {
       )
     case 'booleano':
       return (
-        <label className="pol-fila pol-chip">
-          <input type="checkbox" checked={Boolean(valor)} onChange={e => onChange(e.target.checked)} />{etiqueta}
-        </label>
+        <Checkbox className="pol-fila pol-chip" label={etiqueta} checked={Boolean(valor)} onChange={m => onChange(m)} />
       )
     case 'enum':
       return (
         <label className="pol-fila"><span className="pol-ayuda">{etiqueta}</span>
-          <select className="pol-campo pol-campo--medio" aria-label={etiqueta} value={String(valor ?? '')} onChange={e => onChange(e.target.value)}>
+          <Select suelto className="pol-campo pol-campo--medio" aria-label={etiqueta} value={String(valor ?? '')} onChange={e => onChange(e.target.value)} placeholder={false}>
             {p.opciones.map(o => <option key={o.valor} value={o.valor}>{t(`pol.par_${propio}_${p.clave}_${o.valor}`)}</option>)}
-          </select>
+          </Select>
         </label>
       )
     case 'entidad':
@@ -207,14 +201,14 @@ function Parametro({ dominio, propio, p, valor, onChange }: {
       )
     case 'resultados':
       return (
-        <fieldset className="pol-anidado">
+        <fieldset className="ds-grupo-opciones pol-anidado">
           <legend className="pol-ayuda">{etiqueta}</legend>
           <EditorDeResultados dominio={dominio} valor={(valor as Resultado[]) ?? []} onChange={onChange} titulo={etiqueta} anidado />
         </fieldset>
       )
     case 'destinatarios':
       return (
-        <fieldset className="pol-anidado">
+        <fieldset className="ds-grupo-opciones pol-anidado">
           <legend className="pol-ayuda">{etiqueta}</legend>
           <Destinatarios valor={(valor as Destinatario[]) ?? []} onChange={onChange} />
         </fieldset>
@@ -225,11 +219,8 @@ function Parametro({ dominio, propio, p, valor, onChange }: {
         <div className="pol-fila" role="group" aria-label={etiqueta}>
           <span className="pol-ayuda">{etiqueta}</span>
           {(catalogo?.canales ?? []).map((c: Canal) => (
-            <label key={c} className="pol-chip">
-              <input type="checkbox" checked={lista.includes(c)}
-                onChange={e => onChange(e.target.checked ? [...lista, c] : lista.filter(x => x !== c))} />
-              {t(`pol.canal_${c}`)}
-            </label>
+            <Checkbox key={c} className="pol-chip" label={t(`pol.canal_${c}`)} checked={lista.includes(c)}
+                onChange={m => onChange(m ? [...lista, c] : lista.filter(x => x !== c))} />
           ))}
         </div>
       )
@@ -245,11 +236,11 @@ export function SelectorDeAprobador({ paso, onChange }: { paso: PasoAnadido; onC
   const catalogo = useCatalogo().data
   return (
     <span className="pol-fila">
-      <select className="pol-campo pol-campo--medio" aria-label={t('pol.quien_aprueba')} value={paso.approver_type}
+      <Select suelto className="pol-campo pol-campo--medio" aria-label={t('pol.quien_aprueba')} value={paso.approver_type}
         onChange={e => onChange({ ...paso, approver_type: e.target.value as TipoDeAprobador, approver_role: null, approver_user_id: null,
-          approver_department: null, approver_group_id: null, approver_level: e.target.value === 'manager_level' ? 2 : null })}>
+          approver_department: null, approver_group_id: null, approver_level: e.target.value === 'manager_level' ? 2 : null })} placeholder={false}>
         {(catalogo?.tipos_de_aprobador ?? []).map(x => <option key={x} value={x}>{t(`pol.aprobador_${x}`)}</option>)}
-      </select>
+      </Select>
       {paso.approver_type === 'role' && <SelectorDeEntidad clase="rol" valor={paso.approver_role} opciones={opciones}
         onChange={v => onChange({ ...paso, approver_role: v })} etiqueta={t('pol.rol')} />}
       {paso.approver_type === 'user' && <SelectorDeEntidad clase="usuario" valor={paso.approver_user_id} opciones={opciones}
@@ -301,10 +292,10 @@ function Destinatarios({ valor, onChange }: { valor: Destinatario[]; onChange: (
     <div role="group" aria-label={t('pol.destinatarios')}>
       {valor.map((d, i) => (
         <div key={i} className="pol-fila">
-          <select className="pol-campo pol-campo--medio" aria-label={t('pol.destinatario')} value={d.tipo}
-            onChange={e => cambiar(i, { tipo: e.target.value as TipoDeDestinatario, valor: null })}>
+          <Select suelto className="pol-campo pol-campo--medio" aria-label={t('pol.destinatario')} value={d.tipo}
+            onChange={e => cambiar(i, { tipo: e.target.value as TipoDeDestinatario, valor: null })} placeholder={false}>
             {(catalogo?.destinatarios ?? []).map(x => <option key={x} value={x}>{t(`pol.dest_${x}`)}</option>)}
-          </select>
+          </Select>
           {d.tipo in clase && (
             <SelectorDeEntidad clase={clase[d.tipo as keyof typeof clase]} valor={d.valor} opciones={opciones}
               onChange={v => cambiar(i, { ...d, valor: v })} etiqueta={t(`pol.dest_${d.tipo}`)} />

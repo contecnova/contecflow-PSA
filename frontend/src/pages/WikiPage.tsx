@@ -16,7 +16,7 @@ import { useDocCollab } from '../hooks/useDocCollab'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { wikiApi, projectsApi } from '../services/api'
 import type { VisibilidadDeWiki, WikiBloque, WikiEspacio, WikiEtiqueta, WikiPagina, WikiPaginaEnArbol, WikiResultadoDeBusqueda } from '../services/api/tipos-alm'
-import { Button, Spinner, EmptyState, IconButton, Modal, StatusBadge, Tabs, useDialogo } from '../components/ui'
+import { Button, Spinner, EmptyState, IconButton, Modal, StatusBadge, Tabs, useDialogo, Select, Pulsable, Checkbox } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import {
@@ -90,6 +90,11 @@ function onKeyboardActivate(event: { key: string; preventDefault: () => void }, 
   }
 }
 
+function CasillaTarea({ etiqueta, className }: { etiqueta: string; className?: string }) {
+  const [marcada, setMarcada] = useState(false)
+  return <Checkbox className={className} aria-label={etiqueta} checked={marcada} onChange={setMarcada} />
+}
+
 function BlockEditor({ blocks, onChange }: { blocks: Block[]; onChange: (b: Block[]) => void }) {
   const traducir = useAppT() as Traducir
   const update = (i: number, k: string, v: string) => { const n=[...blocks]; n[i]={...n[i],[k]:v}; onChange(n) }
@@ -109,9 +114,9 @@ function BlockEditor({ blocks, onChange }: { blocks: Block[]; onChange: (b: Bloc
       {blocks.map((block,i) => (
         <div key={i} className="wk-block">
           <div className="wk-block-ctrl">
-            <button type="button" onClick={()=>move(i,-1)} aria-label={traducir('wiki.subir_bloque', { n: i+1 })} className="wk-block-ctrl-btn"><ChevronUp size={12} aria-hidden="true" /></button>
-            <button type="button" onClick={()=>move(i, 1)} aria-label={traducir('wiki.bajar_bloque', { n: i+1 })} className="wk-block-ctrl-btn"><ChevronDown size={12} aria-hidden="true" /></button>
-            <button type="button" onClick={()=>remove(i)} aria-label={traducir('wiki.eliminar_bloque', { n: i+1 })} className="wk-block-ctrl-btn wk-block-ctrl-btn--danger"><X size={12} aria-hidden="true" /></button>
+            <IconButton type="button" onClick={()=>move(i,-1)} ariaLabel={traducir('wiki.subir_bloque', { n: i+1 })} className="wk-block-ctrl-btn"><ChevronUp size={12} aria-hidden="true" /></IconButton>
+            <IconButton type="button" onClick={()=>move(i, 1)} ariaLabel={traducir('wiki.bajar_bloque', { n: i+1 })} className="wk-block-ctrl-btn"><ChevronDown size={12} aria-hidden="true" /></IconButton>
+            <IconButton type="button" onClick={()=>remove(i)} ariaLabel={traducir('wiki.eliminar_bloque', { n: i+1 })} className="wk-block-ctrl-btn wk-block-ctrl-btn--danger"><X size={12} aria-hidden="true" /></IconButton>
           </div>
           <div className="u-flex1">
             {block.type==='divider'
@@ -119,12 +124,12 @@ function BlockEditor({ blocks, onChange }: { blocks: Block[]; onChange: (b: Bloc
               : <div className="wk-block-body">
                   {block.type==='bullet'    && <span className="wk-bullet" aria-hidden="true">•</span>}
                   {block.type==='numbered'  && <span className="wk-bullet wk-bullet--num" aria-hidden="true">{i+1}.</span>}
-                  {block.type==='task_list' && <input type="checkbox" aria-label={traducir('wiki.tarea_n', { n: i+1 })} className="wk-task-check"/>}
+                  {block.type==='task_list' && <CasillaTarea etiqueta={traducir('wiki.tarea_n', { n: i+1 })} className="wk-task-check" />}
                   <div className="wk-block-main">
                     {['paragraph','heading1','heading2','heading3','quote','callout'].includes(block.type) && (
                       <div className="wk-format-bar">
                         {FORMATS.map(({label,cls,title,wrap}) => (
-                          <button key={label} type="button"
+                          <IconButton key={label} type="button"
                             onMouseDown={e=>{
                               e.preventDefault()
                               const ta = e.currentTarget.closest('div')?.parentElement?.querySelector('textarea')
@@ -135,15 +140,15 @@ function BlockEditor({ blocks, onChange }: { blocks: Block[]; onChange: (b: Bloc
                               update(i,'content',nv)
                               setTimeout(()=>{ta.focus();ta.setSelectionRange(s,s+rep.length)},FOCUS_DEFER_MS)
                             }}
-                            title={title} aria-label={title}
+                            title={title} ariaLabel={title}
                             className={`wk-format-btn ${cls}`}>
                             {label === 'link' ? <Link2 size={12} aria-hidden="true" /> : label}
-                          </button>
+                          </IconButton>
                         ))}
                         {/* AI improve button */}
-                        <button type="button"
+                        <IconButton type="button"
                           title={traducir('wiki.mejorar_redaccion_con_ia')}
-                          aria-label={traducir('wiki.mejorar_redaccion_con_ia')}
+                          ariaLabel={traducir('wiki.mejorar_redaccion_con_ia')}
                           onMouseDown={e=>{
                             e.preventDefault()
                             if(!block.content) return
@@ -153,7 +158,7 @@ function BlockEditor({ blocks, onChange }: { blocks: Block[]; onChange: (b: Bloc
                           }}
                           className="wk-format-btn wk-format-btn--ai">
                           <Sparkles size={12} aria-hidden="true" />
-                        </button>
+                        </IconButton>
                       </div>
                     )}
                     <textarea aria-label={traducir('wiki.bloque_n', { n: i+1 })} value={block.content||''} onChange={e=>update(i,'content',e.target.value)}
@@ -168,11 +173,11 @@ function BlockEditor({ blocks, onChange }: { blocks: Block[]; onChange: (b: Bloc
                 </div>
             }
           </div>
-          <select value={block.type} onChange={e=>update(i,'type',e.target.value)}
+          <Select suelto placeholder={false} value={block.type} onChange={e=>update(i,'type',e.target.value)}
             aria-label={traducir('wiki.tipo_de_bloque', { n: i+1 })}
             className="wk-type-select">
             {BLOCK_TYPES.map(bt=><option key={bt.type} value={bt.type}>{traducir(bt.labelKey)}</option>)}
-          </select>
+          </Select>
         </div>
       ))}
       <div className="wk-add-block">
@@ -195,11 +200,11 @@ function renderBlocks(blocks: Block[], traducir: (clave: string) => string) {
       case 'heading1':  return <h1  key={i} className="wk-r wk-r--h1">{text}</h1>
       case 'heading2':  return <h2  key={i} className="wk-r wk-r--h2">{text}</h2>
       case 'heading3':  return <h3  key={i} className="wk-r wk-r--h3">{text}</h3>
-      case 'code':      return <pre key={i} className="wk-r wk-r--code">{text}</pre>
+      case 'code':      return <pre key={i} className="ds-codigo wk-r wk-r--code">{text}</pre>
       case 'quote':     return <blockquote key={i} className="wk-r wk-r--quote">{text}</blockquote>
       case 'bullet':    return <div key={i} className="wk-r wk-r--row"><span className="wk-r-mark" aria-hidden="true">•</span><span>{text}</span></div>
       case 'numbered':  return <div key={i} className="wk-r wk-r--row"><span className="wk-r-mark wk-r-mark--num">{i+1}.</span><span>{text}</span></div>
-      case 'task_list': return <div key={i} className="wk-r wk-r--row wk-r--task"><input type="checkbox" readOnly aria-label={text || traducir('wiki.tarea')}/><span>{text}</span></div>
+      case 'task_list': return <div key={i} className="wk-r wk-r--row wk-r--task"><CasillaTarea etiqueta={text || traducir('wiki.tarea')} /><span>{text}</span></div>
       case 'divider':   return <hr  key={i} className="wk-r-divider"/>
       case 'callout':   return <div key={i} className="wk-r wk-r--callout"><Lightbulb size={16} aria-hidden="true" className="wk-r-callout-icon" /><span>{text}</span></div>
       default:          return <p   key={i} className={`wk-r ${text ? 'wk-r--p' : 'wk-r--empty'}`}>{text||<em>{traducir('wiki.parrafo_vacio')}</em>}</p>
@@ -262,7 +267,7 @@ function PageModal({ spaceId, parentId, editPage, onClose }: { spaceId?: string;
             <div id={`${idCampo}-plantilla-et`} className="wk-label">{traducir('wiki.empezar_desde_plantilla')}</div>
             <div role="group" aria-labelledby={`${idCampo}-plantilla-et`} className="wk-templates">
               {TEMPLATES.map(tpl=>(
-                <button key={tpl.id} type="button"
+                <Pulsable key={tpl.id} type="button"
                   onClick={()=>{
                     setBlocks(tpl.blocks.map(b => ({ type: b.type, content: b.key ? traducir(b.key) : '' })))
                     if(!title){ const n = traducir(tpl.nameKey); setTitle(n); setSlug(autoSlug(n)) }
@@ -270,10 +275,10 @@ function PageModal({ spaceId, parentId, editPage, onClose }: { spaceId?: string;
                   }}
                   className="wk-template">
                   <tpl.icon size={15} aria-hidden="true" /> {traducir(tpl.nameKey)}
-                </button>
+                </Pulsable>
               ))}
             </div>
-            <button type="button" onClick={()=>setTplStep(false)} className="wk-link-btn">{traducir('wiki.continuar_sin_plantilla')}</button>
+            <Pulsable type="button" onClick={()=>setTplStep(false)} className="wk-link-btn">{traducir('wiki.continuar_sin_plantilla')}</Pulsable>
           </div>
         )}
         {!tplStep && <>
@@ -291,7 +296,7 @@ function PageModal({ spaceId, parentId, editPage, onClose }: { spaceId?: string;
           </div>
           <div>
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="wk-label">{traducir('wiki.slug')}</label>
-            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="ds-input wk-input wk-input--mono" value={slug} onChange={e=>setSlug(e.target.value)}/>
+            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="ds-input wk-input wk-input--mono ds-campo-codigo" value={slug} onChange={e=>setSlug(e.target.value)}/>
           </div>
           <div>
             <div id={`${idCampo}-contenido-et`} className="wk-label">{traducir('wiki.content')}</div>
@@ -303,10 +308,10 @@ function PageModal({ spaceId, parentId, editPage, onClose }: { spaceId?: string;
             <div id={`${idCampo}-visibilidad-et`} className="wk-label">{traducir('wiki.visibility')}</div>
             <div className="u-row-8" role="group" aria-labelledby={`${idCampo}-visibilidad-et`}>
               {VIS_OPTS.map(o=>(
-                <button key={o.value} type="button" onClick={()=>setVisibility(o.value)} aria-pressed={visibility===o.value}
+                <Pulsable key={o.value} type="button" onClick={()=>setVisibility(o.value)} aria-pressed={visibility===o.value}
                   className={`wk-vis-btn${visibility===o.value ? ' wk-vis-btn--active' : ''}`}>
                   {o.label}
-                </button>
+                </Pulsable>
               ))}
             </div>
           </div>
@@ -339,9 +344,9 @@ function PageTree({ pages, selectedId, onSelect, onNew, level=0 }: { pages: Wiki
             <span className="wk-tree-title">{p.title}</span>
             {p.visibility === 'portal' && <span title={traducir('wiki.visible_portal')} aria-label={traducir('wiki.visible_portal')} className="wk-vis-icon"><Building2 size={12} aria-hidden="true" /></span>}
             {p.visibility === 'public' && <span title={traducir('wiki.visible_publico')} aria-label={traducir('wiki.visible_publico')} className="wk-vis-icon wk-vis-icon--public"><Globe size={12} aria-hidden="true" /></span>}
-            <button type="button" onClick={e=>{e.stopPropagation();onNew(p.id)}}
-              aria-label={traducir('wiki.nueva_subpagina_de', { titulo: p.title })} title={traducir('wiki.nueva_subpagina')}
-              className="wk-tree-add"><Plus size={13} aria-hidden="true" /></button>
+            <IconButton type="button" onClick={e=>{e.stopPropagation();onNew(p.id)}}
+              ariaLabel={traducir('wiki.nueva_subpagina_de', { titulo: p.title })} title={traducir('wiki.nueva_subpagina')}
+              className="wk-tree-add"><Plus size={13} aria-hidden="true" /></IconButton>
           </div>
           {(p.children?.length ?? 0)>0 && <PageTree pages={p.children || []} selectedId={selectedId} onSelect={onSelect} onNew={onNew} level={level+1}/>}
         </div>
@@ -407,11 +412,11 @@ function WikiTagsInline() {
   return (
     <div>
       <div className="wk-tags-bar">
-        <select value={space} onChange={e=>setSpace(e.target.value)} aria-label={traducir('wiki.espacio_wiki')}
-          className="ds-input wk-input wk-input--auto">
+        <Select suelto placeholder={false} value={space} onChange={e=>setSpace(e.target.value)} aria-label={traducir('wiki.espacio_wiki')}
+          className="wk-input wk-input--auto">
           <option value="">{traducir('wiki.seleccionar_espacio')}</option>
           {spaces.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
+        </Select>
         {space && <Button icon={<Plus size={14} />} onClick={()=>{setEditing(null);setForm({name:'',color:'var(--accent)'});setShowForm(true)}}>{traducir('wiki.nueva_etiqueta')}</Button>}
       </div>
 
@@ -429,9 +434,9 @@ function WikiTagsInline() {
               <div id={`${idCampo}-color-et`} className="wk-label wk-label--plain">{traducir('wiki.color')}</div>
               <div className="u-wrap-6" role="group" aria-labelledby={`${idCampo}-color-et`}>
                 {TAG_COLORS.map(c=>(
-                  <button key={c} type="button" aria-label={traducir('wiki.color_n', { color: c })} aria-pressed={form.color===c} onClick={()=>setForm(f=>({...f,color:c}))}
+                  <Pulsable key={c} type="button" aria-label={traducir('wiki.color_n', { color: c })} aria-pressed={form.color===c} onClick={()=>setForm(f=>({...f,color:c}))}
                     className={`wk-swatch${form.color===c ? ' wk-swatch--active' : ''}`}
-                    style={{ '--wk-color': c } as CSSProperties} />
+                    style={{ '--wk-color': c } as CSSProperties}>{null}</Pulsable>
                 ))}
               </div>
             </div>
@@ -657,13 +662,13 @@ export default function WikiPage() {
         <Modal open onClose={()=>setSpaceModal(false)} title={traducir('wiki.nuevo_espacio_wiki')}>
           <div className="u-stack-14">
             <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="wk-label">{traducir('wiki.nombre')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="ds-input wk-input" value={spaceForm.name} onChange={e=>setSpaceForm(f=>({...f,name:e.target.value,slug:autoSlug(e.target.value)}))}/></div>
-            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="wk-label">{traducir('wiki.slug')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} className="ds-input wk-input wk-input--mono" value={spaceForm.slug} onChange={e=>setSpaceForm(f=>({...f,slug:e.target.value}))}/></div>
+            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="wk-label">{traducir('wiki.slug')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} className="ds-input wk-input wk-input--mono ds-campo-codigo" value={spaceForm.slug} onChange={e=>setSpaceForm(f=>({...f,slug:e.target.value}))}/></div>
             <div><label id={`${idCampo}-etdesc`} htmlFor={`${idCampo}-desc`} className="wk-label">{traducir('wiki.descripcion')}</label><input id={`${idCampo}-desc`} aria-labelledby={`${idCampo}-etdesc`} className="ds-input wk-input" value={spaceForm.description} onChange={e=>setSpaceForm(f=>({...f,description:e.target.value}))} placeholder={traducir('wiki.describe_el_objetivo_del_espacio')}/></div>
             <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="wk-label">{traducir('wiki.proyecto_opcional')}</label>
-              <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} className="ds-input wk-input" value={spaceForm.project_id} onChange={e=>setSpaceForm(f=>({...f,project_id:e.target.value}))}>
+              <Select suelto placeholder={false} id={`${idCampo}-3`} className="wk-input" value={spaceForm.project_id} onChange={e=>setSpaceForm(f=>({...f,project_id:e.target.value}))}>
                 <option value="">{traducir('wiki.sin_proyecto')}</option>
                 {projects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+              </Select>
             </div>
             <div className="wk-actions">
               <Button variant="secondary" onClick={()=>setSpaceModal(false)}>{traducir('wiki.cancelar')}</Button>

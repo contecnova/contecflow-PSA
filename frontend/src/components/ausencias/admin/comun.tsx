@@ -7,6 +7,7 @@ import type { ReactNode } from 'react'
 import { useAppLang } from '../../../i18n/AppLangContext'
 import type { Idioma } from '../../../services/api/tipos-ausencias'
 import { COLOR_DATO_POR_DEFECTO } from '../../../constants/theme'
+import { Checkbox } from '../../ui'
 import './ausencias-admin.css'
 
 export const IDIOMAS: Idioma[] = ['es', 'en', 'zh']
@@ -68,7 +69,7 @@ export function NombresPorIdioma({ valor, onChange }: {
 }) {
   const { ta } = useT()
   return (
-    <fieldset className="ausadm-fieldset">
+    <fieldset className="ds-grupo-opciones ausadm-fieldset">
       <legend className="ausadm-etiqueta">{ta('nombre_por_idioma')}</legend>
       <div className="ausadm-grid-3">
         {IDIOMAS.map(l => (
@@ -92,10 +93,7 @@ export function Casilla({ etiqueta, valor, onChange, ayuda }: {
   etiqueta: string; valor: boolean; onChange: (v: boolean) => void; ayuda?: string
 }) {
   return (
-    <label className="ausadm-casilla">
-      <input aria-label={etiqueta} type="checkbox" checked={valor} onChange={e => onChange(e.target.checked)} />
-      <span>{etiqueta}{ayuda && <span className="ausadm-ayuda"> — {ayuda}</span>}</span>
-    </label>
+    <Checkbox className="ausadm-casilla" label={etiqueta} ayuda={ayuda} checked={valor} onChange={m => onChange(m)} />
   )
 }
 

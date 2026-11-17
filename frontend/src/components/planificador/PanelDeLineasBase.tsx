@@ -7,7 +7,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Camera, CheckCircle2, GitCompare, Trash2 } from 'lucide-react'
 import { lineasBaseApi } from '../../services/api'
-import { Button, EmptyState, Spinner } from '../ui'
+import { Button, EmptyState, Spinner, Select, TablaSimple, Checkbox } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { useConfirm } from '../../context/ConfirmContext'
@@ -65,10 +65,7 @@ export default function PanelDeLineasBase({ projectId }: { projectId: string }) 
         <form className="plan-row" onSubmit={e => { e.preventDefault(); if (nombre.trim()) crear.mutate() }}>
           <input className="plan-input" value={nombre} onChange={e => setNombre(e.target.value)} maxLength={100}
             placeholder={t('planificador.nombre_linea_base')} aria-label={t('planificador.nombre_linea_base')} />
-          <label className="plan-row plan-muted">
-            <input type="checkbox" checked={vigente} onChange={e => setVigente(e.target.checked)} />
-            {t('planificador.hacer_vigente')}
-          </label>
+          <Checkbox className="plan-row plan-muted" label={t('planificador.hacer_vigente')} checked={vigente} onChange={m => setVigente(m)} />
           <Button size="sm" type="submit" icon={<Camera size={13} />} loading={crear.isPending} disabled={!nombre.trim()}>
             {t('planificador.congelar_plan')}
           </Button>
@@ -79,7 +76,7 @@ export default function PanelDeLineasBase({ projectId }: { projectId: string }) 
         <EmptyState title={t('planificador.sin_lineas_base')} description={t('planificador.sin_lineas_base_desc')} />
       ) : (
         <div className="plan-card plan-tabla-scroll">
-          <table className="plan-tabla">
+          <TablaSimple claseTabla="plan-tabla">
             <thead>
               <tr>
                 <th>{t('planificador.col_nombre')}</th><th>{t('planificador.col_fecha')}</th>
@@ -116,7 +113,7 @@ export default function PanelDeLineasBase({ projectId }: { projectId: string }) 
                 </tr>
               ))}
             </tbody>
-          </table>
+          </TablaSimple>
         </div>
       )}
 
@@ -126,10 +123,9 @@ export default function PanelDeLineasBase({ projectId }: { projectId: string }) 
             <h3 className="plan-card__titulo">{t('planificador.comparacion')}</h3>
             <label className="plan-row plan-muted">
               {t('planificador.comparar_contra')}
-              <select className="plan-select" value={comparar.contra} onChange={e => setComparar(c => ({ ...c, contra: e.target.value }))}>
-                <option value="">{t('planificador.plan_de_hoy')}</option>
+              <Select suelto className="plan-select" value={comparar.contra} onChange={e => setComparar(c => ({ ...c, contra: e.target.value }))} placeholder={t('planificador.plan_de_hoy')}>
                 {lineas.filter(l => l.id !== comparar.id).map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select>
+              </Select>
             </label>
           </div>
           {comparando || !cmp ? <Spinner /> : (
@@ -144,7 +140,7 @@ export default function PanelDeLineasBase({ projectId }: { projectId: string }) 
                 <span className="plan-chip">{t('planificador.cmp_horas', { base: cmp.summary.baseline_hours, hoy: cmp.summary.current_hours })}</span>
               </div>
               <div className="plan-tabla-scroll">
-                <table className="plan-tabla">
+                <TablaSimple claseTabla="plan-tabla">
                   <thead>
                     <tr>
                       <th>{t('planificador.col_tarea')}</th><th>{t('planificador.col_fin_base')}</th>
@@ -163,7 +159,7 @@ export default function PanelDeLineasBase({ projectId }: { projectId: string }) 
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </TablaSimple>
               </div>
             </>
           )}

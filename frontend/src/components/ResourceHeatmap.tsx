@@ -19,7 +19,7 @@ import { useMemo, useState, type CSSProperties, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { projectsApi, usersApi } from '../services/api'
-import { Button, Card, KpiCard, Modal, Spinner, EmptyState, SelectorDePeriodo, RejillaPersonaDia, columnasDeSemanas } from './ui'
+import { Button, Card, KpiCard, Modal, Select, Spinner, EmptyState, SelectorDePeriodo, RejillaPersonaDia, columnasDeSemanas } from './ui'
 import type { TonoDeRejilla } from './ui'
 import { usePeriodo } from '../hooks/usePeriodo'
 import { AlertTriangle, ArrowLeft, BatteryLow, CalendarDays, Flame, List, Plus, Trash2, Users } from 'lucide-react'
@@ -170,24 +170,22 @@ function BookingModal({ onClose, prefill }: { onClose: () => void; prefill?: Boo
     <Modal open title={t('resource_heatmap.new_booking_title')} onClose={onClose} width={480}>
       <div className="u-stack-14">
         <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="resoheat-ls">{t('capacity.persona_obligatoria')}</label>
-          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.user_id} onChange={setField('user_id')} className={validation.inputClass('ds-input', 'user_id')}>
-            <option value="">{t('invoices.select')}</option>
+          <Select suelto id={`${idCampo}-1`} value={form.user_id} onChange={setField('user_id')} className={validation.inputClass('ds-input', 'user_id')} placeholder={t('invoices.select')}>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}{u.role ? ` (${nombreDeRol(t, u.role)})` : ''}</option>)}
-          </select>
+          </Select>
           {validation.errors.user_id && <div className="u-field-error">{validation.errors.user_id}</div>}
         </div>
         <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="resoheat-ls">{t('gas.proyecto')}</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.project_id} onChange={setField('project_id')} className="ds-input">
-            <option value="">{t('resourceheatmap.sin_proyecto')}</option>
+          <Select suelto id={`${idCampo}-2`} value={form.project_id} onChange={setField('project_id')} className="ds-input" placeholder={t('resourceheatmap.sin_proyecto')}>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-          </select>
+          </Select>
         </div>
         <div className="u-grid2-12">
           <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="resoheat-ls">{t('alm.type')}</label>
-            <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.booking_type} onChange={setField('booking_type')} className="ds-input">
+            <Select suelto id={`${idCampo}-3`} value={form.booking_type} onChange={setField('booking_type')} className="ds-input" placeholder={false}>
               <option value="hard">{t('resourceheatmap.hard_confirmado')}</option>
               <option value="soft">{t('resourceheatmap.soft_tentativo')}</option>
-            </select>
+            </Select>
           </div>
           <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="resoheat-ls">{t('resourceheatmap.h_dia')}</label>
             <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" min={1} max={24} value={form.hours_per_day} onChange={setField('hours_per_day')} className={validation.inputClass('ds-input', 'hours_per_day')} />
@@ -271,13 +269,12 @@ export default function ResourceHeatmap() {
       <div className="ds-toolbar resoheat-row-1">
         <SelectorDePeriodo {...periodo.selector} presets={presetsHorizonte} sinGranularidad />
 
-        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-          aria-label={t('resourceheatmap.filtro_estado')} className="ds-input resoheat-fs2">
-          <option value="">{t('resourceheatmap.todos')}</option>
+        <Select suelto value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+          aria-label={t('resourceheatmap.filtro_estado')} className="ds-input resoheat-fs2" placeholder={t('resourceheatmap.todos')}>
           <option value="overloaded">{t('resourceheatmap.solo_sobrecargados')}</option>
           <option value="high">{t('resourceheatmap.alta_carga')}</option>
           <option value="free">{t('resourceheatmap.infrautilizados')}</option>
-        </select>
+        </Select>
 
         <div className="ds-toolbar__spacer" />
         <Button variant="secondary" icon={showBookingsPanel ? <ArrowLeft size={14} /> : <List size={14} />}

@@ -34,8 +34,7 @@
 
 /* ── Editor ───────────────────────────────────────────────────── */
 .aut-label {
-  font-size: var(--text-xs); font-weight: 700; color: var(--text-2); text-transform: uppercase;
-  letter-spacing: 0.07em; display: block; margin-bottom: 5px;
+  font-size: var(--text-xs); font-weight: 700; color: var(--text-2);  letter-spacing: 0.07em; display: block; margin-bottom: 5px;
 }
 .aut-input {
   width: 100%; background: var(--surface-3); border: 1px solid var(--surface-4); border-radius: 8px;
@@ -43,13 +42,13 @@
   font-family: inherit; box-sizing: border-box;
 }
 .aut-input:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-.aut-input--mono { font-family: var(--font-mono); }
+.aut-input--mono { font-variant-numeric: tabular-nums; }
 
 .aut-section { border-radius: var(--radius-md); padding: 14px 16px; }
 .aut-section--if   { background: var(--purple-bg); border: 1px solid var(--purple-border); }
 .aut-section--then { background: var(--accent-muted); border: 1px solid var(--accent-border); }
 .aut-section-title {
-  font-size: var(--text-sm); font-weight: 700; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.06em;
+  font-size: var(--text-sm); font-weight: 700; margin-bottom: 12px;letter-spacing: 0.06em;
 }
 .aut-section--if .aut-section-title   { color: var(--purple); }
 .aut-section--then .aut-section-title { color: var(--accent); }

@@ -98,9 +98,9 @@ function SecretoDelWebhook() {
       {datos && (
         <div role="status" className="jira-card">
           <div className="u-text2-xs">{t('pagina_jira.url_del_webhook_a_configurar_en')}</div>
-          <div className="jira-integration-page-e4"><code className="jira-integration-page-e5">{datos.url}</code><Button size="xs" variant="ghost" onClick={() => copiar(datos.url)}>{t('pagina_jira.copiar')}</Button></div>
+          <div className="jira-integration-page-e4"><code className="ds-codigo jira-integration-page-e5">{datos.url}</code><Button size="xs" variant="ghost" onClick={() => copiar(datos.url)}>{t('pagina_jira.copiar')}</Button></div>
           <div className="u-text2-xs jira-box-3">{t('pagina_jira.secreto_cabecera')}{' '}<code>{datos.header}</code>{t('pagina_jira.solo_se_muestra_ahora')}</div>
-          <div className="jira-integration-page-e4"><code className="jira-integration-page-e5">{datos.secret}</code><Button size="xs" variant="ghost" onClick={() => copiar(datos.secret)}>{t('pagina_jira.copiar')}</Button></div>
+          <div className="jira-integration-page-e4"><code className="ds-codigo jira-integration-page-e5">{datos.secret}</code><Button size="xs" variant="ghost" onClick={() => copiar(datos.secret)}>{t('pagina_jira.copiar')}</Button></div>
         </div>
       )}
     </div>
@@ -330,7 +330,7 @@ export default function JiraIntegrationPage(): JSX.Element {
               <AlertTriangle size={14} className="jira-box-8" />
               <p className="jira-text">
                 {t('jira_integration.webhook_note')}{' '}
-                <code className="jira-box-5">/jira/webhook</code>{' '}
+                <code className="ds-codigo jira-box-5">/jira/webhook</code>{' '}
                 {t('jira_integration.webhook_note_end')}
               </p>
             </div>
@@ -355,7 +355,7 @@ export default function JiraIntegrationPage(): JSX.Element {
                 <Table
                   data={issueList}
                   columns={[
-                    { key: 'key', label: t('jira_integration.col_key'), render: (_v, issue) => <span className="jira-label">{issue.key}</span> },
+                    { key: 'key', label: t('jira_integration.col_key'), render: (_v, issue) => <span className="ds-codigo jira-label">{issue.key}</span> },
                     { key: 'summary', label: t('jira_integration.col_summary'), render: (_v, issue) => <span className="jira-label-2">{issue.summary}</span> },
                     { key: 'status', label: t('jira_integration.col_status'), render: (_v, issue) => (
                       <span className="jira-card-2">
@@ -387,7 +387,7 @@ export default function JiraIntegrationPage(): JSX.Element {
                   data={linkedList}
                   columns={[
                     { key: 'title', label: t('jira_integration.col_task') },
-                    { key: 'jira_issue_key', label: t('jira_integration.col_jira_key'), render: (_v, row) => <span className="jira-label-4">{row.jira_issue_key}</span> },
+                    { key: 'jira_issue_key', label: t('jira_integration.col_jira_key'), render: (_v, row) => <span className="ds-codigo jira-label-4">{row.jira_issue_key}</span> },
                     { key: 'status', label: t('jira_integration.col_status'), render: (_v, row) => (
                       <span className="jira-card-2">
                         {etiquetaCodigo(t, 'estado', row.status)}

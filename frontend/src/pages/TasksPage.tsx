@@ -19,9 +19,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { tasksApi, projectsApi, customFieldsApi, semanticApi, projectWorkflowsApi, issueTypesApi, sprintsApi, cmdbApi, usersApi } from '../services/api'
 import type { CampoPersonalizado, ConfigDelTablero, EstimacionDeEsfuerzo, FlujoDelProyecto, SugerenciaDeAsignacion, TipoDeIncidencia, ValorDeCampoPersonalizado } from '../services/api/tipos-rendimiento'
 import type { ApiError, ProjectListItem, TaskCreatePayload, TaskUpdatePayload, TaskBulkUpdatePayload, TaskListParams, PersonaVisible, MovementLogEntry } from '../services/api'
-import { Badge, Button, Modal, EmptyState, Avatar, useSort, SortableTH, Tabs, Drawer } from '../components/ui'
+import { Badge, Button, Modal, EmptyState, Avatar, useSort, SortableTH, Tabs, Drawer, Select, Checkbox, Chip, BarraDeFiltros, IconButton, Pulsable } from '../components/ui'
 import { SkeletonTable } from '../components/ui/Skeletons'
-import VistasDeTrabajo, { VISTAS_DE_TRABAJO, type VistaDeTrabajo } from '../components/planificador/VistasDeTrabajo'
+import VistasDeTrabajo, { VISTAS_DE_TRABAJO, type FiltrosDeVistas, type VistaDeTrabajo } from '../components/planificador/VistasDeTrabajo'
 import VirtualList from '../components/ui/VirtualList'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -165,7 +165,11 @@ const ICONO_DE_VISTA: Record<string, ReactNode> = {
   calendar: <CalendarRange size={14} />, workload: <Users size={14} />,
 }
 
+/** Pulsación dentro de la casilla de selección de una fila: no abre la tarea. */
+const desdeCasilla = (event: { target: EventTarget }) => !!(event.target as HTMLElement).closest?.('.ui-casilla')
+
 function onKeyboardActivate(event: React.KeyboardEvent, action: () => void) {
+  if (desdeCasilla(event)) return
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault()
     action()
@@ -174,6 +178,8 @@ function onKeyboardActivate(event: React.KeyboardEvent, action: () => void) {
 
 
 const STATUSES = ['todo', 'in_progress', 'blocked', 'in_review', 'done']
+/** «Abiertas»: lo que el servidor entiende por el filtro rápido de estado (todo menos hecho). */
+const ESTADOS_ABIERTOS = 'backlog,todo,in_progress,blocked,in_review'
 // Tope de tareas que se piden (el máximo del endpoint); si hay más, se avisa.
 const TAREAS_MAXIMAS = 500
 const PRIORIDADES = ['critical', 'high', 'medium', 'low']
@@ -264,9 +270,9 @@ function AltaRapida({ onCrear }: { onCrear: (titulo: string) => Promise<unknown>
     await onCrear(titulo.trim()); setTitulo(''); setAbierta(false)
   }
   if (!abierta) return (
-    <button type="button" className="tsk-quick-add" onClick={() => setAbierta(true)}>
+    <Pulsable className="tsk-quick-add" onClick={() => setAbierta(true)}>
       <Plus size={13} aria-hidden />{t('tasks.kanban_alta_rapida')}
-    </button>
+    </Pulsable>
   )
   return (
     <input autoFocus value={titulo} placeholder={t('tasks.kanban_alta_titulo')} aria-label={t('tasks.kanban_alta_titulo')}
@@ -294,14 +300,14 @@ function KanbanColumn({ status, tasks, onTaskClick, onTaskDragStart, onColumnEnt
           {tasks.length}{wipLimit ? ` / ${wipLimit}` : ''}
         </span>
         {onSetWip && (
-          <button type="button" aria-label={t('tasks.kanban_wip_editar')} title={t('tasks.kanban_wip_editar')}
+          <Pulsable aria-label={t('tasks.kanban_wip_editar')} title={t('tasks.kanban_wip_editar')}
             onClick={async () => {
               const v = await pedirTexto({ title: t('tasks.kanban_wip_editar'), message: t('tasks.kanban_wip_pregunta'), defaultValue: wipLimit ? String(wipLimit) : '', inputType: 'number' })
               if (v === null) return
               const n = parseInt(v, 10)
               onSetWip(Number.isFinite(n) && n > 0 ? n : null)
             }}
-            className="tsk-wip-btn">WIP</button>
+            className="tsk-wip-btn">WIP</Pulsable>
         )}
       </div>
       <div className="u-stack-8">
@@ -498,9 +504,9 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
         {/* Drawer header */}
         <div className="tsk-drawer-head">
           <span className="tsk-drawer-code">{task.code}</span>
-          <button type="button" className="tsk-icon-btn" onClick={onClose} aria-label={t('common.close')} title={t('common.close')}>
+          <IconButton className="tsk-icon-btn" onClick={onClose} ariaLabel={t('common.close')}>
             <X size={16} />
-          </button>
+          </IconButton>
         </div>
         {/* Scrollable body */}
         <div className="tsk-drawer-body">
@@ -643,20 +649,20 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
           {/* Estado + Prioridad */}
           <div>
             <label id={`${idCampo}-2-et`} htmlFor={`${idCampo}-2`} className="tsk-label">{t('common.status')}</label>
-            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-2-et`} value={form.status} onChange={set('status')} className="tsk-input">
+            <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.status} onChange={set('status')} className="tsk-input">
               {statusOptions.map(o => (
                 <option key={o.value} value={o.value}>{o.icon} {o.label}</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div>
             <label id={`${idCampo}-3-et`} htmlFor={`${idCampo}-3`} className="tsk-label">{t('common.priority')}</label>
-            <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-3-et`} value={form.priority} onChange={set('priority')} className="tsk-input">
+            <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.priority} onChange={set('priority')} className="tsk-input">
               <option value="low">{t('tasks.priority_low')}</option>
               <option value="medium">{t('tasks.priority_medium')}</option>
               <option value="high">{t('tasks.priority_high')}</option>
               <option value="critical">{t('tasks.priority_critical')}</option>
-            </select>
+            </Select>
           </div>
 
           {/* Asignado + botón IA */}
@@ -667,10 +673,10 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
                 {t('tasks.ai_suggest')}
               </Button>
             </div>
-            <select id={`${idCampo}-asignado`} aria-labelledby={`${idCampo}-asignado-et`} value={form.assignee_id} onChange={set('assignee_id')} className="tsk-input">
+            <Select suelto placeholder={false} id={`${idCampo}-asignado`} value={form.assignee_id} onChange={set('assignee_id')} className="tsk-input">
               <option value="">{t('tasks.no_assignee')}</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-            </select>
+            </Select>
             {(semSuggestion || semEffort) && !semSuggestion?.error && (
               <div className="tsk-ai" role="status">
                 <div>
@@ -692,7 +698,7 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
                 </div>
                 <div className="u-row-6">
                   <Button size="xs" onClick={acceptSuggestion}>{t('tasks.ai_apply')}</Button>
-                  <button type="button" className="tsk-icon-btn" onClick={() => { setSemSuggestion(null); setSemEffort(null) }} aria-label={t('tasks.descartar_sugerencia')} title={t('tasks.descartar_sugerencia')}><X size={14} aria-hidden /></button>
+                  <IconButton className="tsk-icon-btn" onClick={() => { setSemSuggestion(null); setSemEffort(null) }} ariaLabel={t('tasks.descartar_sugerencia')}><X size={14} aria-hidden /></IconButton>
                 </div>
               </div>
             )}
@@ -700,12 +706,12 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
 
           <div>
             <label className="tsk-label" htmlFor={`${idCampo}-tipo`}>{t('tasks.issue_type')}</label>
-            <select id={`${idCampo}-tipo`} value={form.issue_type} onChange={set('issue_type')} className="tsk-input">
+            <Select suelto placeholder={false} id={`${idCampo}-tipo`} value={form.issue_type} onChange={set('issue_type')} className="tsk-input">
               <option value="">—</option>
               {issueTypes.map(it => (
                 <option key={it.id} value={it.value}>{it.icon} {it.name}</option>
               ))}
-            </select>
+            </Select>
           </div>
 
           {/* Horas + Fechas */}
@@ -754,13 +760,13 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
                   <div key={f.id} className={(f.field_type === 'text' || f.field_type === 'url') ? 'u-col-full' : undefined}>
                     <label id={`${idCampo}-cf-${f.id}-et`} htmlFor={`${idCampo}-cf-${f.id}`} className="tsk-label">{f.name}{f.is_required ? ' *' : ''}</label>
                     {f.field_type === 'select' ? (
-                      <select id={`${idCampo}-cf-${f.id}`} aria-labelledby={`${idCampo}-cf-${f.id}-et`} value={customValues[f.id] ?? ''} onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))} className="tsk-input">
+                      <Select suelto placeholder={false} id={`${idCampo}-cf-${f.id}`} value={customValues[f.id] ?? ''} onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))} className="tsk-input">
                         <option value="">{t('tasks.select_option')}</option>
                         {(f.options || []).map(o => <option key={o} value={o}>{o}</option>)}
-                      </select>
+                      </Select>
                     ) : f.field_type === 'boolean' ? (
                       <div className="tsk-check-row">
-                        <input type="checkbox" id={`${idCampo}-cf-${f.id}`} aria-labelledby={`${idCampo}-cf-${f.id}-et`} checked={customValues[f.id] === 'true'} onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.checked ? 'true' : 'false' }))} className="tsk-check tsk-check--lg" />
+                        <Checkbox id={`${idCampo}-cf-${f.id}`} checked={customValues[f.id] === 'true'} onChange={m => setCustomValues(v => ({ ...v, [f.id]: m ? 'true' : 'false' }))} className="tsk-check tsk-check--lg" />
                         <span className="u-text2-base">{customValues[f.id] === 'true' ? t('common.yes') : t('common.no')}</span>
                       </div>
                     ) : (
@@ -1018,7 +1024,7 @@ export default function TasksPage() {
     queryKey: ['tasks', view, projectFilter, statusFilter, search, priorityFilter, assigneeFilter, overdueOnly, mineOnly, sprintFilter],
     queryFn: () => {
       const effectiveStatus = statusFilter === 'open'
-        ? 'backlog,todo,in_progress,blocked,in_review'
+        ? ESTADOS_ABIERTOS
         : (statusFilter || undefined)
       return tareas.list({
         project_id: projectFilter || undefined,
@@ -1170,6 +1176,81 @@ export default function TasksPage() {
     bulkMutate(payload)
   }
 
+  // ── Barra de filtros única ───────────────────────────────────────────────
+  const esVistaDeTrabajo = (VISTAS_DE_TRABAJO as readonly string[]).includes(view)
+  // La carga por persona solo depende del proyecto: el resto de filtros no se enseña.
+  const soloProyecto = view === 'workload'
+  const filtrosDeVistas: FiltrosDeVistas = {
+    status: (statusFilter === 'open' ? ESTADOS_ABIERTOS : statusFilter) || undefined,
+    search: search || undefined,
+    priority: (priorityFilter || undefined) as FiltrosDeVistas['priority'],
+    assignee_id: assigneeFilter || undefined,
+    overdue_only: overdueOnly || undefined,
+    assigned_to_me: mineOnly || undefined,
+    sprint_id: (projectFilter && sprintFilter) || undefined,
+  }
+  const aplicarFiltrosDeVista = ({ status, assignee }: { status?: string; assignee?: string }) => setSearchParams(p => {
+    const n = new URLSearchParams(p)
+    const estado = status === ESTADOS_ABIERTOS ? 'open' : status
+    estado ? n.set('status', estado) : n.delete('status')
+    assignee ? n.set('assignee', assignee) : n.delete('assignee')
+    return n
+  }, { replace: true })
+  const controlesDeFiltro = (
+    <>
+      {!soloProyecto && (
+        <div className="tsk-search">
+          <Search size={14} aria-hidden className="tsk-search-icon" />
+          <input aria-label={t('tasks.search_placeholder')} ref={buscador} value={search} onChange={e => setSearch(e.target.value)}
+            placeholder={t('tasks.search_placeholder')} aria-keyshortcuts="/"
+            className="ds-input tsk-search-input" />
+        </div>
+      )}
+      <Select suelto placeholder={false} aria-label={t('tasks.all_projects')} value={projectFilter} onChange={e => setProjectFilter(e.target.value)}
+        className="tsk-filter--project">
+        <option value="">{t('tasks.all_projects')}</option>
+        {projectOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </Select>
+      {!soloProyecto && (
+        <>
+          <Select suelto placeholder={false} aria-label={t('tasks.filter_priority')} value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)}
+            className={`tsk-filter${priorityFilter ? ' tsk-filter--accent' : ''}`}>
+            <option value="">{t('tasks.filter_priority')}</option>
+            {PRIORIDADES.map(p => <option key={p} value={p}>{nombreDePrioridadT(t, p)}</option>)}
+          </Select>
+          <Select suelto placeholder={false} aria-label={t('tasks.all_assignees')} value={assigneeFilter} onChange={e => setAssigneeFilter(e.target.value)}
+            className={`tsk-filter${assigneeFilter ? ' tsk-filter--accent' : ''}`}>
+            <option value="">{t('tasks.all_assignees')}</option>
+            {allUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+          </Select>
+          {projectFilter && sprintsDelProyecto.length > 0 && (
+            <Select suelto placeholder={false} aria-label={t('tasks.kanban_sprint')} value={sprintFilter} onChange={e => setSprintFilter(e.target.value)}
+              className={`tsk-filter${sprintFilter ? ' tsk-filter--accent' : ''}`}>
+              <option value="">{t('tasks.kanban_todos_los_sprints')}</option>
+              {sprintsDelProyecto.map(sp => <option key={sp.id} value={sp.id}>{sp.name}</option>)}
+            </Select>
+          )}
+        </>
+      )}
+      {view === 'kanban' && (
+        <Select suelto placeholder={false} aria-label={t('tasks.kanban_carriles')} value={carril} onChange={e => guardarCarril(e.target.value)}
+          className="tsk-filter">
+          <option value="none">{t('tasks.kanban_sin_carriles')}</option>
+          <option value="assignee">{t('tasks.kanban_carril_persona')}</option>
+          <option value="priority">{t('tasks.kanban_carril_prioridad')}</option>
+        </Select>
+      )}
+      {(view === 'list' || (esVistaDeTrabajo && !soloProyecto)) && (
+        <Select suelto placeholder={false} aria-label={t('tasks.filter_status')} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+          className="tsk-filter">
+          <option value="">{t('tasks.filter_status')}</option>
+          <option value="open">{t('tasks.estado_abiertas')}</option>
+          {STATUSES.map(v => <option key={v} value={v}>{nombreDeEstado(t, v)}</option>)}
+        </Select>
+      )}
+    </>
+  )
+
   return (
     <PageShell>
       <PageHeader
@@ -1218,66 +1299,23 @@ export default function TasksPage() {
       {quickFilterPills.length > 0 && (
         <div className="ds-row-wrap tsk-pills">
           {quickFilterPills.map(pill => (
-            <span key={pill.key} className="ds-pill ds-pill--accent">
-              {pill.label}
-              <button type="button" className="tsk-pill-x" onClick={pill.onClear} aria-label={t('tasks.quitar_filtro', { filtro: pill.label })}>
-                <X size={11} />
-              </button>
-            </span>
+            <Chip key={pill.key} activo onQuitar={pill.onClear}>{pill.label}</Chip>
           ))}
-          <button type="button" onClick={clearQuickFilters} className="ds-pill tsk-pill-btn">
+          <Button variant="link" size="sm" onClick={clearQuickFilters}>
             {traducir('tasks.limpiar_filtros_rapidos')}
-          </button>
+          </Button>
         </div>
       )}
 
-      {/* Filters toolbar */}
-      <div className="ds-toolbar tsk-toolbar">
-        <div className="tsk-search">
-          <Search size={14} aria-hidden className="tsk-search-icon" />
-          <input aria-label={t('tasks.search_placeholder')} ref={buscador} value={search} onChange={e => setSearch(e.target.value)}
-            placeholder={t('tasks.search_placeholder')} aria-keyshortcuts="/"
-            className="ds-input tsk-search-input" />
-        </div>
-        <select aria-label={t('tasks.all_projects')} value={projectFilter} onChange={e => setProjectFilter(e.target.value)}
-          className="ds-input tsk-filter--project">
-          <option value="">{t('tasks.all_projects')}</option>
-          {projectOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-        <select aria-label={t('tasks.filter_priority')} value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)}
-          className={`ds-input tsk-filter${priorityFilter ? ' tsk-filter--accent' : ''}`}>
-          <option value="">{t('tasks.filter_priority')}</option>
-          {PRIORIDADES.map(p => <option key={p} value={p}>{nombreDePrioridadT(t, p)}</option>)}
-        </select>
-        <select aria-label={t('tasks.all_assignees')} value={assigneeFilter} onChange={e => setAssigneeFilter(e.target.value)}
-          className={`ds-input tsk-filter${assigneeFilter ? ' tsk-filter--accent' : ''}`}>
-          <option value="">{t('tasks.all_assignees')}</option>
-          {allUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-        </select>
-        {projectFilter && sprintsDelProyecto.length > 0 && (
-          <select aria-label={t('tasks.kanban_sprint')} value={sprintFilter} onChange={e => setSprintFilter(e.target.value)}
-            className={`ds-input tsk-filter${sprintFilter ? ' tsk-filter--accent' : ''}`}>
-            <option value="">{t('tasks.kanban_todos_los_sprints')}</option>
-            {sprintsDelProyecto.map(sp => <option key={sp.id} value={sp.id}>{sp.name}</option>)}
-          </select>
-        )}
-        {view === 'kanban' && (
-          <select aria-label={t('tasks.kanban_carriles')} value={carril} onChange={e => guardarCarril(e.target.value)}
-            className="ds-input tsk-filter">
-            <option value="none">{t('tasks.kanban_sin_carriles')}</option>
-            <option value="assignee">{t('tasks.kanban_carril_persona')}</option>
-            <option value="priority">{t('tasks.kanban_carril_prioridad')}</option>
-          </select>
-        )}
-        {view === 'list' && (
-          <select aria-label={t('tasks.filter_status')} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-            className="ds-input tsk-filter">
-            <option value="">{t('tasks.filter_status')}</option>
-            <option value="open">{t('tasks.estado_abiertas')}</option>
-            {STATUSES.map(v => <option key={v} value={v}>{nombreDeEstado(t, v)}</option>)}
-          </select>
-        )}
-      </div>
+      {/* Una sola barra de filtros (17-11-2026): en tablero y lista es la de la
+          página; en las vistas de trabajo, estos mismos controles encabezan la
+          barra de VistasDeTrabajo (columnas y vistas guardadas). Los filtros
+          viven en la URL. */}
+      {!esVistaDeTrabajo && (
+        <BarraDeFiltros className="tsk-toolbar">
+          {controlesDeFiltro}
+        </BarraDeFiltros>
+      )}
 
       {/* ── Bulk Action Bar ─────────────────────────────────────────────── */}
       {selected.size > 0 && (
@@ -1286,7 +1324,7 @@ export default function TasksPage() {
             <CheckSquare size={13} aria-hidden /> {selected.size} {t('tasks.selected')}
           </span>
           <div className="tsk-bulk-sep" aria-hidden="true" />
-          <select aria-label={t('tasks.bulk_status_ph')} value={bulkStatus} onChange={e => setBulkStatus(e.target.value)}
+          <Select suelto placeholder={false} aria-label={t('tasks.bulk_status_ph')} value={bulkStatus} onChange={e => setBulkStatus(e.target.value)}
             className="ds-input tsk-bulk-select">
             <option value="">{t('tasks.bulk_status_ph')}</option>
             <option value="todo">{t('tasks.status_todo')}</option>
@@ -1294,20 +1332,20 @@ export default function TasksPage() {
             <option value="in_review">{t('tasks.status_review')}</option>
             <option value="blocked">{t('tasks.status_blocked')}</option>
             <option value="done">{t('tasks.status_done')}</option>
-          </select>
-          <select aria-label={t('tasks.bulk_priority_ph')} value={bulkPriority} onChange={e => setBulkPriority(e.target.value)}
+          </Select>
+          <Select suelto placeholder={false} aria-label={t('tasks.bulk_priority_ph')} value={bulkPriority} onChange={e => setBulkPriority(e.target.value)}
             className="ds-input tsk-bulk-select">
             <option value="">{t('tasks.bulk_priority_ph')}</option>
             <option value="low">{t('tasks.priority_low')}</option>
             <option value="medium">{t('tasks.priority_medium')}</option>
             <option value="high">{t('tasks.priority_high')}</option>
             <option value="critical">{t('tasks.priority_critical')}</option>
-          </select>
-          <select aria-label={t('tasks.bulk_assignee_ph')} value={bulkAssignee} onChange={e => setBulkAssignee(e.target.value)}
+          </Select>
+          <Select suelto placeholder={false} aria-label={t('tasks.bulk_assignee_ph')} value={bulkAssignee} onChange={e => setBulkAssignee(e.target.value)}
             className="ds-input tsk-bulk-select">
             <option value="">{t('tasks.bulk_assignee_ph')}</option>
             {allUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-          </select>
+          </Select>
           <Button size="sm" onClick={applyBulk}
             disabled={bulkPending || (!bulkStatus && !bulkPriority && !bulkAssignee)}>
             {bulkPending
@@ -1326,8 +1364,9 @@ export default function TasksPage() {
           {t('tasks.mostrando_de', { n: flatTasks.length, total: tasksData?.total ?? 0 })}
         </div>
       )}
-      {(VISTAS_DE_TRABAJO as readonly string[]).includes(view) ? (
-        <VistasDeTrabajo projectId={projectFilter || undefined} vista={view as VistaDeTrabajo} onVista={setView} />
+      {esVistaDeTrabajo ? (
+        <VistasDeTrabajo projectId={projectFilter || undefined} vista={view as VistaDeTrabajo} onVista={setView}
+          filtros={filtrosDeVistas} filtrosDePagina={controlesDeFiltro} onFiltros={aplicarFiltrosDeVista} />
       ) : isLoading ? (
         <SkeletonTable rows={10} />
       ) : view === 'kanban' ? (
@@ -1380,20 +1419,17 @@ export default function TasksPage() {
               const proj = projects.find(p => p.id === task.project_id)
               return (
                 <div key={task.id}
-                  onClick={() => setSelectedTask(task)}
+                  onClick={e => { if (!desdeCasilla(e)) setSelectedTask(task) }}
                   onKeyDown={e => onKeyboardActivate(e, () => setSelectedTask(task))}
                   role="button"
                   tabIndex={0}
                   className="tsk-mcard"
                 >
                   <div className="tsk-mcard-head">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       aria-label={task.title}
                       checked={selected.has(task.id)}
                       onChange={() => toggleSelect(task.id)}
-                      onClick={e => e.stopPropagation()}
-                      onKeyDown={e => e.stopPropagation()}
                       className="tsk-check"
                     />
                     <div className="tsk-mcard-title">{task.title}</div>
@@ -1416,7 +1452,7 @@ export default function TasksPage() {
         ) : (
           <div data-export-table="tasks-list" className="ds-card tsk-list">
             <div className="tsk-list-head">
-              <input type="checkbox" aria-label={t('reportbuilder.seleccionar_todos')} checked={selected.size === flatTasks.length && flatTasks.length > 0} onChange={toggleAll} className="tsk-check" />
+              <Checkbox aria-label={t('reportbuilder.seleccionar_todos')} checked={selected.size === flatTasks.length && flatTasks.length > 0} onChange={toggleAll} className="tsk-check" />
               <SortableTH col="title" sort={taskSort} onSort={setTaskSort}>{t('tasks.col_task')}</SortableTH>
               <SortableTH col="project_id" sort={taskSort} onSort={setTaskSort}>{t('tasks.col_project')}</SortableTH>
               <SortableTH col="assignee.full_name" sort={taskSort} onSort={setTaskSort}>{t('tasks.col_assignee')}</SortableTH>
@@ -1431,13 +1467,13 @@ export default function TasksPage() {
               height={Math.min(flatTasks.length * 52, 600)}
               renderRow={(t: Task) => (
                 <div
-                  onClick={() => setSelectedTask(t)}
+                  onClick={e => { if (!desdeCasilla(e)) setSelectedTask(t) }}
                   onKeyDown={e => onKeyboardActivate(e, () => setSelectedTask(t))}
                   role="button"
                   tabIndex={0}
                   className={`tsk-list-row${selected.has(t.id) ? ' tsk-list-row--selected' : ''}`}
                 >
-                  <input type="checkbox" aria-label={t.title} checked={selected.has(t.id)} onChange={() => toggleSelect(t.id)} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()} className="tsk-check" />
+                  <Checkbox aria-label={t.title} checked={selected.has(t.id)} onChange={() => toggleSelect(t.id)} className="tsk-check" />
                   <div>
                     <div className="u-base-600">{t.title}</div>
                     <div className="u-text2-mono-xs">{t.code}</div>
@@ -1572,27 +1608,27 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
         </div>
         <div className="u-col-full">
           <label id={`${idCampo}-2-et`} htmlFor={`${idCampo}-2`} className="tsk-label tsk-label--lg">{t('tasks.project_required')}</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-2-et`} value={form.project_id} onChange={set('project_id')} className="tsk-input tsk-input--lg">
+          <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.project_id} onChange={set('project_id')} className="tsk-input tsk-input--lg">
             <option value="">{t('tasks.select_project_option')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label id={`${idCampo}-3-et`} htmlFor={`${idCampo}-3`} className="tsk-label tsk-label--lg">{t('common.status')}</label>
-          <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-3-et`} value={form.status} onChange={set('status')} className="tsk-input tsk-input--lg">
+          <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.status} onChange={set('status')} className="tsk-input tsk-input--lg">
             {statusOptions.map(o => (
               <option key={o.value} value={o.value}>{o.icon} {o.label}</option>
             ))}
-          </select>
+          </Select>
         </div>
         <div>
           <label id={`${idCampo}-4-et`} htmlFor={`${idCampo}-4`} className="tsk-label tsk-label--lg">{t('common.priority')}</label>
-          <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-4-et`} value={form.priority} onChange={set('priority')} className="tsk-input tsk-input--lg">
+          <Select suelto placeholder={false} id={`${idCampo}-4`} value={form.priority} onChange={set('priority')} className="tsk-input tsk-input--lg">
             <option value="low">{t('tasks.priority_low')}</option>
             <option value="medium">{t('tasks.priority_medium')}</option>
             <option value="high">{t('tasks.priority_high')}</option>
             <option value="critical">{t('tasks.priority_critical')}</option>
-          </select>
+          </Select>
         </div>
         {/* Asignación + estimación con IA */}
         <div className="u-col-full">
@@ -1602,10 +1638,10 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
               {t('tasks.ai_analyze')}
             </Button>
           </div>
-          <select id={`${idCampo}-asignado`} aria-labelledby={`${idCampo}-asignado-et`} value={form.assignee_id} onChange={set('assignee_id')} className="tsk-input tsk-input--lg">
+          <Select suelto placeholder={false} id={`${idCampo}-asignado`} value={form.assignee_id} onChange={set('assignee_id')} className="tsk-input tsk-input--lg">
             <option value="">{t('tasks.no_assignee')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-          </select>
+          </Select>
         </div>
         {/* Banner de sugerencia IA */}
         {(semSuggestion || semEffort) && !semSuggestion?.error && (
@@ -1640,7 +1676,7 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
             </div>
             <div className="u-row-6">
               <Button size="sm" onClick={acceptSuggestion}>{t('tasks.ai_apply')}</Button>
-              <button type="button" className="tsk-icon-btn" onClick={() => { setSemSuggestion(null); setSemEffort(null) }} aria-label={t('tasks.descartar_sugerencia')} title={t('tasks.descartar_sugerencia')}><X size={14} aria-hidden /></button>
+              <IconButton className="tsk-icon-btn" onClick={() => { setSemSuggestion(null); setSemEffort(null) }} ariaLabel={t('tasks.descartar_sugerencia')}><X size={14} aria-hidden /></IconButton>
             </div>
           </div>
         )}
@@ -1669,13 +1705,13 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
                 <div key={f.id} className={(f.field_type === 'text' || f.field_type === 'url') ? 'u-col-full' : undefined}>
                   <label id={`${idCampo}-cf-${f.id}-et`} htmlFor={`${idCampo}-cf-${f.id}`} className="tsk-label tsk-label--lg">{f.name}{f.is_required ? ' *' : ''}</label>
                   {f.field_type === 'select' ? (
-                    <select id={`${idCampo}-cf-${f.id}`} aria-labelledby={`${idCampo}-cf-${f.id}-et`} value={customValues[f.id] ?? ''} onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))} className="tsk-input tsk-input--lg">
+                    <Select suelto placeholder={false} id={`${idCampo}-cf-${f.id}`} value={customValues[f.id] ?? ''} onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.value }))} className="tsk-input tsk-input--lg">
                       <option value="">{t('tasks.select_option')}</option>
                       {(f.options || []).map(o => <option key={o} value={o}>{o}</option>)}
-                    </select>
+                    </Select>
                   ) : f.field_type === 'boolean' ? (
                     <div className="tsk-check-row">
-                      <input type="checkbox" id={`${idCampo}-cf-${f.id}`} aria-labelledby={`${idCampo}-cf-${f.id}-et`} checked={customValues[f.id] === 'true'} onChange={e => setCustomValues(v => ({ ...v, [f.id]: e.target.checked ? 'true' : 'false' }))} className="tsk-check tsk-check--lg" />
+                      <Checkbox id={`${idCampo}-cf-${f.id}`} checked={customValues[f.id] === 'true'} onChange={m => setCustomValues(v => ({ ...v, [f.id]: m ? 'true' : 'false' }))} className="tsk-check tsk-check--lg" />
                       <span className="u-text2-base">{customValues[f.id] === 'true' ? t('common.yes') : t('common.no')}</span>
                     </div>
                   ) : (

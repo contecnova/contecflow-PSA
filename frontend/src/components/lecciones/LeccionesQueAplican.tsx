@@ -9,7 +9,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Lightbulb, ThumbsUp, Check, X } from 'lucide-react'
 import { leccionesApi } from '../../services/api'
 import type { Recomendacion } from '../../services/api'
-import { Button, Spinner } from '../ui'
+import { Button, Spinner, Pulsable } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
@@ -59,9 +59,9 @@ export default function LeccionesQueAplican({ contexto, id, campos }: {
         : items.length === 0 ? <div className="u-text3-sm">{t('lec.ninguna_aplica')}</div>
         : items.map(r => (
           <article className="lequap-sp-1 lecciones-que-aplican-e1" key={r.id} style={{ '--lecciones-que-aplican-border-left': `3px solid ${r.tipo === 'evitar' ? 'var(--danger)' : 'var(--success)'}` } as CSSProperties}>
-            <button type="button" onClick={() => setAbierta(r.id)} className="lequap-box-1">
+            <Pulsable onClick={() => setAbierta(r.id)} className="lequap-box-1">
               {r.frase}
-            </button>
+            </Pulsable>
             <div className="lequap-row-1">
               <span className="lequap-chip2">{r.codigo}</span>
               {r.motivos.map(m => <span key={m.clave} className="lequap-chip">{t(`lec.motivo_${m.clave}`)}{m.detalle?.length ? `: ${m.detalle.join(', ')}` : ''}</span>)}

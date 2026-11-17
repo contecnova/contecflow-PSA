@@ -7,7 +7,7 @@ import { useAuth } from './context/AuthContext'
 import type { Role } from './context/AuthContext'
 import Layout from './components/layout/Layout'
 import AppShell from './components/layout/AppShell'
-import { Spinner } from './components/ui'
+import { Button, Spinner } from './components/ui'
 import TopProgressBar from './components/layout/TopProgressBar'
 import { useAppT } from './hooks/useAppT'
 import useOfflineSync from './hooks/useOfflineSync'
@@ -249,21 +249,20 @@ class PageErrorBoundary extends Component<PageErrorBoundaryProps, PageErrorBound
             : this.props.t('app_errors.page_unexpected_desc')}
         </p>
         <div className="app-e6">
-          <button
+          <Button
             onClick={() => { this.setState({ error: null }); window.location.href = '/login' }}
-            className="app-e7"
           >
             {this.props.t('app_errors.go_login')}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="secondary"
             onClick={() => {
               if ('caches' in window) caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
               window.location.reload()
             }}
-            className="app-e8"
           >
             {this.props.t('app_errors.reload')}
-          </button>
+          </Button>
         </div>
       </div>
     )

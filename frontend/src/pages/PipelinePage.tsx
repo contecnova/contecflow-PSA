@@ -636,11 +636,12 @@ export default function PipelinePage() {
                           </div>
                           <label className="pipe-op__etapa">
                             <span className="ds-field__label">{t('pagina_pipe.mover_a_etapa')}</span>
-                            <select
+                            <Select
+                              suelto
+                              placeholder={false}
                               key={`${opportunity.id}:${opportunity.stage}`}
-                              defaultValue={opportunity.stage}
+                              value={opportunity.stage || ''}
                               onChange={(event) => handleStageChange(opportunity, event.target.value, event.target)}
-                              className="ds-input"
                               disabled={updateOpportunity.isPending}
                             >
                               {allowedStages.map((allowedStage) => (
@@ -648,7 +649,7 @@ export default function PipelinePage() {
                                   {stageLabels[allowedStage || ''] || allowedStage}
                                 </option>
                               ))}
-                            </select>
+                            </Select>
                           </label>
                         </div>
 

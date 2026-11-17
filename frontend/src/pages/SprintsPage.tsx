@@ -18,7 +18,7 @@ import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, projectSprintsApi, tasksApi } from '../services/api'
 import type { SprintDelProyecto, TareaDeSprint } from '../services/api/tipos-proyectos'
-import { Button, Card, EmptyState, KpiCard, Modal, Section, Spinner, Tabs } from '../components/ui'
+import { Button, Card, EmptyState, KpiCard, Modal, Section, Spinner, Tabs, IconButton, Select, Checkbox } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -166,8 +166,8 @@ function TaskCard({ task, onStatusChange, onMoveToBacklog, compact = false }: { 
           <div className="spr-task__code">{task.code}</div>
           <div className="spr-task__title">{task.title}</div>
         </div>
-        <button type="button" onClick={e => { e.stopPropagation(); setShowMenu(m => !m) }} className="spr-task__menu-btn"
-          aria-haspopup="menu" aria-expanded={showMenu} aria-label={t('sprints.acciones_tarea', { code: task.code || task.title || '' })}><MoreHorizontal size={16} aria-hidden /></button>
+        <IconButton type="button" onClick={e => { e.stopPropagation(); setShowMenu(m => !m) }} className="spr-task__menu-btn"
+          aria-haspopup="menu" aria-expanded={showMenu} ariaLabel={t('sprints.acciones_tarea', { code: task.code || task.title || '' })}><MoreHorizontal size={16} aria-hidden /></IconButton>
       </div>
 
       <div className="u-wrap-8">
@@ -180,23 +180,23 @@ function TaskCard({ task, onStatusChange, onMoveToBacklog, compact = false }: { 
         <div className="spr-menu" role="menu">
           <div className="spr-menu__title">{t('sprints.cambiar_estado')}</div>
           {Object.entries(TASK_STATUS_CFG).map(([status, { label, color: c }]) => (
-            <button key={status} type="button" role="menuitem" onClick={() => { onStatusChange?.(task.id, status); setShowMenu(false) }}
+            <IconButton key={status} type="button" role="menuitem" ariaLabel={t(label)} onClick={() => { onStatusChange?.(task.id, status); setShowMenu(false) }}
               className={`spr-menu__item${task.status === status ? ' spr-menu__item--current' : ''}`} style={colorVar('--spr-c', c)}>
               {t(label)}
-            </button>
+            </IconButton>
           ))}
           {onMoveToBacklog && (
             <>
               <div className="spr-menu__sep" role="separator" />
-              <button type="button" role="menuitem" onClick={() => openConfirmGlobal({ message: t('sprints.confirm_mover_backlog'), onConfirm: () => { onMoveToBacklog(task.id); setShowMenu(false) }, danger: true })}
+              <IconButton type="button" role="menuitem" ariaLabel={t('sprints.mover_al_backlog')} onClick={() => openConfirmGlobal({ message: t('sprints.confirm_mover_backlog'), onConfirm: () => { onMoveToBacklog(task.id); setShowMenu(false) }, danger: true })}
                 className="spr-menu__item spr-menu__item--danger">
                 {t('sprints.mover_al_backlog')}
-              </button>
+              </IconButton>
             </>
           )}
-          <button type="button" role="menuitem" onClick={() => setShowMenu(false)} className="spr-menu__item spr-menu__item--muted">
+          <IconButton type="button" role="menuitem" ariaLabel={t('sprints.cerrar')} onClick={() => setShowMenu(false)} className="spr-menu__item spr-menu__item--muted">
             {t('sprints.cerrar')}
-          </button>
+          </IconButton>
         </div>
       )}
     </div>
@@ -375,11 +375,11 @@ export default function SprintsPage({ projectId }: { projectId?: string } = {}) 
       {/* Project selector */}
       {!projectId && (
         <Card className="spr-filtros">
-          <select value={selectedProject} onChange={e => { setSelectedProject(e.target.value); setActiveView('board') }}
+          <Select suelto placeholder={false} value={selectedProject} onChange={e => { setSelectedProject(e.target.value); setActiveView('board') }}
             className={`${fs} spr-input--project`} aria-label={t('sprints.selecciona_un_proyecto_2')}>
             <option value="">{t('sprints.selecciona_un_proyecto')}</option>
             {projects.map((p: { id: string; code?: string; name?: string }) => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-          </select>
+          </Select>
         </Card>
       )}
       {selectedProject && (
@@ -509,18 +509,17 @@ export default function SprintsPage({ projectId }: { projectId?: string } = {}) 
                 const selected = selectedBacklogTasks.includes(task.id)
                 const pColor = PRIORITY_COLOR[task.priority || ''] || 'var(--text-3)'
                 return (
-                  <div key={task.id}
-                    onClick={() => setSelectedBacklogTasks(prev => selected ? prev.filter(id => id !== task.id) : [...prev, task.id])}
-                    role="checkbox" aria-checked={selected} aria-label={task.title} tabIndex={0}
-                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedBacklogTasks(prev => selected ? prev.filter(id => id !== task.id) : [...prev, task.id]) } }}
-                    className={`spr-row${selected ? ' spr-row--selected' : ''}`}>
-                    <input type="checkbox" aria-hidden="true" tabIndex={-1} checked={selected} readOnly className="spr-row__check" />
-                    <span className="u-text3-mono-xs">{task.code}</span>
-                    <span className="spr-row__title">{task.title}</span>
-                    <span className="spr-row__prio" style={colorVar('--spr-p', pColor)}>{task.priority ? t('sprints.prioridad_' + task.priority, task.priority) : ''}</span>
-                    <span className="spr-row__pts">{t('sprints.n_pts', { n: task.story_points || '—' })}</span>
-                    <span className="u-text2-xs">{task.assignee_name || t('sprints.sin_asignar')}</span>
-                  </div>
+                  <Checkbox key={task.id}
+                    checked={selected} aria-label={task.title}
+                    onChange={() => setSelectedBacklogTasks(prev => selected ? prev.filter(id => id !== task.id) : [...prev, task.id])}
+                    className={`spr-row${selected ? ' spr-row--selected' : ''}`}
+                    label={<>
+                      <span className="u-text3-mono-xs">{task.code}</span>
+                      <span className="spr-row__title">{task.title}</span>
+                      <span className="spr-row__prio" style={colorVar('--spr-p', pColor)}>{task.priority ? t('sprints.prioridad_' + task.priority, task.priority) : ''}</span>
+                      <span className="spr-row__pts">{t('sprints.n_pts', { n: task.story_points || '—' })}</span>
+                      <span className="u-text2-xs">{task.assignee_name || t('sprints.sin_asignar')}</span>
+                    </>} />
                 )
               })}
             </div>
@@ -626,13 +625,14 @@ export default function SprintsPage({ projectId }: { projectId?: string } = {}) 
                   {backlog.map(task => {
                     const sel = selectedBacklogTasks.includes(task.id)
                     return (
-                      <label key={task.id} className={`spr-row spr-row--modal${sel ? ' spr-row--selected' : ''}`}>
-                        <input type="checkbox" aria-label={task.title} checked={sel} onChange={e => setSelectedBacklogTasks(prev => e.target.checked ? [...prev, task.id] : prev.filter(id => id !== task.id))} />
-                        <span className="u-text3-mono-xs">{task.code}</span>
-                        <span className="u-sm">{task.title}</span>
-                        <span className="spr-row__pts spr-row__pts--xs">{t('sprints.n_pt', { n: task.story_points || '—' })}</span>
-                        <span className="u-text2-xs">{task.assignee_name?.split(' ')[0] || '—'}</span>
-                      </label>
+                      <Checkbox key={task.id} className={`spr-row spr-row--modal${sel ? ' spr-row--selected' : ''}`} aria-label={task.title} checked={sel}
+                        onChange={v => setSelectedBacklogTasks(prev => v ? [...prev, task.id] : prev.filter(id => id !== task.id))}
+                        label={<>
+                          <span className="u-text3-mono-xs">{task.code}</span>
+                          <span className="u-sm">{task.title}</span>
+                          <span className="spr-row__pts spr-row__pts--xs">{t('sprints.n_pt', { n: task.story_points || '—' })}</span>
+                          <span className="u-text2-xs">{task.assignee_name?.split(' ')[0] || '—'}</span>
+                        </>} />
                     )
                   })}
                 </div>

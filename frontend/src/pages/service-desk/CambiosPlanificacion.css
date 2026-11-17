@@ -12,7 +12,7 @@
   color: var(--text-1);
 }
 /* Solo la primera letra: `capitalize` ponía «Noviembre De 2026». */
-.cambplan-box-1::first-letter { text-transform: uppercase; }
+.cambplan-box-1::first-letter { }
 
 /* Avisos del mes: congelaciones y versiones */
 .cambplan-aviso {
@@ -156,7 +156,6 @@
   color: var(--text-2);
   display: block;
   margin-bottom: 5px;
-  text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 .cambplan-ls2 {
@@ -164,7 +163,6 @@
   font-weight: 600;
   color: var(--text-2);
   display: block;
-  text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-bottom: 6px;
 }
@@ -173,7 +171,6 @@
   font-weight: 600;
   color: var(--text-2);
   display: block;
-  text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 .cambplan-textarea { resize: vertical; }

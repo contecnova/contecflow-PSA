@@ -9,7 +9,7 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import { epicsApi, projectsApi, tasksApi, clientsApi, ticketsApi, contractsApi, conectoresApi, mensajeDeConector } from '../services/api'
 import type { BusquedaNql } from '../services/api/tipos-proyectos'
 import DocumentoContecmind from '../components/conectores/DocumentoContecmind'
-import { Button, Spinner, EmptyState, DataTable } from '../components/ui'
+import { Button, Spinner, EmptyState, DataTable, Pulsable, Select } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { FileText, Search } from 'lucide-react'
@@ -80,10 +80,10 @@ function DocumentosEnLaBusqueda({ q }: { q: string }) {
       {docs.isError ? <div role="alert" className="u-text3-sm">{mensajeDeConector(docs.error, t('docs.error_generico'))}</div>
         : !docs.isFetching && items.length === 0 ? <div className="u-text3-sm">{t('docs.sin_resultados')}</div>
         : items.map(d => (
-          <button key={d.document_id} type="button" onClick={() => setAbierto(d.document_id)} className="srch-panel srch-item">
+          <Pulsable key={d.document_id} type="button" onClick={() => setAbierto(d.document_id)} className="srch-panel srch-item">
             <div className="srch-item__title">{d.title}</div>
             {d.snippet && <div className="u-text2-xs">{d.snippet}</div>}
-          </button>
+          </Pulsable>
         ))}
       {abierto && <DocumentoContecmind id={abierto} puedeEscribir={!!disp.data?.puede_escribir} onClose={() => setAbierto(null)} />}
     </section>
@@ -151,15 +151,15 @@ function FTSMode() {
         </div>
         {/* Filtros por tipo */}
         <div className="u-wrap-6" role="group" aria-label={t('search_page.filtrar_por_tipo')}>
-          <button type="button" onClick={() => setEntity('all')} aria-pressed={entity === 'all'}
+          <Pulsable type="button" onClick={() => setEntity('all')} aria-pressed={entity === 'all'}
             className={`srch-chip srch-chip--all${entity === 'all' ? ' srch-chip--active' : ''}`}>
             {t('search_page.todo')}
-          </button>
+          </Pulsable>
           {ENTITY_TYPES.map(e => (
-            <button key={e.id} type="button" onClick={() => setEntity(e.id)} aria-pressed={entity === e.id}
+            <Pulsable key={e.id} type="button" onClick={() => setEntity(e.id)} aria-pressed={entity === e.id}
               className={`srch-chip${entity === e.id ? ' srch-chip--active' : ''}`} style={colorVar(e.color)}>
               <span aria-hidden="true">{e.icon}</span> {t(`search_page.${e.label}`)}
-            </button>
+            </Pulsable>
           ))}
         </div>
       </div>
@@ -186,7 +186,7 @@ function FTSMode() {
                 </span>
               </div>
               {results[etype.id]!.map(item => (
-                <button key={item.id} type="button" className="srch-panel srch-item"
+                <Pulsable key={item.id} type="button" className="srch-panel srch-item"
                   onClick={() => {
                     const paths: Record<EntityTypeId, string> = { project: '/projects', task: '/tasks', client: '/clients', ticket: '/service-desk', contract: '/contracts', invoice: '/invoices' }
                     nav(paths[etype.id])
@@ -199,7 +199,7 @@ function FTSMode() {
                     {item.status && `${item.status} · `}
                     {item.client_name || item.project_name || ''}
                   </div>
-                </button>
+                </Pulsable>
               ))}
             </div>
           ))}
@@ -232,10 +232,10 @@ function NQLMode() {
       <div className="srch-panel srch-panel--bar">
         <div className="srch-title">{t('search_page.consulta_nql')}</div>
         <div className="u-wrap-6 srch-nql-entity">
-          <select value={entidad} onChange={e => { setEntidad(e.target.value as BusquedaNql['entity_type']); setResults(null) }}
+          <Select suelto placeholder={false} value={entidad} onChange={e => { setEntidad(e.target.value as BusquedaNql['entity_type']); setResults(null) }}
             aria-label={t('search_page.entidad')} className="srch-input srch-input--auto">
             {NQL_ENTIDADES.map(e => <option key={e.id} value={e.id}>{t(`search_page.${e.label}`)}</option>)}
-          </select>
+          </Select>
           <span className="srch-hint">{t('search_page.campos', { campos: elegida.campos })}</span>
         </div>
         <textarea
@@ -246,9 +246,9 @@ function NQLMode() {
           className="srch-input srch-input--nql"
         />
         <div className="srch-actions">
-          <button type="button" onClick={() => setQuery(elegida.ejemplo)} className="srch-btn">
+          <Pulsable type="button" onClick={() => setQuery(elegida.ejemplo)} className="srch-btn">
             {t('search_page.ejemplo')}
-          </button>
+          </Pulsable>
           <Button onClick={() => runSearch({ entity_type: entidad, query })} loading={isPending} disabled={!query.trim()}>
             {t('search.ejecutar_busqueda')}
           </Button>
@@ -295,10 +295,10 @@ export default function SearchPage() {
         actions={
           <div className="srch-modes" role="group" aria-label={_t('search_page.modo')}>
             {([['fts', '🔍', 'search_page.modo_rapida'], ['nql', '⚡', 'search_page.modo_nql']] as const).map(([id, icono, clave]) => (
-              <button key={id} type="button" onClick={() => setMode(id)} aria-pressed={mode === id}
+              <Pulsable key={id} type="button" onClick={() => setMode(id)} aria-pressed={mode === id}
                 className={`srch-mode${mode === id ? ' srch-mode--active' : ''}`}>
                 <span aria-hidden="true">{icono}</span> {_t(clave)}
-              </button>
+              </Pulsable>
             ))}
           </div>
         }

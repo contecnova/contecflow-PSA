@@ -19,7 +19,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { AlertTriangle, Info, Languages, RefreshCw, X } from 'lucide-react'
-import { Button } from '../ui'
+import { Button, Select } from '../ui'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { errorDeTraduccion, motivoDeTraduccion, nombreDeIdioma, useConfigDeTraduccion } from '../../hooks/useTraduccion'
 import { traduccionApi, type VistaPrevia } from '../../services/api/traduccion'
@@ -131,11 +131,11 @@ export default function VistaPreviaDeSalida({ contextType, contextId, texto, onC
                 : t('traduccion_ui.idioma_cliente', { idioma: nombreDestino, procedencia })}
             </span>
             <label htmlFor={idSelector} className="trad-salida__etiqueta">{t('traduccion_ui.enviar_en')}</label>
-            <select id={idSelector} className="ds-input trad-salida__select" value={vista.target_language ?? ''}
-              disabled={pedir.isPending} onChange={e => cambiarIdioma(e.target.value)}>
+            <Select suelto id={idSelector} className="ds-input trad-salida__select" value={vista.target_language ?? ''}
+              disabled={pedir.isPending} onChange={e => cambiarIdioma(e.target.value)} placeholder={false}>
               {!vista.target_language && <option value="">{t('traduccion_ui.elegir_idioma')}</option>}
               {idiomas.map(c => <option key={c} value={c}>{nombreDeIdioma(c, lang)}</option>)}
-            </select>
+            </Select>
           </div>
 
           {desfasada && (

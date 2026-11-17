@@ -1,13 +1,13 @@
 /* DeliverablesPage — entregables por proyecto y vista global. Solo tokens de index.css.
    El color de cada estado llega como --dlv-color (dato) y se mezcla aquí. */
-.dlv-label { display: block; margin-bottom: 5px; font-size: var(--text-xs); font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.07em; }
+.dlv-label { display: block; margin-bottom: 5px; font-size: var(--text-xs); font-weight: 700; color: var(--text-2);letter-spacing: 0.07em; }
 .dlv-input { width: 100%; box-sizing: border-box; background: var(--surface-3); border: 1px solid var(--surface-4); border-radius: 8px; padding: 9px 13px; color: var(--text-1); font-size: var(--text-base); font-family: inherit; outline: none; }
 textarea.dlv-input { resize: vertical; }
 .dlv-form-footer { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
 
 /* Desplegable de estado */
 .dlv-status { position: relative; }
-.dlv-status__btn { display: flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; cursor: pointer; font-family: inherit; font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dlv-color); background: color-mix(in srgb, var(--dlv-color) 8%, transparent); border: 1px solid color-mix(in srgb, var(--dlv-color) 25%, transparent); }
+.dlv-status__btn { display: flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; cursor: pointer; font-family: inherit; font-size: var(--text-xs); font-weight: 700;letter-spacing: 0.06em; color: var(--dlv-color); background: color-mix(in srgb, var(--dlv-color) 8%, transparent); border: 1px solid color-mix(in srgb, var(--dlv-color) 25%, transparent); }
 .dlv-status__backdrop { position: fixed; inset: 0; z-index: 10; }
 .dlv-status__menu { position: absolute; top: 110%; left: 0; z-index: 20; min-width: 160px; padding: 6px; background: var(--surface-3); border: 1px solid var(--surface-4); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); }
 .dlv-status__item { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: transparent; border: none; border-radius: var(--radius-sm); padding: 8px 12px; color: var(--text-1); font-size: var(--text-base); font-family: inherit; cursor: pointer; }
@@ -47,7 +47,7 @@ textarea.dlv-input { resize: vertical; }
 /* Vista global */
 .dlv-ov { min-width: 760px; }
 .dlv-ov__row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 120px; gap: 16px; padding: 12px 20px; align-items: center; border-bottom: 1px solid color-mix(in srgb, var(--surface-4) 19%, transparent); }
-.dlv-ov__row--head { padding: 10px 20px; border-bottom: 1px solid var(--surface-4); font-size: var(--text-xs); font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.07em; }
+.dlv-ov__row--head { padding: 10px 20px; border-bottom: 1px solid var(--surface-4); font-size: var(--text-xs); font-weight: 700; color: var(--text-2);letter-spacing: 0.07em; }
 .dlv-ov__date { font-size: var(--text-sm); color: var(--text-2); }
 .dlv-ov__date--overdue { color: var(--danger); }
 .dlv-ov__date--delivered { color: var(--purple); }

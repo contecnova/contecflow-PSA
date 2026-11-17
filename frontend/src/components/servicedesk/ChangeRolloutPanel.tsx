@@ -23,7 +23,7 @@ import { changeRolloutApi } from '../../services/api'
 import type { FaseDeDespliegue, PlanDeDespliegue, SimulacionDeDespliegue } from '../../services/api/tipos-cambios'
 import { useAppT } from '../../i18n/AppLangContext'
 import { GitBranch, ChevronRight, CheckCircle, AlertTriangle, RotateCcw, Play, Plus, Search, Check, X } from 'lucide-react'
-import { Card, Button, Spinner, EmptyState, StatusBadge } from '../ui'
+import { Card, Button, Pulsable, Select, Spinner, EmptyState, StatusBadge } from '../ui'
 import type { StatusBadgeKind } from '../ui/StatusBadge'
 import { useToast } from '../../context/ToastContext'
 import { pedirTexto } from '../../context/ConfirmContext'
@@ -247,16 +247,17 @@ export default function ChangeRolloutPanel() {
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
               className="ds-input"
             />
-            <select
+            <Select
+              suelto
+              placeholder={false}
               aria-label={t('changerollout.estrategia')}
               value={form.strategy}
               onChange={e => setForm(f => ({ ...f, strategy: e.target.value }))}
-              className="ds-input"
             >
               {ESTRATEGIAS.map(id => (
                 <option key={id} value={id}>{etiqueta(t, 'estrategia', id)}</option>
               ))}
-            </select>
+            </Select>
             <div className="chropa-row-2">
               <label className="u-text2-xs" htmlFor="chropa-fases">{t('changerollout.fases')}</label>
               <input
@@ -299,9 +300,8 @@ export default function ChangeRolloutPanel() {
                 const isSel = selectedId === plan.id
                 const totalPhases = plan.rollout_phases?.length ?? 0
                 return (
-                  <button className={`chropa-plan${isSel ? ' is-selected' : ''}`}
+                  <Pulsable className={`chropa-plan${isSel ? ' is-selected' : ''}`}
                     key={plan.id}
-                    type="button"
                     aria-pressed={isSel}
                     onClick={() => { setSelectedId(isSel ? null : plan.id); setSimulate(null) }}
                   >
@@ -317,7 +317,7 @@ export default function ChangeRolloutPanel() {
                         <span>{t('changerollout.creado_el', { fecha: fmtDate(plan.created_at) })}</span>
                       )}
                     </div>
-                  </button>
+                  </Pulsable>
                 )
               })}
             </div>

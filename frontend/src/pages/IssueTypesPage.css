@@ -15,13 +15,13 @@
 
 .ityp-btn {
   width: 28px;
-  height: 28px;
+  min-height: 28px;
   cursor: pointer;
 }
 
 .ityp-input {
   width: 28px;
-  height: 28px;
+  min-height: 28px;
   border-radius: 50%;
   border: none;
   cursor: pointer;
@@ -102,7 +102,6 @@
   padding: 8px 12px;
   font-size: var(--text-xs);
   color: var(--text-2);
-  text-transform: uppercase;
   letter-spacing: .06em;
 }
 
@@ -122,7 +121,7 @@
 
 .ityp-td {
   padding: 10px 12px;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--text-xs);
   color: var(--text-2);
 }
@@ -217,7 +216,7 @@
   color: var(--text-1);
   outline: none;
   box-sizing: border-box;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--text-sm);
 }
 .issue-types-page-e2 {
@@ -272,7 +271,6 @@
   font-size: var(--text-xs);
   font-weight: 600;
   color: var(--text-2);
-  text-transform: uppercase;
   letter-spacing: 0.07em;
   display: block;
   margin-bottom: 5px;

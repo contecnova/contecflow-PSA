@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Activity, AlertTriangle, Ban, CircleHelp, Coins, HardDrive, Plug, RefreshCw, Users } from 'lucide-react'
-import { Button, DataTable, EmptyState, KpiCard, Section, Spinner, Tabs } from '../../../components/ui'
+import { Button, DataTable, EmptyState, KpiCard, Section, Spinner, Tabs, Pulsable } from '../../../components/ui'
 import type { ColumnaDeTabla } from '../../../components/ui'
 import { useAppT } from '../../../i18n/AppLangContext'
 import { almUsoApi } from '../../../services/api/almUso'
@@ -52,8 +52,8 @@ function TablaDeLicencias({ filas }: { filas: UsoDeLicencia[] }) {
   const [abierta, setAbierta] = useState<string | null>(null)
   const columnas: ColumnaDeTabla<UsoDeLicencia>[] = [
     { key: 'nombre', label: t('alm_uso.licencia'), render: (_v, f) => (
-      <button type="button" className="almu-enlace" aria-expanded={abierta === f.license_id}
-        onClick={() => setAbierta(abierta === f.license_id ? null : f.license_id)}>{f.nombre}</button>
+      <Pulsable type="button" className="almu-enlace" aria-expanded={abierta === f.license_id}
+        onClick={() => setAbierta(abierta === f.license_id ? null : f.license_id)}>{f.nombre}</Pulsable>
     ) },
     { key: 'estado', label: t('alm_uso.estado_col'), render: (_v, f) => <Estado codigo={f.estado} /> },
     { key: 'asignados', label: t('alm_uso.asignados'),

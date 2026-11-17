@@ -8,7 +8,7 @@ import { useQuery } from '@tanstack/react-query'
 import PageShell from '../components/layout/PageShell'
 import PageHeader from '../components/layout/PageHeader'
 import { Database, Eye, GitCompare, Radio, RefreshCw, Save } from 'lucide-react'
-import { Button } from '../components/ui'
+import { Button, Select } from '../components/ui'
 import { useAppLang } from '../i18n/AppLangContext'
 import { biIntelligenceApi, biPlatformApi, wsApi, apiWsUrl } from '../services/api'
 import type { DiferenciaDeInstantaneasBi } from '../services/api/tipos-bi'
@@ -124,9 +124,9 @@ export default function DataPlatformPage(): JSX.Element {
           <div className="dpl-card">
             <div className="dpl-card-head"><div className="dpl-section-title">{t('dataplatform.presets')}</div></div>
             <div className="dpl-card-body">
-              <select aria-label={t('dataplatform.presets')} value={presetId} onChange={e => setPresetId(e.target.value)} className="dpl-input">
+              <Select suelto placeholder={false} aria-label={t('dataplatform.presets')} value={presetId} onChange={e => setPresetId(e.target.value)} className="dpl-input">
                 {reportPresets.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+              </Select>
               <div><Button size="sm" variant="secondary" icon={<Eye size={14} />} onClick={() => refetchPreview()}>{t('dataplatform.previsualizar')}</Button></div>
               <div className="u-text3-xs">{t('dataplatform.filas_preview', { n: previewData?.count || 0 })}</div>
               <div className="u-text3-xs">

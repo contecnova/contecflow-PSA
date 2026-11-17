@@ -17,6 +17,7 @@ import {
 } from './PortalUI'
 import { alpha } from '../../constants/theme'
 import './PortalSurveys.css'
+import { Pulsable } from '../../components/ui'
 
 type ScoreKey = 'overall_satisfaction' | 'communication_score' | 'quality_score' | 'deadline_score'
 
@@ -317,10 +318,10 @@ function RatingRow({ label, hint, value, onChange }: { label: string; hint?: str
         {[1, 2, 3, 4, 5].map(n => {
           const filled = value >= n
           return (
-            <button className={`portsurv-row-9 portalsu-sx8 portal-surveys-e2 ${filled ? 'portal-surveys-m3' : 'portal-surveys-m4'}`} key={n} onClick={() => onChange(n)} aria-label={rellenar(tp('psv_star_aria'), { n })}
+            <Pulsable className={`portsurv-row-9 portalsu-sx8 portal-surveys-e2 ${filled ? 'portal-surveys-m3' : 'portal-surveys-m4'}`} key={n} onClick={() => onChange(n)} aria-label={rellenar(tp('psv_star_aria'), { n })}
               style={{ '--portal-surveys-border': `1px solid ${filled ? 'var(--warning)' : 'var(--surface-4)'}` } as CSSProperties}>
               <Star size={18} fill={filled ? 'currentColor' : 'none'} strokeWidth={1.5} />
-            </button>
+            </Pulsable>
           )
         })}
       </div>
@@ -338,8 +339,8 @@ function NpsScale({ value, onChange }: { value: number; onChange: (value: number
           const tone = n <= 6 ? 'danger' : n <= 8 ? 'warning' : 'success'
           const color = tone === 'danger' ? 'var(--danger)' : tone === 'warning' ? 'var(--warning)' : 'var(--success)'
           return (
-            <button className="portsurv-box-5 portalsu-sx9 portal-surveys-e1" key={n} onClick={() => onChange(n)} aria-label={`NPS ${n}`}
-              style={{ '--portal-surveys-border': `1px solid ${active ? color : 'var(--surface-4)'}`, '--portal-surveys-background': active ? alpha(color, '1a') : 'var(--surface-3)', '--portal-surveys-color': active ? color : 'var(--text-2)' } as CSSProperties}>{n}</button>
+            <Pulsable className="portsurv-box-5 portalsu-sx9 portal-surveys-e1" key={n} onClick={() => onChange(n)} aria-label={`NPS ${n}`}
+              style={{ '--portal-surveys-border': `1px solid ${active ? color : 'var(--surface-4)'}`, '--portal-surveys-background': active ? alpha(color, '1a') : 'var(--surface-3)', '--portal-surveys-color': active ? color : 'var(--text-2)' } as CSSProperties}>{n}</Pulsable>
           )
         })}
       </div>

@@ -39,10 +39,6 @@
 @media (max-width: 860px) { .aus-formulario { grid-template-columns: 1fr; } }
 .aus-formulario-datos { display: flex; flex-direction: column; gap: 10px; }
 .aus-tipos { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px; }
-.aus-tipo-opcion { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
-.aus-tipo-opcion input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-.aus-tipo-opcion input:checked + .aus-tipo { box-shadow: 0 0 0 2px var(--aus-color, var(--accent)); }
-.aus-tipo-opcion input:focus-visible + .aus-tipo { outline: 2px solid var(--accent); outline-offset: 2px; }
 .aus-previa { background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: var(--radius-md, 10px); padding: 12px; min-width: 0; }
 .aus-previa-cuerpo { display: flex; flex-direction: column; gap: 6px; }
 .aus-decision { display: flex; gap: 6px; align-items: center; font-weight: 700; margin: 0; color: var(--text-1); }

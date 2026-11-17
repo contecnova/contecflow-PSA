@@ -14,7 +14,7 @@ import type { PlanDeCapacidad } from '../services/api/tipos-personas'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { TrendingUp, Plus, X, Users, Building2, ClipboardList, CalendarRange, Info } from 'lucide-react'
-import { Button, Modal, EmptyState, KpiCard, RejillaPersonaDia, columnasDeSemanas } from '../components/ui'
+import { Button, Modal, EmptyState, KpiCard, RejillaPersonaDia, columnasDeSemanas, Pulsable, Select } from '../components/ui'
 import type { TonoDeRejilla } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
@@ -153,18 +153,18 @@ function AssignModal({ prefill, onClose }: { prefill: AssignPrefill | null; onCl
       <div className="cap-form">
         <div>
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cap-label">{t('capacity.persona_obligatoria')}</label>
-          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.user_id} onChange={setField('user_id')} className="cap-input" aria-invalid={!!validation.errors.user_id}>
+          <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.user_id} onChange={setField('user_id')} className="cap-input" aria-invalid={!!validation.errors.user_id}>
             <option value="">{t('capacity.seleccionar')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-          </select>
+          </Select>
           {validation.errors.user_id && <div className="u-field-error" role="alert">{validation.errors.user_id}</div>}
         </div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cap-label">{t('capacity.proyecto')}</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.project_id} onChange={setField('project_id')} className="cap-input">
+          <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.project_id} onChange={setField('project_id')} className="cap-input">
             <option value="">{t('capacity.sin_proyecto_disponible')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-          </select>
+          </Select>
         </div>
         <div className="u-grid2-12">
           <div>
@@ -272,14 +272,14 @@ function CapCell({ userId, weekStart, plans, capacity, onDrop, onAdd }: {
             <span className="cap-plan__hours">
               {fmtHours(plan.planned_hours)}
             </span>
-            <button
+            <Pulsable
               type="button"
               className="cap-plan__remove"
               aria-label={t('capacity.eliminar_plan', { proyecto: plan.project_name || t('capacity.libre'), horas: fmtHours(plan.planned_hours) })}
               onClick={e => { e.stopPropagation(); openConfirmGlobal({ message: t('capacity.confirmar_eliminar', { horas: fmtHours(plan.planned_hours), proyecto: plan.project_name || t('capacity.libre') }), onConfirm: () => deletePlan(plan.id), danger: true }) }}
               onKeyDown={e => e.stopPropagation()}>
               <X size={10} aria-hidden="true" />
-            </button>
+            </Pulsable>
           </div>
         ))}
         {committed === 0 && (
@@ -367,13 +367,13 @@ export default function CapacityPage(): JSX.Element {
 
       {/* Controles */}
       <div className="ds-toolbar cap-controls">
-        <select value={weeksAhead} onChange={e => setWeeksAhead(+e.target.value)} className="ds-input cap-select" aria-label={t('capacity.horizonte')}>
+        <Select suelto placeholder={false} value={weeksAhead} onChange={e => setWeeksAhead(+e.target.value)} className="ds-input cap-select" aria-label={t('capacity.horizonte')}>
           {[4, 8, 13, 26].map(n => <option key={n} value={n}>{t('capacity.n_semanas', { count: n })}</option>)}
-        </select>
-        <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)} className="ds-input cap-select cap-select--dept" aria-label={t('capacity.departamento')}>
+        </Select>
+        <Select suelto placeholder={false} value={deptFilter} onChange={e => setDeptFilter(e.target.value)} className="ds-input cap-select cap-select--dept" aria-label={t('capacity.departamento')}>
           <option value="">{t('capacity.todos_los_departamentos')}</option>
           {departments.map(d => <option key={d} value={d}>{d}</option>)}
-        </select>
+        </Select>
         <div className="cap-controls__hint">
           <Info size={13} aria-hidden="true" /> {t('capacity.arrastra_para_mover_clic_en_para_anadir')}
         </div>

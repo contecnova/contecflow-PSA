@@ -6,7 +6,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, tasksApi, taskDependenciesApi } from '../services/api'
 import type { DependenciaDeTarea } from '../services/api/tipos-proyectos'
-import { Button, Spinner, EmptyState, Modal, KpiCard, IconButton, Tabs } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, KpiCard, IconButton, Tabs, Pulsable, Select, TablaSimple } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { ArrowLeft, ArrowRight, Check, FolderKanban, GitMerge, List, Network, Plus, Trash2 } from 'lucide-react'
@@ -88,18 +88,18 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
         <div className="u-grid2-12">
           <div>
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="dependencies-page-e7">{t('dependencies.from_task')}</label>
-            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="dependencies-page-e8" value={form.predecessor_id} onChange={e => set('predecessor_id')(e.target.value)}>
+            <Select suelto placeholder={false} id={`${idCampo}-1`} className="dependencies-page-e8" value={form.predecessor_id} onChange={e => set('predecessor_id')(e.target.value)}>
               <option value="">{t('dependencies.select')}</option>
               {tasks.map(tk => <option key={tk.id} value={String(tk.id)}>{tk.title?.slice(0,45)}</option>)}
-            </select>
+            </Select>
           </div>
           <div>
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="dependencies-page-e7">{t('dependencies.to_task')}</label>
-            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} className="dependencies-page-e8" value={form.successor_id} onChange={e => set('successor_id')(e.target.value)}>
+            <Select suelto placeholder={false} id={`${idCampo}-2`} className="dependencies-page-e8" value={form.successor_id} onChange={e => set('successor_id')(e.target.value)}>
               <option value="">{t('dependencies.select')}</option>
               {tasks.filter(tk => String(tk.id) !== form.predecessor_id).map(tk => (
                 <option key={tk.id} value={String(tk.id)}>{tk.title?.slice(0,45)}</option>))}
-            </select>
+            </Select>
           </div>
         </div>
 
@@ -107,7 +107,7 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
           <label className="dependencies-page-e7">{t('dependencies.tipo_de_dependencia')}</label>
           <div className="u-stack-6">
             {DEP_TYPES.map(dt => (
-              <button type="button" key={dt.value} aria-pressed={form.dependency_type===dt.value} onClick={() => set('dependency_type')(dt.value)}
+              <Pulsable type="button" key={dt.value} aria-pressed={form.dependency_type===dt.value} onClick={() => set('dependency_type')(dt.value)}
                 className="deps-btn dependen-sx1 dependencies-page-e1" style={{ '--dependencies-page-border': `1px solid ${form.dependency_type===dt.value ? alpha(dt.color, '50') : 'var(--surface-4)'}`, '--dependencies-page-background': form.dependency_type===dt.value ? alpha(dt.color, '15') : 'transparent' } as CSSProperties}>
                 <div className="deps-box dependencies-page-e2" style={{ '--dependencies-page-background': dt.color } as CSSProperties} />
                 <div className="u-flex1">
@@ -115,7 +115,7 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
                   <div className="u-text2-xs">{t(dt.desc)}</div>
                 </div>
                 {form.dependency_type===dt.value && <span className="dependen-sx5" style={{ '--dependen-v4': dt.color } as CSSProperties}><Check size={16} aria-hidden /></span>}
-              </button>
+              </Pulsable>
             ))}
           </div>
         </div>
@@ -291,10 +291,10 @@ export default function DependenciesPage(): JSX.Element {
 
       <div className="ds-toolbar deps-filtros">
         <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="u-sr-only">{t('pagina_deps.proyecto')}</label>
-        <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={project} onChange={e => setProject(e.target.value)} className="ds-input deps-proyecto">
+        <Select suelto placeholder={false} id={`${idCampo}-1`} value={project} onChange={e => setProject(e.target.value)} className="ds-input deps-proyecto">
           <option value="">{t('dependencies.selecciona_un_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
+        </Select>
       </div>
 
       {project && (
@@ -334,7 +334,7 @@ export default function DependenciesPage(): JSX.Element {
           {view === 'list' && edges.length > 0 && (
             <div className="dependencies-page-e9">
               {(
-                <table className="deps-table">
+                <TablaSimple claseTabla="deps-table">
                   <thead>
                     <tr className="u-border-b">
                       {[t('pagina_deps.tarea_a'),t('pagina_deps.tipo'),t('pagina_deps.tarea_b'),t('pagina_deps.lag'),''].map((h, i) => (
@@ -381,7 +381,7 @@ export default function DependenciesPage(): JSX.Element {
                       )
                     })}
                   </tbody>
-                </table>
+                </TablaSimple>
               )}
             </div>
           )}

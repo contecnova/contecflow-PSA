@@ -20,7 +20,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, History, Lock, MessageSquareText, Play, Settings2, ShieldCheck, ThumbsDown, ThumbsUp, Activity, Layers, Gauge } from 'lucide-react'
 import { autoResolutionApi, ticketsApi } from '../../services/api'
 import type { ConfigDeAutoResolucion, EstadisticasDeAutoResolucion } from '../../services/api/tipos-analitica'
-import { Card, Button, Spinner, Modal, KpiCard, Input, Section, EmptyState } from '../ui'
+import { Card, Button, Pulsable, Spinner, Modal, KpiCard, Input, Section, EmptyState } from '../ui'
 import StatusBadge from '../ui/StatusBadge'
 import type { StatusBadgeKind } from '../ui/StatusBadge'
 import { useToast } from '../../context/ToastContext'
@@ -79,12 +79,12 @@ function FeedbackModal({ ticketId, onClose }: { ticketId: string; onClose: () =>
         <div className="u-stack-8">
           <div className="campo-etiqueta">{t('autoresolution.la_auto_resolucion_fue_correcta')}</div>
           <div className="arp-eleccion" role="group" aria-label={t('autoresolution.la_auto_resolucion_fue_correcta')}>
-            <button type="button" className="arp-opcion" aria-pressed={success} onClick={() => setSuccess(true)}>
+            <Pulsable className="arp-opcion" aria-pressed={success} onClick={() => setSuccess(true)}>
               <ThumbsUp size={14} aria-hidden="true" />{t('autoresolution.correcta')}
-            </button>
-            <button type="button" className="arp-opcion" aria-pressed={!success} onClick={() => setSuccess(false)}>
+            </Pulsable>
+            <Pulsable className="arp-opcion" aria-pressed={!success} onClick={() => setSuccess(false)}>
               <ThumbsDown size={14} aria-hidden="true" />{t('autoresolution.fallo')}
-            </button>
+            </Pulsable>
           </div>
         </div>
         <div className="u-text3-xs">{t('autoresolution.feedback_explica')}</div>

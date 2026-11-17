@@ -125,7 +125,6 @@
   font-size: var(--text-xs);
   font-weight: 700;
   color: var(--text-2);
-  text-transform: uppercase;
   letter-spacing: 0.07em;
 }
 
@@ -175,7 +174,7 @@
 .notif-box-13 {
   font-size: var(--text-2xl-em);
   font-weight: 800;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .notif-row-6 {
@@ -250,3 +249,4 @@
 }
 
 /* <<< estilos-en-linea */
+.notif-btn--sin-leer:hover { border-color: var(--notif-borde-hover); }

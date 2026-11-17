@@ -54,7 +54,7 @@
 }
 .ds-input.vap-tecla__nueva { width: 110px; }
 .vap-icono-btn {
-  display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: none;
+  display: inline-flex; align-items: center; justify-content: center; width: 32px; min-height: 32px; background: none;
   border: 1px solid var(--surface-4); border-radius: var(--radius-sm); color: var(--text-2); cursor: pointer;
 }
 .vap-icono-btn:hover { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }

@@ -17,7 +17,7 @@ import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRightCircle, CheckCircle2, FolderPlus, Inbox, Plus, Settings2, XCircle } from 'lucide-react'
 import Page from '../components/ui/Page'
-import { Button, EmptyState, Input, Modal, Spinner, StatusBadge, Tabs } from '../components/ui'
+import { Button, EmptyState, Input, Modal, Spinner, StatusBadge, Tabs, Pulsable, Select, TablaSimple, Checkbox } from '../components/ui'
 import { approvalsApi, carteraApi, type Criterio, type Fase, type Propuesta } from '../services/api'
 import { useAppT } from '../i18n/AppLangContext'
 import { useToast } from '../context/ToastContext'
@@ -79,17 +79,17 @@ function ListaDePropuestas({ onEditar, onNueva }: { onEditar: (p: Propuesta) => 
   return (
     <div className="u-stack-16">
       <div className="ds-toolbar">
-        <select className="ds-input cit-filtro" aria-label={t('cartera.filtrar_estado')} value={estado} onChange={e => setEstado(e.target.value)}>
+        <Select suelto placeholder={false} className="ds-input cit-filtro" aria-label={t('cartera.filtrar_estado')} value={estado} onChange={e => setEstado(e.target.value)}>
           <option value="">{t('cartera.todos_los_estados')}</option>
           {Object.keys(KIND).map(k => <option key={k} value={k}>{t(`cartera.estado_${k}`)}</option>)}
-        </select>
+        </Select>
       </div>
       {isLoading ? <Spinner /> : propuestas.length === 0 ? (
         <EmptyState icon={<Inbox size={28} />} title={t('cartera.sin_propuestas')} description={t('cartera.sin_propuestas_desc')}
           ctaLabel={t('cartera.nueva_propuesta')} onCta={onNueva} />
       ) : (
         <div className="ds-card cit-tabla-card plan-tabla-scroll">
-          <table className="plan-tabla">
+          <TablaSimple claseTabla="plan-tabla">
             <thead>
               <tr>
                 <th>{t('cartera.col_propuesta')}</th><th className="plan-num">{t('cartera.col_puntuacion')}</th>
@@ -101,7 +101,7 @@ function ListaDePropuestas({ onEditar, onNueva }: { onEditar: (p: Propuesta) => 
               {propuestas.map(p => (
                 <Fragment key={p.id}>
                   <tr>
-                    <td><button type="button" className="plan-chip" onClick={() => setAbierta(a => a === p.id ? '' : p.id)}>{p.title}</button></td>
+                    <td><Pulsable type="button" className="plan-chip" onClick={() => setAbierta(a => a === p.id ? '' : p.id)}>{p.title}</Pulsable></td>
                     <td className="plan-num">{p.score ?? '—'}</td>
                     <td><StatusBadge kind={KIND[p.status]}>{t(`cartera.estado_${p.status}`)}</StatusBadge></td>
                     <td>{p.current_gate ? `${p.gate_index + 1}/${p.gates_total} · ${p.current_gate.name}` : p.gates_total ? t('cartera.todas_superadas') : '—'}</td>
@@ -125,7 +125,7 @@ function ListaDePropuestas({ onEditar, onNueva }: { onEditar: (p: Propuesta) => 
                 </Fragment>
               ))}
             </tbody>
-          </table>
+          </TablaSimple>
         </div>
       )}
     </div>
@@ -142,7 +142,7 @@ function CapacidadDePropuesta({ id }: { id: string }) {
       <div className={`plan-aviso${data.fits ? ' plan-aviso--ok' : ' plan-aviso--peligro'}`}>
         {data.fits ? t('cartera.cabe', { desde: fmtDate(data.from), hasta: fmtDate(data.to) }) : t('cartera.no_cabe', { desde: fmtDate(data.from), hasta: fmtDate(data.to) })}
       </div>
-      <table className="plan-tabla">
+      <TablaSimple claseTabla="plan-tabla">
         <thead><tr><th>{t('cartera.col_rol')}</th><th className="plan-num">{t('cartera.col_pedidas')}</th><th className="plan-num">{t('cartera.col_personas')}</th><th className="plan-num">{t('cartera.col_libres')}</th><th className="plan-num">{t('cartera.col_hueco')}</th></tr></thead>
         <tbody>
           {data.roles.map(r => (
@@ -150,7 +150,7 @@ function CapacidadDePropuesta({ id }: { id: string }) {
               <td className="plan-num">{r.free_hours}</td><td className={`plan-num ${r.gap_hours > 0 ? 'plan-critica' : 'plan-ok'}`}>{r.gap_hours}</td></tr>
           ))}
         </tbody>
-      </table>
+      </TablaSimple>
     </div>
   )
 }
@@ -257,7 +257,7 @@ function Configuracion() {
           <h3 className="plan-card__titulo">{t('cartera.criterios')}</h3>
           <Button size="xs" icon={<Plus size={12} />} onClick={async () => { const n = await nuevo('cartera.nombre_criterio'); if (n) guardarCriterio.mutate({ b: { name: n, weight: 1 } }) }}>{t('cartera.anadir_criterio')}</Button>
         </div>
-        <table className="plan-tabla">
+        <TablaSimple claseTabla="plan-tabla">
           <thead><tr><th>{t('cartera.col_nombre')}</th><th className="plan-num">{t('cartera.col_peso')}</th><th>{t('cartera.inverso')}</th><th>{t('cartera.activo')}</th></tr></thead>
           <tbody>
             {criterios.map(c => (
@@ -265,12 +265,12 @@ function Configuracion() {
                 <td>{c.name}</td>
                 <td className="plan-num"><input type="number" min={0} step={0.5} className="ds-input cit-num" aria-label={t('cartera.col_peso')} defaultValue={c.weight}
                   onBlur={e => Number(e.target.value) !== c.weight && guardarCriterio.mutate({ id: c.id, b: { weight: Number(e.target.value) } })} /></td>
-                <td><input type="checkbox" aria-label={t('cartera.inverso')} checked={c.inverse} onChange={e => guardarCriterio.mutate({ id: c.id, b: { inverse: e.target.checked } })} /></td>
-                <td><input type="checkbox" aria-label={t('cartera.activo')} checked={c.is_active} onChange={e => guardarCriterio.mutate({ id: c.id, b: { is_active: e.target.checked } })} /></td>
+                <td><Checkbox aria-label={t('cartera.inverso')} checked={c.inverse} onChange={(_, e) => guardarCriterio.mutate({ id: c.id, b: { inverse: e.target.checked } })} /></td>
+                <td><Checkbox aria-label={t('cartera.activo')} checked={c.is_active} onChange={(_, e) => guardarCriterio.mutate({ id: c.id, b: { is_active: e.target.checked } })} /></td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </TablaSimple>
       </div>
       <div className="ds-card plan-stack">
         <div className="plan-row plan-row--between">
@@ -278,7 +278,7 @@ function Configuracion() {
           <Button size="xs" icon={<Plus size={12} />} onClick={async () => { const n = await nuevo('cartera.nombre_fase'); if (n) guardarFase.mutate({ b: { name: n, sort_order: fases.length + 1 } }) }}>{t('cartera.anadir_fase')}</Button>
         </div>
         <p className="plan-muted">{t('cartera.fases_ayuda')}</p>
-        <table className="plan-tabla">
+        <TablaSimple claseTabla="plan-tabla">
           <thead><tr><th>{t('cartera.col_orden')}</th><th>{t('cartera.col_nombre')}</th><th className="plan-num">{t('cartera.col_minimo')}</th><th>{t('cartera.col_flujo')}</th><th>{t('cartera.activo')}</th></tr></thead>
           <tbody>
             {fases.map(g => (
@@ -288,17 +288,17 @@ function Configuracion() {
                 <td className="plan-num"><input type="number" min={0} max={100} className="ds-input cit-num" aria-label={t('cartera.col_minimo')} defaultValue={g.min_score ?? ''}
                   onBlur={e => guardarFase.mutate({ id: g.id, b: { min_score: e.target.value === '' ? null : Number(e.target.value) } })} /></td>
                 <td>
-                  <select className="ds-input cit-flujo" aria-label={t('cartera.col_flujo')} value={g.workflow_id ?? ''}
+                  <Select suelto placeholder={false} className="ds-input cit-flujo" aria-label={t('cartera.col_flujo')} value={g.workflow_id ?? ''}
                     onChange={e => guardarFase.mutate({ id: g.id, b: { workflow_id: e.target.value || null } })}>
                     <option value="">{t('cartera.flujo_por_defecto')}</option>
                     {flujos.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                  </select>
+                  </Select>
                 </td>
-                <td><input type="checkbox" aria-label={t('cartera.activo')} checked={g.is_active} onChange={e => guardarFase.mutate({ id: g.id, b: { is_active: e.target.checked } })} /></td>
+                <td><Checkbox aria-label={t('cartera.activo')} checked={g.is_active} onChange={(_, e) => guardarFase.mutate({ id: g.id, b: { is_active: e.target.checked } })} /></td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </TablaSimple>
       </div>
     </div>
   )

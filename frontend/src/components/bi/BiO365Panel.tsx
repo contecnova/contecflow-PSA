@@ -13,7 +13,7 @@ import { biO365Api } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useChartTheme } from '../../charts/useChartTheme'
 import { BarChart3, Cloud, RefreshCw, Settings, Users } from 'lucide-react'
-import { Button, EmptyState, Tabs } from '../ui'
+import { Button, EmptyState, Tabs, Checkbox } from '../ui'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { extractErr, fmtDateTime, localeActivo } from '../../utils/helpers'
 import { useToast } from '../../context/ToastContext'
@@ -211,10 +211,7 @@ export default function BiO365Panel() {
             </div>
           </div>
           <div className="bio3pa-row-5">
-            <label className="bio3pa-row-6">
-              <input type="checkbox" aria-label={t('bio365.sincronizacion_habilitada')} checked={configForm.enabled} onChange={e => setConfigForm(f => ({ ...f, enabled: e.target.checked }))} />
-              {t('bio365.sincronizacion_habilitada')}
-            </label>
+            <Checkbox className="bio3pa-row-6" label={t('bio365.sincronizacion_habilitada')} checked={configForm.enabled} onChange={m => setConfigForm(f => ({ ...f, enabled: m }))} />
             <Button
               onClick={() => saveConfigMutation.mutate(configForm)}
               disabled={saveConfigMutation.isPending}

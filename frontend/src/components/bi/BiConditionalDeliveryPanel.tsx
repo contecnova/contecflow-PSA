@@ -13,7 +13,7 @@ import { biConditionalDeliveryApi } from '../../services/api'
 import type { EvaluacionDeEntregaBi, ReglaDeEntregaBi } from '../../services/api/tipos-bi'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Bell, Play, Plus, ToggleLeft, ToggleRight } from 'lucide-react'
-import { Button, Card, EmptyState, Input, Section, Spinner } from '../ui'
+import { Button, Card, EmptyState, Input, Section, Spinner, Pulsable } from '../ui'
 import StatusBadge from '../ui/StatusBadge'
 import './BiConditionalDeliveryPanel.css'
 
@@ -111,21 +111,21 @@ export default function BiConditionalDeliveryPanel() {
                       </StatusBadge>
                     )}
                     {!rule.enabled && <StatusBadge kind="neutral" caps={false}>{t('prediccion_bi.desactivada')}</StatusBadge>}
-                    <button type="button" aria-label={t('biconditionaldelivery.evaluar_ahora')}
+                    <Pulsable aria-label={t('biconditionaldelivery.evaluar_ahora')}
                       onClick={() => evaluateMutation.mutate(rule.id)}
                       title={t('biconditionaldelivery.evaluar_ahora')}
                       className="bicodepa-icono"
                     >
                       <Play size={16} aria-hidden />
-                    </button>
-                    <button type="button" className={`bicodepa-icono${rule.enabled ? ' bicodepa-icono--activo' : ''}`}
+                    </Pulsable>
+                    <Pulsable className={`bicodepa-icono${rule.enabled ? ' bicodepa-icono--activo' : ''}`}
                       onClick={() => toggleMutation.mutate({ id: rule.id, enabled: !rule.enabled })}
                       aria-pressed={rule.enabled}
                       aria-label={rule.enabled ? t('prediccion_bi.desactivar') : t('prediccion_bi.activar')}
                       title={rule.enabled ? t('prediccion_bi.desactivar') : t('prediccion_bi.activar')}
                     >
                       {rule.enabled ? <ToggleRight size={20} aria-hidden /> : <ToggleLeft size={20} aria-hidden />}
-                    </button>
+                    </Pulsable>
                   </div>
                 </li>
               )

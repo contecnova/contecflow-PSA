@@ -13,7 +13,7 @@
   display: block;
   font-size: var(--text-xs);
   color: var(--text-2);
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -30,7 +30,6 @@
   font-size: var(--text-xs);
   font-weight: 700;
   color: var(--text-2);
-  text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 .whl-detail-label--block { display: block; margin-bottom: 6px; }
@@ -43,7 +42,7 @@
   color: var(--text-2);
   overflow: auto;
   max-height: 120px;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   margin: 0;
 }
 .whl-pre--payload { color: var(--text-1); max-height: 200px; }

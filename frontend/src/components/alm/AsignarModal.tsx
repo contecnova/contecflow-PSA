@@ -9,7 +9,7 @@
  */
 import { useEffect, useId, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Modal, Button } from '../ui'
+import { Modal, Button, GrupoDeOpciones, Select } from '../ui'
 import { ProjectSelect, ClientSelect } from '../ui/EntitySelect'
 import DateInput from '../ui/DateInput'
 import { useToast } from '../../context/ToastContext'
@@ -128,14 +128,9 @@ export default function AsignarModal({ recurso, bolsa = null, modoInicial = 'ass
           </div>
         )}
         {recurso.tipo === 'asset' && (
-          <div className="almf-titular__tipos" role="radiogroup" aria-label={t('alm.assign_mode')}>
-            {(['assignment', 'loan'] as const).map(m => (
-              <button key={m} type="button" role="radio" aria-checked={modo === m}
-                className={`almf-chip${modo === m ? ' almf-chip--on' : ''}`} onClick={() => setModo(m)}>
-                {t(`alm.mode_${m}`)}
-              </button>
-            ))}
-          </div>
+          <GrupoDeOpciones forma="fila" className="almf-titular__tipos" aria-label={t('alm.assign_mode')}
+            valor={modo} onChange={v => setModo(v as typeof modo)}
+            opciones={(['assignment', 'loan'] as const).map(m => ({ valor: m, titulo: t(`alm.mode_${m}`) }))} />
         )}
         <SelectorDeTitular t={t} tipo={tipo} id={titular} tipos={tipos} idBase={idBase}
           onChange={(k, v) => { setTipo(k); setTitular(v) }} />
@@ -169,10 +164,10 @@ export default function AsignarModal({ recurso, bolsa = null, modoInicial = 'ass
             <div className="almf-rejilla-2">
               <div>
                 <label className="alm-label" htmlFor={`${idBase}-cond`}>{t('alm.assets_label_condition')}</label>
-                <select id={`${idBase}-cond`} className="alm-input" value={condicion} onChange={e => setCondicion(e.target.value as Condicion | '')}>
+                <Select suelto placeholder={false} id={`${idBase}-cond`} className="alm-input" value={condicion} onChange={e => setCondicion(e.target.value as Condicion | '')}>
                   <option value="">{t('alm.condition_keep')}</option>
                   {(['new', 'good', 'fair', 'poor'] as const).map(c => <option key={c} value={c}>{t(`alm.assets_condition_${c}`)}</option>)}
-                </select>
+                </Select>
               </div>
               <div>
                 <label className="alm-label" htmlFor={`${idBase}-obs`}>{t('alm.observations')}</label>
@@ -193,10 +188,10 @@ export default function AsignarModal({ recurso, bolsa = null, modoInicial = 'ass
             </div>
             <div>
               <label className="alm-label" htmlFor={`${idBase}-cc`}>{t('alm.charge_cost_center')}</label>
-              <select id={`${idBase}-cc`} className="alm-input" value={cargoCentro} onChange={e => setCargoCentro(e.target.value)}>
+              <Select suelto placeholder={false} id={`${idBase}-cc`} className="alm-input" value={cargoCentro} onChange={e => setCargoCentro(e.target.value)}>
                 <option value="">{t('alm.charge_auto')}</option>
                 {centros.map(c => <option key={c.id} value={c.id}>{c.code} · {c.name}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label className="alm-label" htmlFor={`${idBase}-cli`}>{t('alm.charge_client')}</label>
@@ -204,11 +199,11 @@ export default function AsignarModal({ recurso, bolsa = null, modoInicial = 'ass
             </div>
             <div>
               <label className="alm-label" htmlFor={`${idBase}-refa`}>{t('alm.rebillable')}</label>
-              <select id={`${idBase}-refa`} className="alm-input" value={refacturar} onChange={e => setRefacturar(e.target.value as '' | 'yes' | 'no')}>
+              <Select suelto placeholder={false} id={`${idBase}-refa`} className="alm-input" value={refacturar} onChange={e => setRefacturar(e.target.value as '' | 'yes' | 'no')}>
                 <option value="">{t('alm.rebillable_inherit')}</option>
                 <option value="yes">{t('common.yes')}</option>
                 <option value="no">{t('common.no')}</option>
-              </select>
+              </Select>
             </div>
           </div>
         </details>

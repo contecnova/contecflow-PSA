@@ -8,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowLeft, ArrowUp, CheckCircle, Copy, History, Play, Plus, Power, Save, Trash2 } from 'lucide-react'
 import { politicasApi } from '../../services/api'
 import type { AmbitoDePolitica, DocumentoDePolitica, ErrorDeValidacion, Politica, Regla } from '../../services/api/tipos-politicas'
-import { Button, EmptyState, Spinner, Tabs } from '../ui'
+import { Button, EmptyState, Spinner, Tabs, Pulsable, Checkbox } from '../ui'
 import DateInput from '../ui/DateInput'
 import { useToast } from '../../context/ToastContext'
 import { confirmar } from '../../context/ConfirmContext'
@@ -123,7 +123,7 @@ export default function EditorDePolitica({ id, nuevoDominio, onVolver, onAbrir }
         { id: 'simulador', label: t('pol.tab_simulador'), icon: <Play size={14} /> },
         ...(id ? [{ id: 'historial', label: t('pol.tab_historial'), icon: <History size={14} /> }] : []),
       ]} />
-      <fieldset disabled={!editable} className="pol-sin-borde">
+      <fieldset disabled={!editable} className="ds-grupo-opciones pol-sin-borde">
         {tab === 'definicion' && <Definicion doc={doc} set={set} errorDe={errorDe} />}
         {tab === 'reglas' && (
           <div>
@@ -134,8 +134,8 @@ export default function EditorDePolitica({ id, nuevoDominio, onVolver, onAbrir }
                   <span className="pol-conector">{t('pol.regla_n', { n: i + 1 })}</span>
                   <input className="pol-campo pol-campo--ancho" aria-label={t('pol.nombre_de_la_regla')} placeholder={t('pol.nombre_de_la_regla')}
                     value={r.nombre} onChange={e => setRegla(i, { ...r, nombre: e.target.value })} />
-                  <label className="pol-chip"><input type="checkbox" checked={r.activa} onChange={e => setRegla(i, { ...r, activa: e.target.checked })} />{t('pol.activa')}</label>
-                  <label className="pol-chip" title={t('pol.detener_ayuda')}><input type="checkbox" checked={r.detener} onChange={e => setRegla(i, { ...r, detener: e.target.checked })} />{t('pol.detener')}</label>
+                  <Checkbox className="pol-chip" label={t('pol.activa')} checked={r.activa} onChange={m => setRegla(i, { ...r, activa: m })} />
+                  <span title={t('pol.detener_ayuda')}><Checkbox className="pol-chip" label={t('pol.detener')} checked={r.detener} onChange={m => setRegla(i, { ...r, detener: m })} /></span>
                   <Button size="xs" variant="ghost" icon={<ArrowUp size={13} />} disabled={i === 0} onClick={() => mover(i, -1)} title={t('pol.subir')}><span className="u-sr-only">{t('pol.subir')}</span></Button>
                   <Button size="xs" variant="ghost" icon={<ArrowDown size={13} />} disabled={i === doc.reglas.length - 1} onClick={() => mover(i, 1)} title={t('pol.bajar')}><span className="u-sr-only">{t('pol.bajar')}</span></Button>
                   <Button size="xs" variant="ghost" icon={<Trash2 size={13} />} onClick={() => set('reglas', doc.reglas.filter((_, j) => j !== i))} title={t('pol.quitar_regla')}><span className="u-sr-only">{t('pol.quitar_regla')}</span></Button>
@@ -205,7 +205,7 @@ function Definicion({ doc, set, errorDe }: {
           <span className="pol-etiqueta">{t('pol.personas')}</span>
           <div className="pol-fila">
             {amb.personas.map(p => <span key={p} className="pol-chip">{p.slice(0, 8)}…
-              <button type="button" aria-label={t('pol.quitar_valor', { valor: p })} onClick={() => setAmb('personas', amb.personas.filter(x => x !== p))}>×</button></span>)}
+              <Pulsable aria-label={t('pol.quitar_valor', { valor: p })} onClick={() => setAmb('personas', amb.personas.filter(x => x !== p))}>×</Pulsable></span>)}
             <SelectorDeEntidad clase="usuario" valor="" opciones={opciones} etiqueta={t('pol.anadir_persona')}
               onChange={v => v && !amb.personas.includes(v) && setAmb('personas', [...amb.personas, v])} />
           </div>
@@ -224,14 +224,14 @@ function Historial({ id, onAbrir }: { id: string; onAbrir: (id: string) => void 
     <ol className="pol-linea-tiempo" aria-label={t('pol.tab_historial')}>
       {(q.data ?? []).map(v => (
         <li key={v.id} data-estado={v.estado}>
-          <button type="button" className="pol-item" onClick={() => onAbrir(v.id)} aria-current={v.id === id ? 'true' : undefined}>
+          <Pulsable className="pol-item" onClick={() => onAbrir(v.id)} aria-current={v.id === id ? 'true' : undefined}>
             <span><strong>v{v.version}</strong> · {v.nota_de_version || t('pol.sin_nota')}
               <span className="pol-ayuda"> — {t('pol.creada_por', { quien: v.creada_por_nombre ?? '—', cuando: (v.created_at ?? '').slice(0, 16).replace('T', ' ') })}
                 {v.publicada_en && ` · ${t('pol.publicada_por', { quien: v.publicada_por_nombre ?? '—', cuando: v.publicada_en.slice(0, 16).replace('T', ' ') })}`}</span></span>
             <span className={`pol-chip pol-chip--${v.estado}`}>{t(`pol.estado_${v.estado}`)}</span>
             <span className="pol-chip">{t('pol.n_reglas', { n: v.n_reglas })}</span>
             <span />
-          </button>
+          </Pulsable>
         </li>
       ))}
     </ol>

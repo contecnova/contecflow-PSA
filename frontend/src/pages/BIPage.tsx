@@ -4,7 +4,7 @@ import { analyticsApi, dashboardApi } from '../services/api'
 import { cacheBiKpis, getCachedBiKpis, cacheBiProjects, getCachedBiProjects, purgeExpiredBiCache } from '../services/biOfflineDb'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Spinner, KpiCard, EmptyState } from '../components/ui'
+import { Spinner, KpiCard, EmptyState, TablaSimple } from '../components/ui'
 import { BarChart3, Briefcase, Clock, FolderKanban, Percent, PieChart as PieChartIcon, Wallet } from 'lucide-react'
 import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
 import { useAppT, useAppLang } from '../i18n/AppLangContext'
@@ -138,7 +138,7 @@ export default function BIPage(): JSX.Element {
               </div>
             ) : (
               <div className="u-scroll-x">
-                <table className="u-table-sm bi-table">
+                <TablaSimple claseTabla="u-table-sm bi-table">
                   <thead>
                     <tr>
                       <th scope="col">{t('bi.col_proyecto')}</th>
@@ -159,7 +159,7 @@ export default function BIPage(): JSX.Element {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </TablaSimple>
               </div>
             )}
           </section>

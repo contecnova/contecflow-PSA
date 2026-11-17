@@ -8,7 +8,7 @@ import type { CSSProperties } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { leccionesApi } from '../../services/api'
 import type { Leccion } from '../../services/api'
-import { Button, Modal, Spinner, UserSelect } from '../ui'
+import { Button, Modal, Spinner, UserSelect, Select } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr, fmtDate } from '../../utils/helpers'
@@ -62,9 +62,9 @@ export default function FichaDeLeccion({ id, onClose }: { id: string; onClose: (
                 <div key={a.id} className="fidele-row-1">
                   <span className={`fidele-box-2 ${a.estado === 'hecha' ? 'ficha-de-leccion-m2' : 'ficha-de-leccion-m3'}`}>{a.descripcion}</span>
                   {a.fecha_limite && <span className={`fidele-txt-2 ${a.vencida ? 'ficha-de-leccion-m4' : 'ficha-de-leccion-m5'}`}>{fmtDate(a.fecha_limite)}</span>}
-                  <select aria-label={t('lec.estado_accion')} value={a.estado} onChange={e => avanzar.mutate({ aid: a.id, e: e.target.value })} className="fidele-campo">
+                  <Select suelto aria-label={t('lec.estado_accion')} value={a.estado} onChange={e => avanzar.mutate({ aid: a.id, e: e.target.value })} className="fidele-campo" placeholder={false}>
                     {['abierta', 'en_curso', 'hecha', 'descartada'].map(s => <option key={s} value={s}>{t(`lec.accion_${s}`)}</option>)}
-                  </select>
+                  </Select>
                 </div>
               ))}
               {l.puedo_editar && (

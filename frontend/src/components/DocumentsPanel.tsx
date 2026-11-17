@@ -10,7 +10,7 @@ import { useToast } from '../context/ToastContext';
 import { extractErr } from '../utils/helpers';
 import { Upload, Download, Trash2, Plus, Sparkles, Loader, X, Check, Clock, FileText } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { Button, EmptyState, IconButton } from './ui';
+import { Button, EmptyState, IconButton, Pulsable, Select } from './ui';
 import { useAppT } from '../hooks/useAppT';
 
 import type { DragEvent } from 'react';
@@ -186,7 +186,7 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
           onDragLeave={() => setDragOver(false)}
           onDrop={onDrop}
           className="docupane-stack-1">
-          <button className="docupane-box-8 document-sx2 documents-panel-e4" type="button" onClick={() => fileRef.current?.click()}
+          <Pulsable className="docupane-box-8 document-sx2 documents-panel-e4" onClick={() => fileRef.current?.click()}
             style={{ '--documents-panel-border': `2px dashed ${dragOver || file ? 'var(--accent)' : 'var(--surface-5)'}` } as CSSProperties}>
             <input ref={fileRef} type="file" aria-label={t('documents_panel.click_or_drag')} className="docupane-box-3"
               onChange={e => { const f = e.target.files?.[0]; if (f) { setFile(f); setTitle(t => t || f.name.replace(/\.[^.]+$/, '')); } }} />
@@ -195,16 +195,16 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
               : <span className="u-text3-xs">
                   <Upload size={12} className="document-sx3" />{t('documents_panel.click_or_drag')}
                 </span>}
-          </button>
+          </Pulsable>
           <input aria-label={t('documents_panel.title_placeholder')}
             value={title}
             onChange={e => setTitle(e.target.value)}
             placeholder={t('documents_panel.title_placeholder')}
             className="docupane-fs"
           />
-          <select value={category} onChange={e => setCategory(e.target.value)} className="docupane-fs">
+          <Select suelto value={category} onChange={e => setCategory(e.target.value)} className="docupane-fs" placeholder={false}>
             {CATS.map(c => <option key={c} value={c}>{t(CAT_LABEL[c])}</option>)}
-          </select>
+          </Select>
           <div className="u-row-6">
             <Button size="sm" icon={<Upload size={13} />} onClick={() => uploadMutation.mutate()} disabled={!file} loading={uploadMutation.isPending}>
               {uploadMutation.isPending ? t('documents_panel.uploading') : t('documents_panel.upload')}

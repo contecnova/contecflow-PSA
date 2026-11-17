@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { FileSignature } from 'lucide-react'
-import { EmptyState, Spinner } from '../../components/ui'
+import { EmptyState, Spinner, Select } from '../../components/ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { almApi } from '../../services/api/alm'
 import { TarjetaDeActa } from '../../components/alm/FichaActivo'
@@ -19,13 +19,13 @@ export default function ActasTab() {
       <div className="almf-filtros">
         <div className="almf-filtro">
           <label className="alm-label" htmlFor="alma-est">{t('alm.status')}</label>
-          <select id="alma-est" className="alm-input" value={estado} onChange={e => setEstado(e.target.value)}>
+          <Select suelto placeholder={false} id="alma-est" className="alm-input" value={estado} onChange={e => setEstado(e.target.value)}>
             <option value="pending_signature">{t('alm.st_pending_signature')}</option>
             <option value="signed">{t('alm.st_signed')}</option>
             <option value="unsigned">{t('alm.st_unsigned')}</option>
             <option value="void">{t('alm.st_void')}</option>
             <option value="">{t('alm.filter_all')}</option>
-          </select>
+          </Select>
         </div>
       </div>
       <p className="alm-hint">{t('alm.acts_hint')}</p>

@@ -20,7 +20,7 @@ import { useState, useEffect, useMemo, useId } from 'react'
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
 import { performanceApi, usersApi } from '../services/api'
 import type { Campana360, CicloDeEvaluacion, EvaluacionDeDesempeno, EvaluadoresElegibles, Historico360, KpisDeCiclo, KpisDeDesempeno, PanelDeCampana360, PlanDeDesarrollo, PreguntaDeEvaluacion, RespuestasDeEvaluacion } from '../services/api/tipos-rendimiento'
-import { Button, KpiCard, Modal, Spinner, EmptyState, Page, Tabs } from '../components/ui'
+import { Button, Checkbox, KpiCard, Modal, Pulsable, Select, Spinner, EmptyState, Page, Tabs } from '../components/ui'
 import {
   Star, Plus, ChevronRight, ChevronDown, Clock, CheckCircle2,
   User, Users as UsersIcon, Crown, ArrowUp, UserPlus, Save, Send,
@@ -208,12 +208,12 @@ function ReviewForm({ review, onClose }: { review: Review; onClose: () => void }
                       {buttons.map(n => {
                         const active = Number(answers[q.key]) >= n
                         return (
-                          <button key={n} type="button"
+                          <Pulsable key={n}
                             onClick={() => setAnswers(s => ({ ...s, [q.key]: n }))}
                             aria-label={t('pagina_perf.de', { label: q.label, n, max })}
                             className={`perf-btn performa-sx1 ${active ? 'performa-sx2' : 'performa-sx3'} performance-reviews-page-e3`} style={{ '--performance-reviews-page-border': `1px solid ${active ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
                             {n}
-                          </button>
+                          </Pulsable>
                         )
                       })}
                     </div>
@@ -235,11 +235,11 @@ function ReviewForm({ review, onClose }: { review: Review; onClose: () => void }
                   {q.hint && <div className="ds-field__hint">{q.hint}</div>}
                   <div className="ds-row-wrap perf-box-4">
                     {[{ k: 'yes', l: t('pagina_perf.si') }, { k: 'no', l: t('pagina_perf.no') }].map(({ k, l }) => (
-                      <button key={k} type="button"
+                      <Pulsable key={k}
                         onClick={() => setAnswers(s => ({ ...s, [q.key]: k }))}
                         className={`perf-btn-2 performa-sx4 ${v === k ? 'performa-sx5' : 'performa-sx6'} performance-reviews-page-e3`} style={{ '--performance-reviews-page-border': `1px solid ${v === k ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
                         {l}
-                      </button>
+                      </Pulsable>
                     ))}
                   </div>
                 </div>
@@ -357,12 +357,11 @@ function AssignReviewModal({ cycle, onClose }: { cycle: Cycle; onClose: () => vo
         {/* Persona evaluada (primero, para poder calcular elegibilidad) */}
         <div className="ds-field">
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('pagina_perf.persona_evaluada')}</label>
-          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.reviewee_id}
-            onChange={e => setForm(f => ({ ...f, reviewee_id: e.target.value }))}
-            className="ds-input">
+          <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.reviewee_id}
+            onChange={e => setForm(f => ({ ...f, reviewee_id: e.target.value }))}>
             <option value="">{t('pagina_perf.selecciona')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-          </select>
+          </Select>
         </div>
 
         {/* Tipo de evaluación */}
@@ -376,7 +375,7 @@ function AssignReviewModal({ cycle, onClose }: { cycle: Cycle; onClose: () => vo
               const tip = disabled ? (pool?.reason_blocked || t('pagina_perf.no_hay_evaluadores_elegibles')) : undefined
               return (
                 <span key={id} title={tip} className="perf-row-2">
-                  <button type="button"
+                  <Pulsable
                     onClick={() => !disabled && setForm(f => ({
                       ...f, review_type: id,
                       reviewer_id: id === 'self' ? f.reviewee_id : '',
@@ -384,7 +383,7 @@ function AssignReviewModal({ cycle, onClose }: { cycle: Cycle; onClose: () => vo
                     disabled={disabled}
                     className={`perf-chip ${active ? 'perf-chip--activo' : ''} ${disabled ? 'perf-chip--inactivo' : ''}`}>
                     <Icon size={13} /> {t(label)}
-                  </button>
+                  </Pulsable>
                 </span>
               )
             })}
@@ -401,9 +400,8 @@ function AssignReviewModal({ cycle, onClose }: { cycle: Cycle; onClose: () => vo
         {!isSelfType && (
           <div className="ds-field">
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">{t('pagina_perf.evaluador')}</label>
-            <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.reviewer_id}
+            <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.reviewer_id}
               onChange={e => setForm(f => ({ ...f, reviewer_id: e.target.value }))}
-              className="ds-input"
               disabled={!form.reviewee_id || !!blockedReason}>
               <option value="">{form.reviewee_id ? t('pagina_perf.selecciona') : t('pagina_perf.elige_primero_la_persona_evaluada')}</option>
               {eligibleUsers.map(u => (
@@ -411,7 +409,7 @@ function AssignReviewModal({ cycle, onClose }: { cycle: Cycle; onClose: () => vo
                   {u.full_name}{u.team ? ` · ${u.team}` : (u.department ? ` · ${u.department}` : '')}
                 </option>
               ))}
-            </select>
+            </Select>
             {form.reviewee_id && !blockedReason && eligibleUsers.length > 0 && (
               <div className="ds-field__hint">
                 {eligibleUsers.length} {traducir('performancereviews.evaluador_es_elegible_s_segun_organigrama_y')}
@@ -588,17 +586,13 @@ function QuestionEditModal({ question, onClose, onSave }: {
         <div className="performance-reviews-page-e15">
           <div className="ds-field">
             <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="ds-field__label">{t('pagina_perf.tipo')}</label>
-            <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.kind} onChange={e => setForm(f => ({ ...f, kind: e.target.value }))}
-              className="ds-input">
+            <Select suelto placeholder={false} id={`${idCampo}-4`} value={form.kind} onChange={e => setForm(f => ({ ...f, kind: e.target.value }))}>
               {QUESTION_KINDS.map(k => <option key={k.id} value={k.id}>{t(k.label)}</option>)}
-            </select>
+            </Select>
           </div>
           <div className="ds-field perf-box-6">
-            <label className="perf-label-2">
-              <input type="checkbox" aria-label={t('pagina_perf.obligatoria')} checked={form.required}
-                onChange={e => setForm(f => ({ ...f, required: e.target.checked }))} />
-              {t('pagina_perf.obligatoria')}
-            </label>
+            <Checkbox className="perf-label-2" checked={!!form.required}
+              onChange={v => setForm(f => ({ ...f, required: v }))} label={t('pagina_perf.obligatoria')} />
           </div>
         </div>
         {isRatingKind(form.kind) && (
@@ -734,12 +728,11 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
         {/* Subject */}
         <div className="ds-field">
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('pagina_perf.persona_evaluada')}</label>
-          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={subjectId}
-            onChange={e => setSubjectId(e.target.value)}
-            className="ds-input">
+          <Select suelto placeholder={false} id={`${idCampo}-1`} value={subjectId}
+            onChange={e => setSubjectId(e.target.value)}>
             <option value="">{t('pagina_perf.selecciona')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-          </select>
+          </Select>
         </div>
 
         {!subjectId ? (
@@ -750,16 +743,11 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
           <>
             {/* Self */}
             <div className="ds-card--inset perf-row-4">
-              <input type="checkbox" id="self-review-cb" aria-labelledby="self-review-cb-et"
-                checked={selfReview} onChange={e => setSelfReview(e.target.checked)} />
-              <label id="self-review-cb-et" htmlFor="self-review-cb" className="perf-label-3">
-                <div className="perf-box-7">
+              <Checkbox id="self-review-cb" className="perf-label-3" checked={!!selfReview} onChange={setSelfReview}
+                label={<div className="perf-box-7">
                   <User size={12} className="perf-box-38" /> {traducir('performancereviews.autoevaluacion')}
-                </div>
-                <div className="ds-muted u-xs">
-                  {traducir('performancereviews.la_propia_persona_se_evalua_recomendado_en')}
-                </div>
-              </label>
+                </div>}
+                ayuda={traducir('performancereviews.la_propia_persona_se_evalua_recomendado_en')} />
             </div>
 
             {/* Manager */}
@@ -772,13 +760,12 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
                   <AlertCircle size={12} /> {managerData.reason_blocked}
                 </div>
               ) : (
-                <select id={`${idCampo}-manager`} aria-labelledby={`${idCampo}-manager-et`} value={managerId} onChange={e => setManagerId(e.target.value)}
-                  className="ds-input">
+                <Select suelto placeholder={false} id={`${idCampo}-manager`} value={managerId} onChange={e => setManagerId(e.target.value)}>
                   <option value="">{traducir('performancereviews.sin_manager')}</option>
                   {managerOptions.map(u => (
                     <option key={u.id} value={u.id}>{u.full_name}</option>
                   ))}
-                </select>
+                </Select>
               )}
             </div>
 
@@ -803,11 +790,11 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
                   {peerOptions.map(u => {
                     const sel = peerIds.includes(u.id)
                     return (
-                      <button key={u.id} type="button" onClick={() => togglePeer(u.id)}
+                      <Pulsable key={u.id} onClick={() => togglePeer(u.id)}
                         className={`perf-btn-3 performa-sx4 ${sel ? 'performa-sx5' : 'performa-sx6'} performance-reviews-page-e3`} style={{ '--performance-reviews-page-border': `1px solid ${sel ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
                         {u.full_name}
                         {u.team && <span className="perf-label-5">· {u.team}</span>}
-                      </button>
+                      </Pulsable>
                     )
                   })}
                 </div>
@@ -835,10 +822,10 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
                   {upwardOptions.map(u => {
                     const sel = upwardIds.includes(u.id)
                     return (
-                      <button key={u.id} type="button" onClick={() => toggleUpward(u.id)}
+                      <Pulsable key={u.id} onClick={() => toggleUpward(u.id)}
                         className={`perf-btn-3 performa-sx4 ${sel ? 'performa-sx5' : 'performa-sx6'} performance-reviews-page-e3`} style={{ '--performance-reviews-page-border': `1px solid ${sel ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
                         {u.full_name}
-                      </button>
+                      </Pulsable>
                     )
                   })}
                 </div>
@@ -1277,11 +1264,11 @@ function CycleCard({ cycle, isManager, onActivate, onCloseCycle, onAssign, onCre
   return (
     <div className="ds-card perf-box-3">
       <div className="ds-row perf-box-3">
-        <button type="button" onClick={() => setExpanded(s => !s)}
+        <Pulsable onClick={() => setExpanded(s => !s)}
           aria-label={expanded ? t('pagina_perf.contraer') : t('pagina_perf.expandir')}
           className="perf-btn-4">
           <ChevronIcon size={16} />
-        </button>
+        </Pulsable>
         <div className="u-flex1-min0">
           <div className="performance-reviews-page-e17">{cycle.name}</div>
           <div className="ds-row-wrap perf-box-4">
@@ -1460,23 +1447,22 @@ function NewCycleModal({ existingCycles, onClose }: { existingCycles: Cycle[]; o
             ].map(opt => {
               const active = form.template_mode === opt.id
               return (
-                <button key={opt.id} type="button"
+                <Pulsable key={opt.id}
                   disabled={opt.disabled}
                   onClick={() => setForm(f => ({ ...f, template_mode: opt.id }))}
                   className={`perf-btn-5 performa-sx4 ${active ? 'performa-sx5' : 'performa-sx6'} ${opt.disabled ? 'performa-sx9' : 'performa-sx10'} performance-reviews-page-e3`} style={{ '--performance-reviews-page-border': `1px solid ${active ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
                   {opt.label}
-                </button>
+                </Pulsable>
               )
             })}
           </div>
           {form.template_mode === 'clone' && (
             <div className="perf-box-28">
-              <select value={form.clone_from}
-                onChange={e => setForm(f => ({ ...f, clone_from: e.target.value }))}
-                className="ds-input">
+              <Select suelto placeholder={false} value={form.clone_from}
+                onChange={e => setForm(f => ({ ...f, clone_from: e.target.value }))}>
                 <option value="">{t('pagina_perf.selecciona_ciclo_origen')}</option>
                 {cloneable.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              </Select>
             </div>
           )}
         </div>
@@ -1890,10 +1876,10 @@ function DevPlanModal({ planId, onClose }: { planId: string; onClose: () => void
       <div className="ds-stack perf-box-3">
         <div className="ds-row-wrap">
           {Object.entries(PLAN_STATUS_CFG).map(([k, v]) => (
-            <button key={k} type="button" onClick={() => setStatus(k)}
+            <Pulsable key={k} onClick={() => setStatus(k)}
               className={`perf-btn-3 performa-sx4 ${plan.status === k ? 'performa-sx5' : 'performa-sx6'} performance-reviews-page-e3`} style={{ '--performance-reviews-page-border': `1px solid ${plan.status === k ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
               {t(v.label)}
-            </button>
+            </Pulsable>
           ))}
         </div>
 
@@ -1924,13 +1910,12 @@ function DevPlanModal({ planId, onClose }: { planId: string; onClose: () => void
                         {g.completed_at && t('pagina_perf.completado_3', { completed_at: fmtDate(g.completed_at) })}
                       </div>
                     </div>
-                    <select value={g.status}
-                      onChange={e => setGoalStatus({ id: g.id, status: e.target.value })}
-                      className="ds-input perf-input-3">
+                    <Select suelto placeholder={false} value={g.status}
+                      onChange={e => setGoalStatus({ id: g.id, status: e.target.value })} className="perf-input-3">
                       {Object.entries(GOAL_STATUS_CFG).map(([k, v]) => (
                         <option key={k} value={k}>{t(v.label)}</option>
                       ))}
-                    </select>
+                    </Select>
                     <Button size="sm" variant="ghost"
                       onClick={async () => { if (await confirmar({ message: t('pagina_perf.eliminar_objetivo'), danger: true, confirmLabel: t('pagina_perf.eliminar') })) removeG(g.id) }}
                       aria-label={t('pagina_perf.eliminar')}>

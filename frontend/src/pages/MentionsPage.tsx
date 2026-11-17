@@ -7,7 +7,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { mentionsApi } from '../services/api'
 import type { ComentarioEnHilo, Mencion } from '../services/api/tipos-personas'
-import { Button, Spinner, EmptyState } from '../components/ui'
+import { Button, Checkbox, Pulsable, Select, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AtSign } from 'lucide-react'
@@ -54,10 +54,10 @@ function MentionCard({ mention, onRead }: { mention: MentionItem; onRead: (id: s
           </div>
         </div>
         {!mention.is_read&&(
-          <button onClick={()=>onRead(mention.id)}
+          <Pulsable onClick={()=>onRead(mention.id)}
             className="ment-btn">
             {t('mentions.mark_read')}
-          </button>
+          </Pulsable>
         )}
       </div>
     </div>
@@ -105,9 +105,9 @@ function ThreadedCommentSection({ entityType, entityId, title }: { entityType: s
             {comment.is_resolved&&<span className="ment-card-3">{t('mentions.resolved')}</span>}
           </div>
           <div className="u-row-6">
-            {!comment.is_resolved&&<button onClick={()=>setReplyTo(comment.id)} className="ment-btn-2">{t('mentions.reply')}</button>}
-            {!comment.is_resolved&&<button onClick={()=>resolveComment(comment.id)} className="ment-btn-3">✓ {t('mentions.resolve')}</button>}
-            <button onClick={()=>{ openConfirmGlobal({ message: t('mentions.confirm_delete'), onConfirm: () => deleteComment(comment.id), danger: true }) }} className="ment-btn-4">✕</button>
+            {!comment.is_resolved&&<Pulsable onClick={()=>setReplyTo(comment.id)} className="ment-btn-2">{t('mentions.reply')}</Pulsable>}
+            {!comment.is_resolved&&<Pulsable onClick={()=>resolveComment(comment.id)} className="ment-btn-3">✓ {t('mentions.resolve')}</Pulsable>}
+            <Pulsable onClick={()=>{ openConfirmGlobal({ message: t('mentions.confirm_delete'), onConfirm: () => deleteComment(comment.id), danger: true }) }} className="ment-btn-4">✕</Pulsable>
           </div>
         </div>
         <div className="ment-box-5">{comment.content}</div>
@@ -203,10 +203,10 @@ export default function MentionsPage() {
           ['mentions', t('mentions.tab_mentions')],
           ['comments', t('mentions.tab_comments')],
         ] as const).map(([tabKey, label])=>(
-          <button key={tabKey} onClick={()=>setTab(tabKey)}
+          <Pulsable key={tabKey} onClick={()=>setTab(tabKey)}
             className={`ment-btn-5 ${tab===tabKey ? 'mentions-sx6' : 'mentions-sx7'}`}>
             {label}
-          </button>
+          </Pulsable>
         ))}
       </div>
 
@@ -215,10 +215,7 @@ export default function MentionsPage() {
         <div data-export-table="mentions-list">
           <div className="u-row-between-mb16">
             <div className="u-row-center-8">
-              <label className="ment-label-2">
-                <input type="checkbox" aria-label={t('mentions.only_unread')} checked={onlyUnread} onChange={e=>setOnlyUnread(e.target.checked)}/>
-                {t('mentions.only_unread')}
-              </label>
+              <Checkbox className="ment-label-2" checked={!!onlyUnread} onChange={setOnlyUnread} label={t('mentions.only_unread')} />
               {unreadCount>0&&<span className="ment-card-4">{unreadCount} {t('mentions.new_plural')}</span>}
             </div>
             {unreadCount>0&&(
@@ -243,10 +240,10 @@ export default function MentionsPage() {
             <div className="ment-grid">
               <div>
                 <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="mentions-page-e9">{t('mentions.type_label')}</label>
-                <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={demoType} onChange={e=>setDemoType(e.target.value)} className="mentions-page-e5">
+                <Select suelto placeholder={false} id={`${idCampo}-1`} value={demoType} onChange={e=>setDemoType(e.target.value)} className="mentions-page-e5">
                   <option value="task">📌 {t('mentions.type_task')}</option>
                   <option value="ticket">🎫 {t('mentions.type_ticket')}</option>
-                </select>
+                </Select>
               </div>
               <div>
                 <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="mentions-page-e9">{t('mentions.entity_id_label')}</label>

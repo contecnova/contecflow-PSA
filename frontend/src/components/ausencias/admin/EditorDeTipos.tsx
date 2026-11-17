@@ -12,7 +12,7 @@ import { approvalsApi } from '../../../services/api'
 import type {
   DestinatarioDeAviso, PlazoDesde, RequisitoDocumental, TipoDeAusencia, TipoDeAusenciaIn, TipoDeDocumento,
 } from '../../../services/api/tipos-ausencias'
-import { Button, EmptyState, Modal, Spinner } from '../../ui'
+import { Button, EmptyState, Modal, Spinner, Select, Pulsable, IconButton } from '../../ui'
 import { confirmar } from '../../../context/ConfirmContext'
 import { useToast } from '../../../context/ToastContext'
 import { SelectorDeEntidad, useOpciones } from '../../politicas/comun'
@@ -49,7 +49,7 @@ export default function EditorDeTipos() {
           <ul className="ausadm-lista">
             {tipos.map(t => (
               <li key={t.id}>
-                <button type="button" className={`ausadm-item${t.activo ? '' : ' ausadm-item--inactivo'}`}
+                <Pulsable className={`ausadm-item${t.activo ? '' : ' ausadm-item--inactivo'}`}
                   onClick={() => setAbierto({ id: t.id, datos: aEntrada(t) })}>
                   <Muestra color={t.color} className="ausadm-muestra--icono"><IconoDeAusencia icono={t.icono} /></Muestra>
                   <span className="ausadm-item-nombre">{nombreEn(t, lang)} <span className="ausadm-ayuda">({t.clave})</span></span>
@@ -62,7 +62,7 @@ export default function EditorDeTipos() {
                     {t.de_sistema && <span className="ausadm-chip">{ta('de_sistema')}</span>}
                     {!t.activo && <span className="ausadm-chip">{ta('inactivo')}</span>}
                   </span>
-                </button>
+                </Pulsable>
               </li>
             ))}
           </ul>
@@ -122,13 +122,13 @@ function FormularioDeTipo({ id, inicial, deSistema, onCerrar }: {
             <span className="ausadm-etiqueta">{ta('color')}</span>
             <input aria-label={ta('color')} type="color" className="ausadm-color" value={d.color} onChange={e => cambiar({ color: e.target.value })} />
           </label>
-          <fieldset className="ausadm-fieldset">
+          <fieldset className="ds-grupo-opciones ausadm-fieldset">
             <legend className="ausadm-etiqueta">{ta('icono')}</legend>
             <div className="ausadm-iconos" role="radiogroup" aria-label={ta('icono')}>
               {Object.keys(ICONOS_DE_AUSENCIA).map(nombre => (
-                <button key={nombre} type="button" role="radio" aria-checked={d.icono === nombre}
-                  className="ausadm-icono" aria-label={ta(`icono_${nombre}`)} title={ta(`icono_${nombre}`)}
-                  onClick={() => cambiar({ icono: nombre })}><IconoDeAusencia icono={nombre} /></button>
+                <IconButton key={nombre} role="radio" aria-checked={d.icono === nombre}
+                  className="ausadm-icono" ariaLabel={ta(`icono_${nombre}`)} title={ta(`icono_${nombre}`)}
+                  onClick={() => cambiar({ icono: nombre })}><IconoDeAusencia icono={nombre} /></IconButton>
               ))}
             </div>
           </fieldset>
@@ -136,30 +136,30 @@ function FormularioDeTipo({ id, inicial, deSistema, onCerrar }: {
         <div className="ausadm-grid-2">
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('unidad')}</span>
-            <select className="ausadm-campo" value={d.unidad} onChange={e => cambiar({ unidad: e.target.value as TipoDeAusenciaIn['unidad'] })}>
+            <Select suelto className="ausadm-campo" value={d.unidad} onChange={e => cambiar({ unidad: e.target.value as TipoDeAusenciaIn['unidad'] })} placeholder={false}>
               {(['dias', 'medios_dias', 'horas'] as const).map(u => <option key={u} value={u}>{ta(`unidad_${u}`)}</option>)}
-            </select>
+            </Select>
           </label>
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('visibilidad')}</span>
-            <select className="ausadm-campo" value={d.visibilidad} aria-describedby="ausadm-vis-ayuda"
-              onChange={e => cambiar({ visibilidad: e.target.value as TipoDeAusenciaIn['visibilidad'] })}>
+            <Select suelto className="ausadm-campo" value={d.visibilidad} aria-describedby="ausadm-vis-ayuda"
+              onChange={e => cambiar({ visibilidad: e.target.value as TipoDeAusenciaIn['visibilidad'] })} placeholder={false}>
               {(['todos', 'equipo', 'privada'] as const).map(v => <option key={v} value={v}>{ta(`visibilidad_${v}`)}</option>)}
-            </select>
+            </Select>
             <span id="ausadm-vis-ayuda" className="ausadm-ayuda">{ta(`visibilidad_${d.visibilidad}_ayuda`)}</span>
           </label>
         </div>
-        <fieldset className="ausadm-fieldset">
+        <fieldset className="ds-grupo-opciones ausadm-fieldset">
           <legend className="ausadm-etiqueta">{ta('saldo')}</legend>
           <Casilla etiqueta={ta('descuenta_saldo')} valor={d.descuenta_saldo}
             onChange={v => cambiar({ descuenta_saldo: v, saldo: v ? (d.saldo ?? 'vacaciones') : null })} />
           {d.descuenta_saldo && (
             <div className="ausadm-fila">
-              <select className="ausadm-campo" aria-label={ta('que_saldo')} value={d.saldo ?? 'vacaciones'}
-                onChange={e => cambiar({ saldo: e.target.value as 'vacaciones' | 'propio' })}>
+              <Select suelto className="ausadm-campo" aria-label={ta('que_saldo')} value={d.saldo ?? 'vacaciones'}
+                onChange={e => cambiar({ saldo: e.target.value as 'vacaciones' | 'propio' })} placeholder={false}>
                 <option value="vacaciones">{ta('saldo_vacaciones')}</option>
                 <option value="propio">{ta('saldo_propio')}</option>
-              </select>
+              </Select>
               {d.saldo === 'propio' && (
                 <label className="ausadm-fila">
                   <span className="ausadm-ayuda">{ta('cupo_anual', { unidad: ta(`unidad_${d.unidad}`) })}</span>
@@ -170,16 +170,15 @@ function FormularioDeTipo({ id, inicial, deSistema, onCerrar }: {
             </div>
           )}
         </fieldset>
-        <fieldset className="ausadm-fieldset">
+        <fieldset className="ds-grupo-opciones ausadm-fieldset">
           <legend className="ausadm-etiqueta">{ta('aprobacion')}</legend>
           <Casilla etiqueta={ta('requiere_aprobacion')} ayuda={ta('requiere_aprobacion_ayuda')} valor={d.requiere_aprobacion}
             onChange={v => cambiar({ requiere_aprobacion: v })} />
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('flujo_por_defecto')}</span>
-            <select className="ausadm-campo" value={d.workflow_id ?? ''} onChange={e => cambiar({ workflow_id: e.target.value || null })}>
-              <option value="">{ta('flujo_segun_condiciones')}</option>
+            <Select suelto className="ausadm-campo" value={d.workflow_id ?? ''} onChange={e => cambiar({ workflow_id: e.target.value || null })} placeholder={ta('flujo_segun_condiciones')}>
               {(flujos.data ?? []).map(w => <option key={w.id} value={w.id}>{w.name}{w.is_active ? '' : ` (${ta('inactivo')})`}</option>)}
-            </select>
+            </Select>
           </label>
           <Casilla etiqueta={ta('requiere_sustituto')} valor={d.requiere_sustituto} onChange={v => cambiar({ requiere_sustituto: v })} />
           <Casilla etiqueta={ta('datos_especiales')} ayuda={ta('datos_especiales_ayuda')} valor={d.datos_especiales}
@@ -210,17 +209,16 @@ function Requisitos({ valor, documentos, onChange }: {
     repetir_cada_dias: null, recordar_dias_antes: 1, escalar_dias_despues: null, escalar_a: [{ tipo: 'responsable' }],
   })
   return (
-    <fieldset className="ausadm-fieldset">
+    <fieldset className="ds-grupo-opciones ausadm-fieldset">
       <legend className="ausadm-etiqueta">{ta('documentos_que_pide')}</legend>
       {valor.length === 0 && <p className="ausadm-ayuda">{ta('sin_requisitos')}</p>}
       {valor.map((r, i) => (
         <div key={i} className="ausadm-tarjeta" role="group" aria-label={ta('requisito_n', { n: i + 1 })}>
           <div className="ausadm-fila">
-            <select className="ausadm-campo" aria-label={ta('tipo_de_documento')} value={r.tipo_de_documento_id}
-              onChange={e => cambiar(i, { tipo_de_documento_id: e.target.value })}>
-              <option value="">{ta('elige')}</option>
+            <Select suelto className="ausadm-campo" aria-label={ta('tipo_de_documento')} value={r.tipo_de_documento_id}
+              onChange={e => cambiar(i, { tipo_de_documento_id: e.target.value })} placeholder={ta('elige')}>
               {documentos.map(dd => <option key={dd.id} value={dd.id}>{nombreEn(dd, lang)}</option>)}
-            </select>
+            </Select>
             <Casilla etiqueta={ta('obligatorio')} valor={r.obligatorio} onChange={v => cambiar(i, { obligatorio: v })} />
             <Button size="xs" variant="ghost" icon={<Trash2 size={13} />} title={ta('quitar')}
               onClick={() => onChange(valor.filter((_, j) => j !== i))}><span className="u-sr-only">{ta('quitar')}</span></Button>
@@ -230,10 +228,10 @@ function Requisitos({ valor, documentos, onChange }: {
             <input type="number" min={0} className="ausadm-campo ausadm-campo--corto" aria-label={ta('plazo_dias')}
               value={r.plazo_dias} onChange={e => cambiar(i, { plazo_dias: Number(e.target.value) || 0 })} />
             <span className="ausadm-ayuda">{ta('dias_desde')}</span>
-            <select className="ausadm-campo" aria-label={ta('plazo_desde')} value={r.plazo_desde}
-              onChange={e => cambiar(i, { plazo_desde: e.target.value as PlazoDesde })}>
+            <Select suelto className="ausadm-campo" aria-label={ta('plazo_desde')} value={r.plazo_desde}
+              onChange={e => cambiar(i, { plazo_desde: e.target.value as PlazoDesde })} placeholder={false}>
               {PLAZOS.map(p => <option key={p} value={p}>{ta(`desde_${p}`)}</option>)}
-            </select>
+            </Select>
           </div>
           <div className="ausadm-fila">
             <Casilla etiqueta={ta('repetir')} valor={r.repetir_cada_dias != null}
@@ -280,10 +278,10 @@ export function Destinatarios({ valor, onChange }: { valor: DestinatarioDeAviso[
       <span className="ausadm-ayuda">{ta('escalar_a')}</span>
       {valor.map((d, i) => (
         <span key={i} className="ausadm-fila">
-          <select className="ausadm-campo" aria-label={ta('destinatario')} value={d.tipo}
-            onChange={e => cambiar(i, { tipo: e.target.value as DestinatarioDeAviso['tipo'], valor: null })}>
+          <Select suelto className="ausadm-campo" aria-label={ta('destinatario')} value={d.tipo}
+            onChange={e => cambiar(i, { tipo: e.target.value as DestinatarioDeAviso['tipo'], valor: null })} placeholder={false}>
             {DESTINOS.map(x => <option key={x} value={x}>{t(`pol.dest_${x}`)}</option>)}
-          </select>
+          </Select>
           {d.tipo in CLASE && <SelectorDeEntidad clase={CLASE[d.tipo as keyof typeof CLASE]} valor={d.valor} opciones={opciones}
             onChange={v => cambiar(i, { ...d, valor: v })} etiqueta={t(`pol.dest_${d.tipo}`)} />}
           <Button size="xs" variant="ghost" icon={<Trash2 size={13} />} title={ta('quitar')}

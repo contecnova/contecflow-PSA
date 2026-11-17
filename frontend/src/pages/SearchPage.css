@@ -27,7 +27,7 @@
 }
 .srch-input--query { padding-left: 42px; font-size: var(--text-md-em); }
 .srch-input--auto { width: auto; }
-.srch-input--nql { min-height: 80px; resize: vertical; font-family: var(--font-mono); }
+.srch-input--nql { min-height: 80px; resize: vertical; font-variant-numeric: tabular-nums; }
 
 .srch-bar { display: flex; gap: 12px; margin-bottom: 14px; }
 .srch-bar__field { flex: 1; position: relative; }

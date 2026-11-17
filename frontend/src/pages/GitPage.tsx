@@ -119,7 +119,7 @@ export default function GitPage(): JSX.Element {
                     ) : (pr.pr_title || t('git_integration.dash'))}
                   </span>
                 ) },
-                { key: 'source_branch', label: t('git_integration.col_branch'), render: (_v, pr) => <span className="gitp-label-4">{pr.source_branch || t('git_integration.dash')}</span> },
+                { key: 'source_branch', label: t('git_integration.col_branch'), render: (_v, pr) => <span className="ds-codigo gitp-label-4">{pr.source_branch || t('git_integration.dash')}</span> },
                 { key: 'author_login', label: t('git_integration.col_author'), render: (_v, pr) => pr.author_login || t('git_integration.dash') },
                 { key: 'status', label: t('git_integration.col_status'), render: (_v, pr) => <PRStatusPill status={pr.status} /> },
                 { key: 'task_id', label: t('git_integration.col_task'), render: (_v, pr) => (pr.task_id ? (
@@ -144,7 +144,7 @@ export default function GitPage(): JSX.Element {
               data={deploys}
               columns={[
                 { key: 'repo_full_name', label: t('git_integration.col_repo'), render: (_v, d) => <span className="u-text2-sm">{d.repo_full_name}</span> },
-                { key: 'sha', label: t('git_integration.col_sha'), render: (_v, d) => <span className="gitp-label-4">{d.sha ? d.sha.slice(0, 8) : t('git_integration.dash')}</span> },
+                { key: 'sha', label: t('git_integration.col_sha'), render: (_v, d) => <span className="ds-codigo gitp-label-4">{d.sha ? d.sha.slice(0, 8) : t('git_integration.dash')}</span> },
                 { key: 'environment', label: t('git_integration.col_env'), render: (_v, d) => (
                   <StatusBadge kind="neutral" caps={false}>{d.environment || t('git_integration.env_production')}</StatusBadge>
                 ) },
@@ -241,7 +241,7 @@ function ConfigSection({ title, icon, webhook, clave, events, steps }: { title: 
         <div className="ds-eyebrow gitp-box-5">{t('git_integration.events_label')}</div>
         <div className="u-wrap-6">
           {events.map(e => (
-            <span key={e} className="gitp-card-6">{e}</span>
+            <span key={e} className="ds-codigo gitp-card-6">{e}</span>
           ))}
         </div>
       </div>

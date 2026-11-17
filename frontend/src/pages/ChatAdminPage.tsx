@@ -14,8 +14,7 @@ import { useToast } from '../context/ToastContext'
 import { collabApi } from '../services/collaborationApi'
 import { apiUrl } from '../services/api'
 import { useAppT } from '../i18n/AppLangContext'
-import { useTabListKeys } from '../components/ui/Tabs'
-import { Table } from '../components/ui'
+import { Table, Pulsable, Select, Tabs } from '../components/ui'
 import DateInput from '../components/ui/DateInput'
 import { POLL_FREQUENT_MS } from '../constants/timings'
 import { CHAT_AUDIT_LIMIT } from '../constants/pagination'
@@ -133,32 +132,14 @@ export default function ChatAdminPage(): JSX.Element {
     { id: 'audit', label: t('chat_admin.tab_audit'), icon: ScrollText },
     { id: 'ediscovery', label: t('chat_admin.tab_ediscovery'), icon: Search },
   ]
-  const teclas = useTabListKeys(TABS.map(x => x.id), tab, id => setTab(id as TabId))
 
   return (
     <div className="cadm-page">
       <h1 className="cadm-title">{t('chat_admin.title')}</h1>
       <p className="cadm-subtitle">{t('chat_admin.subtitle')}</p>
 
-      <div ref={teclas.listRef} onKeyDown={teclas.onKeyDown} role="tablist" aria-label={t('chat_admin.title')} className="cadm-tabs">
-        {TABS.map((tabItem) => {
-          const Icon = tabItem.icon
-          return (
-            <button
-              key={tabItem.id}
-              type="button"
-              role="tab"
-              data-tab-id={tabItem.id}
-              tabIndex={tabItem.id === teclas.focusId ? 0 : -1}
-              aria-selected={tab === tabItem.id}
-              onClick={() => setTab(tabItem.id)}
-              className="cadm-tab"
-            >
-              <Icon size={13} aria-hidden="true" /> {tabItem.label}
-            </button>
-          )
-        })}
-      </div>
+      <Tabs ariaLabel={t('chat_admin.title')} className="cadm-tabs" active={tab} onChange={id => setTab(id as TabId)}
+        items={TABS.map(x => { const Icon = x.icon; return { id: x.id, label: x.label, icon: <Icon size={13} aria-hidden="true" /> } })} />
 
       {tab === 'retention' && <RetentionTab />}
       {tab === 'legal_hold' && <LegalHoldTab />}
@@ -188,9 +169,9 @@ function Btn({
   disabled?: boolean
 }) {
   return (
-    <button type="button" onClick={onClick} disabled={disabled} className={`cadm-btn cadm-btn--${variant}`}>
+    <Pulsable type="button" onClick={onClick} disabled={disabled} className={`cadm-btn cadm-btn--${variant}`}>
       {Icon && <Icon size={13} aria-hidden="true" />} {children}
-    </button>
+    </Pulsable>
   )
 }
 
@@ -259,19 +240,19 @@ function RetentionTab() {
         <div className="u-stack-10">
           <Field label={t('chat_admin.col_name')}><input aria-label={t('chat_admin.col_name')} className={INPUT} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
           <Field label={t('chat_admin.col_scope')}>
-            <select className={INPUT} value={form.scope} onChange={(e) => setForm({ ...form, scope: e.target.value as RetentionScope })}>
+            <Select suelto placeholder={false} className={INPUT} value={form.scope} onChange={(e) => setForm({ ...form, scope: e.target.value as RetentionScope })}>
               <option value="workspace">{t('chat_admin.scope_workspace')}</option>
               <option value="team">{t('chat_admin.scope_team')}</option>
               <option value="channel">{t('chat_admin.scope_channel')}</option>
-            </select>
+            </Select>
           </Field>
           <Field label={t('chat_admin.col_apply_to')}>
-            <select className={INPUT} value={form.apply_to} onChange={(e) => setForm({ ...form, apply_to: e.target.value as RetentionApplyTo })}>
+            <Select suelto placeholder={false} className={INPUT} value={form.apply_to} onChange={(e) => setForm({ ...form, apply_to: e.target.value as RetentionApplyTo })}>
               <option value="all">{t('chat_admin.apply_all')}</option>
               <option value="messages">{t('chat_admin.apply_messages')}</option>
               <option value="attachments">{t('chat_admin.apply_attachments')}</option>
               <option value="calls">{t('chat_admin.apply_calls')}</option>
-            </select>
+            </Select>
           </Field>
           <Field label={t('chat_admin.retention_months_label')}><input aria-label={t('chat_admin.retention_months_label')} type="number" min={1} max={120} className={INPUT} value={form.retention_months} onChange={(e) => setForm({ ...form, retention_months: parseInt(e.target.value, 10) || 24 })} /></Field>
           <Btn icon={Plus} onClick={() => create.mutate()} disabled={!form.name}>{t('chat_admin.create_policy')}</Btn>
@@ -386,7 +367,7 @@ function IntegrationsTab() {
         <h4 className="cadm-h4">{t('chat_admin.connect_integration')}</h4>
         <div className="u-stack-10">
           <Field label={t('chat_admin.kind_label')}>
-            <select className={INPUT} value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as IntegrationKind })}>
+            <Select suelto placeholder={false} className={INPUT} value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as IntegrationKind })}>
               <option value="jira">Jira</option>
               <option value="github">GitHub</option>
               <option value="gitlab">GitLab</option>
@@ -395,7 +376,7 @@ function IntegrationsTab() {
               <option value="service_desk">Service Desk</option>
               <option value="nexus_ai">Nexus AI</option>
               <option value="custom_webhook">{t('chat_admin.custom_webhook')}</option>
-            </select>
+            </Select>
           </Field>
           <Field label={t('chat_admin.col_name')}><input aria-label={t('chat_admin.col_name')} className={INPUT} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
           <Field label={t('chat_admin.config_json_label')}><textarea aria-label={t('chat_admin.config_json_label')} rows={3} className={INPUT} value={form.config} onChange={(e) => setForm({ ...form, config: e.target.value })} /></Field>
@@ -449,10 +430,10 @@ function WebhooksTab() {
         <h4 className="cadm-h4">{t('chat_admin.new_webhook')}</h4>
         <div className="u-stack-10">
           <Field label={t('chat_admin.direction_label')}>
-            <select className={INPUT} value={form.direction} onChange={(e) => setForm({ ...form, direction: e.target.value as WebhookDirection })}>
+            <Select suelto placeholder={false} className={INPUT} value={form.direction} onChange={(e) => setForm({ ...form, direction: e.target.value as WebhookDirection })}>
               <option value="incoming">{t('chat_admin.direction_incoming')}</option>
               <option value="outgoing">{t('chat_admin.direction_outgoing')}</option>
-            </select>
+            </Select>
           </Field>
           <Field label={t('chat_admin.col_name')}><input aria-label={t('chat_admin.col_name')} className={INPUT} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
           {form.direction === 'outgoing' && <Field label={t('chat_admin.target_url_label')}><input aria-label={t('chat_admin.target_url_label')} className={INPUT} value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} /></Field>}
@@ -490,7 +471,7 @@ function AuditTab() {
           { key: 'created_at', label: t('chat_admin.col_date'), render: (_v, e) => <span className="cadm-mono-xs">{fmtDateTime(e.created_at)}</span> },
           { key: 'action', label: t('chat_admin.col_action') },
           { key: 'entity_type', label: t('chat_admin.col_type') },
-          { key: 'entity_id', label: t('chat_admin.col_entity'), render: (_v, e) => <span className="cadm-mono-xs" title={e.entity_id}>{e.entity_id?.slice(0, 8) || '—'}</span> },
+          { key: 'entity_id', label: t('chat_admin.col_entity'), render: (_v, e) => <span className="ds-codigo cadm-mono-xs" title={e.entity_id}>{e.entity_id?.slice(0, 8) || '—'}</span> },
           { key: 'actor_user_id', label: t('chat_admin.col_actor'), render: (_v, e) => <span className="u-xs" title={e.actor_user_id}>{e.actor_user_id?.slice(0, 8) || '—'}</span> },
         ]}
       />

@@ -14,7 +14,7 @@ import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { profitabilityApi } from '../services/api'
 import type { HitoDeRentabilidad, RentabilidadDetallada, ResumenDeRentabilidad } from '../services/api/tipos-finanzas'
-import { Card, Button, Modal, Spinner, EmptyState, Input, KpiCard } from '../components/ui'
+import { Card, Button, Modal, Spinner, EmptyState, Input, KpiCard, Checkbox, Pulsable, Select } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -94,7 +94,7 @@ function MilestoneRow({ m, projectId, onUpdate }: { m: MilestoneItem; projectId:
 
   return (
     <div className={`prof-hito${m.is_completed ? ' prof-hito--hecho' : ''}`}>
-      <input className="prof-input" type="checkbox" aria-label={m.name} checked={m.is_completed} onChange={e => update({ is_completed: e.target.checked, completed_date: e.target.checked ? new Date().toISOString().split('T')[0] : null })} />
+      <Checkbox aria-label={m.name} checked={!!m.is_completed} onChange={v => update({ is_completed: v, completed_date: v ? new Date().toISOString().split('T')[0] : null })} />
       <div className="u-flex1-min0">
         <div className="prof-hito__nombre">{m.name}</div>
         {m.due_date && <div className={`prof-hito__fecha${new Date(m.due_date) < new Date() && !m.is_completed ? ' prof-hito__fecha--vencida' : ''}`}><CalendarDays size={12} aria-hidden /> {fmtDate(m.due_date)}</div>}
@@ -111,7 +111,7 @@ function MilestoneRow({ m, projectId, onUpdate }: { m: MilestoneItem; projectId:
           <Link to="/milestone-billing" className="prof-enlace">{t('rentabilidad_ui.facturar_en_hitos')} <ArrowRight size={12} aria-hidden /></Link>
         )}
         {m.is_billed && <StatusBadge kind="success" caps={false}>{t('rentabilidad_ui.facturado')}</StatusBadge>}
-        <button type="button" className="prof-icono-borrar" aria-label={t('rentabilidad_ui.eliminar_hito')} title={t('rentabilidad_ui.eliminar_hito')} onClick={() => { openConfirmGlobal({ message: t('rentabilidad_ui.eliminar_hito_confirm'), onConfirm: () => del(), danger: true }) }}><Trash2 size={14} aria-hidden /></button>
+        <Pulsable className="prof-icono-borrar" aria-label={t('rentabilidad_ui.eliminar_hito')} title={t('rentabilidad_ui.eliminar_hito')} onClick={() => { openConfirmGlobal({ message: t('rentabilidad_ui.eliminar_hito_confirm'), onConfirm: () => del(), danger: true }) }}><Trash2 size={14} aria-hidden /></Pulsable>
       </div>
     </div>
   )
@@ -304,10 +304,10 @@ export default function ProfitabilityPage() {
 
       <div className="u-stack-16">
       <div className="ds-toolbar">
-        <select className="ds-input prof-filtro" aria-label={t('rentabilidad_ui.filtro_estado')} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+        <Select suelto placeholder={false} className="prof-filtro" aria-label={t('rentabilidad_ui.filtro_estado')} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="active">{t('rentabilidad_ui.proyectos_activos')}</option>
           <option value="closed">{t('rentabilidad_ui.cerrados')}</option>
-        </select>
+        </Select>
       </div>
 
       {/* Portfolio KPIs */}

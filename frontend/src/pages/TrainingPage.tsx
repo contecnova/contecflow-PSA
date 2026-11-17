@@ -14,7 +14,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { trainingApi, usersApi } from '../services/api'
 import type { PersonaVisible } from '../services/api'
 import type { Certificacion, Curso, EstadoDeInscripcion, Inscripcion } from '../services/api/tipos-personas'
-import { Button, Card, IconButton, Modal, Spinner, EmptyState, StatusBadge, Table, Tabs } from '../components/ui'
+import { Button, Card, IconButton, Modal, Spinner, EmptyState, StatusBadge, Table, Tabs, Select } from '../components/ui'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -120,10 +120,10 @@ function CertModal({ cert, userId, onClose }: { cert?: CertItem | null; userId?:
     <Modal open onClose={onClose} title={isEdit ? t('training.editar_certificacion') : t('training.new_cert')} width={500}>
       <div className="u-stack-12">
         {!userId && <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('training.usuario_req')}</label>
-          <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} className={IS}>
+          <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.user_id} onChange={e => setForm(f => ({ ...f, user_id: e.target.value }))} className={IS}>
             <option value="">{t('training.seleccionar')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-          </select></div>}
+          </Select></div>}
         <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('training.nombre_certificacion')}</label>
           <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className={IS} autoFocus /></div>
         <div className="u-grid2-10">

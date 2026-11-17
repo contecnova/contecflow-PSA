@@ -18,7 +18,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { semanticApi, usersApi } from '../services/api'
 import type { ConfigDelMotorSemantico, EstadisticasDelMotorSemantico, PerfilSemantico, SugerenciaDeAsignacionDeTicket } from '../services/api/tipos-analitica'
-import { Button, EmptyState, KpiCard, Modal, Tabs } from '../components/ui'
+import { Button, EmptyState, KpiCard, Modal, Tabs, Pulsable, Select } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AlertTriangle, BarChart3, Bot, Brain, Check, CheckCircle2, CheckSquare, FlaskConical, Info, Layers, ListChecks, Loader2, Pencil, RefreshCw, Settings, Sparkles, Target, Ticket, UserCheck, Users, Wand2, XCircle, Zap } from 'lucide-react'
@@ -358,7 +358,7 @@ export default function SemanticEnginePage() {
             <div className="sem-h sem-h--600">{traducir('semanticengine.modo_del_motor')}</div>
             <div className="u-stack-10">
               {Object.entries(ENGINE_MODES).map(([key, meta]) => (
-                <button key={key} type="button" onClick={() => saveConfig({ engine_mode: key })} disabled={savingConfig || !puedeEditar}
+                <Pulsable key={key} type="button" onClick={() => saveConfig({ engine_mode: key })} disabled={savingConfig || !puedeEditar}
                   aria-pressed={config.engine_mode === key}
                   className={`sem-mode${savingConfig ? ' sem-mode--saving' : ''}`}>
                   <div className="u-row-center-10">
@@ -369,7 +369,7 @@ export default function SemanticEnginePage() {
                     </div>
                     {config.engine_mode === key && <span className="sem-mode__check" aria-hidden="true">{savingConfig ? <Loader2 size={16} className="sem-girar" /> : <Check size={16} />}</span>}
                   </div>
-                </button>
+                </Pulsable>
               ))}
             </div>
           </div>
@@ -380,7 +380,7 @@ export default function SemanticEnginePage() {
 
               <div className="u-mb-14">
                 <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={ls}>{traducir('semanticengine.backend_de_embeddings')}</label>
-                <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
+                <Select suelto placeholder={false} id={`${idCampo}-1`}
                   value={backendActual}
                   onChange={e => {
                     const backend = e.target.value
@@ -397,7 +397,7 @@ export default function SemanticEnginePage() {
                   {Object.entries(EMBEDDINGS_BACKENDS).map(([key, meta]) => (
                     <option key={key} value={key}>{traducir(meta.label)}</option>
                   ))}
-                </select>
+                </Select>
                 <div className="sem-hint">
                   {EMBEDDINGS_BACKENDS[backendActual] ? traducir(EMBEDDINGS_BACKENDS[backendActual].desc) : ''}
                 </div>
@@ -464,9 +464,9 @@ export default function SemanticEnginePage() {
               ].map(f => (
                 <div key={f.key} className="sem-toggle-row">
                   <span className="sem-base">{f.label}</span>
-                  <button type="button" aria-label={f.label} aria-pressed={!!f.val} onClick={() => saveConfig({ [f.key]: !f.val })} disabled={!puedeEditar} className="sem-switch">
+                  <Pulsable type="button" aria-label={f.label} aria-pressed={!!f.val} onClick={() => saveConfig({ [f.key]: !f.val })} disabled={!puedeEditar} className="sem-switch">
                     <span className="sem-switch__knob" />
-                  </button>
+                  </Pulsable>
                 </div>
               ))}
               <div className="sem-box sem-box--warning sem-con-icono">

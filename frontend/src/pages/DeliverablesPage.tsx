@@ -5,7 +5,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, usersApi, deliverablesApi } from '../services/api'
 import type { Entregable } from '../services/api/tipos-alm'
-import { Button, Modal, Spinner, EmptyState, KpiCard, IconButton, useSort, SortableTH, Tabs } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, KpiCard, IconButton, useSort, SortableTH, Tabs, Pulsable, Select } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AlertTriangle, Building2, CalendarDays, Check, CheckCircle2, ChevronDown, ClipboardList, Eye, FolderKanban, Globe, MessageSquare, Package, Pencil, Plus, RefreshCw, Send, Trash2, User, XCircle } from 'lucide-react'
@@ -60,22 +60,22 @@ function StatusDropdown({ del, onUpdate }: { del: Entregable; onUpdate: (status:
   const cfg = STATUS_CFG[estado]
   return (
     <div className="dlv-status">
-      <button type="button" className="dlv-status__btn" style={colorVar(cfg.color)}
+      <Pulsable type="button" className="dlv-status__btn" style={colorVar(cfg.color)}
         aria-haspopup="menu" aria-expanded={open}
         onKeyDown={e => { if (e.key === 'Escape') setOpen(false) }}
         aria-label={t('deliverables.cambiar_estado', { estado: t(`deliverables.estado_${estado}`) })}
         onClick={e => { e.stopPropagation(); setOpen(o => !o) }}>
         <cfg.Icon size={12} aria-hidden /> {t(`deliverables.estado_${estado}`)} <ChevronDown size={12} aria-hidden />
-      </button>
+      </Pulsable>
       {open && (
         <>
           <div role="presentation" className="dlv-status__backdrop" onMouseDown={() => setOpen(false)} />
           <div className="dlv-status__menu" role="menu" tabIndex={-1} onKeyDown={e => { if (e.key === 'Escape') setOpen(false) }}>
             {(Object.keys(STATUS_CFG) as EstadoEntregable[]).map((s) => { const Icono = STATUS_CFG[s].Icon; return (
-              <button key={s} type="button" role="menuitemradio" aria-checked={del.status === s} className="dlv-status__item"
+              <Pulsable key={s} type="button" role="menuitemradio" aria-checked={del.status === s} className="dlv-status__item"
                 onClick={() => { onUpdate(s); setOpen(false) }}>
                 <Icono size={13} aria-hidden /> {t(`deliverables.estado_${s}`)}
-              </button>
+              </Pulsable>
             ) })}
           </div>
         </>
@@ -127,10 +127,10 @@ function DeliverableFormModal({ del, projectId, onClose }: { del?: Entregable | 
         </div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="dlv-label">{t('deliverables.responsable')}</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.owner_id} onChange={set('owner_id')} className="dlv-input">
+          <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.owner_id} onChange={set('owner_id')} className="dlv-input">
             <option value="">{t('deliverables.sin_asignar')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label id={`${idCampo}-eta158`} htmlFor={`${idCampo}-a158`} className="dlv-label">{t('deliverables.contacto_cliente')}</label>
@@ -225,11 +225,11 @@ export default function DeliverablesPage(): JSX.Element {
       {tab === 'project' && (
         <>
           <div className="ds-toolbar dlv-toolbar">
-            <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
+            <Select suelto placeholder={false} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
               className="ds-input dlv-project-select" aria-label={t('deliverables.proyecto')}>
               <option value="">{t('deliverables.seleccionar_proyecto')}</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-            </select>
+            </Select>
           </div>
 
           {selectedProject && (summary?.total ?? 0) > 0 && (

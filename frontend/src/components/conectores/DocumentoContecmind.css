@@ -43,7 +43,7 @@
 }
 .docucont-box-4 {
   padding: 6px;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 .docucont-box-5 {
   padding: 6px;

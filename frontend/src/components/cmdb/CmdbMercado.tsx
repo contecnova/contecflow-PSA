@@ -12,7 +12,7 @@ import { useToast } from '../../context/ToastContext'
 import { confirmar } from '../../context/ConfirmContext'
 import { extractErr, fmtDate } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { Button, EmptyState, Modal, Section, SelectorDePeriodo, Spinner, StatusBadge } from '../ui'
+import { Button, Checkbox, EmptyState, Modal, Section, SelectorDePeriodo, Select, Spinner, StatusBadge } from '../ui'
 import { usePeriodo } from '../../hooks/usePeriodo'
 import { CON_HORA, codigoDeErrorDePeriodo } from '../../utils/periodo'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
@@ -112,9 +112,9 @@ function ProveedorModal({ inicial, onClose, onSaved }: { inicial: ProveedorDeDes
         <div className="sdm-form">
           <label className="sdm-field"><span>{t('sd_mercado.nombre')}</span><input className="ds-input" value={nombre} onChange={e => setNombre(e.target.value)} /></label>
           <label className="sdm-field"><span>{t('sd_mercado.tipo')}</span>
-            <select className="ds-input" value={tipo} disabled={!!inicial} onChange={e => setTipo(e.target.value)}>
+            <Select suelto placeholder={false} value={tipo} disabled={!!inicial} onChange={e => setTipo(e.target.value)}>
               {TIPOS_DE_PROVEEDOR.map(x => <option key={x} value={x}>{etiquetaCodigo(t, 'sd_mercado.proveedor', x)}</option>)}
-            </select></label>
+            </Select></label>
           <label className="sdm-field"><span>{t('sd_mercado.intervalo_min')}</span><input className="ds-input" type="number" min={5} value={intervalo} onChange={e => setIntervalo(Number(e.target.value) || 60)} /></label>
         </div>
         <div className="ds-eyebrow">{t('sd_mercado.configuracion')}</div>
@@ -261,13 +261,13 @@ export function ClasesPropiasTab() {
               <label className="sdm-field"><span>{t('sd_mercado.clave')}</span><input className="ds-input" value={editando.key} disabled={!!editando.id} onChange={e => setEditando({ ...editando, key: e.target.value.toLowerCase() })} /></label>
               <label className="sdm-field"><span>{t('sd_mercado.nombre')}</span><input className="ds-input" value={editando.label} onChange={e => setEditando({ ...editando, label: e.target.value })} /></label>
               <label className="sdm-field"><span>{t('sd_mercado.clase_base_label')}</span>
-                <select className="ds-input" value={editando.base_type} onChange={e => setEditando({ ...editando, base_type: e.target.value })}>
+                <Select suelto placeholder={false} value={editando.base_type} onChange={e => setEditando({ ...editando, base_type: e.target.value })}>
                   {(data?.base_types ?? []).map(b => <option key={b} value={b}>{etiquetaCodigo(t, 'sd_mercado.clase_base', b)}</option>)}
-                </select></label>
+                </Select></label>
               <label className="sdm-field"><span>{t('sd_mercado.orden')}</span><input className="ds-input" type="number" min={0} value={editando.sort_order} onChange={e => setEditando({ ...editando, sort_order: Number(e.target.value) || 0 })} /></label>
             </div>
             <label className="sdm-field"><span>{t('sd_mercado.descripcion')}</span><input className="ds-input" value={editando.description ?? ''} onChange={e => setEditando({ ...editando, description: e.target.value || null })} /></label>
-            <label className="u-row-center-8"><input type="checkbox" checked={editando.is_active} onChange={e => setEditando({ ...editando, is_active: e.target.checked })} />{t('sd_mercado.activo')}</label>
+            <Checkbox className="u-row-center-8" checked={!!editando.is_active} onChange={v => setEditando({ ...editando, is_active: v })} label={t('sd_mercado.activo')} />
             <div className="u-text3-xs">{t('sd_mercado.clase_hint')}</div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setEditando(null)}>{t('common.cancel')}</Button>

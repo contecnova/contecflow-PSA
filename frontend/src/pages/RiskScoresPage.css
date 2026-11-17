@@ -33,7 +33,6 @@
   font-size: var(--text-xs);
   font-weight: 700;
   color: var(--text-3);
-  text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 .rsc-card-head--sm { padding: 10px 16px; }
@@ -186,7 +185,6 @@
   font-weight: 500;
   color: var(--text-2);
   margin-bottom: 6px;
-  text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 .rsc-box__text { font-size: var(--text-sm); color: var(--text-1); }

@@ -10,7 +10,7 @@ import type {
   EstadisticasIa as AiStats, DiagnosticoIa as Diagnostics,
 } from '../services/api/tipos-grc'
 import { PROVIDER_DOCS } from '../constants/api'
-import { Button, Spinner, Modal, Tabs, Page, Drawer, KpiCard, EmptyState, StatusBadge, SelectorDePeriodo } from '../components/ui'
+import { Button, Spinner, Modal, Tabs, Page, Drawer, KpiCard, EmptyState, StatusBadge, SelectorDePeriodo, Pulsable, Select, Checkbox } from '../components/ui'
 import { usePeriodo } from '../hooks/usePeriodo'
 import { CON_HORA, codigoDeErrorDePeriodo } from '../utils/periodo'
 import { useAppLang, useAppT } from '../i18n/AppLangContext'
@@ -151,9 +151,9 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
         {/* Drawer header */}
         <div className="aih-drawer-head">
           <span className="aih-drawer-title">{title}</span>
-          <button type="button" onClick={onClose} aria-label={t('common.close')} className="aih-close">
+          <Pulsable type="button" onClick={onClose} aria-label={t('common.close')} className="aih-close">
             <X size={16} aria-hidden="true" />
-          </button>
+          </Pulsable>
         </div>
         {/* Body */}
         <div className="aih-drawer-body">
@@ -164,11 +164,11 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
           <label className="aih-label">{t('ai.provider')}</label>
           <div className="aih-provider-grid">
             {Object.entries(PMETA).map(([key, meta]) => (
-              <button key={key} type="button" aria-pressed={providerType === key} aria-label={`${t('ai.select_provider')} ${meta.name}`} onClick={() => handleProviderChange(key)}
+              <Pulsable key={key} type="button" aria-pressed={providerType === key} aria-label={`${t('ai.select_provider')} ${meta.name}`} onClick={() => handleProviderChange(key)}
                 className="aih-provider-pick" style={colorVar(meta.color)}>
                 <div className="aih-provider-pick-icon" aria-hidden="true"><Cpu size={18} /></div>
                 <div className="aih-provider-pick-name">{meta.name}</div>
-              </button>
+              </Pulsable>
             ))}
           </div>
         </div>
@@ -208,8 +208,8 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
           <label id={`${idPrefix}-default-model-et`} htmlFor={`${idPrefix}-default-model`} className="aih-label">{t('ai.default_model')}</label>
           {models.length > 0 ? (
             <>
-              <select
-                id={`${idPrefix}-default-model`} aria-labelledby={`${idPrefix}-default-model-et`}
+              <Select suelto placeholder={false}
+                id={`${idPrefix}-default-model`}
                 value={models.some(m => m.id === form.default_model) ? form.default_model : '__custom__'}
                 onChange={e => {
                   if (e.target.value === '__custom__') {
@@ -227,7 +227,7 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
                   </option>
                 ))}
                 <option value="__custom__">{t('ai.custom_model')}</option>
-              </select>
+              </Select>
               {!models.some(m => m.id === form.default_model) && (
                 <input
                   aria-label={t('ai.custom_model_id')}
@@ -280,8 +280,8 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
         </div>
 
         <div className="aih-default-check">
-          <input type="checkbox" id={`${idPrefix}-is-default`} aria-labelledby={`${idPrefix}-is-default-et`} checked={form.is_default}
-            onChange={e => setForm(f => ({ ...f, is_default: e.target.checked }))} />
+          <Checkbox id={`${idPrefix}-is-default`} checked={form.is_default}
+            onChange={(_, e) => setForm(f => ({ ...f, is_default: e.target.checked }))} />
           <label id={`${idPrefix}-is-default-et`} htmlFor={`${idPrefix}-is-default`}>
             {t('ai.set_global_default')}
           </label>
@@ -360,7 +360,7 @@ function TestModal({ provider, onClose }: { provider: AiProvider; onClose: () =>
           ) : (
             <>
               <div className="aih-test-head"><XCircle size={16} aria-hidden="true" /> {t('ai.test_error')}</div>
-              <pre className="aih-test-error">{result.error}</pre>
+              <pre className="ds-codigo ds-codigo--bloque aih-test-error">{result.error}</pre>
             </>
           )}
         </div>
@@ -666,7 +666,7 @@ export default function AIHubPage(): JSX.Element {
                 <div className="u-md-700">
                   {traducir('aihub.diagnostico_resumen', { healthy: diagResults.healthy, total: diagResults.total })}
                 </div>
-                <button type="button" onClick={() => setDiagResults(null)} aria-label={t('common.close')} className="aih-close aih-close--lg"><X size={16} aria-hidden="true" /></button>
+                <Pulsable type="button" onClick={() => setDiagResults(null)} aria-label={t('common.close')} className="aih-close aih-close--lg"><X size={16} aria-hidden="true" /></Pulsable>
               </div>
               <div className="u-stack-8">
                 {(diagResults.providers || []).map(pr => {
@@ -996,10 +996,10 @@ function RoutingTab({ providers }: { providers: AiProvider[] }) {
           return (
             <Fragment key={m.key}>
               <label id={`ruta-${m.key}-et`} htmlFor={`ruta-${m.key}`} className="aih-routing-label">{etiqueta}</label>
-              <select id={`ruta-${m.key}`} aria-labelledby={`ruta-${m.key}-et`} value={ruta.provider_id || ''} onChange={e => cambiar(m.key, 'provider_id', e.target.value)} className="aih-input">
+              <Select suelto placeholder={false} id={`ruta-${m.key}`} value={ruta.provider_id || ''} onChange={e => cambiar(m.key, 'provider_id', e.target.value)} className="aih-input">
                 <option value="">{t('aihub.routing_default')}</option>
                 {providers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+              </Select>
               <input aria-label={t('aihub.routing_model_for', { label: etiqueta })} list={lista} value={ruta.model || ''}
                 placeholder={prov?.default_model || t('aihub.routing_default_model')} onChange={e => cambiar(m.key, 'model', e.target.value)} className="aih-input" />
               <datalist id={lista}>{(prov?.available_models || []).map((x: string) => <option key={x} value={x} aria-label={x} />)}</datalist>

@@ -17,7 +17,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, Layers, Link2, Search, Ticket, Timer } from 'lucide-react'
 import { alertClustersApi } from '../../services/api'
 import type { ClusterDeAlertas } from '../../services/api/tipos-analitica'
-import { Card, Button, Spinner, EmptyState, KpiCard, StatusBadge } from '../ui'
+import { Card, Button, Pulsable, Spinner, EmptyState, KpiCard, StatusBadge } from '../ui'
 import type { StatusBadgeKind } from '../ui/StatusBadge'
 import { useToast } from '../../context/ToastContext'
 import { useAppLang } from '../../i18n/AppLangContext'
@@ -96,18 +96,16 @@ function ClusterCard({ cluster, onMerge, merging, expanded, onToggle }: ClusterC
             <span key={`${num}-${i}`} className="alcopa-box-3">{num}</span>
           ))}
           {!expanded && ticketNums.length > 8 && (
-            <button
-              type="button"
+            <Pulsable
               onClick={onToggle}
               className="alcopa-box-4"
-            >+{ticketNums.length - 8} {t('alertcorrelation.mas')}</button>
+            >+{ticketNums.length - 8} {t('alertcorrelation.mas')}</Pulsable>
           )}
           {expanded && ticketNums.length > 8 && (
-            <button
-              type="button"
+            <Pulsable
               onClick={onToggle}
               className="alcopa-box-4"
-            >{t('alertcorrelation.mostrar_menos')}</button>
+            >{t('alertcorrelation.mostrar_menos')}</Pulsable>
           )}
         </div>
       )}

@@ -15,7 +15,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { Bell, CheckCheck } from 'lucide-react'
 import IconButton from '../ui/IconButton'
-import { Button, EmptyState, Spinner } from '../ui'
+import { Button, EmptyState, Pulsable, Spinner } from '../ui'
 import { fmtRelative } from '../../utils/helpers'
 import { COLOR_DE_TONO, estiloDeAviso, sinEmojis } from './iconosDeAviso'
 import './BandejaDesplegable.css'
@@ -80,8 +80,7 @@ export function ListaDeAvisos({ avisos, noLeido, onElegir }: {
         const { Icono, tono } = estiloDeAviso(a.tipo, !!a.esAlerta)
         return (
           <li key={a.id}>
-            <button
-              type="button"
+            <Pulsable
               className={`bandeja-desplegable__aviso${a.leido ? '' : ' bandeja-desplegable__aviso--nuevo'}`}
               onClick={() => onElegir(a)}
             >
@@ -101,7 +100,7 @@ export function ListaDeAvisos({ avisos, noLeido, onElegir }: {
                   <span className="u-sr-only">{noLeido}</span>
                 </span>
               )}
-            </button>
+            </Pulsable>
           </li>
         )
       })}

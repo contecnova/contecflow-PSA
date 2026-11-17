@@ -19,7 +19,7 @@ import { useAuth } from '../../context/AuthContext'
 import { confirmar } from '../../context/ConfirmContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { Button, EmptyState, KpiCard, Modal, Section, Spinner, StatusBadge, Tabs } from '../ui'
+import { Button, Checkbox, EmptyState, GrupoDeOpciones, KpiCard, Modal, Section, Select, Spinner, StatusBadge, Switch, Tabs } from '../ui'
 import type { StatusBadgeKind } from '../ui/StatusBadge'
 import Pagination from '../ui/Pagination'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
@@ -87,10 +87,10 @@ function Registro() {
       )}
       <div className="u-row-8">
         <label className="sdm-field"><span>{t('sd_mercado.filtrar_estado')}</span>
-          <select className="ds-input" value={estado} onChange={e => { setEstado(e.target.value); setPage(1) }}>
+          <Select suelto placeholder={false} value={estado} onChange={e => { setEstado(e.target.value); setPage(1) }}>
             <option value="">{t('sd_mercado.todos')}</option>
             {Object.keys(ESTADO_KIND).map(k => <option key={k} value={k}>{etiquetaCodigo(t, 'sd_mercado.ejec', k)}</option>)}
-          </select>
+          </Select>
         </label>
       </div>
       {log.isLoading ? <Spinner /> : items.length === 0 ? <EmptyState icon={<Bot size={28} />} title={t('sd_mercado.registro_vacio')} description={t('sd_mercado.agente_desc')} /> : (
@@ -163,26 +163,11 @@ function Configuracion({ esAdmin }: { esAdmin: boolean }) {
       {/* 16-11-2026: casillas y radios como tarjetas del kit (ds-opcion), no
           fieldsets con el borde del navegador. */}
       <div className="ds-opciones">
-        <label className="ds-opcion">
-          <input type="checkbox" role="switch" aria-checked={form.enabled} checked={form.enabled} disabled={!esAdmin}
-            onChange={e => set({ enabled: e.target.checked })} />
-          <span><span className="ds-opcion__titulo">{t('sd_mercado.agente_encendido')}</span></span>
-        </label>
+        <Switch checked={!!form.enabled} disabled={!esAdmin} onChange={v => set({ enabled: v })} label={t('sd_mercado.agente_encendido')} />
       </div>
-      <fieldset className="ds-grupo-opciones" disabled={!esAdmin}>
-        <legend className="ds-eyebrow">{t('sd_mercado.modo_titulo')}</legend>
-        <div className="ds-opciones">
-          {form.modes.map(m => (
-            <label key={m} className="ds-opcion">
-              <input type="radio" name="sdm-modo" checked={form.mode === m} onChange={() => set({ mode: m })} />
-              <span>
-                <span className="ds-opcion__titulo">{etiquetaCodigo(t, 'sd_mercado.modo', m)}</span>
-                <span className="ds-opcion__ayuda">{t(`sd_mercado.modo_desc_${m}`)}</span>
-              </span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
+      <GrupoDeOpciones name="sdm-modo" leyenda={t('sd_mercado.modo_titulo')} disabled={!esAdmin} valor={form.mode}
+        onChange={m => set({ mode: m as typeof form.mode })}
+        opciones={form.modes.map(m => ({ valor: m, titulo: etiquetaCodigo(t, 'sd_mercado.modo', m), ayuda: t(`sd_mercado.modo_desc_${m}`) }))} />
       <div className="sdm-form">
         <label className="sdm-field"><span>{t('sd_mercado.umbral_resolver')}</span>
           <input className="ds-input" type="number" min={0} max={1} step={0.05} disabled={!esAdmin} value={form.resolve_threshold ?? ''}
@@ -191,18 +176,10 @@ function Configuracion({ esAdmin }: { esAdmin: boolean }) {
           <input className="ds-input" type="number" min={0} max={1} step={0.05} disabled={!esAdmin} value={form.suggest_threshold ?? ''}
             onChange={e => set({ suggest_threshold: e.target.value === '' ? null : Number(e.target.value) })} /></label>
       </div>
-      <fieldset className="ds-grupo-opciones" disabled={!esAdmin}>
-        <legend className="ds-eyebrow">{t('sd_mercado.de_serie_titulo')}</legend>
-        <div className="ds-opciones">
-          {form.builtin_playbooks.map(id => (
-            <label key={id} className="ds-opcion">
-              <input type="checkbox" checked={!form.disabled_playbooks.includes(id)}
-                onChange={e => set({ disabled_playbooks: e.target.checked ? form.disabled_playbooks.filter(x => x !== id) : [...form.disabled_playbooks, id] })} />
-              <span><span className="ds-opcion__titulo">{etiquetaCodigo(t, 'sd_mercado.pb', id)}</span></span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
+      <GrupoDeOpciones tipo="checkbox" leyenda={t('sd_mercado.de_serie_titulo')} disabled={!esAdmin}
+        valor={form.builtin_playbooks.filter(id => !form.disabled_playbooks.includes(id))}
+        onChange={activos => set({ disabled_playbooks: [...form.disabled_playbooks.filter(x => !form.builtin_playbooks.includes(x)), ...form.builtin_playbooks.filter(id => !activos.includes(id))] })}
+        opciones={form.builtin_playbooks.map(id => ({ valor: id, titulo: etiquetaCodigo(t, 'sd_mercado.pb', id) }))} />
       {esAdmin && (
         <div className="u-actions-8">
           <Button variant="secondary" icon={<Play size={14} />} onClick={() => pasar.mutate()} loading={pasar.isPending} disabled={!data?.enabled}>{t('sd_mercado.pasar_ahora')}</Button>
@@ -287,22 +264,22 @@ function PlaybookModal({ inicial, onClose, onSaved }: { inicial: Playbook | null
         <div className="sdm-form">
           <label className="sdm-field"><span>{t('sd_mercado.nombre')}</span><input className="ds-input" value={nombre} onChange={e => setNombre(e.target.value)} /></label>
           <label className="sdm-field"><span>{t('sd_mercado.hasta_prioridad')}</span>
-            <select className="ds-input" value={maxPrioridad} onChange={e => setMaxPrioridad(e.target.value)}>
+            <Select suelto placeholder={false} value={maxPrioridad} onChange={e => setMaxPrioridad(e.target.value)}>
               {PRIORIDADES.map(p => <option key={p} value={p}>{etiquetaCodigo(t, 'estado', p)}</option>)}
-            </select></label>
+            </Select></label>
         </div>
         <label className="sdm-field"><span>{t('sd_mercado.descripcion')}</span><input className="ds-input" value={descripcion} onChange={e => setDescripcion(e.target.value)} /></label>
         <label className="sdm-field"><span>{t('sd_mercado.palabras_hint')}</span><input className="ds-input" value={palabras} onChange={e => setPalabras(e.target.value)} /></label>
         <label className="sdm-field"><span>{t('sd_mercado.categorias_hint')}</span><input className="ds-input" value={categorias} onChange={e => setCategorias(e.target.value)} /></label>
-        <label className="u-row-center-8"><input type="checkbox" checked={resolver} onChange={e => setResolver(e.target.checked)} />{t('sd_mercado.puede_resolver')}</label>
+        <Checkbox className="u-row-center-8" checked={!!resolver} onChange={setResolver} label={t('sd_mercado.puede_resolver')} />
         <div className="ds-eyebrow">{t('sd_mercado.pasos')}</div>
         <div className="sdm-steps">
           {pasos.map((p, i) => (
             <div key={i} className="sdm-step">
-              <select className="ds-input" aria-label={t('sd_mercado.tipo_paso')} value={p.type}
+              <Select suelto placeholder={false} aria-label={t('sd_mercado.tipo_paso')} value={p.type}
                 onChange={e => setPasos(pasos.map((x, j) => j === i ? { ...x, type: e.target.value as PasoDePlaybook['type'] } : x))}>
                 {TIPOS_DE_PASO.map(tp => <option key={tp} value={tp}>{etiquetaCodigo(t, 'sd_mercado.paso', tp)}</option>)}
-              </select>
+              </Select>
               <textarea className="ds-input" rows={2} aria-label={t('sd_mercado.contenido_paso')} value={p.content}
                 onChange={e => setPasos(pasos.map((x, j) => j === i ? { ...x, content: e.target.value } : x))} />
               <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} onClick={() => setPasos(pasos.filter((_, j) => j !== i))}>{t('sd_mercado.quitar')}</Button>

@@ -21,6 +21,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { QueryCache, QueryClient } from '@tanstack/react-query'
 import { reportQueryError } from './lib/queryErrorBus'
 import App from './App'
+import { Button } from './components/ui'
 import AppProviders from './AppProviders'
 import { useAppT } from './hooks/useAppT'
 import type { TranslationParams } from './hooks/useAppT'
@@ -102,7 +103,7 @@ class ErrorBoundary extends React.Component<RootErrorBoundaryProps, RootErrorBou
               </p>
             )
           )}
-          <button
+          <Button size="lg"
             onClick={() => {
               // Limpiar caché y recargar
               if ('caches' in window) {
@@ -110,10 +111,9 @@ class ErrorBoundary extends React.Component<RootErrorBoundaryProps, RootErrorBou
               }
               window.location.reload()
             }}
-            className="main-e6"
           >
             {this.props.t('app_errors.app_reload')}
-          </button>
+          </Button>
         </div>
       )
     }

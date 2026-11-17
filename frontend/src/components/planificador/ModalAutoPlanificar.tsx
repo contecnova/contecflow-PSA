@@ -14,7 +14,7 @@ import { useMemo } from 'react'
 import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, CalendarCheck, Sparkles } from 'lucide-react'
 import { planificacionApi, type NodoDelPlan, type PlanDelProyecto } from '../../services/api'
-import { Button, Modal, Spinner } from '../ui'
+import { Button, Modal, Spinner, TablaSimple } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr as extraerError, fmtDate } from '../../utils/helpers'
@@ -129,7 +129,7 @@ export default function ModalAutoPlanificar({ open, onClose, projectIds, project
                       <p className="autoplan-muted">{t('pagina_gantt.sin_cambios')}</p>
                     ) : (
                       <div className="autoplan-scroll">
-                        <table className="contecflow-table">
+                        <TablaSimple claseTabla="contecflow-table">
                           <thead>
                             <tr>
                               <th>{t('planificador.col_tarea')}</th>
@@ -153,7 +153,7 @@ export default function ModalAutoPlanificar({ open, onClose, projectIds, project
                               </tr>
                             ))}
                           </tbody>
-                        </table>
+                        </TablaSimple>
                       </div>
                     )}
                   </>

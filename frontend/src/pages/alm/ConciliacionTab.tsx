@@ -9,7 +9,7 @@
 import { useId, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FileWarning, Link2, Plus, RefreshCw, Trash2, Unlink } from 'lucide-react'
-import { Button, EmptyState, Modal, Section, Spinner } from '../../components/ui'
+import { Button, EmptyState, Modal, Section, Spinner, Select } from '../../components/ui'
 import Pagination from '../../components/ui/Pagination'
 import DateInput from '../../components/ui/DateInput'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -55,15 +55,15 @@ function NuevaFactura({ factura, onClose }: { factura?: FacturaDeProveedor | nul
         <div><label className="alm-label" htmlFor={`${id}-d`}>{t('alm.invoice_date')} *</label>
           <DateInput id={`${id}-d`} className="alm-input" value={f.issue_date} onChange={campo('issue_date')} /></div>
         <div><label className="alm-label" htmlFor={`${id}-c`}>{t('alm.licenses_label_contract')}</label>
-          <select id={`${id}-c`} className="alm-input" value={f.contract_id} onChange={campo('contract_id')}>
+          <Select suelto placeholder={false} id={`${id}-c`} className="alm-input" value={f.contract_id} onChange={campo('contract_id')}>
             <option value="">{t('alm.licenses_none_contract')}</option>
             {contratos.map(c => <option key={c.id} value={c.id}>{c.title}{c.vendor_name ? ` · ${c.vendor_name}` : ''}</option>)}
-          </select></div>
+          </Select></div>
         <div><label className="alm-label" htmlFor={`${id}-v`}>{t('alm.licenses_label_vendor')}</label>
-          <select id={`${id}-v`} className="alm-input" value={f.vendor_id} onChange={campo('vendor_id')}>
+          <Select suelto placeholder={false} id={`${id}-v`} className="alm-input" value={f.vendor_id} onChange={campo('vendor_id')}>
             <option value="">{t('alm.vendor_from_contract')}</option>
             {proveedores.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-          </select></div>
+          </Select></div>
         <div><label className="alm-label" htmlFor={`${id}-pf`}>{t('alm.period_from')}</label>
           <DateInput id={`${id}-pf`} className="alm-input" value={f.period_from} onChange={campo('period_from')} /></div>
         <div><label className="alm-label" htmlFor={`${id}-pt`}>{t('alm.period_to')}</label>
@@ -182,10 +182,10 @@ export default function ConciliacionTab() {
   return (
     <div className="u-stack-14">
       <div className="alm-toolbar">
-        <select aria-label={t('alm.status')} className="alm-input alm-toolbar__select--fixed" value={estado} onChange={e => { setEstado(e.target.value); setPagina(1) }}>
+        <Select suelto placeholder={false} aria-label={t('alm.status')} className="alm-input alm-toolbar__select--fixed" value={estado} onChange={e => { setEstado(e.target.value); setPagina(1) }}>
           <option value="">{t('alm.filter_all')}</option>
           {['pending', 'matched', 'discrepancy', 'accepted'].map(s => <option key={s} value={s}>{t(`alm.st_${s}`)}</option>)}
-        </select>
+        </Select>
         <Button icon={<Plus size={14} />} onClick={() => setEditar(null)}>{t('alm.invoice_new')}</Button>
       </div>
       <p className="alm-hint">{t('alm.reconciliation_hint')}</p>

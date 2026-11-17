@@ -148,3 +148,6 @@
 .aiinedit-idiomas { max-height: 260px; overflow-y: auto; }
 .aiinedit-idioma { justify-content: space-between; padding: 8px 14px; }
 .aiinedit-vacio { padding: 10px 14px; font-size: var(--text-xs); color: var(--text-3); }
+
+/* Elementos de menú pintados con IconButton (role="menuitem", onMouseDown): sin el centrado, el relleno ni el line-height: 0 del botón de icono. */
+.icon-button.aiinedit-row-4 { justify-content: flex-start; line-height: inherit; padding: 10px 14px; border-radius: 0; border: none; border-bottom: 1px solid var(--surface-4); }

@@ -6,6 +6,7 @@ import { authApi } from '../services/api'
 import { useAppT } from '../i18n/AppLangContext'
 import LangSelector from '../components/LangSelector'
 import { REDIRECT_AFTER_SUCCESS_MS } from '../constants/timings'
+import { Pulsable } from '../components/ui'
 import './ResetPasswordPage.css'
 
 function strengthScore(password: string): number {
@@ -105,7 +106,7 @@ export default function ResetPasswordPage() {
                 onFocus={e => { e.target.style.borderColor = 'var(--accent)' }}
                 onBlur={e => { e.target.style.borderColor = 'var(--surface-4)' }}
               />
-              <button className="rpw-btn"
+              <Pulsable className="rpw-btn"
                 type="button"
                 onClick={() => setShowPwd(v => !v)}
                 aria-label={showPwd ? t('login.hide_password_aria') : t('login.show_password_aria')}
@@ -120,7 +121,7 @@ export default function ResetPasswordPage() {
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
                   </svg>
                 )}
-              </button>
+              </Pulsable>
             </div>
             {/* Strength bar */}
             {password && (
@@ -162,14 +163,14 @@ export default function ResetPasswordPage() {
             </div>
           )}
 
-          <button className="rpw-btn-2"
+          <Pulsable className="rpw-btn-2"
             type="button"
             onClick={submit}
             disabled={loading}
             style={{ '--rpw-btn-2-cursor': loading ? 'not-allowed' : 'pointer', '--rpw-btn-2-opacity': loading ? '0.6' : '1' } as CSSProperties}
           >
             {loading ? t('reset_password.updating') : t('reset_password.submit_button')}
-          </button>
+          </Pulsable>
 
           <Link
             to="/login"

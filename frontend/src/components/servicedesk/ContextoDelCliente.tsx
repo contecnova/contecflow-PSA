@@ -7,7 +7,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Laptop, KeyRound, UserRound } from 'lucide-react'
 import { useAppT } from '../../i18n/AppLangContext'
-import { Section, Spinner, StatusBadge } from '../ui'
+import { Pulsable, Section, Spinner, StatusBadge } from '../ui'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { fmtDate } from '../../utils/helpers'
 import { puestoDelAgenteApi } from '../../services/api/serviceDeskMercado'
@@ -34,7 +34,7 @@ export default function ContextoDelCliente({ ticketId, onAbrir }: { ticketId: st
               <div className="ds-eyebrow">{t('sd_mercado.tickets_recientes')}</div>
               {data.recent_tickets.map(r => (
                 <div key={r.id} className="u-row-center-8 sdm-wrap">
-                  {onAbrir ? <button type="button" className="u-btn-outline-sm" onClick={() => onAbrir(r.id)}>{r.number}</button> : <span className="u-mono">{r.number}</span>}
+                  {onAbrir ? <Pulsable className="u-btn-outline-sm" onClick={() => onAbrir(r.id)}>{r.number}</Pulsable> : <span className="u-mono">{r.number}</span>}
                   <span className="u-flex1-min0 u-text2-xs">{r.title}</span>
                   <StatusBadge caps={false}>{etiquetaCodigo(t, 'estado', r.status)}</StatusBadge>
                   <span className="u-text3-xs">{r.created_at ? fmtDate(r.created_at) : ''}</span>

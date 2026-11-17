@@ -31,7 +31,7 @@
 .tsk-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .tsk-card-head { display: flex; justify-content: space-between; margin-bottom: 8px; align-items: flex-start; }
 .tsk-card-title { font-size: var(--text-base); font-weight: 600; margin-bottom: 10px; line-height: 1.4; }
-.tsk-card-hours { font-size: var(--text-xs); color: var(--text-2); font-family: var(--font-mono); }
+.tsk-card-hours { font-size: var(--text-xs); color: var(--text-2); font-variant-numeric: tabular-nums; }
 .tsk-card-hours--over, .tsk-mono-sm--over { color: var(--danger); }
 .tsk-card-due { display: flex; align-items: center; gap: 4px; margin-top: 8px; font-size: var(--text-xs); color: var(--text-2); }
 .tsk-card-due--overdue { color: var(--danger); }
@@ -39,7 +39,7 @@
 .tsk-drag-ghost {
   position: fixed; z-index: var(--z-drag); pointer-events: none; background: var(--surface-1);
   border: 1px solid var(--accent); border-radius: 8px; padding: 8px 12px; color: var(--text-1);
-  font-size: 12px; font-family: var(--font-sans); max-width: 220px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); opacity: 0.9;
+  font-size: 12px; font-family: var(--font-sans); max-width: 220px; box-shadow: 0 8px 24px var(--overlay-light); opacity: 0.9;
 }
 
 .tsk-col {
@@ -66,7 +66,7 @@
 }
 .tsk-quick-add:hover { background: var(--surface-3); color: var(--text-1); }
 .ds-input.tsk-quick-add-input { margin-top: 8px; width: 100%; box-sizing: border-box; }
-.tsk-wip-btn:focus-visible, .tsk-quick-add:focus-visible, .tsk-icon-btn:focus-visible, .tsk-pill-x:focus-visible, .tsk-list-row:focus-visible, .tsk-mcard:focus-visible {
+.tsk-wip-btn:focus-visible, .tsk-quick-add:focus-visible, .tsk-icon-btn:focus-visible, .tsk-list-row:focus-visible, .tsk-mcard:focus-visible {
   outline: 2px solid var(--accent); outline-offset: 2px;
 }
 
@@ -80,7 +80,7 @@
   display: flex; align-items: center; justify-content: space-between; padding: 14px 20px;
   border-bottom: 1px solid var(--surface-4); flex-shrink: 0;
 }
-.tsk-drawer-code { font-family: var(--font-mono); font-size: var(--text-base); color: var(--text-2); }
+.tsk-drawer-code { font-variant-numeric: tabular-nums; font-size: var(--text-base); color: var(--text-2); }
 .tsk-icon-btn { background: none; border: none; cursor: pointer; color: var(--text-2); display: flex; padding: 4px; border-radius: var(--radius-sm); }
 .tsk-icon-btn:hover { background: var(--surface-3); color: var(--text-1); }
 .tsk-drawer-tabs { margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--surface-4); }
@@ -182,15 +182,13 @@
 .tsk-header-actions--full { width: 100%; }
 .tsk-views { margin-bottom: var(--space-4); }
 .ds-row-wrap.tsk-pills { margin-bottom: var(--space-3); }
-.tsk-pill-x { background: transparent; border: none; color: inherit; cursor: pointer; padding: 0; display: inline-flex; align-items: center; }
-.ds-pill.tsk-pill-btn { cursor: pointer; font-family: inherit; }
 .ds-toolbar.tsk-toolbar { margin-bottom: var(--space-5); }
 .tsk-search { position: relative; flex: 2 1 240px; min-width: 200px; }
 .tsk-search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-2); pointer-events: none; }
 .ds-input.tsk-search-input { padding-left: 32px; }
-.ds-input.tsk-filter { width: auto; min-width: 140px; color: var(--text-1); }
-.ds-input.tsk-filter--project { flex: 1 1 180px; min-width: 160px; }
-.ds-input.tsk-filter--accent { color: var(--accent); }
+.ui-select--suelto.tsk-filter { width: auto; min-width: 140px; color: var(--text-1); }
+.ui-select--suelto.tsk-filter--project { flex: 1 1 180px; min-width: 160px; }
+.ui-select--suelto.tsk-filter--accent { color: var(--accent); }
 
 .tsk-bulk {
   display: flex; align-items: center; gap: var(--space-2); padding: 8px 14px; margin-bottom: var(--space-3);
@@ -198,7 +196,7 @@
 }
 .tsk-bulk-count { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-sm); font-weight: 600; color: var(--accent); white-space: nowrap; }
 .tsk-bulk-sep { width: 1px; height: 20px; background: var(--surface-4); }
-.ds-input.tsk-bulk-select { width: auto; padding: 6px 10px; }
+.ui-select--suelto.tsk-bulk-select { width: auto; padding: 6px 10px; }
 .tsk-truncated { margin-bottom: var(--space-3); font-size: var(--text-sm); color: var(--warning); }
 
 .tsk-board { display: flex; flex-direction: column; gap: 18px; }
@@ -227,4 +225,4 @@
 }
 .tsk-list-row:hover { background: var(--surface-3); }
 .tsk-list-row--selected, .tsk-list-row--selected:hover { background: var(--accent-muted); }
-.tsk-mono-sm { font-size: var(--text-sm); font-family: var(--font-mono); color: var(--text-2); }
+.tsk-mono-sm { font-size: var(--text-sm); font-variant-numeric: tabular-nums; color: var(--text-2); }

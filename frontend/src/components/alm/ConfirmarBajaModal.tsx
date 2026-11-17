@@ -10,7 +10,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { UserX } from 'lucide-react'
 import { almIntegracionApi } from '../../services/api/almIntegracion'
 import { usersApi } from '../../services/api'
-import { Button, Modal, Spinner } from '../ui'
+import { Button, Modal, Spinner, Checkbox } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { fmtDate } from '../../utils/helpers'
@@ -56,7 +56,7 @@ export default function ConfirmarBajaModal({ userId, nombre, onClose }: { userId
           </section>
           {conEquipos && <p className={`almint-aviso${bloqueada ? ' almint-aviso--peligro' : ''}`}>{t(`almint.politica_${d.politica}`)}</p>}
           {hayQueConfirmar && <label className="almint-elemento">
-            <span><input type="checkbox" checked={confirmo} onChange={e => setConfirmo(e.target.checked)} /> {t('almint.confirmo_equipos_pendientes')}</span>
+            <span><Checkbox checked={confirmo} onChange={(_, e) => setConfirmo(e.target.checked)} /> {t('almint.confirmo_equipos_pendientes')}</span>
           </label>}
           <div className="almint-acciones almint-acciones--fin">
             <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>

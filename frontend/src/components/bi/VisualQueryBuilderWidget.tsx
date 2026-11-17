@@ -3,7 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { biIntelligenceApi } from '../../services/api'
 import type { PlantillaDeConsultaVisual } from '../../services/api/tipos-bi'
 import { useAppT } from '../../i18n/AppLangContext'
-import { Button, IconButton, Table } from '../ui'
+import { Button, IconButton, Table, Select, Pulsable, Checkbox } from '../ui'
 import { Eye, Plus, Save, Trash2, X } from 'lucide-react'
 import { STALE_5_MIN_MS } from '../../constants/timings'
 import { VISUAL_QUERY_ROW_LIMIT } from '../../constants/pagination'
@@ -171,7 +171,7 @@ export default function VisualQueryBuilderWidget() {
       </div>
 
       <div className="viqubuwi-grid-1">
-        <select
+        <Select suelto
           value={entity}
           onChange={(e) => {
             setEntity(e.target.value)
@@ -179,9 +179,7 @@ export default function VisualQueryBuilderWidget() {
             setFilters([])
             setSortColumn('')
           }}
-          className="viqubuwi-box-4"
-        >
-          <option value="">{t('visual_query_builder.entity_placeholder')}</option>
+          className="viqubuwi-box-4" placeholder={t('visual_query_builder.entity_placeholder')}>
           {sortedGroupKeys.map((g) => (
             <optgroup key={g} label={groups[g] || g}>
               {(groupedEntities[g] || []).map((item) => (
@@ -189,7 +187,7 @@ export default function VisualQueryBuilderWidget() {
               ))}
             </optgroup>
           ))}
-        </select>
+        </Select>
 
         {!!entityDef && (
           <>
@@ -217,13 +215,12 @@ export default function VisualQueryBuilderWidget() {
                 <div className="viqubuwi-grid-3">
                   {templateItems.map((item) => (
                     <div key={item.id} className="u-row-center-6">
-                      <button
-                        type="button"
+                      <Pulsable
                         onClick={() => loadTemplate(item)}
                         className="viqubuwi-box-9"
                       >
                         {item.name}
-                      </button>
+                      </Pulsable>
                       <IconButton
                         onClick={() => deleteTemplateMutation.mutate(item.id)}
                         className="viqubuwi-del"
@@ -241,10 +238,7 @@ export default function VisualQueryBuilderWidget() {
               <div className="viqubuwi-box-8">{t('visual_query_builder.columns')}</div>
               <div className="viqubuwi-grid-3">
                 {allColumns.map((col) => (
-                  <label key={col} className="viqubuwi-row-1">
-                    <input type="checkbox" aria-label={entityDef.columns?.[col]?.label || col} checked={selectedColumns.includes(col)} onChange={() => toggleColumn(col)} />
-                    {entityDef.columns?.[col]?.label || col}
-                  </label>
+                  <Checkbox key={col} className="viqubuwi-row-1" label={entityDef.columns?.[col]?.label || col} checked={selectedColumns.includes(col)} onChange={() => toggleColumn(col)} />
                 ))}
               </div>
             </div>
@@ -258,13 +252,12 @@ export default function VisualQueryBuilderWidget() {
               </div>
               {filters.map((f, i) => (
                 <div key={i} className="viqubuwi-grid-5">
-                  <select value={f.column} onChange={(e) => patchFilter(i, { column: e.target.value })} className="viqubuwi-box-13">
-                    <option value="">{t('visual_query_builder.field_placeholder')}</option>
+                  <Select suelto value={f.column} onChange={(e) => patchFilter(i, { column: e.target.value })} className="viqubuwi-box-13" placeholder={t('visual_query_builder.field_placeholder')}>
                     {allColumns.map((c) => <option key={c} value={c}>{entityDef.columns?.[c]?.label || c}</option>)}
-                  </select>
-                  <select value={f.operator} onChange={(e) => patchFilter(i, { operator: e.target.value })} className="viqubuwi-box-13">
+                  </Select>
+                  <Select suelto value={f.operator} onChange={(e) => patchFilter(i, { operator: e.target.value })} className="viqubuwi-box-13" placeholder={false}>
                     {Object.entries(operators).map(([k, op]) => <option key={k} value={k}>{op.label}</option>)}
-                  </select>
+                  </Select>
                   <input
                     aria-label={t('visual_query_builder.value_placeholder')}
                     value={f.value}
@@ -279,22 +272,19 @@ export default function VisualQueryBuilderWidget() {
             </div>
 
             <div className="viqubuwi-grid-6">
-              <select
+              <Select suelto
                 value={sortColumn}
                 onChange={(e) => setSortColumn(e.target.value)}
-                className="viqubuwi-box-13"
-              >
-                <option value="">{t('visual_query_builder.no_sort')}</option>
+                className="viqubuwi-box-13" placeholder={t('visual_query_builder.no_sort')}>
                 {allColumns.map((c) => <option key={c} value={c}>{entityDef.columns?.[c]?.label || c}</option>)}
-              </select>
-              <select
+              </Select>
+              <Select suelto
                 value={sortDirection}
                 onChange={(e) => setSortDirection(e.target.value)}
-                className="viqubuwi-box-13"
-              >
+                className="viqubuwi-box-13" placeholder={false}>
                 <option value="asc">{t('visual_query_builder.asc')}</option>
                 <option value="desc">{t('visual_query_builder.desc')}</option>
-              </select>
+              </Select>
               <Button
                 icon={<Eye size={14} />}
                 onClick={() => previewMutation.mutate(buildQueryPayload())}

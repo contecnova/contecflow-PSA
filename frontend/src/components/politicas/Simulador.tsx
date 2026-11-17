@@ -7,7 +7,7 @@ import { useMutation } from '@tanstack/react-query'
 import { Play } from 'lucide-react'
 import { politicasApi } from '../../services/api'
 import type { DocumentoDePolitica, ExplicacionDePolitica, Huella, Simulacion } from '../../services/api/tipos-politicas'
-import { Button, EmptyState, KpiCard, Spinner } from '../ui'
+import { Button, EmptyState, KpiCard, Spinner, Checkbox, Radio } from '../ui'
 import DateInput from '../ui/DateInput'
 import { extractErr } from '../../utils/helpers'
 import { textoDeValor, useTextos } from './comun'
@@ -28,10 +28,10 @@ export default function Simulador({ documento }: { documento: DocumentoDePolitic
     <div className="u-stack-14">
       <p className="pol-ayuda">{t('pol.simulador_ayuda')}</p>
       <div className="pol-fila" role="group" aria-label={t('pol.que_simular')}>
-        <label className="pol-chip"><input type="radio" name="modo-sim" checked={modo === 'ultimos'} onChange={() => setModo('ultimos')} />{t('pol.ultimos')}</label>
+        <Radio className="pol-chip" name="modo-sim" label={t('pol.ultimos')} checked={modo === 'ultimos'} onChange={() => setModo('ultimos')} />
         {modo === 'ultimos' && <input type="number" min={1} className="pol-campo pol-campo--corto" aria-label={t('pol.cuantos')}
           placeholder={t('pol.por_defecto')} value={ultimos} onChange={e => setUltimos(e.target.value ? Number(e.target.value) : '')} />}
-        <label className="pol-chip"><input type="radio" name="modo-sim" checked={modo === 'rango'} onChange={() => setModo('rango')} />{t('pol.rango')}</label>
+        <Radio className="pol-chip" name="modo-sim" label={t('pol.rango')} checked={modo === 'rango'} onChange={() => setModo('rango')} />
         {modo === 'rango' && <>
           <DateInput className="pol-campo" aria-label={t('pol.desde')} value={desde} onChange={e => setDesde(e.target.value)} />
           <DateInput className="pol-campo" aria-label={t('pol.hasta')} value={hasta} onChange={e => setHasta(e.target.value)} />
@@ -59,7 +59,7 @@ function Resultados({ s, soloCambios, setSoloCambios }: { s: Simulacion; soloCam
         <KpiCard label={t('pol.nuevos_bloqueos')} value={c.nuevos_bloqueos} danger={c.nuevos_bloqueos > 0} />
         <KpiCard label={t('pol.auto_aprobadas')} value={c.auto_aprobadas} />
       </div>
-      <label className="pol-chip"><input type="checkbox" checked={soloCambios} onChange={e => setSoloCambios(e.target.checked)} />{t('pol.solo_cambios')}</label>
+      <Checkbox className="pol-chip" label={t('pol.solo_cambios')} checked={soloCambios} onChange={m => setSoloCambios(m)} />
       {items.length === 0 ? <EmptyState title={s.evaluadas ? t('pol.nada_cambia') : t('pol.sin_historicos')} /> : (
         <div role="table" aria-label={t('pol.resultados_simulacion')} className="pol-mt">
           <div role="row" className="pol-diff pol-ayuda">

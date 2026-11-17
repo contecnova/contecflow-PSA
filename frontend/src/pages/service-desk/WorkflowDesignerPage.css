@@ -4,10 +4,10 @@
 .wfd-c { color: var(--wfd-c); }
 
 /* Formularios */
-.wfd-label { font-size: var(--text-xs); font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.06em; display: block; margin-bottom: 4px; }
+.wfd-label { font-size: var(--text-xs); font-weight: 600; color: var(--text-2); letter-spacing: 0.06em; display: block; margin-bottom: 4px; }
 /* 16-11-2026: los campos usan ds-input (foco y radio del kit); wfd-input solo añade esto. */
 textarea.wfd-input { resize: vertical; }
-.wfd-input--mono { font-family: monospace; font-size: var(--text-xs); }
+.wfd-input--mono { font-variant-numeric: tabular-nums; font-size: var(--text-xs); }
 .wfd-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
 .wfd-actions--mt4 { margin-top: 4px; }
 .wfd-confirm-text { color: var(--text-1); margin: 0; }
@@ -16,7 +16,8 @@ textarea.wfd-input { resize: vertical; }
 .wfd-search { position: relative; flex: 1 1 280px; max-width: 360px; }
 .wfd-search__icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-3); }
 .ds-input.wfd-search__input { padding-left: 32px; }
-.ds-input.wfd-filter { width: auto; min-width: 160px; }
+.ui-select--suelto.wfd-filter { min-width: 160px; }
+.ui-select--suelto.wfd-sel { width: 100%; }
 .wfd-loading-flex { display: flex; justify-content: center; padding: 60px; }
 .ds-row-between.wfd-card-top { align-items: flex-start; }
 .wfd-card-name { font-weight: 700; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -54,7 +55,7 @@ textarea.wfd-input { resize: vertical; }
 .wfd-run-meta { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
 .wfd-error-box { background: var(--danger-bg); color: var(--danger); border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent); border-radius: var(--radius-sm); padding: 6px 10px; font-size: var(--text-xs); }
 .wfd-mt-6 { margin-top: 6px; }
-.wfd-heading { font-size: var(--text-xs); color: var(--text-3); text-transform: uppercase; font-weight: 700; letter-spacing: 0.07em; margin-bottom: 6px; }
+.wfd-heading { font-size: var(--text-xs); color: var(--text-3); font-weight: 700; letter-spacing: 0.07em; margin-bottom: 6px; }
 .wfd-heading--mb4 { margin-bottom: 4px; }
 .wfd-step { border-left: 2px solid var(--wfd-c); padding-left: 10px; margin-bottom: 8px; }
 .wfd-step__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -68,7 +69,7 @@ textarea.wfd-input { resize: vertical; }
 
 /* Paleta */
 .wfd-palette { background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; }
-.wfd-palette__title { font-size: var(--text-xs); font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.07em; padding: 4px 6px; }
+.wfd-palette__title { font-size: var(--text-xs); font-weight: 700; color: var(--text-3); letter-spacing: 0.07em; padding: 4px 6px; }
 .wfd-pal-item { display: flex; align-items: center; gap: 8px; background: var(--surface-3); border: 1px solid var(--surface-4); border-radius: 8px; padding: 7px 10px; color: var(--text-1); cursor: pointer; font-size: var(--text-sm); text-align: left; }
 .wfd-pal-item:hover { border-color: var(--wfd-c); }
 .wfd-pal-item__icon { color: var(--wfd-c); display: inline-flex; }

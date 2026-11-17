@@ -9,7 +9,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, invoicesApi, accountingApi, clientsApi, unwrapList } from '../services/api'
 import type { BorradorDeFacturaDesdePartes, Factura } from '../services/api/tipos-finanzas'
-import { Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH, Toolbar, KpiCard, StatusBadge, IconButton } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH, Toolbar, KpiCard, StatusBadge, IconButton, Pulsable, Select } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AlertTriangle, CheckCircle2, ClipboardList, CreditCard, Download, FileText, Hourglass, Loader2, Plus, RefreshCw } from 'lucide-react'
@@ -193,21 +193,21 @@ function InvoicesTab() {
         {/* Mismo reparto que left/right de Toolbar, pero el bloque derecho
             puede partir línea: en un móvil no cabe entero. */}
         <div className="invs-row">
-            <select value={selectedProject} onChange={e => setSelectedProject(e.target.value)} className="invoices-page-e3">
+            <Select suelto placeholder={false} value={selectedProject} onChange={e => setSelectedProject(e.target.value)} className="invoices-page-e3">
               <option value="">{t('invoices.all_projects')}</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-            </select>
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={`invoices-page-e4 ${statusFilter ? 'invoices-page-m5' : 'invoices-page-m6'}`}>
+            </Select>
+            <Select suelto placeholder={false} value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={`invoices-page-e4 ${statusFilter ? 'invoices-page-m5' : 'invoices-page-m6'}`}>
               <option value="">{t('invoices.all_statuses')}</option>
               {Object.entries(STATUS_CFG).map(([v,c]) => <option key={v} value={v}>{c.label}</option>)}
-            </select>
+            </Select>
         </div>
         <div className="invs-row-2">
-            <select value={syncProvider} onChange={e => setSyncProvider(e.target.value)}
+            <Select suelto placeholder={false} value={syncProvider} onChange={e => setSyncProvider(e.target.value)}
               className="invs-input">
               <option value="xero">{t('invoices.sync_provider_xero')}</option>
               <option value="quickbooks">{t('invoices.sync_provider_quickbooks')}</option>
-            </select>
+            </Select>
             <Button size="sm" variant="secondary" icon={<RefreshCw size={14} />} onClick={() => syncBulk()} loading={syncing}>
               {syncing ? t('invoices.syncing') : t('invoices.sync_bulk')}
             </Button>
@@ -253,7 +253,7 @@ function InvoicesTab() {
             const isOverdue = inv.status === 'sent' && inv.due_date && new Date(inv.due_date) < new Date()
             return (
               <div key={inv.id} className="invs-grid-3 invoices-page-e8" style={{ '--invoices-page-grid-template-columns': COLUMNAS } as CSSProperties}>
-                <button type="button" onClick={() => setAbierta(String(inv.id))} title={t('invoices.ficha_abrir')} className="invs-btn-2">{inv.number}</button>
+                <Pulsable type="button" onClick={() => setAbierta(String(inv.id))} title={t('invoices.ficha_abrir')} className="invs-btn-2">{inv.number}</Pulsable>
                 <span className="u-text2-xs">{inv.project_code||'—'}</span>
                 <div>
                   <div className="u-base-600">{inv.client_name||'—'}</div>
@@ -285,7 +285,7 @@ function InvoicesTab() {
               <div className="invs-box-6">{t('invoices.generate_from_timesheets')}</div>
               <div className="invs-grid-4">
                 <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="invoices-page-e10">{t('invoices.project_label')}</label>
-                  <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.project_id} onChange={e => {
+                  <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.project_id} onChange={e => {
                     const proj = projects.find(p => p.id === e.target.value)
                     const client = proj?.client_id ? clients.find(c => c.id === proj.client_id) : null
                     setForm(f => ({...f, project_id: e.target.value,
@@ -295,7 +295,7 @@ function InvoicesTab() {
                   }} className="invoices-page-e11">
                     <option value="">{t('invoices.select')}</option>
                     {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-                  </select>
+                  </Select>
                 </div>
                 <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="invoices-page-e10">{t('invoices.period_from')}</label><DateInput id={`${idCampo}-2`} value={form.period_from} onChange={e => setForm(f=>({...f,period_from:e.target.value}))} className="invoices-page-e11" /></div>
                 <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="invoices-page-e10">{t('invoices.period_to')}</label><DateInput id={`${idCampo}-3`} value={form.period_to} onChange={e => setForm(f=>({...f,period_to:e.target.value}))} className="invoices-page-e11" /></div>

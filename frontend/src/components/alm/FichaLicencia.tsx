@@ -7,7 +7,7 @@ import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Eye, Plus, Split, X, UserMinus, Activity } from 'lucide-react'
-import { Button, Drawer, Spinner, Tabs } from '../ui'
+import { Button, Drawer, Spinner, Tabs, Pulsable } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { licensesApi } from '../../services/api'
@@ -105,7 +105,7 @@ export default function FichaLicencia({ licenseId, onClose }: { licenseId: strin
               </div>
             </div>
           </div>
-          <button type="button" className="alm-icon-btn" aria-label={t('common.close')} onClick={onClose}><X size={16} aria-hidden="true" /></button>
+          <Pulsable type="button" className="alm-icon-btn" aria-label={t('common.close')} onClick={onClose}><X size={16} aria-hidden="true" /></Pulsable>
         </div>
         {isLoading || !lic ? <Spinner /> : (
           <div className="almf-ficha__cuerpo">
@@ -119,7 +119,7 @@ export default function FichaLicencia({ licenseId, onClose }: { licenseId: strin
             </div>
             {clave !== null && (
               <div className="almf-aviso almf-aviso--info" role="status">
-                <span className="almf-mono">{clave || '—'}</span>
+                <span className="ds-codigo almf-mono">{clave || '—'}</span>
               </div>
             )}
 
@@ -144,7 +144,7 @@ export default function FichaLicencia({ licenseId, onClose }: { licenseId: strin
               <Dato etiqueta={t('alm.contracts_label_annual_cost')}>{lic.annual_cost != null ? fmtCurrency(lic.annual_cost) : '—'}</Dato>
               <Dato etiqueta={t('alm.licenses_label_expiry_date')}>{fmtDate(lic.expiry_date)}</Dato>
               <Dato etiqueta={t('alm.licenses_label_contract')}>{lic.contract_title ?? '—'}</Dato>
-              {lic.has_key && <Dato etiqueta={t('alm.licenses_label_key')}><span className="almf-mono">•••• {lic.license_key_hint}</span></Dato>}
+              {lic.has_key && <Dato etiqueta={t('alm.licenses_label_key')}><span className="ds-codigo almf-mono">•••• {lic.license_key_hint}</span></Dato>}
               <Dato etiqueta={t('alm.rebillable')}>{lic.rebillable ? t('common.yes') : t('common.no')}</Dato>
             </dl>
 

@@ -2,6 +2,7 @@
  * GlobalSearch — Cmd+K search palette with keyboard navigation
  */
 import { useState, useEffect, useRef, useMemo } from 'react'
+import type { MouseEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { searchApi } from '../../services/api'
@@ -9,6 +10,7 @@ import type { ResultadoDeBusqueda } from '../../services/api/tipos-analitica'
 import { INPUT_DEBOUNCE_MS } from '../../constants/timings'
 import { useAppT } from '../../i18n/AppLangContext'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
+import { Pulsable } from '../ui'
 import './GlobalSearch.css'
 
 const ICON_MAP: Record<string, string> = { project:'⬡', task:'▦', ticket:'🎫', user:'👤', invoice:'🧾', opportunity:'🎪' }
@@ -40,6 +42,20 @@ type FlatItem =
 
 interface Props {
   onClose: () => void
+}
+
+// Resalte al pasar el ratón sobre una fila no seleccionada (delegado en el contenedor de la lista).
+function filaDeNavegacion(e: MouseEvent<HTMLElement>): HTMLElement | null {
+  const fila = (e.target as HTMLElement).closest<HTMLElement>('[data-nav-item]')
+  return fila && !fila.dataset.sel ? fila : null
+}
+function resaltarFila(e: MouseEvent<HTMLElement>) {
+  const fila = filaDeNavegacion(e)
+  if (fila) fila.style.background = 'var(--surface-2)'
+}
+function apagarFila(e: MouseEvent<HTMLElement>) {
+  const fila = filaDeNavegacion(e)
+  if (fila) fila.style.background = 'transparent'
 }
 
 export default function GlobalSearch({ onClose }: Props) {
@@ -125,10 +141,10 @@ export default function GlobalSearch({ onClose }: Props) {
             onKeyDown={handleKeyDown}
           />
           {isLoading && <span className="u-text3-sm">{t('common.searching')}</span>}
-          <button onClick={onClose} className="globsear-box-2">Esc</button>
+          <Pulsable onClick={onClose} className="globsear-box-2">Esc</Pulsable>
         </div>
 
-        <div ref={listRef} className="globsear-box-3">
+        <div ref={listRef} className="globsear-box-3" role="presentation" onMouseOver={resaltarFila} onMouseOut={apagarFila}>
           {debouncedQ.length < 2 ? (
             <div>
               <div className="globsear-box-4">
@@ -138,19 +154,17 @@ export default function GlobalSearch({ onClose }: Props) {
                 {QUICK_ACTIONS.map((action, idx) => {
                   const isSelected = selectedIdx === idx
                   return (
-                    <button className={`globsear-row-3 globalse-sx3 ${isSelected ? 'global-search-m1' : 'global-search-m2'}`} key={action.path + action.label}
-                      data-nav-item
+                    <Pulsable className={`globsear-row-3 globalse-sx3 ${isSelected ? 'global-search-m1' : 'global-search-m2'}`} key={action.path + action.label}
+                      data-nav-item="1"
+                      data-sel={isSelected ? '1' : undefined}
                       onClick={() => runAction(action.path)}
-                      type="button"
-                      onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--surface-2)' }}
-                      onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
                     >
                       <span className="globsear-box-5">{action.icon}</span>
                       <div>
                         <div className={`globsear-txt-2 ${isSelected ? 'global-search-m3' : 'global-search-m4'}`}>{action.label}</div>
                         <div className="globsear-box-6">{action.hint}</div>
                       </div>
-                    </button>
+                    </Pulsable>
                   )
                 })}
               </div>
@@ -169,12 +183,10 @@ export default function GlobalSearch({ onClose }: Props) {
                   const idx = resultCursor++
                   const isSelected = selectedIdx === idx
                   return (
-                    <button className={`globsear-row-4 ${isSelected ? 'global-search-m5' : 'global-search-m6'}`} key={item.id}
-                      data-nav-item
-                      onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--surface-2)' }}
-                      onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
+                    <Pulsable className={`globsear-row-4 ${isSelected ? 'global-search-m5' : 'global-search-m6'}`} key={item.id}
+                      data-nav-item="1"
+                      data-sel={isSelected ? '1' : undefined}
                       onClick={() => { if (item.url) navigate(item.url); onClose() }}
-                      type="button"
                     >
                       <span className="globsear-box-9">{(item.type && ICON_MAP[item.type]) || '•'}</span>
                       <div className="u-flex1-min0">
@@ -184,7 +196,7 @@ export default function GlobalSearch({ onClose }: Props) {
                       {item.status && (
                         <span className="globsear-box-11">{item.status}</span>
                       )}
-                    </button>
+                    </Pulsable>
                   )
                 })}
               </div>

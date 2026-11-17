@@ -6,6 +6,7 @@
 .sdqr-search__icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-3); pointer-events: none; }
 .ds-input.sdqr-search__input { width: 100%; padding-left: 32px; box-sizing: border-box; }
 .ds-input.sdqr-filter { flex: 1 1 160px; min-width: 140px; }
+.ui-select--suelto.sdqr-filter { flex: 1 1 160px; min-width: 140px; }
 
 .sdqr-loading { text-align: center; padding: 40px; }
 .ds-card.sdqr-card { padding: 0; overflow: hidden; }
@@ -72,7 +73,7 @@
 .sdqr-days { display: flex; gap: 4px; flex-wrap: wrap; }
 .sdqr-day {
   padding: 4px 8px; border-radius: var(--radius-sm); border: 1px solid var(--surface-4); font-size: var(--text-xs); cursor: pointer;
-  font-family: inherit; background: transparent; color: var(--text-2); text-transform: capitalize;
+  font-family: inherit; background: transparent; color: var(--text-2);
 }
 .sdqr-day[aria-pressed='true'] { background: var(--accent-muted); border-color: var(--accent); color: var(--accent); }
 

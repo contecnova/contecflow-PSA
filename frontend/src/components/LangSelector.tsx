@@ -1,5 +1,6 @@
 import { AVAILABLE_LANGUAGES } from '../i18n/appTranslations';
 import { useAppLang } from '../i18n/AppLangContext';
+import { Pulsable } from './ui'
 import './LangSelector.css'
 import type { CSSProperties } from 'react'
 
@@ -25,7 +26,7 @@ export default function LangSelector({ dark = false, style = {} }) {
   return (
     <div className="lang-selector-e4" style={style}>
       {AVAILABLE_LANGUAGES.map(l => (
-        <button className={`langsele-box-1 langsele-sx1 lang-selector-e1 ${lang === l.code ? 'lang-selector-m2' : 'lang-selector-m3'}`}
+        <Pulsable className={`langsele-box-1 langsele-sx1 lang-selector-e1 ${lang === l.code ? 'lang-selector-m2' : 'lang-selector-m3'}`}
           key={l.code}
           onClick={() => setLang(l.code)}
           title={l.label}
@@ -33,7 +34,7 @@ export default function LangSelector({ dark = false, style = {} }) {
           style={{ '--lang-selector-background': lang === l.code ? (dark ? 'var(--surface-4)' : 'var(--accent-glow)') : 'transparent', '--lang-selector-border': `1px solid ${lang === l.code ? 'var(--accent-glow)' : 'var(--surface-4)'}` } as CSSProperties}
         >
           {l.code.toUpperCase()}
-        </button>
+        </Pulsable>
       ))}
     </div>
   );

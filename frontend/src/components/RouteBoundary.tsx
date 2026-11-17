@@ -1,5 +1,6 @@
 import { Component } from 'react'
 import type { ComponentType, ErrorInfo, ReactNode } from 'react'
+import { Button } from './ui'
 import { traducirSinHook } from '../i18n/traducirSinHook'
 import { apiUrl } from '../services/api/urls'
 import './RouteBoundary.css'
@@ -102,18 +103,12 @@ export default class RouteBoundary extends Component<RouteBoundaryProps, RouteBo
           {traducirSinHook('routeboundary.algo_salio_mal_al_cargar')}
         </p>
         <div className="routboun-row-1">
-          <button
-            onClick={this.handleRetry}
-            className="routboun-box-3"
-          >
+          <Button variant="secondary" onClick={this.handleRetry}>
             {traducirSinHook('routeboundary.reintentar')}
-          </button>
-          <button
-            onClick={this.handleReload}
-            className="routboun-box-4"
-          >
+          </Button>
+          <Button onClick={this.handleReload}>
             {traducirSinHook('routeboundary.recargar_pagina')}
-          </button>
+          </Button>
         </div>
         {isDev && (
           <pre

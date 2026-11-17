@@ -5,7 +5,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { clientsApi, unwrapList } from '../services/api'
 import type { MetaDeLista } from '../services/api/tipos-plataforma'
-import { Button, Spinner, EmptyState, Modal, Tabs, useSort, SortableTH } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, Tabs, useSort, SortableTH, Pulsable, Select } from '../components/ui'
 import Pagination from '../components/ui/Pagination'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -237,10 +237,10 @@ export default function ClientsPage(): JSX.Element {
                 { v: 'grid', label: t('proyectos_ui.vista_tarjetas'), Icon: LayoutGrid },
                 { v: 'list', label: t('proyectos_ui.vista_lista'), Icon: List },
               ].map(({ v, label, Icon }) => (
-                <button aria-label={label} key={v} type="button" aria-pressed={clientView === v}
+                <Pulsable aria-label={label} key={v} type="button" aria-pressed={clientView === v}
                   onClick={() => setClientView(v)} title={label}>
                   <Icon size={12} />
-                </button>
+                </Pulsable>
               ))}
             </div>
             {newClientButton}
@@ -254,23 +254,23 @@ export default function ClientsPage(): JSX.Element {
           placeholder={t('clients.buscar_cliente_por_nombre_o_codigo')} aria-label={t('clients.buscar_cliente_por_nombre_o_codigo')}
           className="cli-input cli-input--mb" />
         <div className="cli-filters">
-          <select value={statusF} onChange={e => { setStatusF(e.target.value); setPage(1) }}
+          <Select suelto placeholder={false} value={statusF} onChange={e => { setStatusF(e.target.value); setPage(1) }}
             aria-label={t('clientspage.filtrar_estado')} className="cli-input u-flex1">
             <option value="">{t('clients.todos_los_estados')}</option>
             {statusOptions}
-          </select>
-          <select value={sortBy} onChange={e => setSortBy(e.target.value)}
+          </Select>
+          <Select suelto placeholder={false} value={sortBy} onChange={e => setSortBy(e.target.value)}
             aria-label={t('clientspage.ordenar_por')} className="cli-input cli-input--auto">
             <option value="name">{t('clientspage.orden_az')}</option>
             <option value="projects_count">{t('clientspage.orden_proyectos')}</option>
             <option value="tickets_count">{t('clientspage.orden_tickets')}</option>
             <option value="status">{t('clientspage.orden_estado')}</option>
-          </select>
+          </Select>
         </div>
         {isLoading ? <Spinner /> : clients.length === 0
           ? <EmptyState icon={<Building2 size={28} />} title={t('clients.no_clients')} description={t('clientspage.crea_primer_cliente')} action={newClientButton} />
           : clientView === 'grid' ? (sortedClients as Client[]).map(c => (
-            <button key={c.id} type="button" onClick={() => selectClient(c)}
+            <Pulsable key={c.id} type="button" onClick={() => selectClient(c)}
               aria-pressed={selected?.id === c.id}
               className={selected?.id === c.id ? 'cli-card is-selected' : 'cli-card'}>
               <div className="cli-card__head">
@@ -286,7 +286,7 @@ export default function ClientsPage(): JSX.Element {
                 {(c.invoices_count ?? 0) > 0 && <span title={t('clientspage.facturas')}><Receipt size={12} aria-hidden="true" />{c.invoices_count}</span>}
                 <span title={t('clientspage.usuarios_portal_titulo')}><Globe size={12} aria-hidden="true" />{c.portal_users_count ?? 0}</span>
               </div>
-            </button>
+            </Pulsable>
           ))
           : (
             <div className="cli-table">
@@ -298,7 +298,7 @@ export default function ClientsPage(): JSX.Element {
                 <abbr title={t('clientspage.orden_tickets')}>{t('clientspage.col_sd')}</abbr>
               </div>
               {(sortedClients as Client[]).map(c => (
-                <button key={c.id} type="button" onClick={() => selectClient(c)}
+                <Pulsable key={c.id} type="button" onClick={() => selectClient(c)}
                   aria-pressed={selected?.id === c.id}
                   className={selected?.id === c.id ? 'cli-table__row is-selected' : 'cli-table__row'}>
                   <div className="u-min0">
@@ -309,7 +309,7 @@ export default function ClientsPage(): JSX.Element {
                   </div>
                   <span className="cli-table__num">{c.projects_count}</span>
                   <span className="cli-table__num">{c.tickets_count}</span>
-                </button>
+                </Pulsable>
               ))}
             </div>
           )
@@ -420,11 +420,11 @@ export default function ClientsPage(): JSX.Element {
             </div>
             <div>
               <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cli-label">{t('clientspage.campo_sector')}</label>
-              <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={editClientForm.industry}
+              <Select suelto placeholder={false} id={`${idCampo}-4`} value={editClientForm.industry}
                 onChange={e => setEditClientForm(f => ({ ...f, industry: e.target.value }))}
                 className="cli-input">
                 {industryOptions}
-              </select>
+              </Select>
             </div>
             <div>
               <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="cli-label">{t('clientspage.campo_contacto')}</label>
@@ -446,11 +446,11 @@ export default function ClientsPage(): JSX.Element {
             </div>
             <div>
               <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="cli-label">{t('clientspage.campo_estado')}</label>
-              <select id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={editClientForm.status}
+              <Select suelto placeholder={false} id={`${idCampo}-8`} value={editClientForm.status}
                 onChange={e => setEditClientForm(f => ({ ...f, status: e.target.value }))}
                 className="cli-input">
                 {statusOptions}
-              </select>
+              </Select>
             </div>
             <div>
               <label id={`${idCampo}-etpais`} htmlFor={`${idCampo}-pais`} className="cli-label">{t('clients.pais')}</label>
@@ -518,17 +518,17 @@ export default function ClientsPage(): JSX.Element {
             <div><label id={`${idCampo}-etnuevo516`} htmlFor={`${idCampo}-nuevo516`} className="cli-label">{t('clientspage.campo_nombre_corto')}</label><input id={`${idCampo}-nuevo516`} aria-labelledby={`${idCampo}-etnuevo516`} value={newForm.short_name} onChange={setCreateField('short_name')} className="cli-input" {...errProps('short_name')} />{errField('short_name')}</div>
             <div><label id={`${idCampo}-etnuevo517`} htmlFor={`${idCampo}-nuevo517`} className="cli-label">{t('clientspage.campo_cif')}</label><input id={`${idCampo}-nuevo517`} aria-labelledby={`${idCampo}-etnuevo517`} value={newForm.tax_id} onChange={setCreateField('tax_id')} className="cli-input" {...errProps('tax_id')} />{errField('tax_id')}</div>
             <div><label id={`${idCampo}-etnuevo518`} htmlFor={`${idCampo}-nuevo518`} className="cli-label">{t('clientspage.campo_sector')}</label>
-              <select id={`${idCampo}-nuevo518`} aria-labelledby={`${idCampo}-etnuevo518`} value={newForm.industry} onChange={setCreateField('industry')} className="cli-input">
+              <Select suelto placeholder={false} id={`${idCampo}-nuevo518`} value={newForm.industry} onChange={setCreateField('industry')} className="cli-input">
                 {industryOptions}
-              </select>
+              </Select>
             </div>
             <div><label id={`${idCampo}-etnuevo523`} htmlFor={`${idCampo}-nuevo523`} className="cli-label">{t('clientspage.campo_contacto')}</label><input id={`${idCampo}-nuevo523`} aria-labelledby={`${idCampo}-etnuevo523`} value={newForm.contact_name} onChange={setCreateField('contact_name')} className="cli-input" {...errProps('contact_name')} />{errField('contact_name')}</div>
             <div><label id={`${idCampo}-etnuevo524`} htmlFor={`${idCampo}-nuevo524`} className="cli-label">{t('clientspage.campo_email')}</label><input id={`${idCampo}-nuevo524`} aria-labelledby={`${idCampo}-etnuevo524`} type="email" value={newForm.contact_email} onChange={setCreateField('contact_email')} className="cli-input" {...errProps('contact_email')} />{errField('contact_email')}</div>
             <div><label id={`${idCampo}-etnuevo525`} htmlFor={`${idCampo}-nuevo525`} className="cli-label">{t('clients.telefono')}</label><input id={`${idCampo}-nuevo525`} aria-labelledby={`${idCampo}-etnuevo525`} value={newForm.contact_phone} onChange={setCreateField('contact_phone')} className="cli-input" {...errProps('contact_phone')} />{errField('contact_phone')}</div>
             <div><label id={`${idCampo}-etnuevo526`} htmlFor={`${idCampo}-nuevo526`} className="cli-label">{t('clientspage.campo_estado')}</label>
-              <select id={`${idCampo}-nuevo526`} aria-labelledby={`${idCampo}-etnuevo526`} value={newForm.status} onChange={setCreateField('status')} className="cli-input">
+              <Select suelto placeholder={false} id={`${idCampo}-nuevo526`} value={newForm.status} onChange={setCreateField('status')} className="cli-input">
                 {statusOptions}
-              </select>
+              </Select>
             </div>
           </div>
           <div className="u-mb-16"><label id={`${idCampo}-etnuevo532`} htmlFor={`${idCampo}-nuevo532`} className="cli-label">{t('clientspage.campo_notas')}</label><textarea id={`${idCampo}-nuevo532`} aria-labelledby={`${idCampo}-etnuevo532`} value={newForm.notes} onChange={setCreateField('notes')} className="cli-input" {...errProps('notes')} />{errField('notes')}</div>

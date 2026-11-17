@@ -18,7 +18,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BellRing, CalendarRange, FolderOpen, History, Scale, Sparkles } from 'lucide-react'
 import Page from '../components/ui/Page'
-import { Button, EmptyState, Spinner, StatusBadge, Tabs } from '../components/ui'
+import { Button, Checkbox, EmptyState, Pulsable, Select, Spinner, StatusBadge, Tabs, TablaSimple } from '../components/ui'
 import { projectsApi, recursosApi, skillsApi, usersApi } from '../services/api'
 import VistasDeTrabajo from '../components/planificador/VistasDeTrabajo'
 import PanelDeNivelacion from '../components/planificador/PanelDeNivelacion'
@@ -37,10 +37,10 @@ export default function PlanificacionDeRecursosPage() {
   const { data: proyectos = [] } = useQuery({ queryKey: ['projects'], queryFn: () => projectsApi.list({}).then(r => r.data) })
 
   const selector = (
-    <select className="ds-input plr-campo" aria-label={t('planificador.elige_proyecto')} value={proyecto} onChange={e => setProyecto(e.target.value)}>
+    <Select suelto placeholder={false} className="plr-campo" aria-label={t('planificador.elige_proyecto')} value={proyecto} onChange={e => setProyecto(e.target.value)}>
       <option value="">{t('planificador.elige_proyecto')}</option>
       {proyectos.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-    </select>
+    </Select>
   )
 
   return (
@@ -105,7 +105,7 @@ function PanelDeSkills({ selector, proyecto }: { selector: JSX.Element; proyecto
           {faltan.length > 0 && (
             <>
               <h3 className="plan-card__titulo">{t('planificador.skills_que_faltan')}</h3>
-              <div className="plan-row">{faltan.map(c => <button key={c.id} type="button" className="plan-chip" onClick={() => setSkill(c.id)}>{c.name}</button>)}</div>
+              <div className="plan-row">{faltan.map(c => <Pulsable key={c.id} className="plan-chip" onClick={() => setSkill(c.id)}>{c.name}</Pulsable>)}</div>
             </>
           )}
         </div>
@@ -113,13 +113,13 @@ function PanelDeSkills({ selector, proyecto }: { selector: JSX.Element; proyecto
       <div className="plan-card plan-stack">
         <label className="plan-row plan-muted">
           {t('planificador.buscar_por_skill')}
-          <select className="ds-input plr-campo" value={skill} onChange={e => setSkill(e.target.value)}>
+          <Select suelto placeholder={false} className="plr-campo" value={skill} onChange={e => setSkill(e.target.value)}>
             <option value="">{t('planificador.elige_skill')}</option>
             {catalogo.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          </Select>
         </label>
         {skill && (isFetching ? <Spinner /> : libres.length === 0 ? <p className="plan-muted">{t('planificador.nadie_con_skill')}</p> : (
-          <table className="plan-tabla">
+          <TablaSimple claseTabla="plan-tabla">
             <thead><tr><th>{t('planificador.col_persona')}</th><th>{t('planificador.col_nivel')}</th><th className="plan-num">{t('planificador.col_libres')}</th><th className="plan-num">{t('planificador.col_carga')}</th></tr></thead>
             <tbody>
               {libres.map(p => (
@@ -127,7 +127,7 @@ function PanelDeSkills({ selector, proyecto }: { selector: JSX.Element; proyecto
                   <td className="plan-num">{Math.round(p.available_hours)} h</td><td className="plan-num">{Math.round(p.load_pct)} %</td></tr>
               ))}
             </tbody>
-          </table>
+          </TablaSimple>
         ))}
       </div>
     </div>
@@ -147,10 +147,10 @@ function PanelDeAlertas() {
   })
   return (
     <div className="plan-stack">
-      <label className="plan-row plan-muted"><input type="checkbox" checked={vistas} onChange={e => setVistas(e.target.checked)} />{t('planificador.ver_alertas_vistas')}</label>
+      <Checkbox className="plan-row plan-muted" checked={!!vistas} onChange={setVistas} label={t('planificador.ver_alertas_vistas')} />
       {isLoading ? <Spinner /> : alertas.length === 0 ? <EmptyState icon={<BellRing size={28} />} title={t('planificador.sin_alertas')} description={t('planificador.sin_alertas_desc')} /> : (
         <div className="plan-card plan-tabla-scroll">
-          <table className="plan-tabla">
+          <TablaSimple claseTabla="plan-tabla">
             <thead><tr><th>{t('planificador.col_persona')}</th><th>{t('planificador.col_alerta')}</th><th>{t('planificador.col_severidad')}</th><th>{t('planificador.col_fecha')}</th><th /></tr></thead>
             <tbody>
               {alertas.map(a => (
@@ -163,7 +163,7 @@ function PanelDeAlertas() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </TablaSimple>
         </div>
       )}
     </div>
@@ -181,7 +181,7 @@ function PanelHistorico() {
       </label>
       {isLoading ? <Spinner /> : data.length === 0 ? <EmptyState icon={<History size={28} />} title={t('planificador.sin_historico')} description={t('planificador.sin_historico_desc')} /> : (
         <div className="plan-card plan-tabla-scroll">
-          <table className="plan-tabla">
+          <TablaSimple claseTabla="plan-tabla">
             <thead><tr><th>{t('planificador.col_persona')}</th><th>{t('planificador.col_semana')}</th><th className="plan-num">{t('planificador.col_planificadas')}</th><th className="plan-num">{t('planificador.col_reales')}</th><th className="plan-num">{t('planificador.col_utilizacion')}</th><th className="plan-num">{t('planificador.col_facturable')}</th></tr></thead>
             <tbody>
               {data.map(u => (
@@ -193,7 +193,7 @@ function PanelHistorico() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </TablaSimple>
         </div>
       )}
     </div>

@@ -11,7 +11,7 @@
 .call-header { height: 56px; padding: 0 22px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--call-line); }
 .call-title { font-size: var(--text-md); font-weight: 700; margin: 0; }
 .call-room { font-size: var(--text-xs); color: var(--call-text-muted); }
-.call-status { display: flex; gap: 14px; align-items: center; font-family: var(--font-mono); font-size: var(--text-md); color: var(--call-text); }
+.call-status { display: flex; gap: 14px; align-items: center; font-variant-numeric: tabular-nums; font-size: var(--text-md); color: var(--call-text); }
 
 .call-main { flex: 1; display: flex; min-height: 0; }
 .call-grid { flex: 1; padding: 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr)); gap: 12px; align-content: start; }

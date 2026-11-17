@@ -14,7 +14,7 @@ import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { Button, Section, Spinner, StatusBadge, Tabs } from '../ui'
+import { Button, Pulsable, Section, Spinner, StatusBadge, Tabs } from '../ui'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { puestoDelAgenteApi } from '../../services/api/serviceDeskMercado'
 import type { RolDePanel } from '../../services/api/serviceDeskMercado'
@@ -45,9 +45,9 @@ function Widget({ id, onAbrir }: { id: string; onAbrir: (ticketId: string) => vo
           (data as { id: string; number: string; title: string; priority_score: number }[]).length === 0
             ? <div className="u-text3-xs">{t('sd_mercado.cola_vacia')}</div>
             : (data as { id: string; number: string; title: string; priority_score: number }[]).map(tk => (
-              <button key={tk.id} type="button" className="u-btn-outline-sm sdm-wrap" onClick={() => onAbrir(tk.id)}>
+              <Pulsable key={tk.id} className="u-btn-outline-sm sdm-wrap" onClick={() => onAbrir(tk.id)}>
                 <span className="u-mono">{tk.number}</span> {tk.title} <StatusBadge caps={false}>{Math.round(tk.priority_score * 100)}</StatusBadge>
-              </button>
+              </Pulsable>
             ))
         ) : <VistaDeDatos datos={Array.isArray(data) ? data.slice(0, 8) : data} />}
     </div>

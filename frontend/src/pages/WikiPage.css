@@ -4,11 +4,11 @@
 .wk-panel--side { padding: 14px; }
 .wk-panel--results { margin-bottom: 20px; }
 .wk-label {
-  font-size: var(--text-xs); font-weight: 600; color: var(--text-2); text-transform: uppercase;
+  font-size: var(--text-xs); font-weight: 600; color: var(--text-2);
   letter-spacing: 0.07em; display: block; margin-bottom: 5px;
 }
 .wk-input { width: 100%; box-sizing: border-box; }
-.wk-input--mono { font-family: var(--font-mono); font-size: var(--text-sm); }
+.wk-input--mono { font-variant-numeric: tabular-nums; font-size: var(--text-sm); }
 .wk-input--search { min-width: 0; }
 .wk-input--auto { width: auto; min-width: 220px; max-width: 100%; }
 
@@ -40,7 +40,7 @@
 }
 .wk-format-btn--bold { font-weight: 700; }
 .wk-format-btn--italic { font-style: italic; }
-.wk-format-btn--code { font-family: var(--font-mono); }
+.wk-format-btn--code { font-variant-numeric: tabular-nums; }
 .wk-format-btn--ai { color: var(--accent); }
 
 .wk-ta {
@@ -51,7 +51,7 @@
 .wk-ta--heading2 { font-size: var(--text-lg-em); font-weight: 700; }
 .wk-ta--heading3 { font-size: var(--text-md-em); font-weight: 700; }
 .wk-ta--code {
-  font-family: var(--font-mono); font-size: var(--text-base); background: var(--surface-1);
+  font-variant-numeric: tabular-nums; font-size: var(--text-base); background: var(--surface-1);
   padding: 8px 12px; border-radius: var(--radius-sm); color: var(--success);
 }
 .wk-ta--quote { border-left: 3px solid var(--accent); padding-left: 12px; color: var(--text-2); font-style: italic; }
@@ -70,7 +70,7 @@
 .wk-r--h2 { font-size: var(--text-lg-em); font-weight: 700; margin-top: 16px; }
 .wk-r--h3 { font-size: var(--text-md-em); font-weight: 700; margin-top: 12px; color: var(--text-2); }
 .wk-r--code {
-  background: var(--surface-1); padding: 12px 16px; border-radius: 8px; font-family: var(--font-mono);
+  background: var(--surface-1); padding: 12px 16px; border-radius: 8px; font-variant-numeric: tabular-nums;
   font-size: var(--text-base); color: var(--success); overflow: auto;
 }
 .wk-r--quote { border-left: 3px solid var(--accent); padding-left: 14px; color: var(--text-2); font-style: italic; }
@@ -169,7 +169,7 @@
 .wk-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 20px; }
 @media (max-width: 900px) { .wk-layout { grid-template-columns: minmax(0, 1fr); } }
 .wk-side-title {
-  font-size: var(--text-xs); font-weight: 700; color: var(--text-3); text-transform: uppercase;
+  font-size: var(--text-xs); font-weight: 700; color: var(--text-3);
   letter-spacing: 0.07em; margin-bottom: 10px;
 }
 .wk-side-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }

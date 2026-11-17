@@ -24,7 +24,7 @@
   font-size: var(--text-xs);
   font-weight: 700;
   color: var(--text-2);
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 .alcopa-txt-2 {
   color: var(--text-3);
@@ -39,7 +39,7 @@
   gap: 12px;
 }
 .alcopa-txt-3 {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   color: var(--text-2);
 }
 .alcopa-row-4 {
@@ -50,7 +50,7 @@
 }
 .alcopa-box-3 {
   font-size: var(--text-xs);
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   color: var(--text-2);
   background: var(--surface-4);
   padding: 2px 8px;

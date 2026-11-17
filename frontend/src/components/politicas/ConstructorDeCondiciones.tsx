@@ -8,7 +8,7 @@ import type {
   CampoDeDominio, CondicionSimple, DominioDePoliticas, GrupoDeCondiciones, NodoDeCondicion, Operador,
   ReferenciaDeValor, ValorDeCondicion,
 } from '../../services/api/tipos-politicas'
-import { Button } from '../ui'
+import { Button, Select, Checkbox } from '../ui'
 import { EntradaDeValor, useOpciones, useTextos } from './comun'
 
 const MAX_PROFUNDIDAD = 8
@@ -42,15 +42,12 @@ function Grupo({ dominio, grupo, onChange, onQuitar, profundidad }: {
     <div className={`pol-grupo${grupo.op === 'or' ? ' pol-grupo--o' : ''}${grupo.negar ? ' pol-grupo--negado' : ''}`}
       role="group" aria-label={t('pol.grupo_de_condiciones')}>
       <div className="pol-grupo-cabecera">
-        <label className="pol-chip">
-          <input type="checkbox" checked={!!grupo.negar} onChange={e => onChange({ ...grupo, negar: e.target.checked })} />
-          {t('pol.no_se_cumple')}
-        </label>
-        <select className="pol-campo" aria-label={t('pol.modo_del_grupo')} value={grupo.op}
-          onChange={e => onChange({ ...grupo, op: e.target.value as 'and' | 'or' })}>
+        <Checkbox className="pol-chip" label={t('pol.no_se_cumple')} checked={!!grupo.negar} onChange={m => onChange({ ...grupo, negar: m })} />
+        <Select suelto className="pol-campo" aria-label={t('pol.modo_del_grupo')} value={grupo.op}
+          onChange={e => onChange({ ...grupo, op: e.target.value as 'and' | 'or' })} placeholder={false}>
           <option value="and">{t('pol.todas')}</option>
           <option value="or">{t('pol.alguna')}</option>
-        </select>
+        </Select>
         <span className="pol-ayuda">{grupo.hijos.length === 0 ? t('pol.grupo_vacio') : t('pol.de_estas_condiciones')}</span>
         {onQuitar && <Button size="xs" variant="ghost" icon={<Trash2 size={13} />} onClick={onQuitar} title={t('pol.quitar_grupo')}>{t('pol.quitar_grupo')}</Button>}
       </div>
@@ -94,13 +91,13 @@ function Condicion({ dominio, condicion, onChange, onQuitar }: {
   const sinValor = condicion.operador === 'empty' || condicion.operador === 'not_empty'
   return (
     <div className="pol-condicion" role="group" aria-label={t('pol.condicion_sobre', { campo: etiqueta })}>
-      <select className="pol-campo pol-campo--medio" aria-label={t('pol.campo')} value={campo.clave} onChange={e => cambiarCampo(e.target.value)}>
+      <Select suelto className="pol-campo pol-campo--medio" aria-label={t('pol.campo')} value={campo.clave} onChange={e => cambiarCampo(e.target.value)} placeholder={false}>
         {dominio.campos.map(c => <option key={c.clave} value={c.clave}>{etiquetaDeCampo(dominio.clave, c)}</option>)}
-      </select>
-      <select className="pol-campo pol-campo--medio" aria-label={t('pol.operador')} value={condicion.operador}
-        onChange={e => cambiarOperador(e.target.value as Operador)}>
+      </Select>
+      <Select suelto className="pol-campo pol-campo--medio" aria-label={t('pol.operador')} value={condicion.operador}
+        onChange={e => cambiarOperador(e.target.value as Operador)} placeholder={false}>
         {campo.operadores.map(o => <option key={o} value={o}>{t(`pol.op_${o}`)}</option>)}
-      </select>
+      </Select>
       {condicion.operador === 'pct_over' ? (
         <>
           <input type="number" min={0} step="1" className="pol-campo pol-campo--corto" aria-label={t('pol.porcentaje')}
@@ -139,30 +136,28 @@ export function SelectorDeReferencia({ dominio, campo, valor, onChange }: {
   const tablas = (opciones?.tablas ?? []).filter(x => !x.dominio || x.dominio === dominio.clave)
   return (
     <span className="pol-fila">
-      <select className="pol-campo" aria-label={t('pol.tipo_de_referencia')} value={ref.tipo}
-        onChange={e => onChange({ tipo: e.target.value as ReferenciaDeValor['tipo'] })}>
+      <Select suelto className="pol-campo" aria-label={t('pol.tipo_de_referencia')} value={ref.tipo}
+        onChange={e => onChange({ tipo: e.target.value as ReferenciaDeValor['tipo'] })} placeholder={false}>
         <option value="tabla">{t('pol.ref_tabla')}</option>
         <option value="valor">{t('pol.ref_valor')}</option>
         <option value="campo">{t('pol.ref_campo')}</option>
-      </select>
+      </Select>
       {ref.tipo === 'tabla' && (
-        <select className="pol-campo pol-campo--medio" aria-label={t('pol.tabla_de_referencia')} value={ref.tabla_id ?? ''}
-          onChange={e => onChange({ tipo: 'tabla', tabla_id: e.target.value })}>
-          <option value="">{tablas.length ? t('pol.elige_tabla') : t('pol.sin_tablas')}</option>
+        <Select suelto className="pol-campo pol-campo--medio" aria-label={t('pol.tabla_de_referencia')} value={ref.tabla_id ?? ''}
+          onChange={e => onChange({ tipo: 'tabla', tabla_id: e.target.value })} placeholder={tablas.length ? t('pol.elige_tabla') : t('pol.sin_tablas')}>
           {tablas.map(x => <option key={x.id} value={x.id}>{x.nombre}</option>)}
-        </select>
+        </Select>
       )}
       {ref.tipo === 'valor' && (
         <EntradaDeValor dominio={dominio.clave} campo={campo} operador="eq" valor={ref.valor} opciones={opciones}
           onChange={v => onChange({ tipo: 'valor', valor: v })} etiqueta={t('pol.valor_de_referencia')} />
       )}
       {ref.tipo === 'campo' && (
-        <select className="pol-campo pol-campo--medio" aria-label={t('pol.campo_de_referencia')} value={ref.campo ?? ''}
-          onChange={e => onChange({ tipo: 'campo', campo: e.target.value })}>
-          <option value="">{t('pol.elige')}</option>
+        <Select suelto className="pol-campo pol-campo--medio" aria-label={t('pol.campo_de_referencia')} value={ref.campo ?? ''}
+          onChange={e => onChange({ tipo: 'campo', campo: e.target.value })} placeholder={t('pol.elige')}>
           {dominio.campos.filter(c => c.tipo === campo.tipo && c.clave !== campo.clave)
             .map(c => <option key={c.clave} value={c.clave}>{etiquetaDeCampo(dominio.clave, c)}</option>)}
-        </select>
+        </Select>
       )}
     </span>
   )

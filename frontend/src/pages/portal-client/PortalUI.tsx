@@ -32,7 +32,7 @@ import { useClientAuth, useLang } from './portalClientContext'
 import PortalQuickCreateMenu from './PortalQuickCreateMenu'
 import CampanaDelPortal from './CampanaDelPortal'
 import Tabs from '../../components/ui/Tabs'
-import { Button, EmptyState } from '../../components/ui'
+import { Button, EmptyState, Pulsable, Select } from '../../components/ui'
 import { formatearMoneda } from '../../utils/helpers'
 import StatusBadge, { type StatusBadgeKind } from '../../components/ui/StatusBadge'
 import './PortalUI.css'
@@ -165,11 +165,11 @@ export function PortalShell({ section, onSection, branding, badges, avisosEnVivo
               </div>
             </div>
           )}
-          <button className={`portui-box-25 ${collapsed ? 'portal-ui-m6' : 'portal-ui-m7'}`}
+          <Pulsable className={`portui-box-25 ${collapsed ? 'portal-ui-m6' : 'portal-ui-m7'}`}
             onClick={() => setCollapsed(c => !c)}
             aria-label={collapsed ? traducir('portalui.expandir_menu') : tr('sidebar_collapse', 'Contraer menú')}
             title={tr('sidebar_collapse', 'Contraer menú')}
-          ><PanelLeftClose size={14} /></button>
+          ><PanelLeftClose size={14} /></Pulsable>
         </div>
 
         {/* Filter */}
@@ -209,7 +209,7 @@ export function PortalShell({ section, onSection, branding, badges, avisosEnVivo
                   const active = section === it.id
                   const badge = badges?.[it.id]
                   return (
-                    <button className={`portui-row-24 ${collapsed ? 'portal-ui-m8' : 'portal-ui-m9'} ${active ? 'portal-ui-m10' : 'portal-ui-m11'}`}
+                    <Pulsable className={`portui-row-24 ${collapsed ? 'portal-ui-m8' : 'portal-ui-m9'} ${active ? 'portal-ui-m10' : 'portal-ui-m11'}`}
                       key={it.id}
                       onClick={() => { onSection(it.id); setMobileOpen(false) }}
                       title={collapsed ? tr(it.labelKey, it.fallback) : undefined}
@@ -223,7 +223,7 @@ export function PortalShell({ section, onSection, branding, badges, avisosEnVivo
                       {collapsed && badge != null && badge > 0 && (
                         <span className="portui-box-35" />
                       )}
-                    </button>
+                    </Pulsable>
                   )
                 })}
               </div>
@@ -242,15 +242,15 @@ export function PortalShell({ section, onSection, branding, badges, avisosEnVivo
                   <div className="portui-box-12">{(projectsCount === 1 ? tr('sidebar_projects_one', '{{n}} proyecto') : tr('sidebar_projects_other', '{{n}} proyectos')).replace('{{n}}', String(projectsCount))}</div>
                 </div>
               </div>
-              <button
+              <Pulsable
                 onClick={logout}
                 className="portui-row-3"
-              ><LogOut size={13} /> {tr('logout', 'Cerrar sesión')}</button>
+              ><LogOut size={13} /> {tr('logout', 'Cerrar sesión')}</Pulsable>
             </>
           ) : (
-            <button onClick={() => setCollapsed(false)}
+            <Pulsable onClick={() => setCollapsed(false)}
               aria-label={traducir('portalui.expandir_menu')}
-              className="portui-row-4"><Menu size={14} /></button>
+              className="portui-row-4"><Menu size={14} /></Pulsable>
           )}
         </div>
       </aside>
@@ -259,10 +259,10 @@ export function PortalShell({ section, onSection, branding, badges, avisosEnVivo
       <main className="portui-stack-1">
         {/* Topbar */}
         <header className="portui-row-5">
-          <button onClick={() => setMobileOpen(true)}
+          <Pulsable onClick={() => setMobileOpen(true)}
             className="portal-mobile-toggle portui-box-13"
             aria-label={traducir('portalui.abrir_menu')}
-            ><Menu size={18} /></button>
+            ><Menu size={18} /></Pulsable>
 
           <div className="u-flex1-min0">
             <div className="portui-txt-1">
@@ -274,14 +274,14 @@ export function PortalShell({ section, onSection, branding, badges, avisosEnVivo
           </div>
 
           <div className="u-row-center-10">
-            <button
+            <Pulsable
               onClick={() => setQuickOpen(true)}
               title={traducir('portalui.crear_nuevo')}
               aria-label={traducir('portalui.crear_nuevo_2')}
               className="portui-row-6"
             >
               <Plus size={16} />
-            </button>
+            </Pulsable>
             {/* Campana de avisos del cliente (16-11-2026): contador y panel. */}
             <CampanaDelPortal onSection={onSection} enVivo={avisosEnVivo} />
             <div className="portui-row-32">{client?.full_name?.charAt(0)?.toUpperCase() || '?'}</div>
@@ -364,7 +364,7 @@ export function PortalPageHeader({ title, subtitle, icon: Icon, actions, meta, b
             <span key={i} className="u-row-center-6">
               {i > 0 && <span className="portui-txt-2">›</span>}
               {c.onClick ? (
-                <button className={`portui-box-26 ${i === breadcrumb.length - 1 ? 'portal-ui-m12' : 'portal-ui-m13'}`} type="button" onClick={c.onClick}>{c.label}</button>
+                <Pulsable className={`portui-box-26 ${i === breadcrumb.length - 1 ? 'portal-ui-m12' : 'portal-ui-m13'}`} onClick={c.onClick}>{c.label}</Pulsable>
               ) : (
                 <span className={`portui-txt-8 ${i === breadcrumb.length - 1 ? 'portal-ui-m12' : 'portal-ui-m13'}`}>{c.label}</span>
               )}
@@ -666,11 +666,16 @@ export function PortalInput(props: InputHTMLAttributes<HTMLInputElement>) {
   )
 }
 
-export function PortalSelect(props: SelectHTMLAttributes<HTMLSelectElement>) {
+/** Desplegable del portal: el `Select` del kit (suelto) con la clase `portal-campo`. Conserva la API de
+ *  atributos de `<select>`; las opciones van como hijos (la opción vacía, si la hay, también). */
+export function PortalSelect({ className, children, value, onChange, id, name, disabled, required, autoFocus, title, onBlur, onKeyDown,
+  'aria-label': ariaLabel, 'aria-describedby': ariaDescribedBy }: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
-    <select {...props} className={props.className ? `portal-campo ${props.className}` : 'portal-campo'}>
-      {props.children}
-    </select>
+    <Select suelto placeholder={false} className={className ? `portal-campo ${className}` : 'portal-campo'}
+      value={value as string | number | undefined} onChange={onChange} id={id} name={name} disabled={disabled} required={required}
+      autoFocus={autoFocus} title={title} onBlur={onBlur} onKeyDown={onKeyDown} aria-label={ariaLabel} aria-describedby={ariaDescribedBy}>
+      {children}
+    </Select>
   )
 }
 
@@ -702,7 +707,7 @@ export function PortalModal({ open, onClose, title, subtitle, width = 560, child
             <h2 className="portui-box-22">{title}</h2>
             {subtitle && <p className="portui-box-23">{subtitle}</p>}
           </div>
-          <button onClick={onClose} aria-label={traducir('common.close')} className="portui-row-19"><X size={14} /></button>
+          <Pulsable onClick={onClose} aria-label={traducir('common.close')} className="portui-row-19"><X size={14} /></Pulsable>
         </div>
         {children}
         {footer && (

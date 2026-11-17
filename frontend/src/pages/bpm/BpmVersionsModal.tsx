@@ -7,7 +7,7 @@
  * ejecuta la publicada y, si no hay ninguna, la última guardada.
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Button, Modal, Spinner, EmptyState } from '../../components/ui'
+import { Button, Modal, Spinner, EmptyState, TablaSimple } from '../../components/ui'
 import { History } from 'lucide-react'
 import { bpmnProcessesApi, apiErrorMsg } from '../../services/api'
 import type { ProblemaBpmn, VersionDeProcesoBpmn } from '../../services/api/tipos-documentos'
@@ -62,7 +62,7 @@ export default function BpmVersionsModal({ processId, puedePublicar, onAbrir, on
           <div className="u-text2-sm">
             {publicada ? t('bpm.se_ejecuta_publicada', { n: publicada }) : t('bpm.sin_publicar_ejecuta_ultima')}
           </div>
-          <table className="table">
+          <TablaSimple claseTabla="table">
             <thead><tr><th>{t('bpm.version')}</th><th>{t('bpm.notas')}</th><th>{t('bpm.creada')}</th><th>{t('bpm.estado')}</th><th><span className="u-sr-only">{t('cmdb.actions')}</span></th></tr></thead>
             <tbody>
               {versiones.map(v => (
@@ -87,7 +87,7 @@ export default function BpmVersionsModal({ processId, puedePublicar, onAbrir, on
                 </tr>
               ))}
             </tbody>
-          </table>
+          </TablaSimple>
         </div>
       )}
     </Modal>

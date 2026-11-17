@@ -22,7 +22,7 @@ import type { AccionDeVozPendiente, ComandoDeVozTranscrito } from '../../service
 import { useToast } from '../../context/ToastContext'
 import { Mic, Square, X } from 'lucide-react'
 import { useAppLang } from '../../i18n/AppLangContext'
-import { useDialogo } from '../ui'
+import { Pulsable, useDialogo } from '../ui'
 import './VoiceCommandModal.css'
 
 
@@ -207,10 +207,9 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
           <h3 className="vocomo-box-1">
             {traducir('voicecommandmodal.comando_de_voz')}
           </h3>
-          <button onClick={onClose}
-            className="vocomo-box-2">
+          <Pulsable onClick={onClose} className="vocomo-box-2">
             <X size={18} />
-          </button>
+          </Pulsable>
         </div>
 
         {/* Error banner */}
@@ -232,13 +231,13 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
                 : 'Ejemplos: "imputa 3 horas al proyecto Acme", "crea un ticket para el portal", "¿cuántas horas llevo esta semana?"'}
             </div>
             {!recording ? (
-              <button onClick={handleStart} className="vocomo-row-1">
+              <Pulsable onClick={handleStart} className="vocomo-row-1">
                 <Mic size={16} /> {traducir('call.record')}
-              </button>
+              </Pulsable>
             ) : (
-              <button onClick={handleStop} className="vocomo-row-2">
+              <Pulsable onClick={handleStop} className="vocomo-row-2">
                 <Square size={14} /> {traducir('voicecommand.detener')}
-              </button>
+              </Pulsable>
             )}
           </div>
         )}
@@ -252,14 +251,12 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
             <audio src={URL.createObjectURL(audioBlob)} controls aria-label={traducir('voicecommand.audio_grabado_2')}
               className="vocomo-box-7" />
             <div className="vocomo-row-3">
-              <button onClick={() => { setAudioBlob(null); chunksRef.current = [] }}
-                disabled={isTranscribing}
-                className="vocomo-box-8">
+              <Pulsable onClick={() => { setAudioBlob(null); chunksRef.current = [] }} disabled={isTranscribing} className="vocomo-box-8">
                 {traducir('voicecommand.re_grabar')}
-              </button>
-              <button className={`vocomo-box-13 ${isTranscribing ? 'voice-command-modal-m4' : 'voice-command-modal-m5'}`} onClick={() => transcribe()} disabled={isTranscribing}>
+              </Pulsable>
+              <Pulsable className={`vocomo-box-13 ${isTranscribing ? 'voice-command-modal-m4' : 'voice-command-modal-m5'}`} onClick={() => transcribe()} disabled={isTranscribing}>
                 {isTranscribing ? '⏳ Transcribiendo…' : '→ Transcribir e interpretar'}
-              </button>
+              </Pulsable>
             </div>
           </div>
         )}
@@ -293,21 +290,19 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
                   <div className="vocomo-sp-1">{pendingLabel}</div>
                 </div>
                 <div className="u-actions-8">
-                  <button onClick={onClose} disabled={isConfirming}
-                    className="vocomo-box-8">
+                  <Pulsable onClick={onClose} disabled={isConfirming} className="vocomo-box-8">
                     {traducir('voicecommand.cancelar')}
-                  </button>
-                  <button className={`vocomo-box-14 ${isConfirming ? 'voice-command-modal-m4' : 'voice-command-modal-m5'}`} onClick={() => confirm()} disabled={isConfirming}>
+                  </Pulsable>
+                  <Pulsable className={`vocomo-box-14 ${isConfirming ? 'voice-command-modal-m4' : 'voice-command-modal-m5'}`} onClick={() => confirm()} disabled={isConfirming}>
                     {isConfirming ? '⏳ Ejecutando…' : '✓ Confirmar y ejecutar'}
-                  </button>
+                  </Pulsable>
                 </div>
               </>
             ) : (
               <div className="u-row-end">
-                <button onClick={onClose}
-                  className="vocomo-box-12">
+                <Pulsable onClick={onClose} className="vocomo-box-12">
                   {traducir('common.close')}
-                </button>
+                </Pulsable>
               </div>
             )}
           </div>

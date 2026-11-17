@@ -36,7 +36,7 @@ import {
 import { sdWorkflowDesignerApi, type ApiError } from '../../services/api'
 import type { SdBlueprint, SdDetalleDeEjecucion, SdGrafoDeFlujo, SdPlantillaDeFlujo, SdValidacionDeFlujo, SdValorDeConfigDeNodo } from '../../services/api/tipos-sd'
 import { useToast } from '../../context/ToastContext'
-import { Button, Spinner, Page, StatusBadge, Modal, EmptyState, Tabs, IconButton } from '../../components/ui'
+import { Button, Spinner, Page, StatusBadge, Modal, EmptyState, Tabs, IconButton, Pulsable, Select, TablaSimple } from '../../components/ui'
 import type { StatusBadgeKind } from '../../components/ui/StatusBadge'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { fmtDateTime } from '../../utils/helpers'
@@ -217,11 +217,11 @@ function BlueprintList({ onOpen, onNew }: { onOpen: (id: string) => void; onNew:
             className="ds-input wfd-search__input"
           />
         </div>
-        <select value={filter} onChange={e => setFilter(e.target.value)} aria-label={traducir('workflowdesigner.tipo_de_proceso')}
-          className="ds-input wfd-filter">
+        <Select suelto placeholder={false} value={filter} onChange={e => setFilter(e.target.value)} aria-label={traducir('workflowdesigner.tipo_de_proceso')}
+          className="wfd-filter">
           <option value="">{traducir('workflowdesigner.todos_los_procesos')}</option>
           {PROCESOS.map(p => <option key={p} value={p}>{nombreDeProceso(p, traducir)}</option>)}
-        </select>
+        </Select>
       </div>
 
       {/* Grid */}
@@ -378,9 +378,9 @@ function CreateBlueprintModal({ onClose, onCreated }: { onClose: () => void; onC
         </div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={labelStyle}>{traducir('workflowdesigner.tipo_de_proceso')}</label>
-          <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={processType} onChange={e => setProcessType(e.target.value)} className={inputStyle}>
+          <Select suelto placeholder={false} id={`${idCampo}-2`} value={processType} onChange={e => setProcessType(e.target.value)} className="wfd-sel">
             {PROCESOS.map(p => <option key={p} value={p}>{nombreDeProceso(p, traducir)}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={labelStyle}>{traducir('workflowdesigner.descripcion_opcional')}</label>
@@ -424,7 +424,7 @@ function TemplatePickerModal({ onClose, onPicked }: { onClose: () => void; onPic
       {isLoading ? <Spinner /> : (
         <div className="u-stack-8">
           {templates.map(tpl => (
-            <button type="button" key={tpl.id} onClick={() => useTemplate.mutate(tpl)}
+            <Pulsable key={tpl.id} onClick={() => useTemplate.mutate(tpl)}
               className="wfd-tpl"
             >
               <div className="wfd-tpl__head">
@@ -437,7 +437,7 @@ function TemplatePickerModal({ onClose, onPicked }: { onClose: () => void; onPic
               <div className="u-hint">
                 {traducir('workflowdesigner.nodos_aristas', { n: tpl.graph.nodes.length, m: tpl.graph.edges.length })}
               </div>
-            </button>
+            </Pulsable>
           ))}
         </div>
       )}
@@ -714,7 +714,7 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
             title={traducir('workflowdesigner.aun_no_hay_ejecuciones')}
             description={traducir('workflowdesigner.pulsa_ejecutar_para_iniciar_una_nueva')} />
         ) : (
-          <table className="u-table-sm">
+          <TablaSimple claseTabla="u-table-sm">
             <thead className="wfd-thead">
               <tr className="wfd-thead-row">
                 <th className="wfd-th">{traducir('workflowdesigner.th_estado')}</th>
@@ -742,7 +742,7 @@ function RunsTab({ blueprintId }: { blueprintId: string }) {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </TablaSimple>
         )}
       </div>
       {/* Detail panel */}
@@ -875,9 +875,9 @@ function StartRunModal({ blueprint, onClose, onStarted }: { blueprint: Blueprint
         <div className="u-row-10">
           <div className="u-flex1">
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={labelStyle}>{traducir('workflowdesigner.tipo_de_entidad')}</label>
-            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={targetType} onChange={e => setTargetType(e.target.value)} className={inputStyle}>
+            <Select suelto placeholder={false} id={`${idCampo}-1`} value={targetType} onChange={e => setTargetType(e.target.value)} className="wfd-sel">
               {[...PROCESOS, 'manual'].map(p => <option key={p} value={p}>{nombreDeEntidad(p, traducir)}</option>)}
-            </select>
+            </Select>
           </div>
           <div className="u-flex1">
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={labelStyle}>{traducir('workflowdesigner.id_de_entidad_opcional')}</label>
@@ -887,7 +887,7 @@ function StartRunModal({ blueprint, onClose, onStarted }: { blueprint: Blueprint
         <div>
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={labelStyle}>{traducir('workflowdesigner.contexto_inicial')}</label>
           <textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={contextJson} onChange={e => setContextJson(e.target.value)} rows={6}
-            className={`${inputStyle} wfd-input--mono`} />
+            className={`${inputStyle} wfd-input--mono ds-campo-codigo`} />
           <div className="u-hint">
             {traducir('workflowdesigner.las_decisiones_del_workflow_lo_evaluaran_p')} <code>priority == 'P1'</code>).
           </div>
@@ -917,12 +917,12 @@ function Palette({ onAdd }: { onAdd: (type: string) => void }) {
       {items.map(it => {
         const v = NODE_VISUAL[it.type]
         return (
-          <button type="button" key={it.type} onClick={() => onAdd(it.type)}
+          <Pulsable key={it.type} onClick={() => onAdd(it.type)}
             className="wfd-pal-item" style={colorVar(v.color)}
           >
             <span className="wfd-pal-item__icon" aria-hidden="true">{it.icon}</span>
             <span className="u-flex1">{nombreDeNodo(it.type, traducir)}</span>
-          </button>
+          </Pulsable>
         )
       })}
     </div>
@@ -1052,9 +1052,9 @@ function FieldSelect({ label, value, onChange, options }: { label: string; value
   return (
     <div>
       <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={labelStyle}>{label}</label>
-      <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={value || ''} onChange={e => onChange(e.target.value)} className={inputStyle}>
+      <Select suelto placeholder={false} id={`${idCampo}-1`} value={value || ''} onChange={e => onChange(e.target.value)} className="wfd-sel">
         {options.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
-      </select>
+      </Select>
     </div>
   )
 }
@@ -1063,7 +1063,7 @@ function FieldTextarea({ label, value, onChange }: { label: string; value: Valor
   return (
     <div>
       <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={labelStyle}>{label}</label>
-      <textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} rows={3} value={value || ''} onChange={e => onChange(e.target.value)} className={`${inputStyle} wfd-input--mono`} />
+      <textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} rows={3} value={value || ''} onChange={e => onChange(e.target.value)} className={`${inputStyle} wfd-input--mono ds-campo-codigo`} />
     </div>
   )
 }

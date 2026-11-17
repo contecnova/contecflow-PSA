@@ -55,7 +55,7 @@
 .coguym-url {
   flex: 1 1 240px;
   min-width: 0;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 .coguym-fecha {
   padding: 7px 8px;
@@ -75,6 +75,7 @@
   color: var(--text-2);
   display: block;
   margin-bottom: 6px;
-  text-transform: uppercase;
   letter-spacing: 0.06em;
 }
+
+.ui-select--suelto.coguym-sel { width: 100%; }

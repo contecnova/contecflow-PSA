@@ -12,7 +12,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Plus, Trash2 } from 'lucide-react'
 import { invoicesApi } from '../../services/api'
 import type { Factura, LineaDeFactura } from '../../services/api/tipos-finanzas'
-import { Button, IconButton, Modal, Spinner, StatusBadge } from '../ui'
+import { Button, IconButton, Modal, Spinner, StatusBadge, TablaSimple } from '../ui'
 import DateInput from '../ui/DateInput'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
@@ -106,7 +106,7 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
             : <div className="fidefa-txt-1">{f.client_address || '—'}</div>}
         </label>
 
-        <table className="u-table-sm">
+        <TablaSimple claseTabla="u-table-sm">
           <thead><tr className="fidefa-txt-2">
             <th className="fidefa-sp-1">{t('invoices.ficha_concepto')}</th><th className="fidefa-box-1">{t('invoices.ficha_cantidad')}</th>
             <th className="fidefa-box-2">{t('invoices.ficha_unidad')}</th><th className="fidefa-box-3">{t('invoices.ficha_precio')}</th>
@@ -133,7 +133,7 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
               </tr>
             ))}
           </tbody>
-        </table>
+        </TablaSimple>
         {editando && (
           <div>
             <Button size="sm" variant="ghost" icon={<Plus size={14} />} onClick={() => setLineas(v => [...v, { description: '', quantity: 1, unit: 'h', unit_price: 0, discount_pct: 0 }])}>

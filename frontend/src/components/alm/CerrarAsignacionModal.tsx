@@ -5,7 +5,7 @@
  */
 import { useEffect, useId, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Button, Modal } from '../ui'
+import { Button, Modal, GrupoDeOpciones, Select, Checkbox } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { almApi } from '../../services/api/alm'
@@ -58,14 +58,9 @@ export default function CerrarAsignacionModal({ asignacion, onClose }: { asignac
       subtitle={asignacion.resource_name ?? undefined}>
       <div className="u-stack-14">
         {!pendiente && (
-          <div className="almf-titular__tipos" role="radiogroup" aria-label={t('alm.end_kind')}>
-            {opciones.map(k => (
-              <button key={k} type="button" role="radio" aria-checked={tipo === k}
-                className={`almf-chip${tipo === k ? ' almf-chip--on' : ''}`} onClick={() => setTipo(k)}>
-                {t(`alm.end_${k}`)}
-              </button>
-            ))}
-          </div>
+          <GrupoDeOpciones forma="fila" className="almf-titular__tipos" aria-label={t('alm.end_kind')}
+            valor={tipo} onChange={v => setTipo(v as typeof tipo)}
+            opciones={opciones.map(k => ({ valor: k, titulo: t(`alm.end_${k}`) }))} />
         )}
         <p className="alm-hint">{pendiente ? t('alm.cancel_request_hint') : t(`alm.end_${tipo}_hint`)}</p>
         <div>
@@ -79,10 +74,10 @@ export default function CerrarAsignacionModal({ asignacion, onClose }: { asignac
             <div className="almf-rejilla-2">
               <div>
                 <label className="alm-label" htmlFor={`${id}-cond`}>{t('alm.assets_label_condition')}</label>
-                <select id={`${id}-cond`} className="alm-input" value={condicion} onChange={e => setCondicion(e.target.value as Condicion | '')}>
+                <Select suelto placeholder={false} id={`${id}-cond`} className="alm-input" value={condicion} onChange={e => setCondicion(e.target.value as Condicion | '')}>
                   <option value="">{t('alm.condition_keep')}</option>
                   {(['new', 'good', 'fair', 'poor'] as const).map(c => <option key={c} value={c}>{t(`alm.assets_condition_${c}`)}</option>)}
-                </select>
+                </Select>
               </div>
               <div>
                 <label className="alm-label" htmlFor={`${id}-obs`}>{t('alm.observations')}</label>
@@ -90,7 +85,7 @@ export default function CerrarAsignacionModal({ asignacion, onClose }: { asignac
               </div>
             </div>
             <label className="alm-check-row">
-              <input type="checkbox" checked={aReparar} onChange={e => setAReparar(e.target.checked)} />
+              <Checkbox checked={aReparar} onChange={(_, e) => setAReparar(e.target.checked)} />
               <span className="alm-check-label">{t('alm.return_to_repair')}</span>
             </label>
           </div>

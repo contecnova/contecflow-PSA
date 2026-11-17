@@ -8,7 +8,7 @@ import { tasksApi, projectsApi, sprintsApi, absencesApi, unwrapList } from '../s
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Calendar, ChevronLeft, ChevronRight, ListChecks, Flag, RefreshCw, Palmtree, FileText, KeyRound } from 'lucide-react'
-import { Button, IconButton } from '../components/ui'
+import { Button, IconButton, Select } from '../components/ui'
 import { useAppLang } from '../i18n/AppLangContext'
 import { localeActivo } from '../utils/helpers'
 import { CALENDAR_ABSENCES_LIMIT, CALENDAR_SPRINTS_LIMIT, CALENDAR_TASKS_LIMIT } from '../constants/pagination'
@@ -165,10 +165,10 @@ export default function CalendarPage(): JSX.Element {
         {/* Filtro por tipo */}
         <div className="u-row-center-8">
           <label htmlFor={`${idFiltro}-tipo`} className="u-text2-sm">{t('calendar.filter_label')}</label>
-          <select id={`${idFiltro}-tipo`} value={filter} onChange={e => setFilter(e.target.value as 'all' | EventType)} className="ds-input cal-filtro">
+          <Select suelto placeholder={false} id={`${idFiltro}-tipo`} value={filter} onChange={e => setFilter(e.target.value as 'all' | EventType)} className="ds-input cal-filtro">
             <option value="all">{t('calendar.filter_all')}</option>
             {(Object.keys(EVENT_TYPES) as EventType[]).map(k => <option key={k} value={k}>{t(EVENT_TYPES[k].labelKey)}</option>)}
-          </select>
+          </Select>
         </div>
       </div>
 

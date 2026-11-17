@@ -9,7 +9,7 @@
   font-size: var(--text-xs);
   font-weight: 700;
   color: var(--text-3);
-  text-transform: uppercase;
+
   letter-spacing: .07em;
   border-bottom: 1px solid var(--surface-4);
   display: flex;

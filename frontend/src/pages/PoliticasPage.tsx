@@ -14,7 +14,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
 import { FileText, Plus, Scale, Sparkles, Table2 } from 'lucide-react'
 import { politicasApi } from '../services/api'
-import { Button, EmptyState, Page, Spinner, Tabs } from '../components/ui'
+import { Button, EmptyState, Page, Spinner, Tabs, Pulsable } from '../components/ui'
 import { extractErr } from '../utils/helpers'
 import EditorDePolitica from '../components/politicas/EditorDePolitica'
 import EditorDeTablas from '../components/politicas/EditorDeTablas'
@@ -85,13 +85,13 @@ function Lista({ dominio, onAbrir, onNueva }: { dominio: string; onAbrir: (id: s
   return (
     <div className="pol-lista">
       {items.map(p => (
-        <button key={p.familia_id} type="button" className="pol-item" onClick={() => onAbrir(p.id)}>
+        <Pulsable key={p.familia_id} className="pol-item" onClick={() => onAbrir(p.id)}>
           <span><strong>{p.nombre}</strong> <span className="pol-ayuda">{p.descripcion}</span></span>
           <span className={`pol-chip pol-chip--${p.estado}`}>{t(`pol.estado_${p.estado}`)} · v{p.version}
             {p.version_publicada && p.version_publicada !== p.version ? ` · ${t('pol.publicada_v', { v: p.version_publicada })}` : ''}</span>
           <span className="pol-chip">{t('pol.prioridad')} {p.prioridad}</span>
           <span className="pol-chip">{p.activa ? t('pol.activa') : t('pol.desactivada')}</span>
-        </button>
+        </Pulsable>
       ))}
     </div>
   )

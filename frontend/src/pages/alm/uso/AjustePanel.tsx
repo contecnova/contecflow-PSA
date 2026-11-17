@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDownRight, Check, Coins, Layers3, Plus, Trash2, X } from 'lucide-react'
-import { Button, DataTable, EmptyState, KpiCard, Modal, Section, Spinner } from '../../../components/ui'
+import { Button, DataTable, EmptyState, KpiCard, Modal, Section, Spinner, Select, Checkbox } from '../../../components/ui'
 import type { ColumnaDeTabla } from '../../../components/ui'
 import { confirmar, pedirTexto } from '../../../context/ConfirmContext'
 import { useToast } from '../../../context/ToastContext'
@@ -40,25 +40,25 @@ function EditorDeRegla({ borrador, onClose }: { borrador: Borrador; onClose: () 
       <div className="u-stack-14">
         <div className="u-grid2-12">
           <label className="almu-campo">{t('alm_uso.licencia_superior')}
-            <select className="alm-input" value={b.license_superior_id} onChange={e => setB({ ...b, license_superior_id: e.target.value })}>
+            <Select suelto placeholder={false} className="alm-input" value={b.license_superior_id} onChange={e => setB({ ...b, license_superior_id: e.target.value })}>
               <option value="">{t('alm_uso.elige')}</option>
               {licencias.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
+            </Select>
           </label>
           <label className="almu-campo">{t('alm_uso.licencia_inferior')}
-            <select className="alm-input" value={b.license_inferior_id} onChange={e => setB({ ...b, license_inferior_id: e.target.value })}>
+            <Select suelto placeholder={false} className="alm-input" value={b.license_inferior_id} onChange={e => setB({ ...b, license_inferior_id: e.target.value })}>
               <option value="">{t('alm_uso.elige')}</option>
               {licencias.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
+            </Select>
           </label>
         </div>
-        <fieldset className="almu-servicios">
+        <fieldset className="ds-grupo-opciones almu-servicios">
           <legend>{t('alm_uso.servicios_que_justifican')}</legend>
           <p className="u-text2-xs">{t('alm_uso.servicios_ayuda')}</p>
           <div className="almu-chips">
             {SERVICIOS.map(s => (
               <label key={s} className="almu-check">
-                <input type="checkbox" checked={b.servicios.includes(s)} onChange={() => alternar(s)} />
+                <Checkbox checked={b.servicios.includes(s)} onChange={() => alternar(s)} />
                 {etiquetaCodigo(t, 'alm_uso.servicio', s)}
               </label>
             ))}
@@ -68,7 +68,7 @@ function EditorDeRegla({ borrador, onClose }: { borrador: Borrador; onClose: () 
           <input className="alm-input" value={b.notas} onChange={e => setB({ ...b, notas: e.target.value })} />
         </label>
         <label className="almu-check">
-          <input type="checkbox" checked={b.activa} onChange={e => setB({ ...b, activa: e.target.checked })} />{t('alm_uso.regla_activa')}
+          <Checkbox checked={b.activa} onChange={(_, e) => setB({ ...b, activa: e.target.checked })} />{t('alm_uso.regla_activa')}
         </label>
         <div className="u-row-end almu-acciones">
           <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>

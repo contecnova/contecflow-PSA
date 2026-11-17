@@ -16,7 +16,7 @@ import { useToast } from '../context/ToastContext'
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, expensesApi, gastosApi } from '../services/api'
 import type { FiltrosDeGastos, GastoConPoliticas } from '../services/api/gastos'
-import { Button, Modal, Spinner, EmptyState, useSort, SortableTH, SearchInput, FilterSelect, KpiCard, Tabs, IconButton } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, useSort, SortableTH, SearchInput, FilterSelect, KpiCard, Tabs, IconButton, Pulsable, Select, Checkbox } from '../components/ui'
 import Pagination from '../components/ui/Pagination'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -126,9 +126,9 @@ function ExpenseRow({ expense, onAction, isManager }: { expense: Expense; onActi
       <span className="u-text3-mono-xs" role="cell">{expense.code}</span>
       <span role="cell"><CatBadge cat={expense.category || ''} /></span>
       <div role="cell">
-        <button type="button" onClick={() => setDetalle(true)} title={t('gas.abrir_detalle')} className="exp-descripcion">
+        <Pulsable type="button" onClick={() => setDetalle(true)} title={t('gas.abrir_detalle')} className="exp-descripcion">
           {expense.description}
-        </button>
+        </Pulsable>
         {' '}<IndicadorDePolitica resumen={expense.policy_summary} />
         <div className="u-text2-xs-mt2">
           {expense.project_name || t('expenses.sin_proyecto')} · {fmtDate(expense.expense_date)}
@@ -270,16 +270,16 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
         </div>
         <div className="ds-field">
           <label htmlFor={id('cat')} className="ds-field__label">{t('expenses.category')}</label>
-          <select id={id('cat')} value={form.category} onChange={set('category')} className="ds-input">
+          <Select suelto placeholder={false} id={id('cat')} value={form.category} onChange={set('category')} className="ds-input">
             {Object.keys(CATEGORIES).map(v => <option key={v} value={v}>{categoria(v)}</option>)}
-          </select>
+          </Select>
         </div>
         <div className="ds-field">
           <label htmlFor={id('proy')} className="ds-field__label">{t('expenses.proyecto')}</label>
-          <select id={id('proy')} value={form.project_id} onChange={set('project_id')} className="ds-input">
+          <Select suelto placeholder={false} id={id('proy')} value={form.project_id} onChange={set('project_id')} className="ds-input">
             <option value="">{t('expenses.sin_proyecto')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-          </select>
+          </Select>
         </div>
         <div className="ds-field">
           <label htmlFor={id('imp')} className="ds-field__label">{t('expenses.importe_obligatorio')}</label>
@@ -292,9 +292,9 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
         </div>
         <div className="ds-field">
           <label htmlFor={id('mon')} className="ds-field__label">{t('expenses.currency')}</label>
-          <select id={id('mon')} value={form.currency} onChange={set('currency')} className="ds-input">
+          <Select suelto placeholder={false} id={id('mon')} value={form.currency} onChange={set('currency')} className="ds-input">
             {monedasDeLaEmpresa.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
+          </Select>
         </div>
         <div className="ds-field">
           <label htmlFor={id('fecha')} className="ds-field__label">{t('expenses.fecha_del_gasto')}</label>
@@ -302,10 +302,10 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
         </div>
         <div className="ds-field">
           <label htmlFor={id('pais')} className="ds-field__label">{t('gas.pais')}</label>
-          <select id={id('pais')} value={form.country} onChange={set('country')} className="ds-input">
+          <Select suelto placeholder={false} id={id('pais')} value={form.country} onChange={set('country')} className="ds-input">
             <option value="">{t('gas.sin_pais')}</option>
             {paises.map(c => <option key={c} value={c}>{nombreDePais(c, lang)} ({c})</option>)}
-          </select>
+          </Select>
         </div>
         <div className="ds-field">
           <label htmlFor={id('ciudad')} className="ds-field__label">{t('gas.ciudad')}</label>
@@ -328,7 +328,7 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
           <span id={id('viaje-ayuda')} className="ds-field__hint">{t('gas.viaje_ayuda')}</span>
         </div>
         <div className="exp-check">
-          <input type="checkbox" id={id('fact')} checked={form.is_billable} onChange={e => setForm(f => ({ ...f, is_billable: e.target.checked }))} />
+          <Checkbox id={id('fact')} checked={form.is_billable} onChange={(_, e) => setForm(f => ({ ...f, is_billable: e.target.checked }))} />
           <label htmlFor={id('fact')}>{t('expenses.gasto_facturable_al_cliente')}</label>
         </div>
         <div className="u-col-full ds-field">
@@ -619,15 +619,15 @@ function TeamExpenses() {
     <div>
       <div className="exp-filtros">
         <label htmlFor={`${idCampo}-proy`} className="u-sr-only">{t('expenses.proyecto')}</label>
-        <select id={`${idCampo}-proy`} value={projectFilter} onChange={e => { setProjectFilter(e.target.value); lista.setPage(1) }} className="ds-input exp-select">
+        <Select suelto placeholder={false} id={`${idCampo}-proy`} value={projectFilter} onChange={e => { setProjectFilter(e.target.value); lista.setPage(1) }} className="ds-input exp-select">
           <option value="">{t('expenses.todos_los_proyectos')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-        </select>
+        </Select>
         <label htmlFor={`${idCampo}-est`} className="u-sr-only">{t('expenses.estado')}</label>
-        <select id={`${idCampo}-est`} value={statusFilter} onChange={e => { setStatusFilter(e.target.value); lista.setPage(1) }} className="ds-input exp-select">
+        <Select suelto placeholder={false} id={`${idCampo}-est`} value={statusFilter} onChange={e => { setStatusFilter(e.target.value); lista.setPage(1) }} className="ds-input exp-select">
           <option value="">{t('expenses.todos_los_estados')}</option>
           {Object.keys(STATUSES).map(v => <option key={v} value={v}>{estado(v)}</option>)}
-        </select>
+        </Select>
       </div>
 
       <div className="ds-grid-stats exp-kpis-equipo">

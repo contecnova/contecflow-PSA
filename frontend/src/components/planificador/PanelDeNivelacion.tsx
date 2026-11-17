@@ -8,7 +8,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Scale } from 'lucide-react'
 import { planificacionApi, usersApi } from '../../services/api'
-import { Button, EmptyState, KpiCard, Spinner } from '../ui'
+import { Button, EmptyState, KpiCard, Spinner, TablaSimple, Checkbox } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr, fmtDate } from '../../utils/helpers'
@@ -66,7 +66,7 @@ export default function PanelDeNivelacion({ projectId }: { projectId: string }) 
       ) : (
         <div className="plan-card plan-stack">
           <div className="plan-tabla-scroll">
-            <table className="plan-tabla">
+            <TablaSimple claseTabla="plan-tabla">
               <thead>
                 <tr>
                   <th /><th>{t('planificador.col_tarea')}</th><th>{t('planificador.col_persona')}</th>
@@ -77,7 +77,7 @@ export default function PanelDeNivelacion({ projectId }: { projectId: string }) 
               <tbody>
                 {prop.moves.map(m => (
                   <tr key={m.task_id}>
-                    <td><input type="checkbox" aria-label={m.title} checked={marcadas.has(m.task_id)} onChange={() => conmutar(m.task_id)} /></td>
+                    <td><Checkbox aria-label={m.title} checked={marcadas.has(m.task_id)} onChange={() => conmutar(m.task_id)} /></td>
                     <td>{m.code} {m.title}</td>
                     <td>{(m.assignee_id && nombre[m.assignee_id]) || '—'}</td>
                     <td>{fmtDate(m.old_start)} – {fmtDate(m.old_due)}</td>
@@ -86,7 +86,7 @@ export default function PanelDeNivelacion({ projectId }: { projectId: string }) 
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </TablaSimple>
           </div>
           <div className="plan-row">
             <Button size="sm" loading={aplicar.isPending} onClick={() => aplicar.mutate(undefined)}>{t('planificador.aplicar_todo')}</Button>

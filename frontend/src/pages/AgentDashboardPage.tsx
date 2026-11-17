@@ -3,7 +3,7 @@ import type { ReactElement } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { usersApi, cmdbApi, type UserListItem } from '../services/api'
-import { Spinner, Page, KpiCard, EmptyState, SelectorDePeriodo } from '../components/ui'
+import { Spinner, Page, KpiCard, EmptyState, SelectorDePeriodo, Select } from '../components/ui'
 import { usePeriodo } from '../hooks/usePeriodo'
 import { CON_HORA, codigoDeErrorDePeriodo, formatearTramo } from '../utils/periodo'
 import { useAppT } from '../i18n/AppLangContext'
@@ -67,10 +67,10 @@ export default function AgentDashboardPage(): JSX.Element {
         <div className="agd-filters">
           <div className="ds-field">
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('agent_dashboard.agent')}</label>
-            <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={agentId} onChange={e => setAgentId(e.target.value)} className="ds-input">
+            <Select suelto placeholder={false} id={`${idCampo}-1`} value={agentId} onChange={e => setAgentId(e.target.value)} className="ds-input">
               <option value="">{t('agent_dashboard.select_agent')}</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-            </select>
+            </Select>
           </div>
           <div className="ds-field">
             <span className="ds-field__label">{t('agent_dashboard.period')}</span>

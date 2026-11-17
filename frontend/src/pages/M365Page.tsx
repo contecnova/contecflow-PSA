@@ -18,7 +18,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { CalendarDays, CalendarPlus, LayoutGrid, MessageSquare, RefreshCw, Send, Settings, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
-import { Button, Card, Input, Section, Table, Tabs } from '../components/ui'
+import { Button, Card, Input, Pulsable, Section, Table, Tabs } from '../components/ui'
 import DsBadge from '../components/ui/StatusBadge'
 import { POLL_FREQUENT_MS } from '../constants/timings'
 import './M365Page.css'
@@ -180,12 +180,12 @@ function TeamsTab() {
             <div className="ui-field">
               <label htmlFor="m365-color" className="uiinde-estiloetiqueta">{t('m365.color_hex_sin')}</label>
               <div className="u-row-center-8">
-                <input id="m365-color" value={color} onChange={e => setColor(e.target.value)} className="ds-input m365-color" placeholder="0078D4" />
+                <input id="m365-color" value={color} onChange={e => setColor(e.target.value)} className="ds-input m365-color ds-campo-codigo" placeholder="0078D4" />
                 {TEAMS_BRAND_PRESETS.map(c => (
-                  <button type="button" key={c} onClick={() => setColor(c)}
+                  <Pulsable key={c} onClick={() => setColor(c)}
                     aria-label={t('pagina_m365.color_de_marca_teams', { c })} title={t('pagina_m365.color_de_marca_teams', { c })}
                     aria-pressed={color === c}
-                    className="m365-muestra" style={{ '--m365-muestra': `#${c}` } as CSSProperties} />
+                    className="m365-muestra" style={{ '--m365-muestra': `#${c}` } as CSSProperties}>{null}</Pulsable>
                 ))}
               </div>
             </div>
@@ -210,7 +210,7 @@ function TeamsTab() {
             <li>{t('m365.una_aprobacion_queda_pendiente_por_mas_de')}</li>
           </ul>
           <p className="m365-nota">
-            {t('m365.estas_se_activan_via_las')} <strong>{t('pagina_m365.automatizaciones')}</strong> {t('m365.o_mediante_el_endpoint')} <code>POST {apiUrl('/m365/teams/notify-project')}</code>.
+            {t('m365.estas_se_activan_via_las')} <strong>{t('pagina_m365.automatizaciones')}</strong> {t('m365.o_mediante_el_endpoint')} <code className="ds-codigo">POST {apiUrl('/m365/teams/notify-project')}</code>.
           </p>
         </Section>
       </Card>
@@ -253,7 +253,7 @@ function ConfigTab({ status }: { status?: EstadoM365 | null }) {
                 <div className="u-stack-6 u-min0">
                   <span className="m365-paso__titulo">{s.title}</span>
                   <span className="m365-paso__desc">{s.desc}</span>
-                  {s.code && <pre className="m365-codigo">{s.code}</pre>}
+                  {s.code && <pre className="ds-codigo m365-codigo">{s.code}</pre>}
                 </div>
               </li>
             ))}
@@ -270,7 +270,7 @@ function ConfigTab({ status }: { status?: EstadoM365 | null }) {
               { perm: 'ChannelMessage.Send', type: 'Application', desc: t('pagina_m365.enviar_mensajes_a_canales_de_teams') },
             ]}
             columns={[
-              { key: 'perm', label: t('pagina_m365.permiso'), render: (_v, r) => <code className="m365-permiso">{r.perm}</code> },
+              { key: 'perm', label: t('pagina_m365.permiso'), render: (_v, r) => <code className="ds-codigo m365-permiso">{r.perm}</code> },
               { key: 'type', label: t('pagina_m365.tipo'), render: (_v, r) => <span className="u-text2">{r.type}</span> },
               { key: 'desc', label: t('pagina_m365.funcionalidad'), render: (_v, r) => <span className="u-text2">{r.desc}</span> },
             ]}

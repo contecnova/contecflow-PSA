@@ -71,6 +71,5 @@
   color: var(--text-2);
   display: block;
   margin-bottom: 5px;
-  text-transform: uppercase;
   letter-spacing: 0.06em;
 }

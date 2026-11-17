@@ -26,7 +26,7 @@ import type { FechaSugerida } from '../services/api/tipos-analitica'
 import { useToast } from '../context/ToastContext'
 import { AlertTriangle, Check, CheckCircle2, Lightbulb, Sparkles, X, RefreshCw } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
-import { Button, useDialogo } from './ui'
+import { Button, Checkbox, IconButton, useDialogo } from './ui'
 import DateInput from './ui/DateInput'
 import { SCHEDULE_TASKS_LIST_SIZE } from '../constants/pagination'
 import './SmartScheduleModal.css'
@@ -179,10 +179,10 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
               {unscheduledCount > 0 && <> · {unscheduledCount} {traducir('smartschedulemodal.sin_planificar')}</>}
             </div>
           </div>
-          <button type="button" onClick={onClose} aria-label={traducir('common.close')} title={traducir('common.close')}
+          <IconButton onClick={onClose} ariaLabel={traducir('common.close')} title={traducir('common.close')}
             className="smscmo-box-2">
             <X size={18} aria-hidden />
-          </button>
+          </IconButton>
         </div>
 
         {/* Controls */}
@@ -222,11 +222,9 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
             <>
               {/* Header row */}
               <div className="smscmo-grid-1">
-                <input
-                  type="checkbox" checked={allSelected}
+                <Checkbox checked={allSelected}
                   aria-label={traducir('smartschedulemodal.seleccionar_deseleccionar_todas')}
-                  onChange={_toggleAll}
-                  title={traducir('smartschedulemodal.seleccionar_deseleccionar_todas')}
+                  onChange={() => _toggleAll()}
                 />
                 <div>{traducir('smartschedulemodal.tarea_razon_ia')}</div>
                 <div>{traducir('smartschedulemodal.inicio')}</div>
@@ -235,8 +233,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
 
               {suggestions.map((s, idx) => (
                 <div key={s.task_id || idx} className="smscmo-grid-2">
-                  <input
-                    type="checkbox" checked={!!s._selected}
+                  <Checkbox checked={!!s._selected}
                     aria-label={s._title}
                     onChange={() => _toggle(idx)}
                     disabled={isApplying}

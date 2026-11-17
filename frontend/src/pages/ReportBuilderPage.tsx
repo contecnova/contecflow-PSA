@@ -26,7 +26,7 @@ import {
 } from 'lucide-react'
 import { localeActivo } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
-import { Button, Card, EmptyState, Table, Tabs } from '../components/ui'
+import { Button, Card, EmptyState, Table, Tabs, Select, IconButton, Pulsable, TablaSimple, Checkbox } from '../components/ui'
 import { useToast } from '../context/ToastContext'
 import { STALE_DEFAULT_MS } from '../constants/timings'
 import { REPORT_BUILDER_ROW_LIMIT } from '../constants/pagination'
@@ -73,7 +73,7 @@ function EntityPicker({ id, entities, groups, value, onChange }: { id: string; e
   ]
 
   return (
-    <select id={id} className="ds-input" value={value} onChange={onChange}>
+    <Select suelto placeholder={false} id={id} value={value} onChange={onChange}>
       <option value="">{traducir('constructor_informes_ui.selecciona_entidad')}</option>
       {sortedGroups.map(gk => (
         <optgroup key={gk} label={groups?.[gk] || gk}>
@@ -82,7 +82,7 @@ function EntityPicker({ id, entities, groups, value, onChange }: { id: string; e
           ))}
         </optgroup>
       ))}
-    </select>
+    </Select>
   )
 }
 
@@ -133,8 +133,8 @@ function ColumnPanel({ entityDef, selected, onToggle, onSelectAll, onDeselectAll
           placeholder={traducir('constructor_informes_ui.buscar_campos')}
         />
         {search && (
-          <button className="rb-buscar__limpiar" type="button" aria-label={traducir('constructor_informes_ui.limpiar_busqueda')}
-            onClick={() => setSearch('')}><X size={13} aria-hidden /></button>
+          <IconButton className="rb-buscar__limpiar" type="button" ariaLabel={traducir('constructor_informes_ui.limpiar_busqueda')}
+            onClick={() => setSearch('')}><X size={13} aria-hidden /></IconButton>
         )}
       </div>
 
@@ -153,15 +153,10 @@ function ColumnPanel({ entityDef, selected, onToggle, onSelectAll, onDeselectAll
         {filtered.map(([key, col]) => {
           const marcada = selected.includes(key)
           return (
-            <label className={`rb-columna${marcada ? ' rb-columna--marcada' : ''}`} key={key}>
-              <input className="rb-check"
-                type="checkbox"
-                checked={marcada}
-                onChange={() => onToggle(key)}
-              />
-              <span className="rb-columna__nombre">{col.label}</span>
-              <span className="rb-columna__tipo">{col.type}</span>
-            </label>
+            <Checkbox className={`rb-columna${marcada ? ' rb-columna--marcada' : ''}`} key={key}
+              checked={marcada}
+              onChange={() => onToggle(key)}
+              label={<><span className="rb-columna__nombre">{col.label}</span><span className="rb-columna__tipo">{col.type}</span></>} />
           )
         })}
       </div>
@@ -218,13 +213,13 @@ function FilterRow({ filter, index, entityDef, operators, onChange, onRemove }: 
   return (
     <div className="rb-filtro">
       <div className="rb-filtro__campos">
-        <select className="ds-input" aria-label={traducir('constructor_informes_ui.campo_filtro')} value={filter.column} onChange={set('column')}>
+        <Select suelto placeholder={false} aria-label={traducir('constructor_informes_ui.campo_filtro')} value={filter.column} onChange={set('column')}>
           <option value="">{traducir('constructor_informes_ui.campo')}</option>
           {Object.entries(cols).map(([k, c]) => <option key={k} value={k}>{c.label}</option>)}
-        </select>
-        <select className="ds-input" aria-label={traducir('constructor_informes_ui.operador')} value={filter.operator} onChange={set('operator')}>
+        </Select>
+        <Select suelto placeholder={false} aria-label={traducir('constructor_informes_ui.operador')} value={filter.operator} onChange={set('operator')}>
           {Object.entries(operators || {}).map(([k, o]) => <option key={k} value={k}>{o.label}</option>)}
-        </select>
+        </Select>
         {needsValue && (
           <input className="ds-input"
             aria-label={traducir('reportbuilder.valor_del_filtro')}
@@ -234,7 +229,7 @@ function FilterRow({ filter, index, entityDef, operators, onChange, onRemove }: 
           />
         )}
       </div>
-      <button className="rb-icono" type="button" aria-label={traducir('constructor_informes_ui.quitar_filtro')} title={traducir('constructor_informes_ui.quitar_filtro')} onClick={() => onRemove(index)}><X size={14} aria-hidden /></button>
+      <IconButton className="rb-icono" type="button" ariaLabel={traducir('constructor_informes_ui.quitar_filtro')} title={traducir('constructor_informes_ui.quitar_filtro')} onClick={() => onRemove(index)}><X size={14} aria-hidden /></IconButton>
     </div>
   )
 }
@@ -313,9 +308,9 @@ function BiPresetsTab() {
         <>
           <div className="rb-presets">
             {items.slice(0, 16).map(p => (
-              <button className={`rb-preset${selected === p.id ? ' rb-preset--activo' : ''}`} type="button" aria-pressed={selected === p.id} key={p.id} onClick={() => setSelected(p.id)}>
+              <Pulsable className={`rb-preset${selected === p.id ? ' rb-preset--activo' : ''}`} type="button" aria-pressed={selected === p.id} key={p.id} onClick={() => setSelected(p.id)}>
                 {p.name}
-              </button>
+              </Pulsable>
             ))}
             {items.length > 16 && <span className="rb-nota">+{items.length - 16} {traducir('reportbuilder.mas')}</span>}
           </div>
@@ -331,7 +326,7 @@ function BiPresetsTab() {
       )}
       {previewData && (
         <div className="u-scroll-x">
-          <table className="rb-tabla">
+          <TablaSimple claseTabla="rb-tabla">
             <thead>
               <tr>
                 {previewData.columns.map(c => (
@@ -349,7 +344,7 @@ function BiPresetsTab() {
                 <tr><td className="rb-td rb-td--vacia" colSpan={previewData.columns.length || 1}>{traducir('reportbuilder.sin_datos_para_este_preset')}</td></tr>
               )}
             </tbody>
-          </table>
+          </TablaSimple>
         </div>
       )}
     </Card>
@@ -580,20 +575,20 @@ export default function ReportBuilderPage() {
                 <div className="ui-field">
                   <label className="uiinde-estiloetiqueta" htmlFor={`${idGrupo}-orden`}>{traducir('reportbuilder.ordenar_por')}</label>
                   <div className="rb-orden-campos">
-                    <select id={`${idGrupo}-orden`} className="ds-input"
+                    <Select suelto placeholder={false} id={`${idGrupo}-orden`}
                       value={sort.column}
                       onChange={e => setSort(s => ({ ...s, column: e.target.value }))}>
                       <option value="">{traducir('reportbuilder.sin_orden')}</option>
                       {Object.entries(entityDef.columns).map(([k, c]) =>
                         <option key={k} value={k}>{c.label}</option>
                       )}
-                    </select>
-                    <select className="ds-input" aria-label={traducir('constructor_informes_ui.orden_direccion')}
+                    </Select>
+                    <Select suelto placeholder={false} aria-label={traducir('constructor_informes_ui.orden_direccion')}
                       value={sort.direction}
                       onChange={e => setSort(s => ({ ...s, direction: e.target.value }))}>
                       <option value="asc">{traducir('constructor_informes_ui.asc')}</option>
                       <option value="desc">{traducir('constructor_informes_ui.desc')}</option>
-                    </select>
+                    </Select>
                   </div>
                 </div>
               </>

@@ -32,7 +32,7 @@ import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { useChartTheme } from '../../charts/useChartTheme'
 import { BarChart3, CheckCircle2, Sparkles, UserCheck } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { Card, Button, Spinner, EmptyState, Section } from '../ui'
+import { Card, Button, Select, Spinner, EmptyState, Section } from '../ui'
 import StatusBadge from '../ui/StatusBadge'
 import { POLL_FREQUENT_MS } from '../../constants/timings'
 import './IncidentAssignmentPanel.css'
@@ -127,12 +127,12 @@ export default function IncidentAssignmentPanel() {
             <div className="iap-fila">
               <div className="ui-field iap-fila__campo">
                 <label htmlFor={`${id}-prio`} className="campo-etiqueta">{t('service_desk.ticket_priority')}</label>
-                <select id={`${id}-prio`} value={priority} onChange={e => setPriority(e.target.value)} className="campo-form">
+                <Select suelto placeholder={false} id={`${id}-prio`} value={priority} onChange={e => setPriority(e.target.value)} className="campo-form">
                   <option value="p1_critical">{t('service_desk.priority_p1')}</option>
                   <option value="p2_high">{t('service_desk.priority_p2')}</option>
                   <option value="p3_medium">{t('service_desk.priority_p3')}</option>
                   <option value="p4_low">{t('service_desk.priority_p4')}</option>
-                </select>
+                </Select>
               </div>
               <Button
                 icon={<Sparkles size={14} />}

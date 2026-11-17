@@ -10,7 +10,7 @@ import { projectsApi } from '../services/api';
 import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Clock, DollarSign, Target, BarChart2, ChevronRight } from 'lucide-react';
 import PageHeader from '../components/layout/PageHeader';
 import PageShell from '../components/layout/PageShell'
-import { useDialogo, KpiCard, EmptyState, Spinner, Button } from '../components/ui';
+import { useDialogo, KpiCard, EmptyState, Spinner, Button, TablaSimple } from '../components/ui';
 import { useAppT } from '../i18n/AppLangContext';
 import { localeActivo, fmtDate } from '../utils/helpers';
 
@@ -252,7 +252,7 @@ export default function EVMPage(): JSX.Element {
         <EmptyState icon={<BarChart2 size={28} />} title={t('evm.sin_proyectos_activos_con_datos_suficientes')} />
       ) : (
         <div className="evm-card-6">
-          <table className="evm-table">
+          <TablaSimple claseTabla="evm-table">
             <thead>
               <tr className="evm-row-6">
                 {[t('pagina_evm.estado'), t('pagina_evm.proyecto'), t('pagina_evm.hecho'), 'BAC', 'EV', 'AC', 'CPI', 'SPI', 'EAC', ''].map((h, i) => (
@@ -301,7 +301,7 @@ export default function EVMPage(): JSX.Element {
                 );
               })}
             </tbody>
-          </table>
+          </TablaSimple>
         </div>
       )}
 

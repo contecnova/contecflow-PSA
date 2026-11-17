@@ -133,7 +133,7 @@
 }
 
 .imput-label-4 {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   margin-left: 4px;
 }
 
@@ -148,7 +148,6 @@
   font-size: var(--text-sm);
   font-weight: 700;
   color: var(--text-2);
-  text-transform: uppercase;
   letter-spacing: 0.07em;
   display: block;
   margin-bottom: 8px;
@@ -206,7 +205,6 @@
   font-size: 12px;
   font-weight: 700;
   color: var(--text-2);
-  text-transform: uppercase;
   letter-spacing: 0.07em;
   display: block;
   margin-bottom: var(--space-2);
@@ -308,7 +306,7 @@
 
 .imput-input-5 {
   width: 16px;
-  height: 16px;
+  min-height: 16px;
   accent-color: var(--warning);
   cursor: pointer;
   margin-top: 2px;
@@ -404,7 +402,7 @@
 .imput-input-8 {
   accent-color: var(--accent);
   width: 14px;
-  height: 14px;
+  min-height: 14px;
   cursor: pointer;
 }
 
@@ -438,7 +436,7 @@
 }
 
 .imput-label-14 {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   color: var(--accent);
   font-weight: 700;
 }
@@ -472,7 +470,7 @@
 }
 
 .imput-label-15 {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   color: var(--accent);
   margin-left: 8px;
 }
@@ -556,7 +554,7 @@
 .imputar-dia {
   border-radius: 8px;
   padding: 12px 4px;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--text-base);
   font-weight: 700;
   position: relative;

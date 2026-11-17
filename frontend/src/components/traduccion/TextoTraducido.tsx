@@ -16,6 +16,7 @@ import { useAppLang } from '../../i18n/AppLangContext'
 import { motivoDeTraduccion, nombreDeIdioma } from '../../hooks/useTraduccion'
 import type { MensajeTraducido } from '../../services/api/traduccion'
 import './traduccion.css'
+import { Pulsable } from '../ui'
 
 interface Props {
   /** El texto guardado (lo que escribió el cliente o lo que recibió). */
@@ -70,9 +71,9 @@ export default function TextoTraducido({ original, traduccion, className, cargan
       <div className="trad-marca">
         <Languages size={12} aria-hidden="true" />
         <span>{marca}</span>
-        <button type="button" className="trad-enlace" aria-pressed={verOriginal} onClick={() => setVerOriginal(v => !v)}>
+        <Pulsable className="trad-enlace" aria-pressed={verOriginal} onClick={() => setVerOriginal(v => !v)}>
           {alternar}
-        </button>
+        </Pulsable>
       </div>
     </div>
   )

@@ -16,7 +16,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { meetingsAIApi } from '../services/api'
-import { Button, Card, EmptyState, FormField, Input, KpiCard, Modal, Section, Select, Spinner } from '../components/ui'
+import { Button, Card, EmptyState, FormField, Input, KpiCard, Modal, Pulsable, Section, Select, Spinner } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -177,7 +177,7 @@ export default function MeetingsAIPage() {
                 const activa = selected === m.id
                 return (
                   <li key={m.id}>
-                    <button type="button" onClick={() => setSelected(m.id)} aria-pressed={activa}
+                    <Pulsable onClick={() => setSelected(m.id)} aria-pressed={activa}
                       className={`meet-item${activa ? ' meet-item--activa' : ''}`}>
                       <div className="meet-item__cab">
                         <span className="meet-item__icono">{plat.icon}</span>
@@ -195,7 +195,7 @@ export default function MeetingsAIPage() {
                           <span className="meet-item__dato meet-item__dato--ok">{m.created_actions} {t('meetings_ai.created_label')}</span>
                         )}
                       </div>
-                    </button>
+                    </Pulsable>
                   </li>
                 )
               })}

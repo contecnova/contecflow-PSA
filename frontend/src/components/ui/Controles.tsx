@@ -129,6 +129,10 @@ export interface PulsableProps {
   'aria-controls'?: string
   'aria-current'?: boolean | 'page' | 'step' | 'true' | 'false'
   'aria-haspopup'?: boolean | 'menu' | 'listbox' | 'dialog'
+  /** Papel ARIA cuando no es un botón simple: elemento de menú, opción de lista… */
+  role?: 'menuitem' | 'menuitemradio' | 'menuitemcheckbox' | 'option' | 'tab' | 'radio' | 'switch' | 'listitem'
+  'aria-selected'?: boolean
+  'aria-checked'?: boolean
   /** Marcas para tours y pruebas. */
   [atributoData: `data-${string}`]: string | undefined
 }

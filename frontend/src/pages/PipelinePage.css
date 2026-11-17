@@ -9,7 +9,6 @@
 .pipe-box {
   font-size: var(--text-xs);
   color: var(--text-2);
-  text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-bottom: 10px;
 }
@@ -42,7 +41,6 @@
 .pipe-box-3 {
   font-size: var(--text-2xs);
   color: var(--text-3);
-  text-transform: uppercase;
   letter-spacing: 0.07em;
   margin-bottom: 3px;
 }
@@ -120,7 +118,7 @@
 .pipe-card-3 {
   white-space: pre-wrap;
   word-break: break-word;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--text-sm);
   line-height: 1.7;
   color: var(--text-1);
@@ -168,7 +166,6 @@
   font-size: var(--text-sm);
   font-weight: 800;
   letter-spacing: 0.05em;
-  text-transform: uppercase;
 }
 
 .pipe-grid-7 {
@@ -258,7 +255,6 @@
 .pipe-label-2 {
   font-size: var(--text-xs);
   color: var(--text-3);
-  text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 
@@ -361,7 +357,6 @@
   font-size: var(--text-xs);
   font-weight: 700;
   color: var(--text-2);
-  text-transform: uppercase;
   letter-spacing: 0.07em;
   margin-bottom: 6px;
   display: block;

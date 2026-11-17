@@ -7,7 +7,7 @@ import { type CSSProperties, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { leccionesApi } from '../../services/api'
-import { Button } from '../ui'
+import { Button, Pulsable } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import FormularioDeLeccion from './FormularioDeLeccion'
 import FichaDeLeccion, { ColorDeEstado } from './FichaDeLeccion'
@@ -38,11 +38,11 @@ export default function LeccionesDeOrigen({ id, origen = 'project', cerrado = fa
         )}
         {lista.length === 0 ? <div className="u-text3-sm">{t('lec.ninguna_registrada')}</div>
           : lista.map(l => (
-            <button key={l.id} type="button" onClick={() => setAbierta(l.id)} className="ledeor-row-2">
+            <Pulsable key={l.id} onClick={() => setAbierta(l.id)} className="ledeor-row-2">
               <span className="ledeor-txt-1">{l.codigo}</span>
               <span className="u-flex1">{l.titulo}</span>
               <span className="ledeor-txt-2 lecciones-de-origen-e1" style={{ '--lecciones-de-origen-color': ColorDeEstado(l.estado) } as CSSProperties}>{t(`lec.estado_${l.estado}`)}</span>
-            </button>
+            </Pulsable>
           ))}
       </section>
       {nueva && <FormularioDeLeccion origen={{ tipo: origen, id }} onClose={() => setNueva(false)}

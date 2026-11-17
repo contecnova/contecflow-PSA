@@ -4,10 +4,10 @@
 .tkd-c { color: var(--tkd-c); }
 
 /* Formularios (mismos valores que INPUT_STYLE / LABEL_STYLE de sdUtils) */
-.tkd-label { font-size: var(--text-xs); font-weight: 600; color: var(--text-2); display: block; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.06em; }
+.tkd-label { font-size: var(--text-xs); font-weight: 600; color: var(--text-2); display: block; margin-bottom: 5px; letter-spacing: 0.06em; }
 .tkd-input { width: 100%; background: var(--surface-3); border: 1px solid var(--surface-4); border-radius: 8px; padding: 9px 13px; color: var(--text-1); font-size: var(--text-base); outline: none; font-family: inherit; box-sizing: border-box; }
 textarea.tkd-input { resize: vertical; }
-.tkd-input--mono { font-family: var(--font-mono); }
+.tkd-input--mono { font-variant-numeric: tabular-nums; }
 .tkd-input--uc { padding: 6px 10px; }
 .tkd-input--flex1 { flex: 1; }
 .tkd-input--unit { width: 120px; }
@@ -21,11 +21,11 @@ textarea.tkd-input { resize: vertical; }
 .tkd-canned__input { width: 100%; background: var(--surface-3); border: 1px solid var(--surface-4); border-radius: var(--radius-sm); padding: 7px 10px; color: var(--text-1); font-size: var(--text-base); outline: none; font-family: inherit; box-sizing: border-box; }
 .tkd-canned__list { overflow-y: auto; flex: 1; }
 .tkd-canned__empty { padding: 20px; text-align: center; font-size: var(--text-sm); color: var(--text-3); }
-.tkd-canned__cat { padding: 6px 12px 2px; font-size: var(--text-2xs); font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.07em; }
+.tkd-canned__cat { padding: 6px 12px 2px; font-size: var(--text-2xs); font-weight: 700; color: var(--text-3); letter-spacing: 0.07em; }
 .tkd-canned__item { width: 100%; text-align: left; padding: 8px 12px; cursor: pointer; border: none; border-bottom: 1px solid var(--surface-4); background: transparent; }
 .tkd-canned__item:hover { background: var(--surface-3); }
 .tkd-canned__title { font-size: var(--text-base); font-weight: 600; color: var(--text-1); margin-bottom: 2px; }
-.tkd-canned__shortcut { font-size: var(--text-xs); color: var(--accent); margin-right: 6px; font-family: var(--font-mono); }
+.tkd-canned__shortcut { font-size: var(--text-xs); color: var(--accent); margin-right: 6px; font-variant-numeric: tabular-nums; }
 .tkd-canned__body { font-size: var(--text-xs); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tkd-canned__foot { padding: 6px 12px; border-top: 1px solid var(--surface-4); text-align: right; }
 .tkd-canned__cancel { font-size: var(--text-xs); color: var(--text-3); background: none; border: none; cursor: pointer; font-family: inherit; }
@@ -61,7 +61,7 @@ textarea.tkd-input { resize: vertical; }
 
 /* SLA */
 .tkd-sla { background: var(--surface-2); border: 1px solid color-mix(in srgb, var(--tkd-c) 25%, transparent); border-radius: var(--radius-md); padding: 12px 16px; margin-bottom: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.tkd-eyebrow { font-size: var(--text-2xs); color: var(--text-3); text-transform: uppercase; margin-bottom: 2px; }
+.tkd-eyebrow { font-size: var(--text-2xs); color: var(--text-3); margin-bottom: 2px; }
 .tkd-eyebrow--label { display: block; }
 .tkd-sla__value { font-size: var(--text-sm); font-weight: 600; color: var(--tkd-c); }
 .tkd-sla__value--mb { margin-bottom: 4px; }
@@ -74,7 +74,7 @@ textarea.tkd-input { resize: vertical; }
 .tkd-fact__value--pre { white-space: pre-wrap; }
 .tkd-link-btn { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-sm); color: var(--accent); background: none; border: none; cursor: pointer; padding: 0; font-family: inherit; }
 .tkd-assign-row { display: flex; gap: 8px; margin-top: 8px; }
-.tkd-section-title { font-size: var(--text-xs); font-weight: 700; color: var(--text-3); margin-bottom: 8px; text-transform: uppercase; }
+.tkd-section-title { font-size: var(--text-xs); font-weight: 700; color: var(--text-3); margin-bottom: 8px; }
 .tkd-section-title--ok { color: var(--success); }
 .tkd-section-title--12 { margin-bottom: 12px; }
 .tkd-section-title--10 { margin-bottom: 10px; }
@@ -113,11 +113,12 @@ textarea.tkd-input { resize: vertical; }
 /* Apoyo de la sugerencia IA y seguir/fusionar */
 .ds-card.tkd-card-stack { padding: 12px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 10px; font-size: var(--text-sm); }
 .ds-card.tkd-card-stack--16 { margin-bottom: 16px; }
-.tkd-ai-title { font-size: var(--text-2xs); font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+.tkd-ai-title { font-size: var(--text-2xs); font-weight: 700; color: var(--text-3); letter-spacing: 0.06em; margin-bottom: 4px; }
 .tkd-warning { color: var(--warning); }
 .tkd-mb-4 { margin-bottom: 4px; }
 .tkd-watch-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .tkd-watchers { flex: 1; color: var(--text-2); }
 
 .tkd-vertical { resize: vertical; }
-
+.ui-select--suelto.tkd-sel { width: 100%; }
+.ui-select--suelto.tkd-input--unit { width: 120px; }

@@ -5,6 +5,7 @@ import { useToast } from './ToastContext'
 import { useIdleTimeout } from '../hooks/useIdleTimeout'
 import { useAppLang } from '../i18n/AppLangContext'
 import { useDialogo } from '../components/ui/useDialogo'
+import { Button } from '../components/ui'
 import { SESSION_EXPIRED_NOTICE_MS } from '../constants/timings'
 import './AuthContext.estilos.css'
 
@@ -260,18 +261,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
               </strong>.
             </p>
             <div className="auth-context-e8">
-              <button
-                onClick={dismiss}
-                className="auth-context-e9"
-              >
+              <Button onClick={dismiss}>
                 {t('authcontext.continuar_sesion')}
-              </button>
-              <button
-                onClick={logout}
-                className="auth-context-e10"
-              >
+              </Button>
+              <Button variant="secondary" onClick={logout}>
                 {t('authcontext.cerrar_sesion')}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

@@ -4,7 +4,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, customFieldsApi } from '../services/api'
 import type { CampoPersonalizado } from '../services/api/tipos-rendimiento'
-import { Button, Spinner, EmptyState, Modal, IconButton } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, IconButton, Pulsable, Select, TablaSimple, Checkbox, GrupoDeOpciones } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Calendar, CheckSquare, Hash, Link2, ListChecks, Pencil, Plus, SlidersHorizontal, Trash2, Type, User, X, type LucideIcon } from 'lucide-react'
@@ -95,7 +95,7 @@ function FieldForm({ field, projectId, onClose }: { field: CustomField | null; p
 
         <div>
           <label id={`${idCampo}-et-clave`} htmlFor={`${idCampo}-clave`} className="cfl-label">{traducir('customfields.clave_field_key')}</label>
-          <input id={`${idCampo}-clave`} aria-labelledby={`${idCampo}-et-clave`} className="cfl-input cfl-input--mono"
+          <input id={`${idCampo}-clave`} aria-labelledby={`${idCampo}-et-clave`} className="ds-codigo cfl-input cfl-input--mono ds-campo-codigo"
             value={form.field_key}
             onChange={e => set('field_key')(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
             placeholder={traducir('customfields.clave_placeholder')} disabled={isEdit}
@@ -105,15 +105,9 @@ function FieldForm({ field, projectId, onClose }: { field: CustomField | null; p
 
         <div>
           <div id={`${idCampo}-tipo`} className="cfl-label">{traducir('customfields.tipo_de_campo')}</div>
-          <div className="cfl-types" role="radiogroup" aria-labelledby={`${idCampo}-tipo`}>
-            {FIELD_TYPES.map(ft => (
-              <button key={ft.value} type="button" role="radio" aria-checked={form.field_type === ft.value}
-                className="cfl-type" onClick={() => set('field_type')(ft.value)}>
-                <span className="cfl-type__icon" aria-hidden="true"><ft.Icon size={16} /></span>
-                {traducir(`customfields.tipo_${ft.value}`)}
-              </button>
-            ))}
-          </div>
+          <GrupoDeOpciones forma="fila" className="cfl-types" aria-label={traducir('customfields.tipo_de_campo')}
+            valor={form.field_type} onChange={v => set('field_type')(v as FieldFormState['field_type'])}
+            opciones={FIELD_TYPES.map(ft => ({ valor: ft.value, titulo: <><span className="cfl-type__icon" aria-hidden="true"><ft.Icon size={16} /></span>{traducir(`customfields.tipo_${ft.value}`)}</> }))} />
         </div>
 
         {form.field_type === 'select' && (
@@ -123,9 +117,9 @@ function FieldForm({ field, projectId, onClose }: { field: CustomField | null; p
               {form.options.map((o) => (
                 <span key={o} className="cfl-option">
                   {o}
-                  <button type="button" className="cfl-option__remove"
+                  <Pulsable type="button" className="cfl-option__remove"
                     aria-label={traducir('customfields.quitar_opcion', { opcion: o })}
-                    onClick={() => set('options')(form.options.filter(x => x !== o))}><X size={12} aria-hidden="true" /></button>
+                    onClick={() => set('options')(form.options.filter(x => x !== o))}><X size={12} aria-hidden="true" /></Pulsable>
                 </span>
               ))}
             </div>
@@ -141,11 +135,11 @@ function FieldForm({ field, projectId, onClose }: { field: CustomField | null; p
 
         <div className="u-grid2-12">
           <label className="u-row-center-8-pointer">
-            <input type="checkbox" aria-label={traducir('customfields.campo_obligatorio')} checked={form.is_required} onChange={e => set('is_required')(e.target.checked)} />
+            <Checkbox aria-label={traducir('customfields.campo_obligatorio')} checked={form.is_required} onChange={(_, e) => set('is_required')(e.target.checked)} />
             <span>{traducir('customfields.campo_obligatorio')}</span>
           </label>
           <label className="u-row-center-8-pointer">
-            <input type="checkbox" aria-label={traducir('customfields.visible_en_lista_de_tareas')} checked={form.show_in_list} onChange={e => set('show_in_list')(e.target.checked)} />
+            <Checkbox aria-label={traducir('customfields.visible_en_lista_de_tareas')} checked={form.show_in_list} onChange={(_, e) => set('show_in_list')(e.target.checked)} />
             <span>{traducir('customfields.visible_en_lista_de_tareas')}</span>
           </label>
         </div>
@@ -213,11 +207,11 @@ export default function CustomFieldsPage(): JSX.Element {
       {/* Selector de proyecto */}
       <div className="cfl-panel">
         <label id={`${idCampo}-et-proyecto`} htmlFor={`${idCampo}-proyecto`} className="cfl-label">{traducir('customfields.proyecto')}</label>
-        <select id={`${idCampo}-proyecto`} aria-labelledby={`${idCampo}-et-proyecto`} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
+        <Select suelto placeholder={false} id={`${idCampo}-proyecto`} value={selectedProject} onChange={e => setSelectedProject(e.target.value)}
           className="cfl-input cfl-input--project">
           <option value="">{traducir('customfields.selecciona_un_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
+        </Select>
       </div>
 
       {!selectedProject && (
@@ -239,7 +233,7 @@ export default function CustomFieldsPage(): JSX.Element {
             <div className="u-text2-sm">{traducir('customfields.estos_campos_aparecen_en_todas_las_tareas')}</div>
           </div>
           <div className="u-scroll-x">
-            <table className="cfl-table">
+            <TablaSimple claseTabla="cfl-table">
               <thead>
                 <tr className="u-border-b">
                   {COLUMNAS.map(h => <th key={h} scope="col">{traducir(`customfields.${h}`)}</th>)}
@@ -251,7 +245,7 @@ export default function CustomFieldsPage(): JSX.Element {
                   return (
                     <tr key={f.id}>
                       <td className="cfl-name">{f.name}</td>
-                      <td className="cfl-key">{f.field_key}</td>
+                      <td className="cfl-key"><code className="ds-codigo">{f.field_key}</code></td>
                       <td>
                         <span className="u-row-center-6">
                           {type && <span className="cfl-type-ico" aria-hidden="true"><type.Icon size={14} /></span>}
@@ -287,7 +281,7 @@ export default function CustomFieldsPage(): JSX.Element {
                   )
                 })}
               </tbody>
-            </table>
+            </TablaSimple>
           </div>
 
           {/* Tipos de campo como referencia */}

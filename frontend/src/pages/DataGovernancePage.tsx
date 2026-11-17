@@ -11,7 +11,7 @@ import { extractErr, fmtDateTime, localeActivo } from '../utils/helpers'
 import PageShell from '../components/layout/PageShell'
 import PageHeader from '../components/layout/PageHeader'
 import { ArrowRight, Bookmark, Check, Eye, GitBranch, History, MessageSquare, Plus, RefreshCw, Search, Shield, ShieldCheck, Tags, X } from 'lucide-react'
-import { Button, EmptyState, IconButton, KpiCard, SelectorDePeriodo } from '../components/ui'
+import { Button, EmptyState, IconButton, KpiCard, SelectorDePeriodo, Select, Checkbox } from '../components/ui'
 import { usePeriodo } from '../hooks/usePeriodo'
 import { CON_HORA, codigoDeErrorDePeriodo } from '../utils/periodo'
 import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
@@ -289,9 +289,9 @@ export default function DataGovernancePage(): JSX.Element {
                 <div className="dg-form-grid">
                   <input aria-label={t('datagovernance.dataset_id')} value={newFieldDataset} onChange={e => setNewFieldDataset(e.target.value)} placeholder={t('datagovernance.dataset_id')} className="dg-input dg-input--xs" />
                   <input aria-label={t('datagovernance.campo_ejemplo')} value={newFieldName} onChange={e => setNewFieldName(e.target.value)} placeholder={t('datagovernance.campo_ejemplo')} className="dg-input dg-input--xs" />
-                  <select aria-label={t('datagovernance.nivel_de_sensibilidad')} value={newFieldSensitivity} onChange={e => setNewFieldSensitivity(e.target.value as NivelDeSensibilidadBi)} className="dg-input dg-input--xs">
+                  <Select suelto placeholder={false} aria-label={t('datagovernance.nivel_de_sensibilidad')} value={newFieldSensitivity} onChange={e => setNewFieldSensitivity(e.target.value as NivelDeSensibilidadBi)} className="dg-input dg-input--xs">
                     {NIVELES.map((s) => <option key={s} value={s}>{t(`datagovernance.sens_${s}`)}</option>)}
-                  </select>
+                  </Select>
                   <Button size="sm" variant="secondary" icon={<Tags size={14} />} onClick={handleUpsertFieldSensitivity}>{t('datagovernance.clasificar')}</Button>
                 </div>
                 {govFieldItems.length === 0
@@ -336,15 +336,15 @@ export default function DataGovernancePage(): JSX.Element {
               <div className="u-wrap-center-8">
                 <input aria-label={t('datagovernance.buscar_vista')} value={sharedViewsSearch} onChange={e => setSharedViewsSearch(e.target.value)} placeholder={t('datagovernance.buscar_vista')}
                   className="dg-input dg-input--search" />
-                <select aria-label={t('datagovernance.ordenar_vistas')} value={sharedViewsSort} onChange={e => setSharedViewsSort(e.target.value as SharedViewsSort)} className="dg-input dg-input--auto">
+                <Select suelto placeholder={false} aria-label={t('datagovernance.ordenar_vistas')} value={sharedViewsSort} onChange={e => setSharedViewsSort(e.target.value as SharedViewsSort)} className="dg-input dg-input--auto">
                   <option value="date_desc">{t('datagovernance.mas_recientes')}</option>
                   <option value="date_asc">{t('datagovernance.mas_antiguas')}</option>
                   <option value="author_asc">{t('datagovernance.autor_az')}</option>
                   <option value="name_asc">{t('datagovernance.nombre_az')}</option>
-                </select>
+                </Select>
               </div>
               <label className="dg-check">
-                <input type="checkbox" aria-label={t('datagovernance.mostrar_inactivas')} checked={showInactiveSharedViews} onChange={e => setShowInactiveSharedViews(e.target.checked)} />
+                <Checkbox aria-label={t('datagovernance.mostrar_inactivas')} checked={showInactiveSharedViews} onChange={(_, e) => setShowInactiveSharedViews(e.target.checked)} />
                 {showInactiveSharedViews
                   ? t('datagovernance.mostrar_inactivas_con_ambas', { activas: activeSharedViews, inactivas: inactiveSharedViews })
                   : t('datagovernance.mostrar_inactivas_con_activas', { activas: activeSharedViews })}
@@ -376,12 +376,12 @@ export default function DataGovernancePage(): JSX.Element {
               <h3 className="dg-card__title">{t('datagovernance.comentarios_de_widgets')}</h3>
             </div>
             <div className="dg-card__body dg-card__body--gap10">
-              <select aria-label={t('datagovernance.widget')} value={commentWidget} onChange={e => setCommentWidget(e.target.value)} className="dg-input">
+              <Select suelto placeholder={false} aria-label={t('datagovernance.widget')} value={commentWidget} onChange={e => setCommentWidget(e.target.value)} className="dg-input">
                 <option value="kpi_grid">{t('datagovernance.widget_kpi_grid')}</option>
                 <option value="health_chart">{t('datagovernance.estado_de_salud')}</option>
                 <option value="profit_table">{t('datagovernance.rentabilidad_por_proyecto')}</option>
                 <option value="ai_narrative">{t('datagovernance.widget_narrativa_ia')}</option>
-              </select>
+              </Select>
               <textarea aria-label={t('datagovernance.anade_un_comentario_para_este_widget')} value={commentText} onChange={e => setCommentText(e.target.value)} rows={3}
                 placeholder={t('datagovernance.anade_un_comentario_para_este_widget')}
                 className="dg-input" />

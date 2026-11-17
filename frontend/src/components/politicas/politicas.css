@@ -47,7 +47,7 @@
 
 .pol-dominios { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
 .pol-dominio { cursor: pointer; padding: 4px 12px; font-size: var(--text-sm); }
-.pol-dominio[aria-pressed='true'] { background: var(--accent); color: var(--text-on-accent, #fff); border-color: var(--accent); }
+.pol-dominio[aria-pressed='true'] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 
 /* Constructor de condiciones */
 .pol-grupo { border-left: 3px solid var(--accent); padding: 8px 0 8px 12px; margin: 6px 0; background: var(--surface-1); border-radius: 0 8px 8px 0; }
@@ -55,7 +55,7 @@
 .pol-grupo--negado { border-left-style: dashed; }
 .pol-grupo-cabecera { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
 .pol-condicion { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 4px 0; }
-.pol-conector { font-size: var(--text-xs); font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.05em; }
+.pol-conector { font-size: var(--text-xs); font-weight: 700; color: var(--text-3); letter-spacing: 0.05em; }
 
 /* Resultados */
 .pol-resultado { display: grid; grid-template-columns: 220px minmax(0, 1fr) auto; gap: 8px; align-items: start; padding: 8px 0; border-top: 1px solid var(--surface-3); }

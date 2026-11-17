@@ -12,7 +12,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { BookOpenCheck, ClipboardList, Inbox, Lightbulb, Plus, Star, Target } from 'lucide-react'
 import { leccionesApi } from '../services/api'
 import type { Leccion } from '../services/api'
-import { Button, EmptyState, KpiCard, Page, Spinner, Tabs } from '../components/ui'
+import { Button, EmptyState, KpiCard, Page, Spinner, Tabs, Pulsable, Select, Checkbox } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { fmtDate, fmtNumber, extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
@@ -61,18 +61,18 @@ function Lista({ onAbrir }: { onAbrir: (id: string) => void }) {
     <div>
       <div className="lecc-row">
         <input aria-label={t('lec.buscar')} placeholder={t('lec.buscar')} value={f.q} onChange={set('q')} className="lecciones-page-e1" />
-        <select aria-label={t('lec.estado')} value={f.estado} onChange={set('estado')} className="lecciones-page-e6">
+        <Select suelto placeholder={false} aria-label={t('lec.estado')} value={f.estado} onChange={set('estado')} className="lecciones-page-e6">
           <option value="">{t('lec.estado_activas')}</option>
           {['borrador', 'en_revision', 'validada', 'archivada'].map(e => <option key={e} value={e}>{t(`lec.estado_${e}`)}</option>)}
-        </select>
-        <select aria-label={t('lec.tipo')} value={f.tipo} onChange={set('tipo')} className="lecciones-page-e6">
+        </Select>
+        <Select suelto placeholder={false} aria-label={t('lec.tipo')} value={f.tipo} onChange={set('tipo')} className="lecciones-page-e6">
           <option value="">{t('lec.todos_los_tipos')}</option>
           <option value="evitar">{t('lec.tipo_evitar')}</option><option value="repetir">{t('lec.tipo_repetir')}</option>
-        </select>
-        <select aria-label={t('lec.categoria')} value={f.categoria} onChange={set('categoria')} className="lecciones-page-e6">
+        </Select>
+        <Select suelto placeholder={false} aria-label={t('lec.categoria')} value={f.categoria} onChange={set('categoria')} className="lecciones-page-e6">
           <option value="">{t('lec.todas_las_categorias')}</option>
           {(cfg.data?.categorias ?? []).map(c => <option key={c} value={c}>{t(`lec.cat_${c}`, c)}</option>)}
-        </select>
+        </Select>
       </div>
       {q.isLoading ? <Spinner /> : q.isError ? <div role="alert" className="u-danger">{extractErr(q.error, GENERIC_ERROR_FALLBACK)}</div>
         : (q.data?.items ?? []).length === 0 ? <EmptyState svgIcon={<BookOpenCheck size={26} />} title={t('lec.vacio')} description={t('lec.vacio_texto')} />
@@ -82,7 +82,7 @@ function Lista({ onAbrir }: { onAbrir: (id: string) => void }) {
               <span>{t('lec.codigo')}</span><span>{t('lec.titulo')}</span><span>{t('lec.categoria')}</span><span>{t('lec.estado')}</span><span>{t('lec.le_sirvio')}</span>
             </div>
             {q.data!.items.map(l => (
-              <button key={l.id} type="button" onClick={() => onAbrir(l.id)} className="lecciones-page-e3">
+              <Pulsable key={l.id} type="button" onClick={() => onAbrir(l.id)} className="lecciones-page-e3">
                 <span className="lecc-label">{l.codigo}</span>
                 <span className="u-min0">
                   <span className="lecc-label-2">{l.titulo}</span>
@@ -91,7 +91,7 @@ function Lista({ onAbrir }: { onAbrir: (id: string) => void }) {
                 <span className="u-text2">{t(`lec.cat_${l.categoria}`, l.categoria)}</span>
                 <span className="u-600 lecciones-page-e4" style={{ '--lecciones-page-color': ColorDeEstado(l.estado) } as CSSProperties}>{t(`lec.estado_${l.estado}`)}</span>
                 <span className="lecc-label-3">{l.usos.util + l.usos.aplicada} / {l.usos.util + l.usos.aplicada + l.usos.no_aplica}</span>
-              </button>
+              </Pulsable>
             ))}
           </div>
         )}
@@ -129,19 +129,19 @@ function Acciones({ onAbrir }: { onAbrir: (id: string) => void }) {
   return (
     <div>
       <label className="lecc-label-5">
-        <input type="checkbox" aria-label={t('lec.solo_mias')} checked={mias} onChange={e => setMias(e.target.checked)} />{t('lec.solo_mias')}
+        <Checkbox aria-label={t('lec.solo_mias')} checked={mias} onChange={(_, e) => setMias(e.target.checked)} />{t('lec.solo_mias')}
       </label>
       {q.isLoading ? <Spinner /> : (q.data?.items ?? []).length === 0
         ? <EmptyState svgIcon={<ClipboardList size={26} />} title={t('lec.sin_acciones_abiertas')} description="" />
         : (
           <div className="lecc-card">
             {q.data!.items.map(a => (
-              <button key={a.id} type="button" onClick={() => onAbrir(a.leccion_id)} className="lecc-btn">
+              <Pulsable key={a.id} type="button" onClick={() => onAbrir(a.leccion_id)} className="lecc-btn">
                 <span className="lecc-label">{a.leccion_codigo}</span>
                 <span className="u-flex1">{a.descripcion}</span>
                 <span className="u-text2-xs">{t(`lec.accion_${a.estado}`)}</span>
                 <span className={`lecc-label-6 ${a.vencida ? 'leccione-sx2' : 'leccione-sx3'}`}>{a.fecha_limite ? fmtDate(a.fecha_limite) : '—'}</span>
-              </button>
+              </Pulsable>
             ))}
           </div>
         )}
@@ -181,9 +181,9 @@ function Indicadores({ onAbrir }: { onAbrir: (id: string) => void }) {
           <h3 className="lecc-title">{t('lec.mas_utiles')}</h3>
           {d.mas_utiles.length === 0 ? <EmptyState icon={<Star size={28} />} title={t('lec.sin_valoraciones')} />
             : d.mas_utiles.map(l => (
-              <button key={l.id} type="button" onClick={() => onAbrir(l.id)} className="lecc-btn-2">
+              <Pulsable key={l.id} type="button" onClick={() => onAbrir(l.id)} className="lecc-btn-2">
                 <span className="lecc-label">{l.codigo}</span><span className="u-flex1">{l.titulo}</span><span className="u-mono">{l.valoraciones_utiles}</span>
-              </button>
+              </Pulsable>
             ))}
         </section>
       </div>

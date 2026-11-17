@@ -12,7 +12,7 @@ import React, { useState } from 'react';
 import type { CSSProperties } from 'react';
 import PageShell from '../components/layout/PageShell'
 import PageHeader from '../components/layout/PageHeader'
-import { useDialogo, Button, Card, EmptyState, Input, KpiCard, Modal, Select, Spinner } from '../components/ui'
+import { useDialogo, Button, Card, EmptyState, Input, KpiCard, Modal, Select, Spinner, Pulsable, TablaSimple } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import { openConfirmGlobal } from '../context/ConfirmContext'
@@ -176,13 +176,13 @@ function AddProjectModal({ portfolioId, existingIds, onClose, onAdded }: { portf
         <Input aria-label={t('portfolio_ui.buscar_proyectos')} value={search} onChange={e => setSearch(e.target.value)} placeholder={t('portfolio_ui.buscar_proyectos')} />
         <div className="pf-lista-proyectos">
           {available.map(p => (
-            <button className="pf-opcion-proyecto" key={p.id} type="button" onClick={() => addProject(p.id)}>
+            <Pulsable className="pf-opcion-proyecto" key={p.id} onClick={() => addProject(p.id)}>
               <div className="u-min0">
                 <div className="u-base-600">{p.name}</div>
                 <div className="u-text3-xs">{etiquetaCodigo(t, 'estado', p.status)}</div>
               </div>
               <Plus size={14} className="pf-icono-accent" aria-hidden />
-            </button>
+            </Pulsable>
           ))}
           {available.length === 0 && (
             <EmptyState icon={<FolderSearch size={28} />} title={t('portfolio.sin_resultados')} />
@@ -240,7 +240,7 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
               <Button icon={<Plus size={14} />} onClick={() => setShowAddProject(true)}>
                 {t('portfolio.anadir_proyecto')}
               </Button>
-              <button type="button" className="pf-cerrar" aria-label={t('common.close')} onClick={onClose}><X size={16} aria-hidden /></button>
+              <Pulsable className="pf-cerrar" aria-label={t('common.close')} onClick={onClose}><X size={16} aria-hidden /></Pulsable>
             </div>
           </div>
 
@@ -264,7 +264,7 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
           ) : (
           <Card className="pf-tabla-card">
             <div className="pf-tabla-scroll">
-            <table className="pf-table">
+            <TablaSimple claseTabla="pf-table">
               <thead>
                 <tr>
                   {[t('portfolio_ui.col_salud'), t('portfolio_ui.col_proyecto'), t('portfolio_ui.col_hecho'), 'CPI', 'SPI', t('portfolio_ui.col_presupuesto'), t('portfolio_ui.col_gasto_real'), t('portfolio_ui.col_proximo_hito'), ''].map((h, i) => (
@@ -318,7 +318,7 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
                           ) : <span className="u-text3-xs">—</span>}
                         </td>
                         <td className="pf-td">
-                          <button type="button" className="pf-quitar" aria-label={t('portfolio_ui.quitar')} title={t('portfolio_ui.quitar')} onClick={ev => { ev.stopPropagation(); openConfirmGlobal({message:t('portfolio_ui.quitar_confirm'),onConfirm:()=>removeProject(p.project_id),danger:true}) }}><X size={13} aria-hidden /></button>
+                          <Pulsable className="pf-quitar" aria-label={t('portfolio_ui.quitar')} title={t('portfolio_ui.quitar')} onClick={ev => { ev.stopPropagation(); openConfirmGlobal({message:t('portfolio_ui.quitar_confirm'),onConfirm:()=>removeProject(p.project_id),danger:true}) }}><X size={13} aria-hidden /></Pulsable>
                         </td>
                       </tr>
                       {isExpanded && (
@@ -341,7 +341,7 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
                   );
                 })}
               </tbody>
-            </table>
+            </TablaSimple>
             </div>
           </Card>
           )}

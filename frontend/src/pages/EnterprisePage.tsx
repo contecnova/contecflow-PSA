@@ -11,7 +11,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usersApi, esFichaCompleta, webhooksApi, autoWorkflowsApi, gdprApi, emailApi, oauthIntegrationsApi, integrationsHubApi, enterpriseApi, apiKeysApi, apiUrl } from '../services/api'
 import type { ClaveDeApi, ClaveDeApiCreada, ConfigSso, EventoDeAuditoria, IntegracionOAuth, SolicitudRgpd, VerificacionDeCadena } from '../services/api/tipos'
-import { Button, Modal, Spinner, EmptyState, Tabs, KpiCard, IconButton, StatusBadge, CampoFecha } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, Tabs, KpiCard, IconButton, StatusBadge, CampoFecha, Pulsable, Select, Checkbox } from '../components/ui'
 import Pagination from '../components/ui/Pagination'
 import type { AxiosResponse } from 'axios'
 import PageHeader from '../components/layout/PageHeader'
@@ -101,7 +101,7 @@ function WebhooksTab({ showCreate, setShowCreate }: AltaProps) {
           <div className="ent-row-2">
             <div className="u-min0">
               <div className="ent-box">{trg.name}</div>
-              <code className="ent-card-2">POST {apiUrl(trg.endpoint)}</code>
+              <code className="ds-codigo ent-card-2">POST {apiUrl(trg.endpoint)}</code>
               <span className="ent-label">{t('pagina_ent.disparos', { n: trg.fire_count })}</span>
             </div>
             <div className="u-row-8">
@@ -132,13 +132,13 @@ function WebhooksTab({ showCreate, setShowCreate }: AltaProps) {
             <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="enterprise-page-e16">{t('pagina_ent.nombre')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f => ({...f, name:e.target.value}))} className="enterprise-page-e17" /></div>
             <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="enterprise-page-e16">{t('pagina_ent.slug_url')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.slug} onChange={e => setForm(f => ({...f, slug:e.target.value.toLowerCase().replace(/\s+/g,'-')}))} className="enterprise-page-e17" placeholder="mi-webhook" /></div>
             <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="enterprise-page-e16">{t('pagina_ent.workflow')}</label>
-              <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.workflow_id} onChange={e => setForm(f => ({...f, workflow_id:e.target.value}))} className="enterprise-page-e17">
+              <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.workflow_id} onChange={e => setForm(f => ({...f, workflow_id:e.target.value}))} className="enterprise-page-e17">
                 <option value="">{traducir('enterprise.sin_workflow')}</option>
                 {workflows.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-              </select>
+              </Select>
             </div>
             <div className="ent-card-3">
-              {t('pagina_ent.url')}{' '}<code>POST {apiUrl(`/webhooks/fire/${form.slug || 'tu-slug'}`)}</code>
+              {t('pagina_ent.url')}{' '}<code className="ds-codigo">POST {apiUrl(`/webhooks/fire/${form.slug || 'tu-slug'}`)}</code>
             </div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCreate(false)}>{t('pagina_ent.cancelar')}</Button>
@@ -236,18 +236,18 @@ function GDPRTab({ showCreate, setShowCreate }: AltaProps) {
         <Modal open title={traducir('enterprise.nueva_solicitud_rgpd')} onClose={() => setShowCreate(false)} width={480}>
           <div className="u-stack-14">
             <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="enterprise-page-e16">{t('pagina_ent.tipo')}</label>
-              <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.request_type} onChange={e => setForm(f => ({...f, request_type:e.target.value}))} className="enterprise-page-e17">
+              <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.request_type} onChange={e => setForm(f => ({...f, request_type:e.target.value}))} className="enterprise-page-e17">
                 <option value="erasure">{traducir('enterprise.derecho_al_olvido_art_17')}</option>
                 <option value="portability">{t('pagina_ent.portabilidad_art_20')}</option>
                 <option value="access">{t('pagina_ent.acceso_art_15')}</option>
                 <option value="rectification">{traducir('enterprise.rectificacion_art_16')}</option>
-              </select>
+              </Select>
             </div>
             <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="enterprise-page-e16">{t('pagina_ent.usuario')}</label>
-              <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.subject_user_id} onChange={e => setForm(f => ({...f, subject_user_id:e.target.value}))} className="enterprise-page-e17">
+              <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.subject_user_id} onChange={e => setForm(f => ({...f, subject_user_id:e.target.value}))} className="enterprise-page-e17">
                 <option value="">{t('pagina_ent.seleccionar')}</option>
                 {users.map(u => <option key={u.id} value={u.id}>{u.full_name}{esFichaCompleta(u) ? ` — ${u.email}` : ''}</option>)}
-              </select>
+              </Select>
             </div>
             <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="enterprise-page-e16">{traducir('enterprise.email_si_ya_no_existe')}</label>
               <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.subject_email} onChange={e => setForm(f => ({...f, subject_email:e.target.value}))} className="enterprise-page-e17" />
@@ -330,10 +330,10 @@ function EmailTab({ showSend, setShowSend, showCreate, setShowCreate }: AltaProp
           <div className="u-stack-14">
             <div><label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="enterprise-page-e16">{traducir('enterprise.para')}</label><input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={sendForm.to} onChange={e => setSendForm(f => ({...f, to:e.target.value}))} className="enterprise-page-e17" placeholder={t('pagina_ent.destinatario_empresa_com')} /></div>
             <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="enterprise-page-e16">{t('pagina_ent.plantilla_2')}</label>
-              <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={sendForm.template_id} onChange={e => setSendForm(f => ({...f, template_id:e.target.value}))} className="enterprise-page-e17">
+              <Select suelto placeholder={false} id={`${idCampo}-1`} value={sendForm.template_id} onChange={e => setSendForm(f => ({...f, template_id:e.target.value}))} className="enterprise-page-e17">
                 <option value="">{traducir('enterprise.sin_plantilla')}</option>
                 {allTpl.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </select>
+              </Select>
             </div>
             {!sendForm.template_id && <>
               <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="enterprise-page-e16">{t('pagina_ent.asunto')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={sendForm.subject} onChange={e => setSendForm(f => ({...f, subject:e.target.value}))} className="enterprise-page-e17" /></div>
@@ -352,9 +352,9 @@ function EmailTab({ showSend, setShowSend, showCreate, setShowCreate }: AltaProp
             <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="enterprise-page-e16">{t('pagina_ent.nombre')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={newTpl.name} onChange={e => setNewTpl(f => ({...f, name:e.target.value}))} className="enterprise-page-e17" /></div>
             <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="enterprise-page-e16">{t('pagina_ent.asunto_usa')}{' '}{'{{variable}}'})</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={newTpl.subject} onChange={e => setNewTpl(f => ({...f, subject:e.target.value}))} className="enterprise-page-e17" /></div>
             <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="enterprise-page-e16">{traducir('enterprise.categoria')}</label>
-              <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={newTpl.category} onChange={e => setNewTpl(f => ({...f, category:e.target.value}))} className="enterprise-page-e17">
+              <Select suelto placeholder={false} id={`${idCampo}-6`} value={newTpl.category} onChange={e => setNewTpl(f => ({...f, category:e.target.value}))} className="enterprise-page-e17">
                 {['automation','alert','report','invoice'].map((c: string) => <option key={c} value={c}>{t(`pagina_ent.tpl_cat_${c}`)}</option>)}
-              </select>
+              </Select>
             </div>
             <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="enterprise-page-e16">{traducir('enterprise.html_del_cuerpo')}</label><textarea id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={newTpl.body_html} onChange={e => setNewTpl(f => ({...f, body_html:e.target.value}))} rows={5} className="enterprise-page-e4" /></div>
             <div className="u-actions-10">
@@ -516,7 +516,7 @@ function IntegrationsTab() {
       </div>
       <div className="ent-grid-4">
         {CATALOG.map((cat) => { const Icono = iconoIntegracion(cat.type); return (
-          <button key={cat.type} aria-pressed={configuring?.type === cat.type} onClick={() => {
+          <Pulsable key={cat.type} aria-pressed={configuring?.type === cat.type} onClick={() => {
             setConfiguring(cat)
             // Jira: se precarga la conexión guardada; el token vacío conserva el actual.
             const previa = cat.type === 'jira' && jira?.configured
@@ -529,7 +529,7 @@ function IntegrationsTab() {
             <div className="ent-box-9" aria-hidden><Icono size={22} /></div>
             <div className="ent-box-10">{cat.label}</div>
             <div className="u-text2-xs">{t(`pagina_ent.int_desc_${cat.type}`, cat.desc)}</div>
-          </button>
+          </Pulsable>
         ) })}
       </div>
 
@@ -631,7 +631,7 @@ function CadenaDeAuditoria() {
           </div>
           <div className="ent-box-15">
             {t('enterprise.cadena_recorridas', { n: resultado.rows_checked })}
-            {resultado.head.entry_hash && <> · {t('enterprise.cadena_cabeza')} #{resultado.head.seq} <code className="u-mono">{resultado.head.entry_hash.slice(0, 16)}…</code></>}
+            {resultado.head.entry_hash && <> · {t('enterprise.cadena_cabeza')} #{resultado.head.seq} <code className="ds-codigo u-mono">{resultado.head.entry_hash.slice(0, 16)}…</code></>}
           </div>
           {resultado.expected_head && (
             <div className={`ent-box-16 ${resultado.expected_head.found ? 'enterpri-sx3' : 'enterpri-sx4'}`}>
@@ -741,7 +741,7 @@ function APIKeysTab({ showCreate, setShowCreate }: AltaProps) {
       {newKey && (
         <div className="ent-card-9">
           <div className="ent-box-22">{traducir('enterprise.copiala_ahora_no_se_mostrara_de_nuevo')}</div>
-          <code className="ent-card-10">{newKey.key}</code>
+          <code className="ds-codigo ent-card-10">{newKey.key}</code>
           <div className="ent-cerrar-clave"><Button size="sm" variant="secondary" onClick={() => setNewKey(null)}>{t('pagina_ent.cerrar')}</Button></div>
         </div>
       )}
@@ -752,7 +752,7 @@ function APIKeysTab({ showCreate, setShowCreate }: AltaProps) {
             <div key={k.id} className="ent-grid-9">
               <div>
                 <div className="ent-label-4">{k.name}</div>
-                <code className="u-text2-xs">{k.key_prefix}...</code>
+                <code className="ds-codigo u-text2-xs">{k.key_prefix}...</code>
               </div>
               <span className="u-text2">{(k.scopes||[]).map(s => etiq(t, 'developer.scope', s)).join(', ')}</span>
               <span className="u-text2">{t('pagina_ent.peticiones_hoy', { usadas: k.requests_today || 0, limite: k.rate_limit_per_day })}</span>
@@ -879,7 +879,7 @@ function SSOTab({ showCreate, setShowCreate }: AltaProps) {
         <div className="ent-box-23">{traducir('enterprise.como_integrar_sso')}</div>
         <div className="ent-box-24">
           {traducir('enterprise.1_registra_contecflow_como_aplicacion_en_tu')}<br/>
-          {traducir('enterprise.2_configura_el')} <strong className="u-text1">{t('pagina_ent.redirect_uri')}</strong>: <code className="ent-card-11">{window.location.origin}/login</code><br/>
+          {traducir('enterprise.2_configura_el')} <strong className="u-text1">{t('pagina_ent.redirect_uri')}</strong>: <code className="ds-codigo ent-card-11">{window.location.origin}/login</code><br/>
           {traducir('enterprise.3_copia_el_client_id_y_client')}<br/>
           {traducir('enterprise.4_anade_el_boton_de_login_sso')} <strong className="u-text1">{t('pagina_ent.ajustes')}{' '}{'>'}{' '}{t('pagina_ent.seguridad')}</strong>.
         </div>
@@ -892,12 +892,12 @@ function SSOTab({ showCreate, setShowCreate }: AltaProps) {
           <div className={`ent-grid-10 ${isNarrow ? 'enterpri-sx10' : 'enterpri-sx11'}`}>
             <div>
               <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="enterprise-page-e20">{t('pagina_ent.proveedor')}</label>
-              <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.provider} disabled={!!editId} onChange={e => {
+              <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.provider} disabled={!!editId} onChange={e => {
                 const info: { label?: string; discovery?: string } = PROVIDER_INFO[e.target.value] || {}
                 setForm(f => ({ ...f, provider: e.target.value, oidc_discovery_url: info.discovery || '' }))
               }} className="enterprise-page-e19">
                 {Object.entries(PROVIDER_INFO).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="enterprise-page-e20">{traducir('enterprise.nombre_para_mostrar_en_login')}</label>
@@ -925,9 +925,9 @@ function SSOTab({ showCreate, setShowCreate }: AltaProps) {
             </div>
             <div>
               <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="enterprise-page-e20">{traducir('enterprise.sso_rol_defecto')}</label>
-              <select id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.default_role} onChange={e => setForm(f=>({...f,default_role:e.target.value}))} className="enterprise-page-e19">
+              <Select suelto placeholder={false} id={`${idCampo}-7`} value={form.default_role} onChange={e => setForm(f=>({...f,default_role:e.target.value}))} className="enterprise-page-e19">
                 {ROLES_SSO.map(r => <option key={r} value={r}>{etiquetaCodigo(t, 'rol_usuario', r)}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="enterprise-page-e20">{traducir('enterprise.sso_claim_grupos')}</label>
@@ -935,14 +935,14 @@ function SSOTab({ showCreate, setShowCreate }: AltaProps) {
             </div>
             <div className="u-col-full">
               <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="enterprise-page-e20">{traducir('enterprise.sso_mapeo')}</label>
-              <textarea id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} rows={3} value={form.role_mapping_text} onChange={e => setForm(f=>({...f,role_mapping_text:e.target.value}))} className="enterprise-page-e12" placeholder={'Contecflow-Admins=admin\nContecflow-PM=pm'} />
+              <textarea id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} rows={3} value={form.role_mapping_text} onChange={e => setForm(f=>({...f,role_mapping_text:e.target.value}))} className="ds-codigo enterprise-page-e12" placeholder={'Contecflow-Admins=admin\nContecflow-PM=pm'} />
             </div>
             <label className="ent-label-9">
-              <input type="checkbox" aria-label={traducir('enterprise.sso_autocrear')} checked={form.auto_create_users} onChange={e => setForm(f=>({...f,auto_create_users:e.target.checked}))} />
+              <Checkbox aria-label={traducir('enterprise.sso_autocrear')} checked={form.auto_create_users} onChange={(_, e) => setForm(f=>({...f,auto_create_users:e.target.checked}))} />
               {traducir('enterprise.sso_autocrear')}
             </label>
             <label className="ent-label-9">
-              <input type="checkbox" aria-label={traducir('enterprise.sso_activo')} checked={form.is_active} onChange={e => setForm(f=>({...f,is_active:e.target.checked}))} />
+              <Checkbox aria-label={traducir('enterprise.sso_activo')} checked={form.is_active} onChange={(_, e) => setForm(f=>({...f,is_active:e.target.checked}))} />
               {traducir('enterprise.sso_activo')}
             </label>
           </div>

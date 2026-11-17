@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { integrationsApi, jiraApi, projectsApi, unwrapList } from '../services/api'
-import { Button, Card, Page, Section, SelectorDePeriodo } from '../components/ui'
+import { Button, Card, Page, Section, SelectorDePeriodo, Select, Checkbox } from '../components/ui'
 import { Download, FileSpreadsheet, FolderKanban, Link2, RefreshCw } from 'lucide-react'
 import { downloadBlob } from '../utils/helpers'
 import { useAuth } from '../context/AuthContext'
@@ -130,8 +130,8 @@ export default function ExportsPage(): JSX.Element {
             {selectorDeFormato(imputForm.format, (fmt) => setImputForm(f => ({ ...f, format: fmt })))}
             {hasRole('admin', 'hr') && (
               <label className="u-row-center-8-pointer">
-                <input type="checkbox" checked={imputForm.include_costs}
-                  onChange={e => setImputForm(f => ({ ...f, include_costs: e.target.checked }))} />
+                <Checkbox checked={imputForm.include_costs}
+                  onChange={(_, e) => setImputForm(f => ({ ...f, include_costs: e.target.checked }))} />
                 {t('pagina_exps.incluir_costes_confidencial')}
               </label>
             )}
@@ -157,8 +157,8 @@ export default function ExportsPage(): JSX.Element {
             {selectorDeFormato(projForm.format, (fmt) => setProjForm(f => ({ ...f, format: fmt })))}
             {hasRole('admin') && (
               <label className="u-row-center-8-pointer">
-                <input type="checkbox" checked={projForm.include_costs}
-                  onChange={e => setProjForm(f => ({ ...f, include_costs: e.target.checked }))} />
+                <Checkbox checked={projForm.include_costs}
+                  onChange={(_, e) => setProjForm(f => ({ ...f, include_costs: e.target.checked }))} />
                 {t('exports.incluir_costes_y_margenes_confidencial')}
               </label>
             )}
@@ -178,14 +178,14 @@ export default function ExportsPage(): JSX.Element {
             subtitle={t('exports.importa_issues_de_jira_como_tareas_en')}
           >
             <div className="exps-row-3">
-              <select value={jiraProject} onChange={e => setJiraProject(e.target.value)}
+              <Select suelto placeholder={false} value={jiraProject} onChange={e => setJiraProject(e.target.value)}
                 aria-label={t('pagina_exps.selecciona_proyecto')}
                 className={`exps-input ${jiraProject ? 'exportsp-sx7' : 'exportsp-sx8'}`}>
                 <option value="">{t('pagina_exps.selecciona_proyecto')}</option>
                 {projects.filter(p => p.status === 'active').map(p => (
                   <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
                 ))}
-              </select>
+              </Select>
               <Button onClick={syncJira} disabled={!jiraProject} loading={jiraSyncing} icon={<RefreshCw size={14} />}>
                 {jiraSyncing ? t('pagina_exps.sincronizando') : t('pagina_exps.sincronizar')}
               </Button>

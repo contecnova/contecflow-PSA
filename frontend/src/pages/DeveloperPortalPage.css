@@ -170,7 +170,6 @@
 .developer-portal-page-e1 {
   font-size: var(--text-xs);
   font-weight: 700;
-  text-transform: uppercase;
   letter-spacing: 0.07em;
   display: block;
   margin-bottom: 5px;
@@ -199,14 +198,14 @@
   outline: none;
   box-sizing: border-box;
   resize: vertical;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--text-sm);
 }
 .developer-portal-page-e4 {
   border: var(--developer-portal-page-border);
 }
 .developer-portal-page-e5 {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   background: var(--surface-3);
   border-radius: var(--radius-sm);
   padding: 6px 10px;
@@ -218,7 +217,7 @@
   flex: 1;
 }
 .developer-portal-page-e6 {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   background: var(--surface-3);
   border-radius: var(--radius-sm);
   padding: 6px 10px;
@@ -232,7 +231,6 @@
   font-size: var(--text-xs);
   font-weight: 700;
   color: var(--text-2);
-  text-transform: uppercase;
   letter-spacing: 0.07em;
   display: block;
   margin-bottom: 5px;

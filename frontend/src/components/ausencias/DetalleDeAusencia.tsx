@@ -11,7 +11,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Eye, FilePlus2, Lock, RefreshCw } from 'lucide-react'
 import { ausenciasApi } from '../../services/api/ausencias'
 import type { DetalleDeAusencia as Detalle, DocumentoDeAusencia } from '../../services/api/tipos-ausencias'
-import { Button, Drawer, Spinner } from '../ui'
+import { Button, Drawer, Spinner, Select } from '../ui'
 import DateInput from '../ui/DateInput'
 import { AvisoDeError } from './admin/comun'
 import { EstadoDeAusenciaChip, TipoChip, cantidad, fecha, useTa, useTiposDeDocumento } from './comun'
@@ -144,10 +144,9 @@ function Documentos({ d }: { d: Detalle }) {
       {d.puede_subir && (
         <div className="aus-fila">
           {sustituye ? <span className="aus-chip">{ta('sustituyendo', { tipo: sustituye.tipo ?? '', v: sustituye.version })}</span> : (
-            <select className="aus-campo" aria-label={ta('tipo_de_documento')} value={tipoId} onChange={e => setTipoId(e.target.value)}>
-              <option value="">{ta('elige_tipo_de_documento')}</option>
+            <Select suelto className="aus-campo" aria-label={ta('tipo_de_documento')} value={tipoId} onChange={e => setTipoId(e.target.value)} placeholder={ta('elige_tipo_de_documento')}>
               {tipos.map(t => <option key={t.id} value={t.id}>{t.nombres?.[lang as 'es'] || t.nombre}</option>)}
-            </select>
+            </Select>
           )}
           <label className="aus-boton-fichero">
             <FilePlus2 size={13} aria-hidden /> {ta('adjuntar')}
@@ -187,10 +186,9 @@ function Gestion({ d }: { d: Detalle }) {
     <section className="aus-gestion" aria-labelledby="aus-gestion">
       <h3 id="aus-gestion" className="aus-subtitulo">{ta('gestionar')}</h3>
       <div className="aus-fila">
-        <select className="aus-campo" aria-label={ta('pedir_documento')} value={tipoId} onChange={e => setTipoId(e.target.value)}>
-          <option value="">{ta('pedir_documento')}</option>
+        <Select suelto className="aus-campo" aria-label={ta('pedir_documento')} value={tipoId} onChange={e => setTipoId(e.target.value)} placeholder={ta('pedir_documento')}>
           {tipos.map(t => <option key={t.id} value={t.id}>{t.nombres?.[lang as 'es'] || t.nombre}</option>)}
-        </select>
+        </Select>
         <DateInput className="aus-campo" aria-label={ta('fecha_limite')} value={vence} onChange={e => setVence(e.target.value)} />
         <Button size="sm" variant="secondary" disabled={!tipoId || !vence} loading={pedir.isPending} onClick={() => pedir.mutate()}>{ta('pedir')}</Button>
       </div>

@@ -36,7 +36,7 @@
 .poaiwi-box-4 {
   font-size: 11px;
   color: var(--text-3);
-  text-transform: uppercase;
+
   letter-spacing: 0.5px;
   margin-bottom: 6px;
 }
@@ -123,7 +123,7 @@
 
 .poaiwi-row-5 {
   padding: 14px 16px;
-  background: linear-gradient(135deg, var(--accent), var(--purple, #7c3aed));
+  background: linear-gradient(135deg, var(--accent), var(--purple));
   color: var(--on-accent-light);
   display: flex;
   align-items: center;
@@ -139,7 +139,7 @@
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), var(--purple, #7c3aed));
+  background: linear-gradient(135deg, var(--accent), var(--purple));
   border: none;
   cursor: pointer;
   display: flex;

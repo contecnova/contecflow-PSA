@@ -15,7 +15,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarDays, Inbox, ListOrdered, Pencil, Plus, Settings2, Umbrella, X } from 'lucide-react'
 import { ausenciasApi } from '../services/api/ausencias'
 import type { AusenciaServida } from '../services/api/tipos-ausencias'
-import { Button, EmptyState, Page, Spinner, Tabs } from '../components/ui'
+import { Button, EmptyState, Page, Spinner, Tabs, Pulsable, TablaSimple } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import { confirmar } from '../context/ConfirmContext'
 import FormularioDeAusencia from '../components/ausencias/FormularioDeAusencia'
@@ -94,7 +94,7 @@ function MisAusencias({ onAbrir, onEditar, onPedir }: {
           ctaLabel={ta('pedir_ausencia')} onCta={onPedir} />
       )}
       {mias.data && mias.data.length > 0 && (
-        <table className="aus-tabla">
+        <TablaSimple claseTabla="aus-tabla">
           <caption className="u-sr-only">{ta('tab_mias')}</caption>
           <thead><tr>
             <th scope="col">{ta('tipo')}</th><th scope="col">{ta('fechas')}</th><th scope="col">{ta('cantidad')}</th>
@@ -104,7 +104,7 @@ function MisAusencias({ onAbrir, onEditar, onPedir }: {
             {mias.data.map(a => (
               <tr key={a.id}>
                 <td><TipoChip a={a} /></td>
-                <td><button type="button" className="aus-enlace" onClick={() => onAbrir(a.id)}>{fecha(a.start_date)} → {fecha(a.end_date)}</button></td>
+                <td><Pulsable type="button" className="aus-enlace" onClick={() => onAbrir(a.id)}>{fecha(a.start_date)} → {fecha(a.end_date)}</Pulsable></td>
                 <td>{cantidad(a, ta)}</td>
                 <td><EstadoDeAusenciaChip estado={a.status} />{a.status === 'waitlisted' && <ListOrdered size={13} aria-hidden />}</td>
                 <td className="aus-acciones-fila">
@@ -119,7 +119,7 @@ function MisAusencias({ onAbrir, onEditar, onPedir }: {
               </tr>
             ))}
           </tbody>
-        </table>
+        </TablaSimple>
       )}
       {cancelar.isError && <AvisoDeError error={cancelar.error} defecto={ta('error_guardar')} />}
     </div>

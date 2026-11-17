@@ -218,13 +218,13 @@
 }
 
 .segupres-cifra {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-weight: 700;
   white-space: nowrap;
   font-size: var(--text-sm);
 }
 .segupres-cifra2 {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -242,7 +242,7 @@
   margin-top: 10px;
 }
 .segupres-cifra3 {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
   font-weight: 400;
   font-size: var(--text-sm);
@@ -281,7 +281,7 @@
   padding: 6px 4px;
   border-bottom: 1px solid var(--surface-2);
   text-align: right;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
   font-weight: 400;
   font-size: var(--text-sm);
@@ -289,7 +289,7 @@
 .seguir-presupuesto-e8 {
   padding: 6px 4px;
   text-align: right;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-weight: 700;
   white-space: nowrap;
   font-size: var(--text-sm);

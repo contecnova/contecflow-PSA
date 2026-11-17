@@ -8,7 +8,7 @@ import type { CSSProperties, RefObject } from 'react'
 import type BaseViewer from 'bpmn-js/lib/BaseViewer'
 import type { BaseViewerOptions } from 'bpmn-js/lib/BaseViewer'
 import type Canvas from 'diagram-js/lib/core/Canvas'
-import { Button, Page, Tabs, EmptyState, IconButton } from '../components/ui'
+import { Button, Page, Tabs, EmptyState, IconButton, Pulsable, Select } from '../components/ui'
 import { Network, Plus, X, ChevronLeft, ChevronRight, Edit3, Download, Search, Play, History, Trash2, Archive, User, Timer, ListOrdered, LayoutGrid, Activity, Workflow, SearchX, Save } from 'lucide-react'
 import BpmRunPanel from './bpm/BpmRunPanel'
 import BpmVersionsModal, { BpmProblemsModal } from './bpm/BpmVersionsModal'
@@ -534,7 +534,7 @@ export default function BPMPage(): JSX.Element {
               const count = cat.id === 'all' ? allProcesses.length : allProcesses.filter(p => p.category === cat.id).length
               const active = selectedCat === cat.id
               return (
-                <button
+                <Pulsable
                   type="button"
                   key={cat.id}
                   aria-pressed={active}
@@ -544,7 +544,7 @@ export default function BPMPage(): JSX.Element {
                 >
                   <span>{traducir(cat.labelKey)}</span>
                   <span className="bpmp-cat__count">{count}</span>
-                </button>
+                </Pulsable>
               )
             })}
           </div>
@@ -570,9 +570,9 @@ export default function BPMPage(): JSX.Element {
                 </div>
                 <div>
                   <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="bpmp-label">{traducir('bpm.categoria')}</label>
-                  <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={newProcess.category} onChange={e => setNewProcess(p => ({ ...p, category: e.target.value }))} className="bpmp-input">
+                  <Select suelto placeholder={false} id={`${idCampo}-2`} value={newProcess.category} onChange={e => setNewProcess(p => ({ ...p, category: e.target.value }))} className="bpmp-input">
                     {CATEGORIES.filter(c => c.id !== 'all').map(c => <option key={c.id} value={c.id}>{traducir(c.labelKey)}</option>)}
-                  </select>
+                  </Select>
                 </div>
                 <div>
                   <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="bpmp-label">{traducir('bpm.responsable')}</label>
@@ -716,7 +716,7 @@ export default function BPMPage(): JSX.Element {
                   {filtered.map(proc => {
                     const color = CAT_COLOR[proc.category] || 'var(--accent)'
                     return (
-                      <button
+                      <Pulsable
                         type="button"
                         key={proc.id}
                         className="bpmp-card bpmp-proc"
@@ -743,7 +743,7 @@ export default function BPMPage(): JSX.Element {
                         <div className="bpmp-proc__cta">
                           {traducir('bpm.ver_diagrama')} <ChevronRight size={12} aria-hidden="true" />
                         </div>
-                      </button>
+                      </Pulsable>
                     )
                   })}
                 </div>

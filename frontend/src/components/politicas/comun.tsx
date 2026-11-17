@@ -17,6 +17,7 @@ import DateInput from '../ui/DateInput'
 import { CODIGOS_DE_PAIS, nombreDePais } from '../../constants/paises'
 import { STALE_5_MIN_MS } from '../../constants/timings'
 import './politicas.css'
+import { Select, Pulsable, Checkbox } from '../ui'
 
 export function useCatalogo() {
   return useQuery({ queryKey: ['politicas', 'catalogo'], queryFn: politicasApi.catalogo, staleTime: STALE_5_MIN_MS })
@@ -68,9 +69,9 @@ export function ListaDeValores({ valores, onChange, opciones, etiqueta, placehol
         {valores.map(v => (
           <span key={v} className="pol-chip">
             {ver(v)}
-            <button type="button" onClick={() => onChange(valores.filter(x => x !== v))} aria-label={t('pol.quitar_valor', { valor: ver(v) })}>
+            <Pulsable onClick={() => onChange(valores.filter(x => x !== v))} aria-label={t('pol.quitar_valor', { valor: ver(v) })}>
               <X size={12} aria-hidden />
-            </button>
+            </Pulsable>
           </span>
         ))}
         <input id={id} className="pol-campo pol-campo--medio" list={`${id}-l`} value={texto} placeholder={placeholder ?? t('pol.anadir')}
@@ -90,10 +91,10 @@ export function SelectorDePais({ valor, onChange, etiqueta, vacio = true }: {
   const { t, pais } = useTextos()
   const ordenados = [...CODIGOS_DE_PAIS].sort((a, b) => pais(a).localeCompare(pais(b)))
   return (
-    <select className="pol-campo pol-campo--medio" aria-label={etiqueta} value={valor ?? ''} onChange={e => onChange(e.target.value || null)}>
+    <Select suelto className="pol-campo pol-campo--medio" aria-label={etiqueta} value={valor ?? ''} onChange={e => onChange(e.target.value || null)} placeholder={false}>
       {vacio && <option value="">{t('pol.cualquier_pais')}</option>}
       {ordenados.map(c => <option key={c} value={c}>{pais(c)} ({c})</option>)}
-    </select>
+    </Select>
   )
 }
 
@@ -102,10 +103,10 @@ export function SelectorDeMoneda({ valor, onChange, opciones, etiqueta }: {
 }) {
   const monedas = opciones?.monedas ?? []
   return (
-    <select className="pol-campo pol-campo--corto" aria-label={etiqueta} value={valor ?? opciones?.moneda_por_defecto ?? ''}
-      onChange={e => onChange(e.target.value)}>
+    <Select suelto className="pol-campo pol-campo--corto" aria-label={etiqueta} value={valor ?? opciones?.moneda_por_defecto ?? ''}
+      onChange={e => onChange(e.target.value)} placeholder={false}>
       {monedas.map(m => <option key={m} value={m}>{m}</option>)}
-    </select>
+    </Select>
   )
 }
 
@@ -138,10 +139,9 @@ export function SelectorDeEntidad({ clase, valor, onChange, opciones, etiqueta }
   const mostrar = (v: string) => clase === 'grupo' ? (opciones?.grupos.find(g => g.id === v)?.nombre ?? v)
     : clase === 'rol' ? t(`pol.rol_${v}`) : v
   return (
-    <select className="pol-campo pol-campo--medio" aria-label={etiqueta} value={valor ?? ''} onChange={e => onChange(e.target.value)}>
-      <option value="">{t('pol.elige')}</option>
+    <Select suelto className="pol-campo pol-campo--medio" aria-label={etiqueta} value={valor ?? ''} onChange={e => onChange(e.target.value)} placeholder={t('pol.elige')}>
       {(lista ?? []).map(v => <option key={v} value={v}>{mostrar(v)}</option>)}
-    </select>
+    </Select>
   )
 }
 
@@ -165,11 +165,8 @@ export function EntradaDeValor({ dominio, campo, operador, valor, onChange, opci
     return (
       <span className="pol-fila" role="group" aria-label={etiqueta}>
         {DIAS.map(d => (
-          <label key={d} className="pol-chip">
-            <input type="checkbox" checked={dias.includes(d)}
-              onChange={e => onChange(e.target.checked ? [...dias, d].sort() : dias.filter(x => x !== d))} />
-            {t(`pol.dia_${d}`)}
-          </label>
+          <Checkbox key={d} className="pol-chip" label={t(`pol.dia_${d}`)} checked={dias.includes(d)}
+            onChange={m => onChange(m ? [...dias, d].sort() : dias.filter(x => x !== d))} />
         ))}
       </span>
     )
@@ -202,20 +199,19 @@ export function EntradaDeValor({ dominio, campo, operador, valor, onChange, opci
       return <DateInput className="pol-campo" aria-label={etiqueta} value={(valor as string | null) ?? ''} onChange={e => onChange(e.target.value)} />
     case 'booleano':
       return (
-        <select className="pol-campo pol-campo--corto" aria-label={etiqueta} value={valor ? 'si' : 'no'} onChange={e => onChange(e.target.value === 'si')}>
+        <Select suelto className="pol-campo pol-campo--corto" aria-label={etiqueta} value={valor ? 'si' : 'no'} onChange={e => onChange(e.target.value === 'si')} placeholder={false}>
           <option value="si">{t('pol.si')}</option><option value="no">{t('pol.no')}</option>
-        </select>
+        </Select>
       )
     case 'enum':
       return (
-        <select className="pol-campo pol-campo--medio" aria-label={etiqueta} value={(valor as string) ?? ''} onChange={e => onChange(e.target.value)}>
-          <option value="">{t('pol.elige')}</option>
+        <Select suelto className="pol-campo pol-campo--medio" aria-label={etiqueta} value={(valor as string) ?? ''} onChange={e => onChange(e.target.value)} placeholder={t('pol.elige')}>
           {opcionesDeCampo(dominio, campo, opciones).map(o => (
             <option key={o.valor} value={o.valor}>
               {campo.opciones.some(f => f.valor === o.valor) ? etiquetaDeOpcion(dominio, campo, o.valor) : o.etiqueta}
             </option>
           ))}
-        </select>
+        </Select>
       )
     case 'pais':
       return <SelectorDePais valor={valor as string} onChange={v => onChange(v)} etiqueta={etiqueta} vacio={false} />

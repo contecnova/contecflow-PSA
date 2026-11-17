@@ -192,7 +192,7 @@
 
 .neaspa-botonicono {
   width: 32px;
-  height: 32px;
+  min-height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -215,7 +215,7 @@
 
 .neaspa-botonicono2 {
   width: 32px;
-  height: 32px;
+  min-height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;

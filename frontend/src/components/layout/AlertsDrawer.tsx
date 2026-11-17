@@ -6,7 +6,7 @@ import { X, Bell, ExternalLink } from 'lucide-react'
 import { fmtRelative } from '../../utils/helpers'
 import { useAuth } from '../../context/AuthContext'
 import { useAppLang } from '../../i18n/AppLangContext'
-import { Drawer } from '../ui'
+import { Drawer, Pulsable } from '../ui'
 import { POLL_FREQUENT_MS } from '../../constants/timings'
 import './AlertsDrawer.css'
 import type { CSSProperties } from 'react'
@@ -79,9 +79,9 @@ export default function AlertsDrawer({ onClose }: Props) {
               <span className="alerdraw-box-1">{alerts.length}</span>
             )}
           </div>
-          <button type="button" onClick={onClose} aria-label={t('common.close')} className="alerdraw-row-2">
+          <Pulsable onClick={onClose} aria-label={t('common.close')} className="alerdraw-row-2">
             <X size={16} />
-          </button>
+          </Pulsable>
         </div>
 
         {/* Severity summary */}
@@ -138,14 +138,14 @@ export default function AlertsDrawer({ onClose }: Props) {
                         </span>
                         <div className="alerdraw-row-8">
                           {!alert.is_read && (
-                            <button onClick={() => markRead(alert.id)} className="alerdraw-box-9">
+                            <Pulsable onClick={() => markRead(alert.id)} className="alerdraw-box-9">
                               {t('alertsdrawer.leida')}
-                            </button>
+                            </Pulsable>
                           )}
                           {hasRole('admin', 'pm', 'hr') && (
-                            <button type="button" onClick={() => resolve(alert.id)} className="alerdraw-box-10">
+                            <Pulsable onClick={() => resolve(alert.id)} className="alerdraw-box-10">
                               {t('layoutshell.resolver')}
-                            </button>
+                            </Pulsable>
                           )}
                         </div>
                       </div>

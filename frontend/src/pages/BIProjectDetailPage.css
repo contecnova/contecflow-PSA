@@ -48,7 +48,7 @@
 .bipd-members th { text-align: left; color: var(--text-3); padding: 6px 4px; }
 .bipd-members td { padding: 7px 4px; color: var(--text-1); }
 .bipd-members .bipd-num { text-align: right; }
-.bipd-members td.bipd-num { color: var(--text-2); font-family: var(--font-mono); }
+.bipd-members td.bipd-num { color: var(--text-2); font-variant-numeric: tabular-nums; }
 .bipd-members tr.is-clickable { cursor: pointer; }
 .bipd-members tr.is-selected { background: var(--accent-muted); }
 .bipd-member-btn {

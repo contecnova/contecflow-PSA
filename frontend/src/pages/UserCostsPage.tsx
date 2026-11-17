@@ -17,7 +17,7 @@ import { useId, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { userCostsApi, usersApi, apiErrorMsg } from '../services/api'
 import type { PerfilDeCoste, PresetDePais, ResumenDeCostes } from '../services/api/tipos-finanzas'
-import { Button, Card, KpiCard, Modal, Spinner, EmptyState, Input, Section } from '../components/ui'
+import { Button, Card, KpiCard, Modal, Spinner, EmptyState, Input, Section, Select, TablaSimple } from '../components/ui'
 import PageShell from '../components/layout/PageShell'
 import PageHeader from '../components/layout/PageHeader'
 import { useToast } from '../context/ToastContext'
@@ -166,7 +166,7 @@ export default function UserCostsPage() {
             : <EmptyState icon={<Users size={28} />} title={t('usercosts.sin_personas')} description={t('usercosts.sin_personas_desc')} />
         ) : (
           <div className="uc-table-wrap">
-            <table className="u-table">
+            <TablaSimple claseTabla="u-table">
               <thead>
                 <tr className="uc-thead-row">
                   <th scope="col" className="uc-th">{t('usercosts.col_persona')}</th>
@@ -203,7 +203,7 @@ export default function UserCostsPage() {
                   )
                 })}
               </tbody>
-            </table>
+            </TablaSimple>
           </div>
         )}
       </Section>
@@ -365,15 +365,15 @@ function ProfileWizard({ user, countries, existing, onClose, onSaved }: { user: 
         {/* Step 1 — Country */}
         <div>
           <Label htmlFor={idPais}>{t('usercosts.pais_region')}</Label>
-          <select id={idPais} value={form.country_code} onChange={(e) => onPickCountry(e.target.value)}
-                  className="ds-input uc-select">
+          <Select suelto placeholder={false} id={idPais} value={form.country_code} onChange={(e) => onPickCountry(e.target.value)}
+                  className="uc-select">
             <option value="">{t('usercosts.selecciona_pais')}</option>
             {countries.map(c => (
               <option key={c.id} value={c.country_code}>
                 {c.country_code} · {c.country_name} ({((c.employer_cost_pct ?? 0) * 100).toFixed(1)}% — {c.productive_hours_year}h)
               </option>
             ))}
-          </select>
+          </Select>
         </div>
 
         <div className="uc-grid-2">

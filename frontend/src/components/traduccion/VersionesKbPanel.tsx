@@ -10,7 +10,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, CheckCircle2, Eye, Languages, RefreshCw, Trash2, Undo2 } from 'lucide-react'
-import { Button, Confirm, IconButton, Modal, Spinner, StatusBadge } from '../ui'
+import { Button, Confirm, IconButton, Modal, Spinner, StatusBadge, Checkbox } from '../ui'
 import type { StatusBadgeKind } from '../ui/StatusBadge'
 import { useToast } from '../../context/ToastContext'
 import { useAppLang } from '../../i18n/AppLangContext'
@@ -84,14 +84,11 @@ export default function VersionesKbPanel({ articleId }: { articleId: string }) {
       ) : (
         <>
           {idiomas.length > 0 && (
-            <fieldset className="trad-kb__idiomas">
+            <fieldset className="ds-grupo-opciones trad-kb__idiomas">
               <legend className="trad-kb__leyenda">{t('traduccion_admin.kb_elegir_idiomas')}</legend>
               <div className="trad-kb__casillas">
                 {idiomas.map(l => (
-                  <label key={l} className="trad-kb__casilla">
-                    <input type="checkbox" checked={elegidos.includes(l)} onChange={() => alternar(l)} />
-                    <span>{nombreDeIdioma(l, lang)}</span>
-                  </label>
+                  <Checkbox key={l} className="trad-kb__casilla" label={nombreDeIdioma(l, lang)} checked={elegidos.includes(l)} onChange={() => alternar(l)} />
                 ))}
               </div>
               <div className="trad-kb__acciones">

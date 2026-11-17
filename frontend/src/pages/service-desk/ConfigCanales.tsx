@@ -37,7 +37,7 @@ export default function ConfigCanales() {
               <div className="u-wrap-8"><span className="u-text1-sm-600">{etiquetaCodigo(t, 'sd_mercado.canal', canal)}</span>
                 <StatusBadge kind={listo ? 'success' : 'warning'} caps={false}>{t(listo ? 'sd_mercado.configurado' : 'sd_mercado.sin_configurar')}</StatusBadge></div>
               <div className="u-text2-xs">{t(`sd_mercado.canal_ayuda_${canal}`)}</div>
-              {rutas.map(r => <code key={r} className="sdm-code sdm-wrap">{apiUrlAbsoluta(r.replace(/^\/api\/v1/, ''))}</code>)}
+              {rutas.map(r => <code key={r} className="ds-codigo sdm-code sdm-wrap">{apiUrlAbsoluta(r.replace(/^\/api\/v1/, ''))}</code>)}
             </div>
           </li>
         ))}

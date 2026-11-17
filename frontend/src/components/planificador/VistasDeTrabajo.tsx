@@ -12,13 +12,17 @@
  * sitio al pulsarla (clic, Enter o F2) con los campos del kit; el calendario
  * usa `NavegadorDeMes` y la carga por persona la rejilla única
  * `RejillaPersonaDia`.
+ *
+ * 17-11-2026: con `filtros` y `filtrosDePagina` la página (Tareas) pone sus
+ * filtros de la URL en ESTA barra —una sola `BarraDeFiltros`— y van al servidor;
+ * entonces no se pintan los selects de estado y persona propios.
  */
-import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarDays, Columns3, GanttChartSquare, Save, Table2, Trash2, Users } from 'lucide-react'
 import { planificacionApi, tasksApi, usersApi, type TaskListItem, type VistaGuardada } from '../../services/api'
-import type { TaskUpdatePayload } from '../../services/api/tasks'
-import { Avatar, Button, CeldaEditable, EditorFecha, EditorLista, EditorTexto, EmptyState, NavegadorDeMes, RejillaPersonaDia, Spinner, StatusBadge, TablaSimple, columnasDeSemanas, isoLocal } from '../ui'
+import type { TaskListParams, TaskUpdatePayload } from '../../services/api/tasks'
+import { Avatar, BarraDeFiltros, Button, CeldaEditable, EditorFecha, EditorLista, EditorTexto, EmptyState, NavegadorDeMes, RejillaPersonaDia, Spinner, StatusBadge, TablaSimple, columnasDeSemanas, isoLocal, Select, Segmentado, Checkbox } from '../ui'
 import type { StatusBadgeKind } from '../ui/StatusBadge'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
@@ -50,8 +54,17 @@ const aFecha = (s: string) => new Date(`${s.slice(0, 10)}T00:00:00`)
 /** Fecha 'YYYY-MM-DD' en hora local (sin desplazarse un día por la zona horaria). */
 const fmtDia = (s?: string | null) => (s ? fmtDate(aFecha(s)) : '—')
 
-export default function VistasDeTrabajo({ projectId, vista: vistaExterna, onVista }: {
+/** Filtros de la página que se mandan al servidor (sin proyecto ni paginación). */
+export type FiltrosDeVistas = Omit<TaskListParams, 'project_id' | 'page' | 'page_size' | 'limit'>
+
+export default function VistasDeTrabajo({ projectId, vista: vistaExterna, onVista, filtros, filtrosDePagina, onFiltros }: {
   projectId?: string; vista?: VistaDeTrabajo; onVista?: (v: VistaDeTrabajo) => void
+  /** Filtros de la página (p. ej. la URL de Tareas): sustituyen a los de estado y persona propios. */
+  filtros?: FiltrosDeVistas
+  /** Controles de filtro de la página, al principio de la barra (una sola barra). */
+  filtrosDePagina?: ReactNode
+  /** Al aplicar una vista guardada, la página recibe su estado y persona (para su URL). */
+  onFiltros?: (f: { status?: string; assignee?: string }) => void
 }) {
   const t = useAppT()
   const toast = useToast()
@@ -65,8 +78,8 @@ export default function VistasDeTrabajo({ projectId, vista: vistaExterna, onVist
   const [vistaGuardada, setVistaGuardada] = useState<string>('')
 
   const { data: tareas = [], isLoading } = useQuery({
-    queryKey: ['tasks', 'vistas', projectId ?? 'todas'],
-    queryFn: () => tasksApi.list({ ...(projectId ? { project_id: projectId } : {}), page_size: SCHEDULE_TASKS_LIST_SIZE }).then(r => r.data),
+    queryKey: ['tasks', 'vistas', projectId ?? 'todas', filtros ?? null],
+    queryFn: () => tasksApi.list({ ...filtros, ...(projectId ? { project_id: projectId } : {}), page_size: SCHEDULE_TASKS_LIST_SIZE }).then(r => r.data),
   })
   const { data: personas = [] } = useQuery({
     queryKey: ['users', 'directory'],
@@ -78,8 +91,9 @@ export default function VistasDeTrabajo({ projectId, vista: vistaExterna, onVist
     queryFn: () => planificacionApi.vistas({ entity_type: 'task', ...(projectId ? { project_id: projectId } : {}) }),
   })
 
-  const filtradas = useMemo(() => tareas.filter(x =>
-    (!config.status || x.status === config.status) && (!config.assignee || x.assignee_id === config.assignee)), [tareas, config])
+  // Con filtros de la página, el servidor ya filtra: el estado y la persona de `config` no se aplican.
+  const filtradas = useMemo(() => filtros ? tareas : tareas.filter(x =>
+    (!config.status || x.status === config.status) && (!config.assignee || x.assignee_id === config.assignee)), [tareas, config, filtros])
 
   const onError = (e: unknown) => toast.error(extractErr(e, t('planificador.error_generico')))
   const editar = useMutation({
@@ -88,7 +102,8 @@ export default function VistasDeTrabajo({ projectId, vista: vistaExterna, onVist
     onError,
   })
   const guardar = useMutation({
-    mutationFn: (nombre: string) => planificacionApi.crearVista({ name: nombre, entity_type: 'task', view_type: vista, project_id: projectId ?? null, config: config as Record<string, unknown> }),
+    mutationFn: (nombre: string) => planificacionApi.crearVista({ name: nombre, entity_type: 'task', view_type: vista, project_id: projectId ?? null,
+      config: (filtros ? { ...config, status: filtros.status || undefined, assignee: filtros.assignee_id || undefined } : config) as Record<string, unknown> }),
     onSuccess: v => { toast.success(t('planificador.vista_guardada')); setVistaGuardada(v.id); qc.invalidateQueries({ queryKey: ['vistas'] }) },
     onError,
   })
@@ -103,7 +118,9 @@ export default function VistasDeTrabajo({ projectId, vista: vistaExterna, onVist
     const v = guardadas.find((x: VistaGuardada) => x.id === id)
     if (!v) return
     if (v.view_type && (VISTAS_DE_TRABAJO as readonly string[]).includes(v.view_type)) cambiarVista(v.view_type as VistaDeTrabajo)
-    setConfig({ columns: [...COLUMNAS], ...(v.config as Config) })
+    const guardada = v.config as Config
+    setConfig({ columns: [...COLUMNAS], ...guardada })
+    if (filtros && onFiltros) onFiltros({ status: guardada.status, assignee: guardada.assignee })
   }
 
   const puedeEditar = hasRole('admin', 'pm', 'team_lead', 'employee')
@@ -115,39 +132,10 @@ export default function VistasDeTrabajo({ projectId, vista: vistaExterna, onVist
     <div className="plan-stack">
       {/* Una sola barra: vista (si la página no la controla), filtros, columnas
           y, a la derecha, las vistas guardadas. Todo a 38 px (md del kit). */}
-      <div className="ds-toolbar plan-vbarra">
-        {!onVista && (
-          <div className="ds-segmented" role="group" aria-label={t('planificador.vistas')}>
-            {VISTAS_DE_TRABAJO.map(v => (
-              <button key={v} type="button" aria-pressed={vista === v} onClick={() => cambiarVista(v)}>
-                {iconos[v]} {t(`planificador.vista_${v}`)}
-              </button>
-            ))}
-          </div>
-        )}
-        {vista !== 'workload' && (
-          <>
-            <select className="ds-input plan-vbarra__select" aria-label={t('planificador.filtro_estado')} value={config.status ?? ''}
-              onChange={e => setConfig(c => ({ ...c, status: e.target.value || undefined }))}>
-              <option value="">{t('planificador.todos_los_estados')}</option>
-              {ESTADOS.map(s => <option key={s} value={s}>{t(`planificador.estado_${s}`)}</option>)}
-            </select>
-            <select className="ds-input plan-vbarra__select" aria-label={t('planificador.filtro_persona')} value={config.assignee ?? ''}
-              onChange={e => setConfig(c => ({ ...c, assignee: e.target.value || undefined }))}>
-              <option value="">{t('planificador.todas_las_personas')}</option>
-              {personas.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-            </select>
-          </>
-        )}
-        {vista === 'table' && (
-          <SelectorDeColumnas visibles={config.columns ?? [...COLUMNAS]}
-            onCambiar={cols => setConfig(x => ({ ...x, columns: cols }))} />
-        )}
-        <div className="ds-toolbar__spacer" />
-        <select className="ds-input plan-vbarra__select" aria-label={t('planificador.vistas_guardadas')} value={vistaGuardada} onChange={e => aplicarGuardada(e.target.value)}>
-          <option value="">{t('planificador.vistas_guardadas')}</option>
+      <BarraDeFiltros className="plan-vbarra" acciones={<>
+        <Select suelto className="ds-input plan-vbarra__select" aria-label={t('planificador.vistas_guardadas')} value={vistaGuardada} onChange={e => aplicarGuardada(e.target.value)} placeholder={t('planificador.vistas_guardadas')}>
           {guardadas.map((v: VistaGuardada) => <option key={v.id} value={v.id}>{v.name}{v.is_shared ? ` · ${t('planificador.compartida')}` : ''}</option>)}
-        </select>
+        </Select>
         <Button size="md" variant="secondary" icon={<Save size={14} />} loading={guardar.isPending}
           onClick={async () => { const n = await pedirTexto({ message: t('planificador.nombre_de_vista'), required: true }); if (n?.trim()) guardar.mutate(n.trim()) }}>
           {t('planificador.guardar_vista')}
@@ -157,7 +145,29 @@ export default function VistasDeTrabajo({ projectId, vista: vistaExterna, onVist
             {t('planificador.borrar')}
           </Button>
         )}
-      </div>
+      </>}>
+        {!onVista && (
+          <Segmentado aria-label={t('planificador.vistas')} valor={vista} onChange={v => cambiarVista(v as typeof vista)}
+            opciones={VISTAS_DE_TRABAJO.map(v => ({ valor: v, etiqueta: <>{iconos[v]} {t(`planificador.vista_${v}`)}</> }))} />
+        )}
+        {filtrosDePagina}
+        {vista !== 'workload' && !filtros && (
+          <>
+            <Select suelto className="ds-input plan-vbarra__select" aria-label={t('planificador.filtro_estado')} value={config.status ?? ''}
+              onChange={e => setConfig(c => ({ ...c, status: e.target.value || undefined }))} placeholder={t('planificador.todos_los_estados')}>
+              {ESTADOS.map(s => <option key={s} value={s}>{t(`planificador.estado_${s}`)}</option>)}
+            </Select>
+            <Select suelto className="ds-input plan-vbarra__select" aria-label={t('planificador.filtro_persona')} value={config.assignee ?? ''}
+              onChange={e => setConfig(c => ({ ...c, assignee: e.target.value || undefined }))} placeholder={t('planificador.todas_las_personas')}>
+              {personas.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+            </Select>
+          </>
+        )}
+        {vista === 'table' && (
+          <SelectorDeColumnas visibles={config.columns ?? [...COLUMNAS]}
+            onCambiar={cols => setConfig(x => ({ ...x, columns: cols }))} />
+        )}
+      </BarraDeFiltros>
 
       {isLoading ? <Spinner /> : vista === 'workload' ? <CargaPorPersona projectId={projectId} /> : filtradas.length === 0 ? (
         <EmptyState title={t('planificador.sin_tareas')} description={t('planificador.sin_tareas_filtro')} />
@@ -201,11 +211,8 @@ function SelectorDeColumnas({ visibles, onCambiar }: { visibles: Columna[]; onCa
       {abierto && (
         <div id={idPanel} className="plan-columnas__panel" role="group" aria-label={t('planificador.columnas')}>
           {COLUMNAS.map(c => (
-            <label key={c} className="plan-columnas__opcion">
-              <input type="checkbox" checked={visibles.includes(c)}
-                onChange={e => onCambiar(e.target.checked ? COLUMNAS.filter(x => x === c || visibles.includes(x)) : visibles.filter(y => y !== c))} />
-              {t(`planificador.columna_${c}`)}
-            </label>
+            <Checkbox key={c} className="plan-columnas__opcion" label={t(`planificador.columna_${c}`)} checked={visibles.includes(c)}
+              onChange={m => onCambiar(m ? COLUMNAS.filter(x => x === c || visibles.includes(x)) : visibles.filter(y => y !== c))} />
           ))}
         </div>
       )}

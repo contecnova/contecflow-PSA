@@ -20,7 +20,7 @@ import { changesApi, cmdbApi, sdChangePlanningApi } from '../../services/api'
 import type { CambioItsm, CambioItsmDetalle, EstadoDeCambio } from '../../services/api/tipos-cambios'
 import { CalendarioCambios, Congelaciones, PanelCab, Versiones } from './CambiosPlanificacion'
 import { useAppT } from '../../i18n/AppLangContext'
-import { Button, Spinner, EmptyState, Modal, StatusBadge, Tabs, IconButton, useSort, SortableTH, ariaSort } from '../../components/ui'
+import { Button, Spinner, EmptyState, Modal, StatusBadge, Tabs, IconButton, Pulsable, Select, TablaSimple, useSort, SortableTH, ariaSort } from '../../components/ui'
 import type { StatusBadgeKind } from '../../components/ui/StatusBadge'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { etiquetaSd } from './sdUtils'
@@ -224,21 +224,21 @@ function ChangeEditModal({ change, onClose, onSaved }: { change: ChangeItem; onC
     <Modal open title={t('changemanagement.editar_titulo', { number: change.number })} onClose={onClose} size="lg">
       <div className="chgm-form chgm-form--scroll">
         <div className="u-col-full"><label id={`${idPrefix}-title-et`} htmlFor={`${idPrefix}-title`} className="chgm-label">{t('changemanagement.titulo')}</label><input id={`${idPrefix}-title`} aria-labelledby={`${idPrefix}-title-et`} value={form.title} onChange={set('title')} className={IS} /></div>
-        <div><label htmlFor={`${idPrefix}-change-type`} className="chgm-label">{t('changemanagement.tipo_de_cambio')}</label><select id={`${idPrefix}-change-type`} value={form.change_type} onChange={set('change_type')} className={IS}>{CHANGE_TYPES.map(v => <option key={v} value={v}>{t(`changemanagement.opt_${v}`)}</option>)}</select></div>
-        <div><label htmlFor={`${idPrefix}-risk`} className="chgm-label">{t('changemanagement.riesgo')}</label><select id={`${idPrefix}-risk`} value={form.risk} onChange={set('risk')} className={IS}>{RISKS.map(v => <option key={v} value={v}>{t(`changemanagement.risk_${v}`)}</option>)}</select></div>
+        <div><label htmlFor={`${idPrefix}-change-type`} className="chgm-label">{t('changemanagement.tipo_de_cambio')}</label><Select suelto placeholder={false} id={`${idPrefix}-change-type`} value={form.change_type} onChange={set('change_type')} className="chgm-sel">{CHANGE_TYPES.map(v => <option key={v} value={v}>{t(`changemanagement.opt_${v}`)}</option>)}</Select></div>
+        <div><label htmlFor={`${idPrefix}-risk`} className="chgm-label">{t('changemanagement.riesgo')}</label><Select suelto placeholder={false} id={`${idPrefix}-risk`} value={form.risk} onChange={set('risk')} className="chgm-sel">{RISKS.map(v => <option key={v} value={v}>{t(`changemanagement.risk_${v}`)}</option>)}</Select></div>
         <div><label htmlFor={`${idPrefix}-planned-start`} className="chgm-label">{t('changemanagement.inicio_planificado')}</label><DateInput id={`${idPrefix}-planned-start`} withTime value={form.planned_start} onChange={set('planned_start')} className={IS} /></div>
         <div><label htmlFor={`${idPrefix}-planned-end`} className="chgm-label">{t('changemanagement.fin_planificado')}</label><DateInput id={`${idPrefix}-planned-end`} withTime value={form.planned_end} onChange={set('planned_end')} className={IS} /></div>
         <div><label id={`${idPrefix}-downtime-et`} htmlFor={`${idPrefix}-downtime`} className="chgm-label">{t('changemanagement.downtime_estimado')}</label><input id={`${idPrefix}-downtime`} aria-labelledby={`${idPrefix}-downtime-et`} type="number" value={form.downtime_minutes} onChange={set('downtime_minutes')} className={IS} min="0" /></div>
         <div><label htmlFor={`${idPrefix}-release`} className="chgm-label">{ts('sd_cfg.chg_release')}</label>
-          <select id={`${idPrefix}-release`} value={form.release_id ?? ''} onChange={e => setForm(f => ({ ...f, release_id: e.target.value || null }))} className={IS}>
+          <Select suelto placeholder={false} id={`${idPrefix}-release`} value={form.release_id ?? ''} onChange={e => setForm(f => ({ ...f, release_id: e.target.value || null }))} className="chgm-sel">
             <option value="">{ts('sd_cfg.chg_none')}</option>
             {versiones.filter(v => v.status !== 'released' && v.status !== 'cancelled').map(v => <option key={v.id} value={v.id}>{v.name}{v.version ? ` ${v.version}` : ''}</option>)}
-          </select></div>
+          </Select></div>
         <div className="u-col-full" role="group" aria-labelledby={`${idPrefix}-cis-et`}><span id={`${idPrefix}-cis-et`} className="chgm-label">{ts('sd_cfg.chg_affected_cis')}</span>
           <div className="chgm-cis">
             {cis.map(ci => {
               const on = (form.affected_cis ?? []).includes(ci.id)
-              return <button key={ci.id} type="button" aria-pressed={on} onClick={() => alternarCi(ci.id)} className="chgm-chip">{ci.code ? `${ci.code} · ` : ''}{ci.name}</button>
+              return <Pulsable key={ci.id} aria-pressed={on} onClick={() => alternarCi(ci.id)} className="chgm-chip">{ci.code ? `${ci.code} · ` : ''}{ci.name}</Pulsable>
             })}
           </div></div>
         <div className="u-col-full"><label id={`${idPrefix}-description-et`} htmlFor={`${idPrefix}-description`} className="chgm-label">{t('changemanagement.descripcion_2')}</label><textarea id={`${idPrefix}-description`} aria-labelledby={`${idPrefix}-description-et`} value={form.description} onChange={set('description')} rows={3} className={IS} /></div>
@@ -276,8 +276,8 @@ function NewChangeModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
     <Modal open title={t('changemanagement.nuevo_change_request')} onClose={onClose} size="lg">
       <div className="chgm-form">
         <div className="u-col-full"><label id={`${idPrefix}-title-et`} htmlFor={`${idPrefix}-title`} className="chgm-label">{t('changemanagement.titulo')}</label><input id={`${idPrefix}-title`} aria-labelledby={`${idPrefix}-title-et`} value={form.title} onChange={set('title')} className={IS} placeholder={t('changemanagement.titulo_del_cambio')} /></div>
-        <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="chgm-label">{t('changemanagement.tipo_de_cambio')}</label><select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.change_type} onChange={set('change_type')} className={IS}>{CHANGE_TYPES.map(v => <option key={v} value={v}>{t(`changemanagement.opt_${v}`)}</option>)}</select></div>
-        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="chgm-label">{t('changemanagement.riesgo')}</label><select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.risk} onChange={set('risk')} className={IS}>{RISKS.map(v => <option key={v} value={v}>{t(`changemanagement.risk_${v}`)}</option>)}</select></div>
+        <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="chgm-label">{t('changemanagement.tipo_de_cambio')}</label><Select suelto placeholder={false} id={`${idCampo}-1`} value={form.change_type} onChange={set('change_type')} className="chgm-sel">{CHANGE_TYPES.map(v => <option key={v} value={v}>{t(`changemanagement.opt_${v}`)}</option>)}</Select></div>
+        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="chgm-label">{t('changemanagement.riesgo')}</label><Select suelto placeholder={false} id={`${idCampo}-2`} value={form.risk} onChange={set('risk')} className="chgm-sel">{RISKS.map(v => <option key={v} value={v}>{t(`changemanagement.risk_${v}`)}</option>)}</Select></div>
         <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="chgm-label">{t('changemanagement.inicio_planificado')}</label><DateInput id={`${idCampo}-3`} withTime value={form.planned_start} onChange={set('planned_start')} className={IS} /></div>
         <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="chgm-label">{t('changemanagement.fin_planificado')}</label><DateInput id={`${idCampo}-4`} withTime value={form.planned_end} onChange={set('planned_end')} className={IS} /></div>
         <div className="u-col-full"><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="chgm-label">{t('changemanagement.descripcion_2')}</label><textarea id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.description} onChange={set('description')} rows={3} className={IS} /></div>
@@ -357,17 +357,17 @@ export default function ChangeManagementTab() {
       {vista === 'cab' && <PanelDelCab onOpen={abrir} />}
       {vista === 'list' && <>
       <div className="chgm-toolbar">
-        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} aria-label={t('changemanagement.filtrar_estado')} className="ds-input chgm-filter">
+        <Select suelto placeholder={false} value={filterStatus} onChange={e => setFilterStatus(e.target.value)} aria-label={t('changemanagement.filtrar_estado')} className="chgm-filter">
           <option value="">{t('changemanagement.todos_los_estados')}</option>
           {ESTADOS_FILTRO.map(s => <option key={s} value={s}>{etiquetaSd('chg_st', s)}</option>)}
-        </select>
+        </Select>
         {nuevo}
       </div>
 
       {isLoading ? <Spinner /> : changes.length === 0
         ? <EmptyState icon={<GitPullRequest size={28} />} title={t('changemanagement.sin_cambios_registrados')} description={t('changemanagement.sin_cambios_desc')} action={filterStatus ? undefined : nuevo} />
         : <div className="u-scroll-x">
-          <table className="u-table">
+          <TablaSimple claseTabla="u-table">
             <thead><tr className="chgm-head-row"><th aria-sort={ariaSort(changeSort, 'number')} className="u-cell-nowrap"><SortableTH col="number" sort={changeSort} onSort={setChangeSort}>{t('changemanagement.numero')}</SortableTH></th><th aria-sort={ariaSort(changeSort, 'title')} className="u-cell-nowrap"><SortableTH col="title" sort={changeSort} onSort={setChangeSort}>{t('changemanagement.titulo_2')}</SortableTH></th><th aria-sort={ariaSort(changeSort, 'change_type')} className="u-cell-nowrap"><SortableTH col="change_type" sort={changeSort} onSort={setChangeSort}>{t('changemanagement.tipo')}</SortableTH></th><th aria-sort={ariaSort(changeSort, 'risk')} className="u-cell-nowrap"><SortableTH col="risk" sort={changeSort} onSort={setChangeSort}>{t('changemanagement.riesgo')}</SortableTH></th><th aria-sort={ariaSort(changeSort, 'status')} className="u-cell-nowrap"><SortableTH col="status" sort={changeSort} onSort={setChangeSort}>{t('changemanagement.estado')}</SortableTH></th><th aria-sort={ariaSort(changeSort, 'planned_start')} className="u-cell-nowrap"><SortableTH col="planned_start" sort={changeSort} onSort={setChangeSort}>{t('changemanagement.inicio_planif')}</SortableTH></th><th aria-sort={ariaSort(changeSort, 'owner')} className="u-cell-nowrap"><SortableTH col="owner" sort={changeSort} onSort={setChangeSort}>{t('changemanagement.owner')}</SortableTH></th><th className="chgm-th-plain">{t('changemanagement.acciones')}</th></tr></thead>
             <tbody>
               {sortedChanges.map(c => {
@@ -375,7 +375,7 @@ export default function ChangeManagementTab() {
                 return (
                   <tr key={c.id} className="u-border-b">
                     <td className="chgm-td chgm-td--number">{c.number}</td>
-                    <td className="chgm-td chgm-td--title"><button type="button" onClick={() => setDetail(c)} className="chgm-title-btn" title={c.title}>{c.title}</button></td>
+                    <td className="chgm-td chgm-td--title"><Pulsable onClick={() => setDetail(c)} className="chgm-title-btn" title={c.title}>{c.title}</Pulsable></td>
                     <td className="chgm-td chgm-td--muted-xs">{etiquetaSd('chg_type', c.change_type)}</td>
                     <td className="chgm-td"><RiesgoBadge risk={c.risk} /></td>
                     <td className="chgm-td"><EstadoBadge status={c.status} /></td>
@@ -389,7 +389,7 @@ export default function ChangeManagementTab() {
                 )
               })}
             </tbody>
-          </table>
+          </TablaSimple>
         </div>}
 
       </>}

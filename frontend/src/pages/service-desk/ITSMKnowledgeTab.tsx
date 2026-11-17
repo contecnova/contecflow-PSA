@@ -30,7 +30,7 @@ import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import { sdKbApi, problemsApi } from '../../services/api'
 import type { SdArticuloKb, SdArticuloKbDetalle, SdCalidadKb, SdErrorConocido, SdTicketDeErrorConocido } from '../../services/api/tipos-sd'
-import { Button, Spinner, EmptyState, Modal, StatusBadge, Tabs, IconButton } from '../../components/ui'
+import { Button, Checkbox, Spinner, EmptyState, Modal, Select, StatusBadge, Tabs, IconButton } from '../../components/ui'
 import type { StatusBadgeKind } from '../../components/ui/StatusBadge'
 import MarkdownText from '../../components/ui/MarkdownText'
 import { etiquetaSd, PBadge, PRIORITY_LABEL, SBadge } from './sdUtils'
@@ -224,8 +224,8 @@ function KEDBModal({ item, onClose, onSaved }: KEDBModalProps) {
         <div><label id={`${idPrefix}-workaround-et`} htmlFor={`${idPrefix}-workaround`} className="itk-label">{t('itsmknowledge.workaround_solucion_temporal')}</label><textarea id={`${idPrefix}-workaround`} aria-labelledby={`${idPrefix}-workaround-et`} value={form.workaround} onChange={set('workaround')} rows={3} className="ds-input itk-textarea" placeholder={t('itsmknowledge.solucion_temporal_disponible')} /></div>
         <div><label id={`${idPrefix}-fix-description-et`} htmlFor={`${idPrefix}-fix-description`} className="itk-label">{t('itsmknowledge.solucion_definitiva_2')}</label><textarea id={`${idPrefix}-fix-description`} aria-labelledby={`${idPrefix}-fix-description-et`} value={form.fix_description} onChange={set('fix_description')} rows={2} className="ds-input itk-textarea" placeholder={t('itsmknowledge.solucion_definitiva_aplicada')} /></div>
         <div className="u-grid2-12">
-          <div><label htmlFor={`${idPrefix}-priority`} className="itk-label">{t('itsmknowledge.prioridad')}</label><select id={`${idPrefix}-priority`} value={form.priority} onChange={set('priority')} className="ds-input">{PRIORIDADES.map(p => <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}</select></div>
-          <div><label htmlFor={`${idPrefix}-status`} className="itk-label">{t('itsmknowledge.estado')}</label><select id={`${idPrefix}-status`} value={form.status} onChange={set('status')} className="ds-input">{['open', 'investigating', 'known_error', 'resolved'].map(v => <option key={v} value={v}>{etiquetaSd('prb_st', v)}</option>)}</select></div>
+          <div><label htmlFor={`${idPrefix}-priority`} className="itk-label">{t('itsmknowledge.prioridad')}</label><Select suelto placeholder={false} id={`${idPrefix}-priority`} value={form.priority} onChange={set('priority')}>{PRIORIDADES.map(p => <option key={p} value={p}>{PRIORITY_LABEL[p]}</option>)}</Select></div>
+          <div><label htmlFor={`${idPrefix}-status`} className="itk-label">{t('itsmknowledge.estado')}</label><Select suelto placeholder={false} id={`${idPrefix}-status`} value={form.status} onChange={set('status')}>{['open', 'investigating', 'known_error', 'resolved'].map(v => <option key={v} value={v}>{etiquetaSd('prb_st', v)}</option>)}</Select></div>
         </div>
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('itsmknowledge.cancelar')}</Button>
@@ -402,8 +402,8 @@ function ProblemModal({ item, onClose, onSaved, isPending }: ProblemModalProps) 
         <div><label id={`${idPrefix}-workaround-et`} htmlFor={`${idPrefix}-workaround`} className="itk-label">{t('itsmknowledge.workaround_solucion_temporal')}</label><textarea id={`${idPrefix}-workaround`} aria-labelledby={`${idPrefix}-workaround-et`} value={form.workaround} onChange={set('workaround')} rows={3} className="ds-input itk-textarea" placeholder={t('itsmknowledge.solucion_temporal')} /></div>
         <div><label id={`${idPrefix}-fix-description-et`} htmlFor={`${idPrefix}-fix-description`} className="itk-label">{t('itsmknowledge.solucion_definitiva_opcional')}</label><textarea id={`${idPrefix}-fix-description`} aria-labelledby={`${idPrefix}-fix-description-et`} value={form.fix_description} onChange={set('fix_description')} rows={2} className="ds-input itk-textarea" placeholder={t('itsmknowledge.solucion_definitiva_2')} /></div>
         <div className="u-grid2-12">
-          <div><label htmlFor={`${idPrefix}-priority`} className="itk-label">{t('itsmknowledge.prioridad')}</label><select id={`${idPrefix}-priority`} value={form.priority} onChange={set('priority')} className="ds-input">{PRIORIDADES.map(v => <option key={v} value={v}>{PRIORITY_LABEL[v]}</option>)}</select></div>
-          <div><label htmlFor={`${idPrefix}-status`} className="itk-label">{t('itsmknowledge.estado')}</label><select id={`${idPrefix}-status`} value={form.status} onChange={set('status')} className="ds-input">{['open', 'investigating', 'known_error', 'resolved', 'closed'].map(v => <option key={v} value={v}>{etiquetaSd('prb_st', v)}</option>)}</select></div>
+          <div><label htmlFor={`${idPrefix}-priority`} className="itk-label">{t('itsmknowledge.prioridad')}</label><Select suelto placeholder={false} id={`${idPrefix}-priority`} value={form.priority} onChange={set('priority')}>{PRIORIDADES.map(v => <option key={v} value={v}>{PRIORITY_LABEL[v]}</option>)}</Select></div>
+          <div><label htmlFor={`${idPrefix}-status`} className="itk-label">{t('itsmknowledge.estado')}</label><Select suelto placeholder={false} id={`${idPrefix}-status`} value={form.status} onChange={set('status')}>{['open', 'investigating', 'known_error', 'resolved', 'closed'].map(v => <option key={v} value={v}>{etiquetaSd('prb_st', v)}</option>)}</Select></div>
         </div>
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('itsmknowledge.cancelar')}</Button>
@@ -553,9 +553,9 @@ function KBArticleModal({ article, onClose, onSaved, inicial }: KBArticleModalPr
         <div><label id={`${idPrefix}-body-et`} htmlFor={`${idPrefix}-body`} className="itk-label">{t('itsmknowledge.contenido_req')}</label><textarea id={`${idPrefix}-body`} aria-labelledby={`${idPrefix}-body-et`} value={form.body} onChange={set('body')} rows={8} className="ds-input itk-textarea" placeholder={t('itsmknowledge.contenido_del_articulo')} /></div>
         <div className="u-grid2-12">
           <div><label id={`${idPrefix}-tags-et`} htmlFor={`${idPrefix}-tags`} className="itk-label">{t('itsmknowledge.etiquetas_separadas_por_coma')}</label><input id={`${idPrefix}-tags`} aria-labelledby={`${idPrefix}-tags-et`} value={form.tags} onChange={set('tags')} className="ds-input" placeholder={t('itsmknowledge.ph_tags')} /></div>
-          <div><label htmlFor={`${idPrefix}-status`} className="itk-label">{t('itsmknowledge.estado')}</label><select id={`${idPrefix}-status`} value={form.status} onChange={set('status')} className="ds-input">{['draft', 'published', 'archived'].map(v => <option key={v} value={v}>{t(`sd_cfg.kb_status_${v}`)}</option>)}</select></div>
+          <div><label htmlFor={`${idPrefix}-status`} className="itk-label">{t('itsmknowledge.estado')}</label><Select suelto placeholder={false} id={`${idPrefix}-status`} value={form.status} onChange={set('status')}>{['draft', 'published', 'archived'].map(v => <option key={v} value={v}>{t(`sd_cfg.kb_status_${v}`)}</option>)}</Select></div>
         </div>
-        <label className="itk-check"><input type="checkbox" aria-label={t('itsmknowledge.visible_en_el_portal_cliente')} checked={form.is_public} onChange={set('is_public')} />{t('itsmknowledge.visible_en_el_portal_cliente')}</label>
+        <Checkbox className="itk-check" aria-label={t('itsmknowledge.visible_en_el_portal_cliente')} checked={!!form.is_public} onChange={v => setForm(f => ({ ...f, is_public: v }))} label={t('itsmknowledge.visible_en_el_portal_cliente')} />
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('itsmknowledge.cancelar')}</Button>
           <Button onClick={() => mutate(form)} disabled={isPending || !form.title || !form.body} loading={isPending}>{isEdit ? t('itsmknowledge.guardar_cambios') : t('itsmknowledge.crear_articulo')}</Button>
@@ -704,9 +704,7 @@ function CalidadKB() {
             <div className="u-text2-sm">{respondiendo.question}</div>
             <textarea aria-label={t('itsmknowledge.respuesta')} placeholder={t('itsmknowledge.respuesta')} rows={6} value={respuesta} onChange={e => setRespuesta(e.target.value)}
               className="ds-input itk-textarea" />
-            <label className="itk-check-sm">
-              <input type="checkbox" aria-label={t('itsmknowledge.tambien_clientes')} checked={publica} onChange={e => setPublica(e.target.checked)} />{t('itsmknowledge.tambien_clientes')}
-            </label>
+            <Checkbox className="itk-check-sm" aria-label={t('itsmknowledge.tambien_clientes')} checked={!!publica} onChange={setPublica} label={t('itsmknowledge.tambien_clientes')} />
             <div className="u-text2-xs">{t('itsmknowledge.responder_ayuda')}</div>
             <div className="u-actions-8">
               <Button variant="secondary" onClick={() => setRespondiendo(null)}>{t('common.cancel')}</Button>

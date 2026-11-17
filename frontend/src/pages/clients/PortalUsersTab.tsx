@@ -3,13 +3,12 @@ import { type CSSProperties, useState, useId } from 'react'
 import { useToast } from '../../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { portalClientsApi, clientsApi } from '../../services/api'
-import { Button, EmptyState, Modal } from '../../components/ui'
+import { Button, EmptyState, Modal, Checkbox, GrupoDeOpciones } from '../../components/ui'
 import { Check, ClipboardCopy, Coins, FolderOpen, Globe, KeyRound, Lock, LockOpen, Mail, Pause, Pencil, Play, Plus, TriangleAlert, Users } from 'lucide-react'
 import { extractErr, fmtDate } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useAppLang } from '../../i18n/AppLangContext'
 import './PortalUsersTab.css'
-import { px } from '../../utils/estilos'
 
 type PortalUsersTabProps = {
   cid: string | number
@@ -253,7 +252,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
               </div>
               <div className="u-row-between">
                 <span className="u-text2-sm">{t('portalusers.contrasena')}</span>
-                <strong className="pousta-box-12">{createdCreds.password}</strong>
+                <strong className="ds-codigo pousta-box-12">{createdCreds.password}</strong>
               </div>
             </div>
           </div>
@@ -309,14 +308,10 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
               <input id={`${idCampo}-tel`} aria-labelledby={`${idCampo}-tel-et`} value={editForm?.phone ?? ''} onChange={e => setEditForm(f => f && ({ ...f, phone: e.target.value }))} className="pousta-inp" placeholder={t('portalusers.telefono')} />
             </div>
             <div className="u-col-full">
-              <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="pousta-lbl">{t('portaluserstab.proyectos_asociados')}</label>
-              <select className="pousta-inp2 portal-users-tab-e7" id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} multiple value={editForm.project_ids || []}
-                onChange={e => setEditForm(f => f && ({ ...f, project_ids: Array.from(e.target.selectedOptions).map(opt => opt.value).filter(Boolean) }))}
-                style={{ '--portal-users-tab-height': px(38 + Math.min(projects.length, 4) * 28) } as CSSProperties}>
-                {projects.map(p => (
-                  <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
-                ))}
-              </select>
+              <GrupoDeOpciones tipo="checkbox" forma="lista" className="pousta-proyectos" leyenda={t('portaluserstab.proyectos_asociados')}
+                valor={editForm.project_ids || []}
+                onChange={v => setEditForm(f => f && ({ ...f, project_ids: v }))}
+                opciones={projects.map(p => ({ valor: String(p.id), titulo: `${p.code} — ${p.name}` }))} />
               <div className="u-hint">{t('portalusers.puedes_asignar_acceso_a_varios_proyectos_al')}</div>
             </div>
           </div>
@@ -332,8 +327,8 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
                   rechaza, con razón. */}
               {PORTAL_PERMISSIONS.map((p) => (
                 <label className={`pousta-row-6 portalus-sx1 portal-users-tab-e8 ${editForm[p.key] ? 'portal-users-tab-m9' : 'portal-users-tab-m10'}`} key={p.key} style={{ '--portal-users-tab-border': `1px solid ${editForm[p.key] ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
-                  <input type="checkbox" checked={!!editForm[p.key]}
-                    onChange={e => setEditForm(f => f && ({ ...f, [p.key]: e.target.checked }))}
+                  <Checkbox checked={!!editForm[p.key]}
+                    onChange={(_, e) => setEditForm(f => f && ({ ...f, [p.key]: e.target.checked }))}
                     className="pousta-box-17" />
                   <div>
                     <div className={`pousta-txt-4 ${editForm[p.key] ? 'portal-users-tab-m11' : 'portal-users-tab-m12'}`}>{t(`portaluserstab.perm_${p.key}`)}</div>
@@ -383,13 +378,10 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
             <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="pousta-lbl">{t('portalusers.confirmar_contrasena')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="password" autoComplete="new-password" value={form.confirm_password} onChange={e => setForm(f => ({ ...f, confirm_password: e.target.value }))} className="pousta-inp" /></div>
             <div><label id={`${idCampo}-cargo-et`} htmlFor={`${idCampo}-cargo`} className="pousta-lbl">{t('portaluserstab.cargo')}</label><input id={`${idCampo}-cargo`} aria-labelledby={`${idCampo}-cargo-et`} value={form.job_title} onChange={e => setForm(f => ({ ...f, job_title: e.target.value }))} className="pousta-inp" placeholder={t('portaluserstab.cargo')} /></div>
             <div>
-              <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="pousta-lbl">{t('portaluserstab.asociar_proyectos')}</label>
-              <select className="pousta-inp2 portal-users-tab-e7" id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} multiple value={form.project_ids} onChange={e => {
-                const options = Array.from(e.target.selectedOptions).map(opt => opt.value).filter(Boolean)
-                setForm(f => ({ ...f, project_ids: options }))
-              }} style={{ '--portal-users-tab-height': px(38 + Math.min(projects.length, 4) * 28) } as CSSProperties}>
-                {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-              </select>
+              <GrupoDeOpciones tipo="checkbox" forma="lista" className="pousta-proyectos" leyenda={t('portaluserstab.asociar_proyectos')}
+                valor={form.project_ids}
+                onChange={v => setForm(f => ({ ...f, project_ids: v }))}
+                opciones={projects.map(p => ({ valor: String(p.id), titulo: `${p.code} — ${p.name}` }))} />
             </div>
           </div>
           <div className="pousta-panel2">
@@ -397,7 +389,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
             <div className="pousta-grid-2">
               {PORTAL_PERMISSIONS.map(p => (
                 <label className={`pousta-row-6 portalus-sx1 portal-users-tab-e8 ${form[p.key] ? 'portal-users-tab-m9' : 'portal-users-tab-m10'}`} key={p.key} style={{ '--portal-users-tab-border': `1px solid ${form[p.key] ? 'var(--accent)' : 'var(--surface-4)'}` } as CSSProperties}>
-                  <input type="checkbox" checked={form[p.key]} onChange={e => setForm(f => ({ ...f, [p.key]: e.target.checked }))}
+                  <Checkbox checked={form[p.key]} onChange={(_, e) => setForm(f => ({ ...f, [p.key]: e.target.checked }))}
                     className="pousta-box-17" />
                   <div>
                     <div className={`pousta-txt-4 ${form[p.key] ? 'portal-users-tab-m11' : 'portal-users-tab-m12'}`}>{t(`portaluserstab.perm_${p.key}`)}</div>

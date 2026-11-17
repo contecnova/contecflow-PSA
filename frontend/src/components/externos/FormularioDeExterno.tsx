@@ -12,7 +12,7 @@ import { useId } from 'react'
 import type { ChangeEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { KeyRound } from 'lucide-react'
-import { Button, Input, Modal, Select } from '../ui'
+import { Button, Input, Modal, Select, Checkbox } from '../ui'
 import { esExterno, etiquetaDePersona } from '../ui/MarcaExterno'
 import { usersApi } from '../../services/api'
 import type { PersonaVisible } from '../../services/api/users'
@@ -160,8 +160,8 @@ export function CamposDeExterno({ form, onChange }: CamposDeExternoProps) {
         options={personas.map(p => ({ value: p.id, label: etiquetaDePersona(t, p) }))} />
       <div className="ext-full ext-acceso">
         <label className="ext-check" htmlFor={`${idBase}-acceso`}>
-          <input id={`${idBase}-acceso`} type="checkbox" checked={form.has_access}
-            onChange={e => onChange({ has_access: e.target.checked })} />
+          <Checkbox id={`${idBase}-acceso`} checked={form.has_access}
+            onChange={(_, e) => onChange({ has_access: e.target.checked })} />
           <span>{t('externos.con_acceso')}</span>
         </label>
         <div className="u-text3-xs">{form.has_access ? t('externos.con_acceso_ayuda') : t('externos.sin_acceso_ayuda')}</div>
@@ -189,10 +189,10 @@ export function CredencialesDeExterno({ usuario, contrasena, onClose }: { usuari
         <p className="u-text2-sm">{t('externos.credenciales_texto')}</p>
         <div className="ext-creds-caja">
           <div className="ext-creds-etiqueta">{t('externos.usuario')}</div>
-          <div className="ext-creds-valor">{usuario}</div>
+          <div className="ds-codigo ext-creds-valor">{usuario}</div>
           {contrasena && <>
             <div className="ext-creds-etiqueta">{t('externos.contrasena_temporal')}</div>
-            <div className="ext-creds-valor ext-creds-valor--aviso">{contrasena}</div>
+            <div className="ds-codigo ext-creds-valor ext-creds-valor--aviso">{contrasena}</div>
           </>}
         </div>
         <p className="u-text3-xs">{t('externos.credenciales_aviso')}</p>

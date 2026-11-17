@@ -8,7 +8,7 @@
   white-space: nowrap;
 }
 .asdawi-box-2 {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   margin-right: 6px;
 }
 .asdawi-sp-1 {

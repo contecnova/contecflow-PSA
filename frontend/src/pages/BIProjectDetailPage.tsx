@@ -18,7 +18,7 @@ import type { OpcionesDeFiltroAnalitico } from '../services/api/tipos-analitica'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { ArrowLeft, BarChart2, Download, FileText, Percent, TrendingDown, TrendingUp, Users } from 'lucide-react'
-import { Button, EmptyState, KpiCard, SelectorDePeriodo, Spinner } from '../components/ui'
+import { Button, EmptyState, KpiCard, SelectorDePeriodo, Spinner, Pulsable, TablaSimple } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { usePeriodo } from '../hooks/usePeriodo'
 import { SIN_HORA, codigoDeErrorDePeriodo, type ParamsPeriodoApi } from '../utils/periodo'
@@ -340,7 +340,7 @@ export default function BIProjectDetailPage(): JSX.Element {
             <EmptyState icon={<Users size={28} />} title={t('bi.no_member_data')} />
           ) : (
             <div className="bipd-members">
-              <table className="u-table-sm">
+              <TablaSimple claseTabla="u-table-sm">
                 <thead>
                   <tr>
                     <th scope="col">{t('bi.person')}</th>
@@ -358,9 +358,9 @@ export default function BIProjectDetailPage(): JSX.Element {
                       >
                         <td>
                           {m.userId ? (
-                            <button type="button" className="bipd-member-btn" aria-pressed={isSelected}>
+                            <Pulsable type="button" className="bipd-member-btn" aria-pressed={isSelected}>
                               {m.label || t('bi.no_name')}
-                            </button>
+                            </Pulsable>
                           ) : (m.label || t('bi.no_name'))}
                         </td>
                         <td className="bipd-num">{fmtNumber(Number(m.value || 0), 1)}</td>
@@ -368,7 +368,7 @@ export default function BIProjectDetailPage(): JSX.Element {
                     )
                   })}
                 </tbody>
-              </table>
+              </TablaSimple>
             </div>
           )}
         </div>

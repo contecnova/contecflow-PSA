@@ -83,7 +83,7 @@
 .almf-importe { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .almf-negativo { color: var(--danger); }
 .almf-positivo { color: var(--success); }
-.almf-mono { font-family: var(--font-mono); overflow-wrap: anywhere; }
+.almf-mono { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .almf-pills { display: flex; flex-wrap: wrap; gap: 6px; }
 .almf-acciones-modal { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
 .almf-galeria { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
@@ -92,7 +92,7 @@
 .almf-galeria img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .almf-galeria__doc { display: grid; place-items: center; height: 100%; padding: 6px; text-align: center; overflow-wrap: anywhere; }
 .almf-subir { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: var(--text-sm); color: var(--accent); }
-.almf-subir input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.almf-subir input { position: absolute; width: 1px; min-height: 1px; opacity: 0; pointer-events: none; }
 .almf-subir:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
 .almf-tabla-scroll { overflow-x: auto; }
 .almf-vacio { color: var(--text-2); font-size: var(--text-sm); padding: 6px 0; }

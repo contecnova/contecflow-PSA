@@ -15,7 +15,7 @@ import { useToast } from '../../context/ToastContext'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { Button, EmptyState, Modal, Spinner, StatusBadge } from '../../components/ui'
+import { Button, EmptyState, Modal, Select, Spinner, StatusBadge, TablaSimple } from '../../components/ui'
 import { sdGroupsApi, sdMonitoringApi, sdOnCallApi, usersApi, apiUrlAbsoluta, type UserListItem } from '../../services/api'
 import type { SdCalendarioDeGuardia } from '../../services/api/tipos-sd'
 import DateInput from '../../components/ui/DateInput'
@@ -108,9 +108,9 @@ function FormCalendario({ colas, pendiente, onCancelar, onGuardar }: { colas: Co
     <div className="u-stack-12">
       <div><label className="coguym-ls" htmlFor="oc-name">{t('sd_cfg.chg_name')} *</label><input id="oc-name" aria-label={t('sd_cfg.chg_name')} value={nombre} onChange={e => setNombre(e.target.value)} className="ds-input" /></div>
       <div><label className="coguym-ls" htmlFor="oc-queue">{t('sd_cfg.oc_queue')} *</label>
-        <select id="oc-queue" aria-label={t('sd_cfg.oc_queue')} value={cola} onChange={e => setCola(e.target.value)} className="ds-input">
+        <Select suelto placeholder={false} className="coguym-sel" id="oc-queue" aria-label={t('sd_cfg.oc_queue')} value={cola} onChange={e => setCola(e.target.value)}>
           {colas.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select></div>
+        </Select></div>
       <div className="u-actions-10">
         <Button variant="secondary" onClick={onCancelar}>{t('common.cancel')}</Button>
         <Button disabled={!nombre.trim() || !cola || pendiente} loading={pendiente} onClick={() => onGuardar({ name: nombre.trim(), group_id: cola })}>{t('common.save')}</Button>
@@ -128,9 +128,9 @@ function FormTurno({ personas, pendiente, onCancelar, onGuardar }: { personas: P
   return (
     <div className="u-stack-12">
       <div><label className="coguym-ls" htmlFor="oc-person">{t('sd_cfg.oc_person')} *</label>
-        <select id="oc-person" aria-label={t('sd_cfg.oc_person')} value={persona} onChange={e => setPersona(e.target.value)} className="ds-input">
+        <Select suelto placeholder={false} className="coguym-sel" id="oc-person" aria-label={t('sd_cfg.oc_person')} value={persona} onChange={e => setPersona(e.target.value)}>
           {personas.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-        </select></div>
+        </Select></div>
       <div className="u-grid2-10">
         <div><label className="coguym-ls" htmlFor="oc-from">{t('sd_cfg.chg_from')} *</label><DateInput id="oc-from" aria-label={t('sd_cfg.chg_from')} withTime value={desde} onChange={e => setDesde(e.target.value)} className="ds-input" /></div>
         <div><label className="coguym-ls" htmlFor="oc-to">{t('sd_cfg.chg_to')} *</label><DateInput id="oc-to" aria-label={t('sd_cfg.chg_to')} withTime value={hasta} onChange={e => setHasta(e.target.value)} className="ds-input" /></div>
@@ -157,7 +157,7 @@ export function MonitorizacionConfig() {
       <div className="ds-card">
         <span className="coguym-ls">{t('sd_cfg.mon_url')}</span>
         <div className="coguym-copy">
-          <input readOnly value={url} aria-label={t('sd_cfg.mon_url')} className="ds-input coguym-url" />
+          <input readOnly value={url} aria-label={t('sd_cfg.mon_url')} className="ds-input coguym-url ds-campo-codigo" />
           <Button variant="secondary" icon={<Copy size={14} />} onClick={() => { navigator.clipboard.writeText(url); toast.success(t('sd_cfg.cfg_copied')) }}>{t('sd_cfg.mail_copy')}</Button>
         </div>
         <div className="u-text2-sm">{t('sd_cfg.mon_url_help')}</div>
@@ -169,7 +169,7 @@ export function MonitorizacionConfig() {
         <span className="coguym-ls">{t('sd_cfg.mon_log')}</span>
         {isLoading ? <Spinner /> : alertas.length === 0 ? <EmptyState icon={<Activity size={28} />} title={t('sd_cfg.mon_empty')} /> : (
           <div className="u-scroll-x">
-            <table className="u-table-sm">
+            <TablaSimple claseTabla="u-table-sm">
               <tbody>
                 {alertas.map(a => (
                   <tr key={a.id} className="u-border-b">
@@ -185,7 +185,7 @@ export function MonitorizacionConfig() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </TablaSimple>
           </div>
         )}
       </div>

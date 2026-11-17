@@ -10,7 +10,7 @@ import { projectsApi, usersApi, portalApi, templatesApi, taskDependenciesApi, ta
 import type { PlantillaDeProyecto } from '../services/api/tipos-proyectos'
 import type { MemberAddPayload, ProjectCreatePayload, ProjectStatus } from '../services/api'
 import { settingsApi } from '../services/settingsApi'
-import { Badge, LoadBar, Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH, MarcaExterno, etiquetaDePersona } from '../components/ui'
+import { Badge, LoadBar, Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH, MarcaExterno, etiquetaDePersona, Pulsable, Select } from '../components/ui'
 import ProjectRiskBadge from '../components/ui/ProjectRiskBadge'
 import { SkeletonProjects } from '../components/ui/Skeletons'
 import PageHeader from '../components/layout/PageHeader'
@@ -208,22 +208,22 @@ function StatusDropdown({ project, onUpdate }: { project: Pick<ProjectSummary, '
 
   return (
     <div className="prj-box">
-      <button className="prj-btn-xs" type="button" aria-haspopup="listbox" aria-expanded={open} aria-label={traducir('proyectos_ui.cambiar_estado')}
+      <Pulsable className="prj-btn-xs" aria-haspopup="listbox" aria-expanded={open} aria-label={traducir('proyectos_ui.cambiar_estado')}
         onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
         style={{ '--prj-btn-xs-border': `1px solid ${alpha(c.color, '40')}`, '--prj-btn-xs-background': alpha(c.color, '15'), '--prj-btn-xs-color': c.color } as CSSProperties}
       >
         {etiqueta ? traducir(etiqueta.label) : project.status} <ChevronDown size={11} aria-hidden />
-      </button>
+      </Pulsable>
       {open && (
         <>
           <div className="prj-box-2" role="presentation" onMouseDown={e => { e.stopPropagation(); setOpen(false) }} />
           <div className="prj-card-2">
             {PROJECT_STATUSES.map(s => (
-              <button className="prj-btn-base" type="button" key={s.value} onClick={e => { e.stopPropagation(); onUpdate(s.value); setOpen(false) }}
+              <Pulsable className="prj-btn-base" key={s.value} onClick={e => { e.stopPropagation(); onUpdate(s.value); setOpen(false) }}
                 style={{ '--prj-btn-base-background': project.status === s.value ? 'var(--accent-muted)' : 'transparent', '--prj-btn-base-color': project.status === s.value ? 'var(--accent)' : 'var(--text-1)' } as CSSProperties}
               >
                 {traducir(s.label)}
-              </button>
+              </Pulsable>
             ))}
           </div>
         </>
@@ -238,13 +238,13 @@ function ProjectCard({ project, onClick, onStatusChange, onEdit }: { project: Pr
     <div className="ds-card prj-tarjeta"
     >
       <div className="prj-row">
-        <button className="prj-btn-ghost" type="button" onClick={() => onClick(project)}>
+        <Pulsable className="prj-btn-ghost" onClick={() => onClick(project)}>
           <div className="ds-muted prj-text-xs-mono">{project.code}</div>
           <div className="prj-box-3">{project.name}</div>
           {project.pm_name && <div className="ds-muted prj-text">{traducir('proyectos_ui.pm_nombre', { nombre: project.pm_name })}</div>}
           {project.department && <div className="ds-muted">{traducir('proyectos_ui.depto_nombre', { nombre: project.department })}</div>}
           {project.client_name && <div className="ds-muted">{traducir('proyectos_ui.cliente_nombre', { nombre: project.client_name })}</div>}
-        </button>
+        </Pulsable>
         <div className="prj-stack">
           <StatusDropdown project={project} onUpdate={status => onStatusChange(project.id, status)} />
           <Badge label={project.risk_level} display={undefined} _color={undefined} />
@@ -252,30 +252,30 @@ function ProjectCard({ project, onClick, onStatusChange, onEdit }: { project: Pr
         </div>
       </div>
 
-      <button className="prj-btn-ghost-2" type="button" onClick={() => onClick(project)}>
+      <Pulsable className="prj-btn-ghost-2" onClick={() => onClick(project)}>
         <div className="prj-row-muted">
           <span>{etiquetaCodigo(traducir, 'tipo_proyecto', project.project_type, TYPE_LABELS[project.project_type])}</span>
           <span>{traducir('proyectos_ui.pct_completado', { n: project.progress_pct?.toFixed(0) ?? 0 })}</span>
         </div>
         <LoadBar value={project.progress_pct ?? 0} label={undefined} />
-      </button>
+      </Pulsable>
 
       <div className="prj-row-2">
-        <button className="prj-btn-ghost-3" type="button" onClick={() => onClick(project)}>
+        <Pulsable className="prj-btn-ghost-3" onClick={() => onClick(project)}>
           <span className="ds-muted">{traducir('proyectos_ui.equipo')} <span className="u-text1">{project.team_size}</span></span>
           {project.budget_amount && (
             <span className="prj-text-mono" style={{ '--prj-text-mono-color': project.budget_used_pct > 90 ? 'var(--danger)' : 'var(--text-2)' } as CSSProperties}>
               {traducir('proyectos_ui.pct_presupuesto', { n: project.budget_used_pct?.toFixed(0) ?? 0 })}
             </span>
           )}
-        </button>
+        </Pulsable>
         <div className="u-row-6">
           <Link to={`/projects/${project.id}`} onClick={e => e.stopPropagation()} className="prj-enlace-ver">
             {traducir('proyectos_ui.ver')} <ArrowRight size={11} />
           </Link>
-          <button className="prj-btn-ghost-xs" onClick={e => { e.stopPropagation(); onEdit(project) }}>
+          <Pulsable className="prj-btn-ghost-xs" onClick={e => { e.stopPropagation(); onEdit(project) }}>
             <Pencil size={11} /> {traducir('common.edit')}
-          </button>
+          </Pulsable>
         </div>
       </div>
     </div>
@@ -402,23 +402,23 @@ function ProjectFormModal({ open, onClose, project = null }: { open: boolean; on
         </div>
         <div>
           <label className="prj-ls-2" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{t('proyectos_ui.tipo_req')}</label>
-          <select className="prj-fs-2" id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.project_type} onChange={set('project_type')}>
+          <Select suelto placeholder={false} className="prj-fs-2" id={`${idCampo}-1`} value={form.project_type} onChange={set('project_type')}>
             <option value="">{t('proyectos_ui.seleccionar')}</option>
             {PROJECT_TYPES.map(o => <option key={o.value} value={o.value}>{etiquetaCodigo(traducir, 'tipo_proyecto', o.value, TYPE_LABELS[o.value])}</option>)}
-          </select>
+          </Select>
           {errors.project_type && <div className="u-field-error">{errors.project_type}</div>}
         </div>
         <div>
           <label className="prj-ls-2" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{t('proyectos_ui.col_estado')}</label>
-          <select className="prj-fs-2" id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.status} onChange={set('status')}>
+          <Select suelto placeholder={false} className="prj-fs-2" id={`${idCampo}-2`} value={form.status} onChange={set('status')}>
             {PROJECT_STATUSES.map(o => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label className="prj-ls-2" id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`}>{t('proyectos_ui.col_riesgo')}</label>
-          <select className="prj-fs-2" id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.risk_level} onChange={set('risk_level')}>
+          <Select suelto placeholder={false} className="prj-fs-2" id={`${idCampo}-3`} value={form.risk_level} onChange={set('risk_level')}>
             {RISK_LEVELS.map(o => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label className="prj-ls-2" id={`${idCampo}-etcliente`} htmlFor={`${idCampo}-cliente`}>{t('proyectos_ui.cliente')}</label>
@@ -433,17 +433,17 @@ function ProjectFormModal({ open, onClose, project = null }: { open: boolean; on
         </div>
         <div>
           <label className="prj-ls-2" id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`}>{t('proyectos_ui.departamento')}</label>
-          <select className="prj-fs-2" id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.department} onChange={set('department')}>
+          <Select suelto placeholder={false} className="prj-fs-2" id={`${idCampo}-4`} value={form.department} onChange={set('department')}>
             <option value="">{traducir('projects.no_department')}</option>
             {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label className="prj-ls-2" id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`}>{traducir('projects.label_billing')}</label>
-          <select className="prj-fs-2" id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.billing_type} onChange={set('billing_type')}>
+          <Select suelto placeholder={false} className="prj-fs-2" id={`${idCampo}-5`} value={form.billing_type} onChange={set('billing_type')}>
             <option value="">{traducir('projects.no_billing')}</option>
             {(BILLING_TYPES as { value: string; label: string }[]).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
+          </Select>
         </div>
         <div>
           <label className="prj-ls-2" htmlFor={`${idCampo}-presupuesto`}>{t('proyectos_ui.presupuesto_moneda', { moneda: fmtMoneda.simbolo })}</label>
@@ -590,10 +590,10 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
       {/* Tab bar */}
       <div className="prj-row-5">
         {TABS.map(t => (
-          <button className="prj-btn-xs-2" type="button" aria-pressed={tab === t.id} key={t.id} onClick={() => setTab(t.id)}
+          <Pulsable className="prj-btn-xs-2" aria-pressed={tab === t.id} key={t.id} onClick={() => setTab(t.id)}
             style={{ '--prj-btn-xs-2-border': `1px solid ${tab === t.id ? 'var(--accent)' : 'var(--surface-4)'}`, '--prj-btn-xs-2-background': tab === t.id ? 'var(--accent-muted)' : 'transparent', '--prj-btn-xs-2-color': tab === t.id ? 'var(--accent)' : 'var(--text-2)' } as CSSProperties}>
             {t.label}
-          </button>
+          </Pulsable>
         ))}
       </div>
 
@@ -642,18 +642,18 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
               <div className="prj-grid-2">
                 <div>
                   <label className="prj-label-muted-xs" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{traducir('proyectos_ui.persona_req')}</label>
-                  <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={addForm.user_id} onChange={setAddField('user_id')}
+                  <Select suelto placeholder={false} id={`${idCampo}-1`} value={addForm.user_id} onChange={setAddField('user_id')}
                     className={addValidation.inputClass('projects-page-campo', 'user_id')}>
                     <option value="">{traducir('proyectos_ui.seleccionar_persona')}</option>
                     {availableUsers.map(u => <option key={u.id} value={u.id}>{etiquetaDePersona(traducir, u)}{u.job_title ? ` (${u.job_title})` : ''}</option>)}
-                  </select>
+                  </Select>
                   {addValidation.errors.user_id && <div className="u-field-error">{addValidation.errors.user_id}</div>}
                 </div>
                 <div>
                   <label className="prj-label-muted-xs" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{traducir('proyectos_ui.rol')}</label>
-                  <select className="prj-input-2" id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={addForm.role} onChange={setAddField('role')}>
+                  <Select suelto placeholder={false} className="prj-input-2" id={`${idCampo}-2`} value={addForm.role} onChange={setAddField('role')}>
                     {Object.entries(MEMBER_ROLES).map(([k, v]) => <option key={k} value={k}>{traducir(v)}</option>)}
-                  </select>
+                  </Select>
                 </div>
                 <div>
                   <label className="prj-label-muted-xs" id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`}>{traducir('proyectos_ui.dedicacion')}</label>
@@ -698,7 +698,7 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
                     {m.allocation_pct}%
                   </span>
                   )}
-                  <button className="prj-btn-danger-lg" aria-label={traducir('proyectos_ui.quitar_miembro')} title={traducir('proyectos_ui.quitar_miembro')} onClick={() => { openConfirmGlobal({ message: traducir('proyectos_ui.quitar_miembro_confirm', { nombre: m.full_name }), onConfirm: () => removeMember(m.id), danger: true }) }}>×</button>
+                  <Pulsable className="prj-btn-danger-lg" aria-label={traducir('proyectos_ui.quitar_miembro')} title={traducir('proyectos_ui.quitar_miembro')} onClick={() => { openConfirmGlobal({ message: traducir('proyectos_ui.quitar_miembro_confirm', { nombre: m.full_name }), onConfirm: () => removeMember(m.id), danger: true }) }}>×</Pulsable>
                 </div>
               ))}
             </div>
@@ -773,10 +773,10 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
                       </div>
                       <div className="prj-stack-2">
                         {canRespond && (
-                          <button className="prj-btn-xs-3" onClick={() => { setRespondingFr(isResponding ? null : fr.id); if (!isResponding) setRespondForm({ pm_response: fr.pm_response || '', estimated_hours: fr.estimated_hours ?? '', estimated_cost: fr.estimated_cost ?? '', estimated_delivery_weeks: fr.estimated_delivery_weeks ?? '', status: fr.status === 'new' ? 'estimated' : fr.status }) }}
+                          <Pulsable className="prj-btn-xs-3" onClick={() => { setRespondingFr(isResponding ? null : fr.id); if (!isResponding) setRespondForm({ pm_response: fr.pm_response || '', estimated_hours: fr.estimated_hours ?? '', estimated_cost: fr.estimated_cost ?? '', estimated_delivery_weeks: fr.estimated_delivery_weeks ?? '', status: fr.status === 'new' ? 'estimated' : fr.status }) }}
                             style={{ '--prj-btn-xs-3-border': `1px solid ${isResponding ? 'var(--accent)' : 'var(--surface-4)'}`, '--prj-btn-xs-3-background': isResponding ? 'var(--accent-muted)' : 'transparent', '--prj-btn-xs-3-color': isResponding ? 'var(--accent)' : 'var(--text-2)' } as CSSProperties}>
                             {isResponding ? traducir('proyectos_ui.cancelar_x') : traducir('proyectos_ui.responder')}
-                          </button>
+                          </Pulsable>
                         )}
                         <div className="prj-text-muted-xs-2">{fmtDate(fr.submitted_at)}</div>
                       </div>
@@ -806,13 +806,13 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
                         </div>
                         <div className="u-row-center-10">
                           <label className="prj-label-muted-xs-2" id={`${idCampo}-${fr.id}-etresp845`} htmlFor={`${idCampo}-${fr.id}-resp845`}>{traducir('proyectos_ui.col_estado')}</label>
-                          <select className="prj-fs prj-input-3" id={`${idCampo}-${fr.id}-resp845`} aria-labelledby={`${idCampo}-${fr.id}-etresp845`} value={respondForm.status} onChange={e => setRespondForm(f => ({ ...f, status: e.target.value }))}>
+                          <Select suelto placeholder={false} className="prj-fs prj-input-3" id={`${idCampo}-${fr.id}-resp845`} value={respondForm.status} onChange={e => setRespondForm(f => ({ ...f, status: e.target.value }))}>
                             <option value="estimated">{traducir('proyectos_ui.sol_estimated')}</option>
                             <option value="approved">{traducir('proyectos_ui.aprobar')}</option>
                             <option value="rejected">{traducir('proyectos_ui.rechazar')}</option>
                             <option value="in_development">{traducir('proyectos_ui.sol_in_development')}</option>
                             <option value="done">{traducir('proyectos_ui.sol_done')}</option>
-                          </select>
+                          </Select>
                           <div className="u-flex1" />
                           <Button onClick={() => respondFR({ id: fr.id, data: { pm_response: respondForm.pm_response || undefined, estimated_hours: respondForm.estimated_hours !== '' ? Number(respondForm.estimated_hours) : undefined, estimated_cost: respondForm.estimated_cost !== '' ? Number(respondForm.estimated_cost) : undefined, estimated_delivery_weeks: respondForm.estimated_delivery_weeks !== '' ? Number(respondForm.estimated_delivery_weeks) : undefined, status: respondForm.status } })} disabled={respondingFRPending}>
                             {respondingFRPending ? traducir('proyectos_ui.guardando') : traducir('proyectos_ui.guardar_respuesta')}
@@ -910,9 +910,9 @@ function TemplatesTab() {
               ))}
               {(t.phases?.length||0) > 3 && <div className="u-hint">+{t.phases.length-3} {traducir('projects.fases_mas')}</div>}
 
-              <button className="prj-btn-base-2" onClick={() => { setInstantiating(t); setInstForm({ name:`${t.name} — ${new Date().getFullYear()}`, client_id:'', client_name:'', start_date:new Date().toISOString().slice(0,10), budget_amount:'', pm_id:'' }) }}>
+              <Pulsable className="prj-btn-base-2" onClick={() => { setInstantiating(t); setInstForm({ name:`${t.name} — ${new Date().getFullYear()}`, client_id:'', client_name:'', start_date:new Date().toISOString().slice(0,10), budget_amount:'', pm_id:'' }) }}>
                 {traducir('projects.crear_proyecto_desde_esta_plantilla')}
-              </button>
+              </Pulsable>
             </div>
           ))}
         </div>
@@ -930,10 +930,10 @@ function TemplatesTab() {
               <div><label className="prj-ls" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{traducir('projects.label_start_date')}</label><DateInput id={`${idCampo}-2`} value={instForm.start_date} onChange={e => setInstForm(f=>({...f,start_date:e.target.value}))} className="prj-fs" /></div>
               <div><label className="prj-ls" id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`}>{traducir('proyectos_ui.presupuesto_moneda', { moneda: fmtMoneda.simbolo })}</label><input className="prj-fs" id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={instForm.budget_amount} onChange={e => setInstForm(f=>({...f,budget_amount:e.target.value}))} /></div>
               <div><label className="prj-ls" id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`}>{traducir('proyectos_ui.project_manager')}</label>
-                <select className="prj-fs" id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={instForm.pm_id||''} onChange={e => setInstForm(f=>({...f,pm_id:e.target.value}))}>
+                <Select suelto placeholder={false} className="prj-fs" id={`${idCampo}-4`} value={instForm.pm_id||''} onChange={e => setInstForm(f=>({...f,pm_id:e.target.value}))}>
                   <option value="">{traducir('projects.sin_asignar')}</option>
                   {pms.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-                </select>
+                </Select>
               </div>
             </div>
             <div className="u-actions-10">
@@ -953,9 +953,9 @@ function TemplatesTab() {
             <div><label className="prj-ls" id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`}>{traducir('projects.label_description')}</label><textarea className="prj-fs prj-input" id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={newTpl.description||''} onChange={e => setNewTpl(f=>({...f,description:e.target.value}))} rows={2} /></div>
             <div className="prj-grid-5">
               <div><label className="prj-ls" id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`}>{traducir('proyectos_ui.col_tipo')}</label>
-                <select className="prj-fs" id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={newTpl.project_type} onChange={e => setNewTpl(f=>({...f,project_type:e.target.value}))}>
+                <Select suelto placeholder={false} className="prj-fs" id={`${idCampo}-6`} value={newTpl.project_type} onChange={e => setNewTpl(f=>({...f,project_type:e.target.value}))}>
                   {['consulting','development','maintenance','rd','internal'].map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
+                </Select>
               </div>
               <div><label className="prj-ls" id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`}>{traducir('proyectos_ui.semanas_estimadas')}</label><input className="prj-fs" id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} type="number" value={newTpl.estimated_weeks} onChange={e => setNewTpl(f=>({...f,estimated_weeks:+e.target.value}))} /></div>
               <div><label className="prj-ls" id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`}>{traducir('proyectos_ui.horas_estimadas')}</label><input className="prj-fs" id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} type="number" value={newTpl.estimated_hours||''} onChange={e => setNewTpl(f=>({...f,estimated_hours:+e.target.value}))} /></div>
@@ -1009,7 +1009,7 @@ export default function ProjectsPage() {
 
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ['projects', search, statusFilter],
-    // `statusFilter` sale de un <select>: texto que el servidor valida contra `ProjectStatus`.
+    // `statusFilter` sale de un select: texto que el servidor valida contra `ProjectStatus`.
     queryFn: () => projectsApi.list({ search: search || undefined, status: (statusFilter || undefined) as ProjectStatus }).then(r => r.data as ProjectSummary[]),
   })
 
@@ -1028,7 +1028,7 @@ export default function ProjectsPage() {
   })
 
   const { mutate: updateStatus } = useMutation({
-    // `status` sale de un <select> con los valores de `ProjectStatus`.
+    // `status` sale de un select con los valores de `ProjectStatus`.
     mutationFn: ({ id, status }: { id: string; status: string }) => projectsApi.update(id, { status: status as ProjectStatus }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['projects'] }),
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
@@ -1061,10 +1061,10 @@ export default function ProjectsPage() {
                 { v: 'gantt',     label: 'Gantt',     icon: Calendar },
                 { v: 'templates', label: traducir('proyectos_ui.vista_plantillas'),icon: FileStack },
               ].map(({ v, label, icon: Icon }) => (
-                <button aria-label={label} key={v} type="button" aria-pressed={view === v}
+                <Pulsable aria-label={label} key={v} aria-pressed={view === v}
                   onClick={() => setView(v)} title={label}>
                   <Icon size={12} />
-                </button>
+                </Pulsable>
               ))}
             </div>
             {hasRole('admin', 'pm') && (
@@ -1100,16 +1100,15 @@ export default function ProjectsPage() {
             placeholder={traducir('projects.buscar_proyecto_por_nombre_o_codigo')}
             className="ds-input prj-input-4" />
         </div>
-        <select aria-label={traducir('proyectos_ui.filtro_estado')} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-          className="ds-input prj-input-5">
+        <Select suelto placeholder={false} aria-label={traducir('proyectos_ui.filtro_estado')} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+          className="prj-input-5">
           <option value="">{traducir('projects.todos_los_estados')}</option>
           {PROJECT_STATUSES.map(s => <option key={s.value} value={s.value}>{traducir(s.label)}</option>)}
-        </select>
-        <select aria-label={traducir('proyectos_ui.filtro_tipo')} value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
-          className="ds-input prj-input-5">
+        </Select>
+        <Select suelto placeholder={false} aria-label={traducir('proyectos_ui.filtro_tipo')} value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="prj-input-5">
           <option value="">{traducir('projects.todos_los_tipos')}</option>
           {PROJECT_TYPES.map(o => <option key={o.value} value={o.value}>{etiquetaCodigo(traducir, 'tipo_proyecto', o.value, TYPE_LABELS[o.value])}</option>)}
-        </select>
+        </Select>
       </div>
 
       {isLoading ? (
@@ -1143,10 +1142,10 @@ export default function ProjectsPage() {
               onPointerLeave={e => e.currentTarget.style.background = 'transparent'}
             >
               {visCols.includes('name') && (
-                <button className="prj-btn-ghost-4" type="button" onClick={() => setSelected(p)}>
+                <Pulsable className="prj-btn-ghost-4" onClick={() => setSelected(p)}>
                   <div className="u-base-600">{p.name}</div>
                   <div className="u-text2-mono-xs">{p.code}</div>
-                </button>
+                </Pulsable>
               )}
               {visCols.includes('type') && <span className="u-text2-sm">{etiquetaCodigo(traducir, 'tipo_proyecto', p.project_type, TYPE_LABELS[p.project_type])}</span>}
               {visCols.includes('pm') && <span className="u-sm">{p.pm_name || '—'}</span>}
@@ -1167,16 +1166,16 @@ export default function ProjectsPage() {
         <div>
           <div className="prj-row-15">
             {[['portfolio', traducir('proyectos_ui.gantt_portfolio')], ['project', traducir('proyectos_ui.gantt_por_proyecto')]].map(([m, label]) => (
-              <button className="prj-btn-xs-4" type="button" aria-pressed={ganttMode === m} key={m} onClick={() => setGanttMode(m)}
+              <Pulsable className="prj-btn-xs-4" aria-pressed={ganttMode === m} key={m} onClick={() => setGanttMode(m)}
                 style={{ '--prj-btn-xs-4-border': `1px solid ${ganttMode === m ? 'var(--accent)' : 'var(--surface-4)'}`, '--prj-btn-xs-4-background': ganttMode === m ? 'var(--accent-muted)' : 'transparent', '--prj-btn-xs-4-color': ganttMode === m ? 'var(--accent)' : 'var(--text-2)' } as CSSProperties}>
                 {label}
-              </button>
+              </Pulsable>
             ))}
             {ganttMode === 'project' && (
-              <select className="prj-input-6" value={selected?.id || ''} onChange={e => { const p = filtered.find(x => x.id === e.target.value); setSelected(p || null) }}>
+              <Select suelto placeholder={false} className="prj-input-6" value={selected?.id || ''} onChange={e => { const p = filtered.find(x => x.id === e.target.value); setSelected(p || null) }}>
                 <option value="">{traducir('projects.selecciona_un_proyecto')}</option>
                 {filtered.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-              </select>
+              </Select>
             )}
           </div>
           {ganttMode === 'portfolio' && (

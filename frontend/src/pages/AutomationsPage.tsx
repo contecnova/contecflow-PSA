@@ -16,7 +16,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, automationsApi } from '../services/api'
 import type { AccionDeRegla, CatalogoDeAutomatizaciones, CondicionDeRegla, PlantillaDeRegla, ReglaDeAutomatizacion, SimulacionDeRegla } from '../services/api/tipos-plataforma'
-import { Button, Modal, Spinner, EmptyState, Page, Table, KpiCard, IconButton, StatusBadge } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, Page, Table, KpiCard, IconButton, StatusBadge, Select, Checkbox, Radio } from '../components/ui'
 import {
   Bot, FileStack, Plus, Zap, Pause, Play, Settings as SettingsIcon, Search,
   ListChecks, FolderKanban, Wallet, AlertTriangle, Clock, Palmtree, Ticket, Receipt, TrendingUp, FileText,
@@ -137,7 +137,7 @@ function RuleCard({ rule, onEdit, onDelete, onTest, onToggle, onHistory, highlig
         <div className="aut-chip aut-chip--if">
           <span className="aut-chip-kw">{t('automations.si_label')} </span>
           <span className="u-text1 aut-icono-texto">{trigger.icon} {highlightText(t('automations.trig_' + rule.trigger_type, trigger.label), highlightTerm)}</span>
-          {rule.schedule_cron && <span className="u-text2"> · <code>{rule.schedule_cron}</code></span>}
+          {rule.schedule_cron && <span className="u-text2"> · <code className="ds-codigo">{rule.schedule_cron}</code></span>}
           {rule.trigger_conditions && aGrupo(rule.trigger_conditions).conditions.map((c: CondicionDeRegla, i: number) => (
             <span key={i} className="u-text2">
               {i === 0 ? ' · ' : ` ${t(aGrupo(rule.trigger_conditions).match === 'any' ? 'automations.or_lbl' : 'automations.and_lbl')} `}
@@ -245,10 +245,10 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
           </div>
           <div>
             <label htmlFor={`${idPrefix}-project`} className="aut-label">{t('automations.project_lbl')}</label>
-            <select id={`${idPrefix}-project`} value={form.project_id} onChange={e => setForm(f => ({ ...f, project_id: e.target.value, is_global: !e.target.value }))} className="aut-input">
+            <Select suelto placeholder={false} id={`${idPrefix}-project`} value={form.project_id} onChange={e => setForm(f => ({ ...f, project_id: e.target.value, is_global: !e.target.value }))} className="aut-input">
               <option value="">{t('automations.project_global')}</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-            </select>
+            </Select>
           </div>
         </div>
 
@@ -260,7 +260,7 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
           <div className="aut-section-body">
             <div>
               <label htmlFor={`${idPrefix}-trigger`} className="aut-label">{t('automations.trigger_lbl')}</label>
-              <select id={`${idPrefix}-trigger`} value={form.trigger_type} onChange={e => setForm(f => ({ ...f, trigger_type: e.target.value }))} className="aut-input">
+              <Select suelto placeholder={false} id={`${idPrefix}-trigger`} value={form.trigger_type} onChange={e => setForm(f => ({ ...f, trigger_type: e.target.value }))} className="aut-input">
                 {byCategory(triggerDefs).map(([cat, defs]) => (
                   <optgroup key={cat} label={t('automations.cat_' + cat, cat)}>
                     {defs.map(d => (
@@ -268,7 +268,7 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
                     ))}
                   </optgroup>
                 ))}
-              </select>
+              </Select>
               {catalogError && <div role="alert" className="u-field-error">{t('automations.catalog_unavailable')}</div>}
               {isScan && <div className="u-hint">{t('automations.simulation_scan')}</div>}
             </div>
@@ -276,7 +276,7 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
             {/* Condition */}
             <div>
               <label id={`${idPrefix}-has-condition-et`} htmlFor={`${idPrefix}-has-condition`} className="aut-check">
-                <input id={`${idPrefix}-has-condition`} aria-labelledby={`${idPrefix}-has-condition-et`} type="checkbox" checked={hasCondition} onChange={e => setHasCondition(e.target.checked)} />
+                <Checkbox id={`${idPrefix}-has-condition`} checked={hasCondition} onChange={(_, e) => setHasCondition(e.target.checked)} />
                 {t('automations.add_condition')}
               </label>
             </div>
@@ -284,14 +284,14 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
               <div className="aut-box aut-box--grid2">
                 <div>
                   <label id={`${idPrefix}-cron-et`} htmlFor={`${idPrefix}-cron`} className="aut-label">{t('automations.cron_lbl')}</label>
-                  <input id={`${idPrefix}-cron`} aria-labelledby={`${idPrefix}-cron-et`} value={cron} onChange={e => setCron(e.target.value)} className="aut-input aut-input--mono" placeholder="0 9 * * 1-5" />
+                  <input id={`${idPrefix}-cron`} aria-labelledby={`${idPrefix}-cron-et`} value={cron} onChange={e => setCron(e.target.value)} className="ds-codigo aut-input aut-input--mono ds-campo-codigo" placeholder="0 9 * * 1-5" />
                 </div>
                 <div>
                   <label htmlFor={`${idPrefix}-cron-preset`} className="aut-label">{t('automations.cron_preset')}</label>
-                  <select id={`${idPrefix}-cron-preset`} value={CRON_PLANTILLAS.find(([, c]) => c === cron.trim())?.[1] ?? ''} onChange={e => e.target.value && setCron(e.target.value)} className="aut-input">
+                  <Select suelto placeholder={false} id={`${idPrefix}-cron-preset`} value={CRON_PLANTILLAS.find(([, c]) => c === cron.trim())?.[1] ?? ''} onChange={e => e.target.value && setCron(e.target.value)} className="aut-input">
                     <option value="">{t('automations.select_lbl')}</option>
                     {CRON_PLANTILLAS.map(([k, c]) => <option key={c} value={c}>{t('automations.' + k)}</option>)}
-                  </select>
+                  </Select>
                 </div>
                 <div className="aut-box-help">{t('automations.cron_help')}</div>
               </div>
@@ -302,7 +302,7 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
                   <div role="radiogroup" aria-label={t('automations.match_lbl')} className="aut-match">
                     {(['all', 'any'] as const).map(m => (
                       <label key={m} className="aut-match-opt">
-                        <input type="radio" aria-label={t('automations.match_' + m)} name={`${idPrefix}-match`} checked={match === m} onChange={() => setMatch(m)} />
+                        <Radio aria-label={t('automations.match_' + m)} name={`${idPrefix}-match`} checked={match === m} onChange={() => setMatch(m)} />
                         {t('automations.match_' + m)}
                       </label>
                     ))}
@@ -314,16 +314,16 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
                   <div key={i} className="aut-cond-row">
                     <div>
                       <label htmlFor={`${idPrefix}-condition-field-${i}`} className="aut-label">{t('automations.field_lbl')}</label>
-                      <select id={`${idPrefix}-condition-field-${i}`} value={c.field || ''} onChange={e => cambiarCondicion(i, 'field', e.target.value)} className="aut-input">
+                      <Select suelto placeholder={false} id={`${idPrefix}-condition-field-${i}`} value={c.field || ''} onChange={e => cambiarCondicion(i, 'field', e.target.value)} className="aut-input">
                         <option value="">{t('automations.select_lbl')}</option>
                         {fields.map((f: string) => <option key={f} value={f}>{f}</option>)}
-                      </select>
+                      </Select>
                     </div>
                     <div>
                       <label htmlFor={`${idPrefix}-condition-operator-${i}`} className="aut-label">{t('automations.operator_lbl')}</label>
-                      <select id={`${idPrefix}-condition-operator-${i}`} value={c.operator || 'equals'} onChange={e => cambiarCondicion(i, 'operator', e.target.value)} className="aut-input">
+                      <Select suelto placeholder={false} id={`${idPrefix}-condition-operator-${i}`} value={c.operator || 'equals'} onChange={e => cambiarCondicion(i, 'operator', e.target.value)} className="aut-input">
                         {(catalog?.operators ?? []).map(o => <option key={o} value={o}>{t('automations.op_' + o, o)}</option>)}
-                      </select>
+                      </Select>
                     </div>
                     <div>
                       <label id={`${idPrefix}-condition-value-${i}-et`} htmlFor={`${idPrefix}-condition-value-${i}`} className="aut-label">{t('automations.value_lbl')}</label>
@@ -357,7 +357,7 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
                 <div className={paramDefs.length > 0 ? 'aut-action-head aut-action-head--params' : 'aut-action-head'}>
                   <div>
                     <label htmlFor={`${idPrefix}-action-${i}`} className="aut-label">{t('automations.action_lbl')} {i + 1}</label>
-                    <select id={`${idPrefix}-action-${i}`} value={action.type} onChange={e => updateAction(i, 'type', e.target.value)} className="aut-input">
+                    <Select suelto placeholder={false} id={`${idPrefix}-action-${i}`} value={action.type} onChange={e => updateAction(i, 'type', e.target.value)} className="aut-input">
                       {byCategory(actionDefs).map(([cat, defs]) => (
                         <optgroup key={cat} label={t('automations.cat_' + cat, cat)}>
                           {defs.map(d => (
@@ -365,7 +365,7 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
                           ))}
                         </optgroup>
                       ))}
-                    </select>
+                    </Select>
                   </div>
                   {form.actions.length > 1 && (
                     <IconButton ariaLabel={t('automations.delete_action_aria', { n: i + 1 })} onClick={() => removeAction(i)} className="aut-icon-end">
@@ -379,10 +379,10 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
                       <div key={param.key}>
                         <label htmlFor={`${idPrefix}-action-${i}-${param.key}`} className="aut-label">{t('automations.param_' + param.key, param.key)}{param.required ? ' *' : ''}</label>
                         {param.type === 'select' ? (
-                          <select id={`${idPrefix}-action-${i}-${param.key}`} value={action.params?.[param.key] || ''} onChange={e => updateAction(i, param.key, e.target.value)} className="aut-input">
+                          <Select suelto placeholder={false} id={`${idPrefix}-action-${i}-${param.key}`} value={action.params?.[param.key] || ''} onChange={e => updateAction(i, param.key, e.target.value)} className="aut-input">
                             <option value="">{t('automations.select_lbl')}</option>
                             {param.options?.map((o: string) => <option key={o} value={o}>{t('automations.opt_' + o.replace('.', '_'), o)}</option>)}
-                          </select>
+                          </Select>
                         ) : (
                           <input id={`${idPrefix}-action-${i}-${param.key}`} aria-label={t('automations.param_' + param.key, param.key)} type={param.type === 'number' ? 'number' : 'text'} value={action.params?.[param.key] || ''} onChange={e => updateAction(i, param.key, e.target.value)} className="aut-input" placeholder={t('automations.param_' + param.key, param.key)} />
                         )}
@@ -558,13 +558,13 @@ export default function AutomationsPage(): JSX.Element {
             className="ds-input"
           />
         </div>
-        <select aria-label={t('automations.filter_status_aria')} className="ds-input aut-filtro-estado"
+        <Select suelto placeholder={false} aria-label={t('automations.filter_status_aria')} className="ds-input aut-filtro-estado"
           value={filterActive === null ? 'all' : filterActive ? 'active' : 'paused'}
           onChange={e => setFilterActive(e.target.value === 'all' ? null : e.target.value === 'active')}>
           <option value="all">{t('automations.filter_all')}</option>
           <option value="active">{t('automations.filter_active')}</option>
           <option value="paused">{t('automations.filter_paused')}</option>
-        </select>
+        </Select>
       </div>
 
       {/* Rules list */}

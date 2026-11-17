@@ -163,7 +163,6 @@
   font-size: var(--text-2xs);
   font-weight: 700;
   color: var(--text-3);
-  text-transform: uppercase;
   letter-spacing: .07em;
   margin-bottom: 10px;
 }
@@ -239,7 +238,6 @@
   font-size: var(--text-2xs);
   font-weight: 700;
   color: var(--text-3);
-  text-transform: uppercase;
   letter-spacing: .07em;
 }
 

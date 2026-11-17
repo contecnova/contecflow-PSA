@@ -20,7 +20,7 @@ import { useToast } from '../../context/ToastContext'
 import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { POLL_FREQUENT_MS } from '../../constants/timings'
-import { Button, EmptyState, Section, Spinner, StatusBadge, Tabs } from '../ui'
+import { Button, EmptyState, Pulsable, Section, Spinner, StatusBadge, Tabs } from '../ui'
 import type { StatusBadgeKind } from '../ui/StatusBadge'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { canalesApi } from '../../services/api/serviceDeskMercado'
@@ -51,9 +51,9 @@ export default function BandejaDeCanales({ onAbrirTicket }: { onAbrirTicket: (id
           <ul className="sdm-list">
             {items.map(c => (
               <li key={c.id} className="sdm-list__item">
-                <button type="button" className="u-btn-outline-sm sdm-chip u-flex1-min0 sdm-wrap" aria-pressed={elegida === c.id} onClick={() => setElegida(c.id)}>
+                <Pulsable className="u-btn-outline-sm sdm-chip u-flex1-min0 sdm-wrap" aria-pressed={elegida === c.id} onClick={() => setElegida(c.id)}>
                   {c.visitor_name || c.external_id || '—'}
-                </button>
+                </Pulsable>
                 <StatusBadge caps={false}>{etiquetaCodigo(t, 'sd_mercado.canal', c.channel)}</StatusBadge>
                 <StatusBadge kind={ESTADO_KIND[c.status] || 'neutral'} caps={false}>{etiquetaCodigo(t, 'sd_mercado.conv_estado', c.status)}</StatusBadge>
               </li>
@@ -94,7 +94,7 @@ function Conversacion({ id, onAbrirTicket }: { id: string; onAbrirTicket: (id: s
     <div className="ds-card sdm-card">
       <div className="sdm-card__head">
         <span>{c.visitor_name || c.external_id}</span>
-        {c.ticket_id && <button type="button" className="u-btn-outline-sm" onClick={() => onAbrirTicket(c.ticket_id as string)}>{c.ticket_number}</button>}
+        {c.ticket_id && <Pulsable className="u-btn-outline-sm" onClick={() => onAbrirTicket(c.ticket_id as string)}>{c.ticket_number}</Pulsable>}
         <span className="ds-toolbar__spacer" />
         {c.status !== 'agent' && c.status !== 'closed' && <Button size="xs" onClick={() => tomar.mutate()} loading={tomar.isPending}>{t('sd_mercado.tomar')}</Button>}
         {c.status !== 'closed' && <Button size="xs" variant="ghost" onClick={() => cerrar.mutate()} disabled={cerrar.isPending}>{t('sd_mercado.cerrar')}</Button>}

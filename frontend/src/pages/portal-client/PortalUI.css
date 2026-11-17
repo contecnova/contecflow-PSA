@@ -26,7 +26,7 @@
 .portui-box-3 {
   font-size: var(--text-xs);
   color: var(--text-3);
-  text-transform: uppercase;
+
   letter-spacing: 0.07em;
   margin-top: 2px;
 }
@@ -57,7 +57,7 @@
   font-size: var(--text-2xs, 10px);
   font-weight: 700;
   color: var(--text-3);
-  text-transform: uppercase;
+
   letter-spacing: 0.09em;
   padding: 6px 10px;
 }
@@ -153,7 +153,7 @@
 .portui-txt-1 {
   font-size: var(--text-xs);
   color: var(--text-3);
-  text-transform: uppercase;
+
   letter-spacing: 0.07em;
 }
 .portui-box-14 {
@@ -352,7 +352,7 @@
   font-size: var(--text-xs);
   font-weight: 700;
   color: var(--text-2);
-  text-transform: uppercase;
+
   letter-spacing: 0.07em;
 }
 .portui-row-18 {
@@ -405,7 +405,7 @@
   font-size: var(--text-xl-em);
   font-weight: 800;
   color: var(--text-1);
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 .portui-row-21 {
   display: flex;
@@ -468,7 +468,7 @@
 .portui-box-26 {
   font-size: var(--text-xs);
   font-weight: 600;
-  text-transform: uppercase;
+
   letter-spacing: 0.06em;
   background: none;
   border: none;
@@ -479,7 +479,7 @@
 .portui-txt-8 {
   font-size: var(--text-xs);
   font-weight: 600;
-  text-transform: uppercase;
+
   letter-spacing: 0.06em;
 }
 .portui-box-27 {
@@ -507,7 +507,7 @@
   font-weight: 700;
 }
 .portui-box-28 {
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1;
@@ -569,14 +569,14 @@
 }
 .portui-txt-11 {
   font-weight: 700;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .portui-box-34 {
   font-size: var(--text-2xs, 10px);
   font-weight: 700;
-  background: var(--danger-bg, rgba(239,68,68,0.15));
-  color: var(--danger, #ef4444);
+  background: var(--danger-bg);
+  color: var(--danger);
   border-radius: var(--radius-full);
   padding: 1px 7px;
   min-width: 20px;
@@ -589,14 +589,14 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--danger, #ef4444);
+  background: var(--danger);
 }
 .portui-row-30 {
   width: 32px;
   height: 32px;
   border-radius: 50%;
   flex-shrink: 0;
-  background: linear-gradient(135deg, var(--accent), var(--purple, #7c3aed));
+  background: linear-gradient(135deg, var(--accent), var(--purple));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -608,7 +608,7 @@
   position: absolute;
   top: -4px;
   right: -4px;
-  background: var(--danger, #ef4444);
+  background: var(--danger);
   color: var(--on-accent-light);
   border-radius: var(--radius-full);
   font-size: var(--text-3xs, 9px);
@@ -624,7 +624,7 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), var(--purple, #7c3aed));
+  background: linear-gradient(135deg, var(--accent), var(--purple));
   display: flex;
   align-items: center;
   justify-content: center;

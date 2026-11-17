@@ -9,6 +9,7 @@ import { useAppLang } from '../../i18n/AppLangContext'
 import { alpha } from '../../constants/theme'
 import { STALE_DEFAULT_MS } from '../../constants/timings'
 import { SELECTOR_LIST_SIZE } from '../../constants/pagination'
+import { IconButton, Pulsable, Select } from '../ui'
 import './QuickCreateMenu.css'
 
 const ACTIONS = [
@@ -77,24 +78,24 @@ function CreateTaskForm({ onClose }: { onClose: () => void }) {
         onBlur={e => e.target.style.borderColor = 'var(--surface-4)'}
       />
       {projects.length > 0 && (
-        <select className={`qucrme-box-5 ${projectId ? 'quick-create-menu-m1' : 'quick-create-menu-m2'}`}
+        <Select suelto className={`qucrme-box-5 ${projectId ? 'quick-create-menu-m1' : 'quick-create-menu-m2'}`}
           value={projectId}
           onChange={e => setProjectId(e.target.value)}
+          placeholder={t('quickcreatemenu.sin_proyecto')}
         >
-          <option value="">{t('quickcreatemenu.sin_proyecto')}</option>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
+        </Select>
       )}
       <div className="u-actions-8">
-        <button type="button" onClick={onClose} className="qucrme-box-3">
+        <Pulsable onClick={onClose} className="qucrme-box-3">
           {t('common.cancel')}
-        </button>
-        <button className={`qucrme-box-6 ${title.trim() ? 'quick-create-menu-m3' : 'quick-create-menu-m4'}`}
+        </Pulsable>
+        <Pulsable className={`qucrme-box-6 ${title.trim() ? 'quick-create-menu-m3' : 'quick-create-menu-m4'}`}
           onClick={() => title.trim() && create()}
           disabled={!title.trim() || isPending}
         >
           {isPending ? 'Creando…' : 'Crear tarea'}
-        </button>
+        </Pulsable>
       </div>
     </div>
   )
@@ -142,13 +143,13 @@ export default function QuickCreateMenu({ onClose }: { onClose: () => void }) {
           <>
             <div className="qucrme-row-1">
               <span>{t('quickcreatemenu.crear_nuevo')}</span>
-              <button type="button" onClick={onClose} aria-label={t('common.close')} className="qucrme-row-2">
+              <Pulsable onClick={onClose} aria-label={t('common.close')} className="qucrme-row-2">
                 <X size={13} />
-              </button>
+              </Pulsable>
             </div>
             <div role="menu" aria-label={t('quickcreatemenu.crear_nuevo')} className="qucrme-stack-2">
               {ACTIONS.map(({ id, icon: Icon, label, color }) => (
-                <button key={id} role="menuitem" onClick={() => handleAction(id)} className="qucrme-row-3"
+                <IconButton key={id} ariaLabel={label} title={label} role="menuitem" onClick={() => handleAction(id)} className="qucrme-row-3"
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
@@ -156,7 +157,7 @@ export default function QuickCreateMenu({ onClose }: { onClose: () => void }) {
                     <Icon size={15} color={color} />
                   </div>
                   <span className="u-text1-base-600">{label}</span>
-                </button>
+                </IconButton>
               ))}
             </div>
           </>

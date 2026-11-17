@@ -8,7 +8,7 @@ import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Coins, PackageX, Receipt, Wallet } from 'lucide-react'
-import { DataTable, EmptyState, KpiCard, Section, SelectorDePeriodo, Spinner, Tabs } from '../../components/ui'
+import { DataTable, EmptyState, KpiCard, Section, SelectorDePeriodo, Spinner, Tabs, Select } from '../../components/ui'
 import type { ColumnaDeTabla } from '../../components/ui'
 import { usePeriodo } from '../../hooks/usePeriodo'
 import { SIN_HORA, codigoDeErrorDePeriodo } from '../../utils/periodo'
@@ -68,9 +68,9 @@ export default function CostesTab() {
         </div>
         <div className="almf-filtro">
           <label className="alm-label" htmlFor="almc-agr">{t('alm.group_by')}</label>
-          <select id="almc-agr" className="alm-input" value={agrupar} onChange={e => setAgrupar(e.target.value as Agrupacion)}>
+          <Select suelto placeholder={false} id="almc-agr" className="alm-input" value={agrupar} onChange={e => setAgrupar(e.target.value as Agrupacion)}>
             {AGRUPACIONES.map(a => <option key={a} value={a}>{t(`alm.group_${a}`)}</option>)}
-          </select>
+          </Select>
         </div>
       </div>
       <p className="alm-hint">{t('alm.costs_hint')}</p>

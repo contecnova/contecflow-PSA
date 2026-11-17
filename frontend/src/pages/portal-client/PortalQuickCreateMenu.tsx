@@ -16,6 +16,7 @@ import {
 import { alpha } from '../../constants/theme'
 import { useLang, rellenar } from './portalClientContext'
 import './PortalQuickCreateMenu.css'
+import { IconButton, Pulsable } from '../../components/ui'
 
 interface PortalQuickCreateBadges {
   uat?: number
@@ -98,14 +99,14 @@ export default function PortalQuickCreateMenu({ onClose, onAction, badges = {} }
       >
         <div className="poqucrme-row-1">
           <span>{t('portalquickcreatemenu.crear_nuevo')}</span>
-          <button onClick={onClose} aria-label={t('common.close')}
+          <IconButton onClick={onClose} ariaLabel={t('common.close')}
             className="poqucrme-row-2">
             <X size={13} />
-          </button>
+          </IconButton>
         </div>
         <div className="poqucrme-stack-1">
           {ACTIONS.map(({ id, icon: Icon, label, hint, color, run }) => (
-            <button key={id} type="button" onClick={() => { run(); onClose() }}
+            <Pulsable key={id} onClick={() => { run(); onClose() }}
               className="poqucrme-row-3"
             >
               <div className="poqucrme-row-4 portalqu-sx2 portal-quick-create-menu-e1" style={{ '--portal-quick-create-menu-background': alpha(color, '15'), '--portal-quick-create-menu-border': `1px solid ${alpha(color, '30')}` } as CSSProperties}>
@@ -115,7 +116,7 @@ export default function PortalQuickCreateMenu({ onClose, onAction, badges = {} }
                 <div className="u-text1-base-600">{label}</div>
                 {hint && <div className="u-text3-xs">{hint}</div>}
               </div>
-            </button>
+            </Pulsable>
           ))}
         </div>
       </div>

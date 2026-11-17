@@ -17,7 +17,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { projectsApi, revenueRecognitionApi } from '../services/api'
 import type { CierreAsc606, ContratoAsc606, EntradaAsc606DelDiario, ObligacionAsc606, PanelAsc606 } from '../services/api/tipos-finanzas'
 import type { MetaDeLista } from '../services/api/tipos-plataforma'
-import { Button, Card, KpiCard, Modal, Spinner, EmptyState, Tabs } from '../components/ui'
+import { Button, Card, KpiCard, Modal, Spinner, EmptyState, Tabs, IconButton, Select, TablaSimple } from '../components/ui'
 import Pagination from '../components/ui/Pagination'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -133,16 +133,16 @@ function ObligationsPanel({ contractId, onClose, currency }: { contractId: strin
                     </div>
                   </div>
                   <div className="rev-ob__actions">
-                    <button type="button" className="rev-icon-btn"
-                      aria-label={t('revenue_page.editar_obligacion', { nombre: ob.name })} title={t('revenue_page.editar')}
+                    <IconButton type="button" className="rev-icon-btn"
+                      ariaLabel={t('revenue_page.editar_obligacion', { nombre: ob.name })} title={t('revenue_page.editar')}
                       onClick={() => { setEditing(ob); setForm({ name:ob.name, method:ob.method||'over_time', standalone_price:String(ob.standalone_price||''), notes:ob.notes||'' }); setShowForm(true) }}>
                       <Pencil size={14} aria-hidden />
-                    </button>
-                    <button type="button" className="rev-icon-btn rev-icon-btn--danger"
-                      aria-label={t('revenue_page.borrar_obligacion', { nombre: ob.name })} title={t('revenue_page.borrar')}
+                    </IconButton>
+                    <IconButton type="button" className="rev-icon-btn rev-icon-btn--danger"
+                      ariaLabel={t('revenue_page.borrar_obligacion', { nombre: ob.name })} title={t('revenue_page.borrar')}
                       onClick={() => del(ob.id)}>
                       <Trash2 size={14} aria-hidden />
-                    </button>
+                    </IconButton>
                   </div>
                 </div>
               )
@@ -157,9 +157,9 @@ function ObligationsPanel({ contractId, onClose, currency }: { contractId: strin
                 <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} className="ds-input" placeholder={t('revenue.ej_fase_1_analisis')} />
               </div>
               <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="rev-label">{t('revenue.metodo')}</label>
-                <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.method} onChange={e=>setForm(f=>({...f,method:e.target.value}))} className="ds-input">
+                <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.method} onChange={e=>setForm(f=>({...f,method:e.target.value}))}>
                   {ASC_METHODS.map(k => { const v = metodo(t, k); return <option key={k} value={k}>{v.label}</option> })}
-                </select>
+                </Select>
               </div>
             </div>
             <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="rev-label">{t('revenue_page.precio_independiente')}</label>
@@ -355,10 +355,10 @@ export default function RevenuePage() {
           {/* Top bar */}
           <div className="rev-topbar">
             <div className="rev-topbar__group">
-              <select value={dashYear} onChange={e => setDashYear(Number(e.target.value))} className="ds-input rev-input--auto"
+              <Select suelto placeholder={false} value={dashYear} onChange={e => setDashYear(Number(e.target.value))} className="rev-input--auto"
                 aria-label={t('revenue_page.ejercicio')}>
                 {[currentYear-1, currentYear, currentYear+1].map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
+              </Select>
               <Button variant="secondary" icon={<RefreshCw size={14} />} onClick={() => mesAEjecutar && runMonthly({ year: dashYear, month: mesAEjecutar })} disabled={runningMonthly || !mesAEjecutar}
                 title={mesAEjecutar ? undefined : t('revenue_page.sin_mes_terminado')}>
                 {runningMonthly
@@ -406,13 +406,13 @@ export default function RevenuePage() {
                   <div key={pc.id} className="rev-close">
                     <Lock size={11} className="rev-close__lock" aria-hidden="true" />
                     <span>{periodo(pc.period_year, pc.period_month)}</span>
-                    <button type="button" aria-label={t('revenue.reabrir_periodo')}
+                    <IconButton type="button" ariaLabel={t('revenue.reabrir_periodo')}
                       onClick={() => reopenPeriodMut({ year: pc.period_year, month: pc.period_month })}
                       className="rev-close__reopen"
                       title={t('revenue.reabrir_periodo')}
                     >
                       <LockOpen size={11} />
-                    </button>
+                    </IconButton>
                   </div>
                 ))}
               </div>
@@ -467,24 +467,24 @@ export default function RevenuePage() {
           <div className="rev-filters">
             <div className="rev-filters__contract">
               <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="rev-label">{t('revenue_page.contrato')}</label>
-              <select id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={entryFilter.contract_id} onChange={e => filtrarEntradas({ contract_id: e.target.value })} className="ds-input">
+              <Select suelto placeholder={false} id={`${idCampo}-1`} value={entryFilter.contract_id} onChange={e => filtrarEntradas({ contract_id: e.target.value })}>
                 <option value="">{t('revenue.todos_los_contratos')}</option>
                 {contracts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="rev-label">{t('revenue.ano')}</label>
-              <select id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={entryFilter.year} onChange={e => filtrarEntradas({ year: e.target.value })} className="ds-input rev-input--year">
+              <Select suelto placeholder={false} id={`${idCampo}-2`} value={entryFilter.year} onChange={e => filtrarEntradas({ year: e.target.value })} className="rev-input--year">
                 <option value="">{t('revenue.todos')}</option>
                 {[currentYear-1, currentYear, currentYear+1].map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
+              </Select>
             </div>
             <div>
               <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="rev-label">{t('revenue_page.mes')}</label>
-              <select id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={entryFilter.month} onChange={e => filtrarEntradas({ month: e.target.value })} className="ds-input rev-input--month">
+              <Select suelto placeholder={false} id={`${idCampo}-3`} value={entryFilter.month} onChange={e => filtrarEntradas({ month: e.target.value })} className="rev-input--month">
                 <option value="">{t('revenue.todos')}</option>
                 {MONTHS.map((m,i) => <option key={i+1} value={i+1}>{i+1} — {m}</option>)}
-              </select>
+              </Select>
             </div>
             {(entryFilter.contract_id||entryFilter.year||entryFilter.month) && (
               <Button variant="ghost" icon={<X size={14} />} onClick={() => filtrarEntradas({ contract_id:'', year:'', month:'' })}>
@@ -499,7 +499,7 @@ export default function RevenuePage() {
           ) : (
             <>
               <div className="rev-card rev-card--table">
-                <table className="rev-table">
+                <TablaSimple claseTabla="rev-table">
                   <thead>
                     <tr>
                       {COLUMNAS.map((h,i) => (
@@ -553,7 +553,7 @@ export default function RevenuePage() {
                       )
                     })}
                   </tbody>
-                </table>
+                </TablaSimple>
               </div>
               <Pagination page={entryPage} totalPages={entriesTotalPages} onChange={setEntryPage}
                 total={entriesTotal} pageSize={ENTRIES_PAGE_SIZE} />
@@ -598,27 +598,27 @@ export default function RevenuePage() {
         <Modal open title={t('revenue.nuevo_contrato_asc_606')} onClose={() => setShowCreateContract(false)} width={540}>
           <div className="u-stack-14">
             <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="rev-label">{t('revenue_page.proyecto')}</label>
-              <select id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={contractForm.project_id} onChange={e=>setContractForm(f=>({...f,project_id:e.target.value}))} className="ds-input">
+              <Select suelto placeholder={false} id={`${idCampo}-4`} value={contractForm.project_id} onChange={e=>setContractForm(f=>({...f,project_id:e.target.value}))}>
                 <option value="">{t('revenue_page.seleccionar_proyecto')}</option>
                 {projects.map(p => <option key={p.id} value={p.id}>{p.name} ({p.code})</option>)}
-              </select>
+              </Select>
             </div>
             <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="rev-label">{t('revenue.nombre_del_contrato')}</label>
               <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={contractForm.name} onChange={e=>setContractForm(f=>({...f,name:e.target.value}))} className="ds-input" placeholder={t('revenue_page.nombre_contrato_ph')} />
             </div>
             <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="rev-label">{t('revenue.metodo_de_reconocimiento')}</label>
-              <select id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={contractForm.method} onChange={e=>setContractForm(f=>({...f,method:e.target.value}))} className="ds-input">
+              <Select suelto placeholder={false} id={`${idCampo}-6`} value={contractForm.method} onChange={e=>setContractForm(f=>({...f,method:e.target.value}))}>
                 {ASC_METHODS.map(k => { const v = metodo(t, k); return <option key={k} value={k}>{v.label} — {v.desc}</option> })}
-              </select>
+              </Select>
             </div>
             <div className="u-grid2-12">
               <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="rev-label">{t('revenue.valor_del_contrato_2')}</label>
                 <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} type="number" value={contractForm.contract_value} onChange={e=>setContractForm(f=>({...f,contract_value:e.target.value}))} className="ds-input" placeholder="50000" />
               </div>
               <div><label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="rev-label">{t('revenue_page.moneda')}</label>
-                <select id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={contractForm.currency} onChange={e=>setContractForm(f=>({...f,currency:e.target.value}))} className="ds-input">
+                <Select suelto placeholder={false} id={`${idCampo}-8`} value={contractForm.currency} onChange={e=>setContractForm(f=>({...f,currency:e.target.value}))}>
                   {monedasDeLaEmpresa.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
+                </Select>
               </div>
             </div>
             <div className="u-grid2-12">
@@ -662,9 +662,9 @@ export default function RevenuePage() {
                 <input id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} type="number" value={closePeriod.year} onChange={e=>setClosePeriod(p=>({...p,year:parseInt(e.target.value)}))} className="ds-input" />
               </div>
               <div><label id={`${idCampo}-et14`} htmlFor={`${idCampo}-14`} className="rev-label">{t('revenue_page.mes')}</label>
-                <select id={`${idCampo}-14`} aria-labelledby={`${idCampo}-et14`} value={closePeriod.month} onChange={e=>setClosePeriod(p=>({...p,month:parseInt(e.target.value)}))} className="ds-input">
+                <Select suelto placeholder={false} id={`${idCampo}-14`} value={closePeriod.month} onChange={e=>setClosePeriod(p=>({...p,month:parseInt(e.target.value)}))}>
                   {MONTHS.map((m,i) => <option key={i+1} value={i+1}>{i+1} — {m}</option>)}
-                </select>
+                </Select>
               </div>
             </div>
             {closedPeriodKeys.has(`${closePeriod.year}-${closePeriod.month}`) && (
