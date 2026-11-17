@@ -16,7 +16,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, usersApi, risksApi } from '../services/api'
 import type { RiesgosDelProyecto } from '../services/api/tipos'
 import type { RiesgoSerializado } from '../services/api/tipos-proyectos'
-import { Button, KpiCard, Modal, Spinner, EmptyState, useSort, ViewToggle, Tabs, Select, IconButton, TablaSimple } from '../components/ui'
+import { Button, KpiCard, Modal, Spinner, EmptyState, useSort, ViewToggle, Tabs, Select, IconButton, TablaSimple, useErroresDeCampo } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AlertOctagon, AlertTriangle, CircleDot, Folder, Grid3x3, List, Pencil, Plus, ShieldCheck, Trash2, User } from 'lucide-react'
@@ -145,14 +145,17 @@ function RiskFormModal({ risk, projectId, onClose }: { risk?: RiskItem | null; p
     schedule_impact_days: risk?.schedule_impact_days || '',
     notes: risk?.notes || '',
   })
-  const set = <K extends keyof RiskFormState>(k: K) => (e: { target: { value: string } }) => setForm(f => ({ ...f, [k]: e.target.value as RiskFormState[K] }))
+  const set = <K extends keyof RiskFormState>(k: K) => (e: { target: { value: string } }) => { campos.limpiar(k); setForm(f => ({ ...f, [k]: e.target.value as RiskFormState[K] })) }
 
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: (data: RiskFormState) => isEdit && risk
       ? risksApi.update(projectId, risk.id, data)
       : risksApi.create(projectId, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['risks', projectId] }); onClose() },
-    onError: e => toast.error(extractErr(e, t('risks_page.error_generico'))),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, t('risks_page.error_generico'))) },
   })
 
   return (
@@ -160,72 +163,72 @@ function RiskFormModal({ risk, projectId, onClose }: { risk?: RiskItem | null; p
       <div className="u-grid2-14">
         <div className="u-col-full">
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="rsk-label">{t('risks.form.title')}</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={set('title')} className="ds-input" placeholder={t('risks.form.title_ph')} required aria-required="true" />
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={set('title')} className="ds-input" placeholder={t('risks.form.title_ph')} required aria-required="true" />{msg('title')}
         </div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="rsk-label">{t('risks.form.category')}</label>
           <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.category} onChange={set('category')}>
             {CATEGORIES.map(c => <option key={c} value={c}>{t(`risks.options.cat_${c}`)}</option>)}
-          </Select>
+          </Select>{msg('category')}
         </div>
         <div>
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="rsk-label">{t('risks.form.status')}</label>
           <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.status} onChange={set('status')}>
             {STATUS_OPTIONS.map(s => <option key={s} value={s}>{t(`risks.options.status_${s}`)}</option>)}
-          </Select>
+          </Select>{msg('status')}
         </div>
         <div>
           <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="rsk-label">{t('risks.form.prob')}</label>
           <Select suelto placeholder={false} id={`${idCampo}-4`} value={form.probability} onChange={set('probability')}>
             {PROB_OPTIONS.map(p => <option key={p} value={p}>{t(`risks.options.prob_${p}`)}</option>)}
-          </Select>
+          </Select>{msg('probability')}
         </div>
         <div>
           <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="rsk-label">{t('risks.form.impact')}</label>
           <Select suelto placeholder={false} id={`${idCampo}-5`} value={form.impact} onChange={set('impact')}>
             {IMPACT_OPTIONS.map(i => <option key={i} value={i}>{t(`risks.options.impact_${i}`)}</option>)}
-          </Select>
+          </Select>{msg('impact')}
         </div>
         <div>
           <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="rsk-label">{t('risks.form.response_type')}</label>
           <Select suelto placeholder={false} id={`${idCampo}-6`} value={form.response_type} onChange={set('response_type')}>
             {RESPONSE_TYPES.map(r => <option key={r} value={r}>{t(`risks.options.resp_${r}`)}</option>)}
-          </Select>
+          </Select>{msg('response_type')}
         </div>
         <div>
           <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="rsk-label">{t('risks.form.owner')}</label>
           <Select suelto placeholder={false} id={`${idCampo}-7`} value={form.owner_id} onChange={set('owner_id')}>
             <option value="">{t('risks.form.unassigned')}</option>
             {users.map(u => <option key={u.id} value={String(u.id)}>{u.full_name}</option>)}
-          </Select>
+          </Select>{msg('owner_id')}
         </div>
         <div>
           <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="rsk-label">{t('risks_page.coste_min')}</label>
-          <input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} type="number" value={form.cost_impact_min} onChange={set('cost_impact_min')} className="ds-input" placeholder={t('risks.form.cost_min_ph')} />
+          <input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} type="number" value={form.cost_impact_min} onChange={set('cost_impact_min')} className="ds-input" placeholder={t('risks.form.cost_min_ph')} />{msg('cost_impact_min')}
         </div>
         <div>
           <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="rsk-label">{t('risks_page.coste_max')}</label>
-          <input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} type="number" value={form.cost_impact_max} onChange={set('cost_impact_max')} className="ds-input" placeholder={t('risks.form.cost_max_ph')} />
+          <input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} type="number" value={form.cost_impact_max} onChange={set('cost_impact_max')} className="ds-input" placeholder={t('risks.form.cost_max_ph')} />{msg('cost_impact_max')}
         </div>
         <div>
           <label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} className="rsk-label">{t('risks.form.days_impact')}</label>
-          <input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} type="number" value={form.schedule_impact_days} onChange={set('schedule_impact_days')} className="ds-input" placeholder={t('risks.form.days_impact_ph')} />
+          <input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} type="number" value={form.schedule_impact_days} onChange={set('schedule_impact_days')} className="ds-input" placeholder={t('risks.form.days_impact_ph')} />{msg('schedule_impact_days')}
         </div>
         <div>
           <label id={`${idCampo}-et11`} htmlFor={`${idCampo}-11`} className="rsk-label">{t('risks.form.review_date')}</label>
-          <DateInput id={`${idCampo}-11`} aria-labelledby={`${idCampo}-et11`} value={form.review_date} onChange={set('review_date')} className="ds-input" />
+          <DateInput id={`${idCampo}-11`} aria-labelledby={`${idCampo}-et11`} value={form.review_date} onChange={set('review_date')} className="ds-input" />{msg('review_date')}
         </div>
         <div className="u-col-full">
           <label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} className="rsk-label">{t('risks.form.description')}</label>
-          <textarea id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} value={form.description} onChange={set('description')} rows={2} className="ds-input" />
+          <textarea id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} value={form.description} onChange={set('description')} rows={2} className="ds-input" />{msg('description')}
         </div>
         <div className="u-col-full">
           <label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} className="rsk-label">{t('risks.form.mitigation_plan')}</label>
-          <textarea id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} value={form.mitigation_plan} onChange={set('mitigation_plan')} rows={2} className="ds-input" placeholder={t('risks.form.mitigation_plan_ph')} />
+          <textarea id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} value={form.mitigation_plan} onChange={set('mitigation_plan')} rows={2} className="ds-input" placeholder={t('risks.form.mitigation_plan_ph')} />{msg('mitigation_plan')}
         </div>
         <div className="u-col-full">
           <label id={`${idCampo}-et14`} htmlFor={`${idCampo}-14`} className="rsk-label">{t('risks.form.contingency_plan')}</label>
-          <textarea id={`${idCampo}-14`} aria-labelledby={`${idCampo}-et14`} value={form.contingency_plan} onChange={set('contingency_plan')} rows={2} className="ds-input" placeholder={t('risks.form.contingency_plan_ph')} />
+          <textarea id={`${idCampo}-14`} aria-labelledby={`${idCampo}-et14`} value={form.contingency_plan} onChange={set('contingency_plan')} rows={2} className="ds-input" placeholder={t('risks.form.contingency_plan_ph')} />{msg('contingency_plan')}
         </div>
         <div className="rsk-form-actions">
           <Button variant="secondary" onClick={onClose}>{t('risks.form.cancel')}</Button>

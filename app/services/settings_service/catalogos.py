@@ -277,11 +277,11 @@ def get_holidays(db: Session) -> list:
 
 def _sede_valida(db: Session, payload_dict: dict) -> None:
     """Rev. 180: un festivo de sede apunta a una sede de la empresa."""
-    from app.core.errores import ErrorDeDominio
+    from app.core.codigos_de_error import error as error_con_codigo
     from app.models.advanced_config import Office
     oid = payload_dict.get("office_id")
     if oid and db.query(Office.id).filter(Office.id == oid).first() is None:
-        raise ErrorDeDominio(422, "Esa sede no existe")
+        raise error_con_codigo(422, "sede_no_existe")
 
 
 def create_holiday(payload_dict: dict, db: Session) -> Holiday:

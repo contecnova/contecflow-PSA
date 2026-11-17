@@ -16,6 +16,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error as error_con_codigo
 from app.models.horario import AsignacionDeJornada, JornadaLaboral
 from app.services.horario import tramos as tr
 from app.services.horario.efectivo import AMBITOS
@@ -43,7 +44,7 @@ def _fecha(v, nombre: str) -> Optional[date]:
     try:
         return date.fromisoformat(str(v)[:10])
     except ValueError:
-        raise ErrorDeDominio(422, f"Fecha no válida en «{nombre}»")
+        raise error_con_codigo(422, "fecha_no_valida_en", nombre=nombre)
 
 
 def _auditar(db: Session, usuario, accion: str, recurso: str, rid: str, nombre: Optional[str] = None, **valores):
@@ -83,7 +84,7 @@ def jornadas(db: Session, *, incluir_inactivas: bool = False) -> list[JornadaLab
 def jornada(db: Session, jornada_id: str) -> JornadaLaboral:
     j = db.query(JornadaLaboral).filter(JornadaLaboral.id == jornada_id).first()
     if j is None:
-        raise ErrorDeDominio(404, "Jornada no encontrada")
+        raise error_con_codigo(404, "jornada_no_encontrada")
     return j
 
 
@@ -92,7 +93,7 @@ def guardar_jornada(db: Session, usuario, datos: dict, jornada_id: Optional[str]
     nombres = {k: str(v).strip()[:120] for k, v in (datos.get("nombres") or {}).items() if k in IDIOMAS and str(v or "").strip()}
     nombre = (datos.get("nombre") or "").strip() or nombres.get("es") or next(iter(nombres.values()), "")
     if not nombre:
-        raise ErrorDeDominio(422, "La jornada necesita un nombre")
+        raise error_con_codigo(422, "jornada_sin_nombre")
     errores = []
     semana = {}
     for d in range(1, 8):
@@ -153,25 +154,25 @@ def guardar_asignacion(db: Session, usuario, datos: dict, asignacion_id: Optiona
     from app.models.user import User
     a = db.query(AsignacionDeJornada).filter(AsignacionDeJornada.id == asignacion_id).first() if asignacion_id else None
     if asignacion_id and a is None:
-        raise ErrorDeDominio(404, "Asignación no encontrada")
+        raise error_con_codigo(404, "asignacion_no_encontrada")
     j = jornada(db, datos.get("jornada_id") or (a.jornada_id if a else ""))
     ambito = datos.get("ambito") or "empresa"
     if ambito not in AMBITOS:
-        raise ErrorDeDominio(422, f"Ámbito desconocido: {ambito}")
+        raise error_con_codigo(422, "ambito_desconocido", ambito=str(ambito))
     valor = (datos.get("valor") or "").strip() or None
     if ambito != "empresa" and not valor:
-        raise ErrorDeDominio(422, "Indica a quién se aplica")
+        raise error_con_codigo(422, "asignacion_sin_destino")
     existe = {"sede": lambda v: db.query(Office.id).filter(Office.id == v).first(),
               "persona": lambda v: db.query(User.id).filter(User.id == v).first(),
               "grupo": lambda v: db.query(ApprovalGroup.id).filter(ApprovalGroup.id == v).first()}.get(ambito)
     if existe is not None and existe(valor) is None:
-        raise ErrorDeDominio(422, "Ese destino no existe en tu empresa")
+        raise error_con_codigo(422, "destino_no_existe_en_empresa")
     desde, hasta = _fecha(datos.get("desde"), "desde"), _fecha(datos.get("hasta"), "hasta")
     recurrente = bool(datos.get("recurrente_anual"))
     if recurrente and not (desde and hasta):
-        raise ErrorDeDominio(422, "Una jornada que se repite cada año necesita fecha de inicio y de fin")
+        raise error_con_codigo(422, "jornada_anual_sin_fechas")
     if desde and hasta and hasta < desde and not recurrente:
-        raise ErrorDeDominio(422, "La fecha final es anterior a la inicial")
+        raise error_con_codigo(422, "fecha_final_anterior")
     if a is None:
         a = AsignacionDeJornada(id=str(uuid.uuid4()), organization_id=_org(db, usuario), created_by=usuario.id)
         db.add(a)
@@ -188,7 +189,7 @@ def guardar_asignacion(db: Session, usuario, datos: dict, asignacion_id: Optiona
 def borrar_asignacion(db: Session, usuario, asignacion_id: str) -> None:
     a = db.query(AsignacionDeJornada).filter(AsignacionDeJornada.id == asignacion_id).first()
     if a is None:
-        raise ErrorDeDominio(404, "Asignación no encontrada")
+        raise error_con_codigo(404, "asignacion_no_encontrada")
     _auditar(db, usuario, "DELETE", "work_schedule_assignment", a.id, None)
     db.delete(a)
     db.commit()
@@ -212,12 +213,12 @@ def guardar_ficha(db: Session, usuario, user_id: str, datos: dict) -> dict:
     from app.models.user import User
     u = db.query(User).filter(User.id == user_id).first()
     if u is None:
-        raise ErrorDeDominio(404, "Persona no encontrada")
+        raise error_con_codigo(404, "persona_no_encontrada")
     antes = ficha_dict(u)
     if "office_id" in datos:
         oid = datos.get("office_id") or None
         if oid and db.query(Office.id).filter(Office.id == oid).first() is None:
-            raise ErrorDeDominio(422, "Esa sede no existe")
+            raise error_con_codigo(422, "sede_no_existe")
         u.office_id = oid
     if "hire_date" in datos:
         u.hire_date = _fecha(datos.get("hire_date"), "fecha de alta")
@@ -247,9 +248,9 @@ def rejilla(db: Session, viewer, desde: date, hasta: date, *, equipo: Optional[s
     from app.services.horario import efectivo as hor
     from app.services.politica_de_visibilidad import ids_de_personas_visibles
     if hasta < desde:
-        raise ErrorDeDominio(422, "La fecha final es anterior a la inicial")
+        raise error_con_codigo(422, "fecha_final_anterior")
     if (hasta - desde).days + 1 > MAX_DIAS_REJILLA:
-        raise ErrorDeDominio(422, f"Como mucho {MAX_DIAS_REJILLA} días de una vez")
+        raise error_con_codigo(422, "maximo_de_dias", max=MAX_DIAS_REJILLA)
     q = db.query(User).filter(User.is_active.is_(True))
     if equipo:
         q = q.filter(User.team == equipo)

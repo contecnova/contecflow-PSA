@@ -18,7 +18,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { skillsApi, usersApi } from '../services/api'
 import type { SkillDelCatalogo } from '../services/api/tipos-alm'
 import type { CambioDeNivelDeSkill, MatrizDeSkills, PersonaPorSkills, SkillDePersona } from '../services/api/tipos-personas'
-import { Button, Card, KpiCard, Modal, Section, Spinner, EmptyState, Tabs, IconButton, Select, Pulsable, TablaSimple, Checkbox } from '../components/ui'
+import { Button, Card, KpiCard, Modal, Section, Spinner, EmptyState, Tabs, IconButton, Select, Pulsable, TablaSimple, Checkbox, useErroresDeCampo } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Award, BookOpen, Code2, Grid3x3, HeartHandshake, History, Languages, Layers, Lightbulb, Pencil, Plus, Ruler, Search, Sparkles, Tags, UserRound, Users, Wrench, X } from 'lucide-react'
@@ -165,10 +165,13 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
     enabled: modalTab === 'history',
   })
 
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate: addSkill } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: (data: Record<string, unknown>) => skillsApi.addUserSkill(user.id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['user-skills', user.id] }); qc.invalidateQueries({ queryKey: ['skills-matrix'] }); setForm({ skill_id: '', level: 'basic', years_experience: '', certified: false, cert_name: '', notes: '' }) },
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
   })
   const { mutate: removeSkill } = useMutation({
     mutationFn: (skillId: string) => skillsApi.removeUserSkill(user.id, skillId),
@@ -250,32 +253,33 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
         <div className="skl-add__grid">
           <div>
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={ls}>{t('skills.skill_req')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.skill_id} onChange={e => setForm(f => ({ ...f, skill_id: e.target.value }))} className={`${fs}${form.skill_id ? ' skl-input--picked' : ''}`}>
+            <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.skill_id} onChange={e => { campos.limpiar('skill_id'); setForm(f => ({ ...f, skill_id: e.target.value })) }} className={`${fs}${form.skill_id ? ' skl-input--picked' : ''}`}>
               <option value="">{t('skills.selecciona_un_skill')}</option>
               {CATEGORIES.map(cat => (
                 <optgroup key={cat} label={catLabel(cat)}>
                   {catalog.filter(s => s.category === cat).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </optgroup>
               ))}
-            </Select>
+            </Select>{msg('skill_id')}
           </div>
           <div>
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={ls}>{t('skills.nivel_req')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value }))} className={fs}>
+            <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.level} onChange={e => { campos.limpiar('level'); setForm(f => ({ ...f, level: e.target.value })) }} className={fs}>
               {LEVELS.map(l => <option key={l} value={l}>{t(LEVEL_CFG[l].label)}</option>)}
-            </Select>
+            </Select>{msg('level')}
           </div>
           <div>
             <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={ls}>{t('skills.anos_exp')}</label>
-            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" min="0" max="30" step="0.5" value={form.years_experience} onChange={e => setForm(f => ({ ...f, years_experience: e.target.value }))} className={fs} placeholder={t('skills.anos_placeholder')} />
+            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" min="0" max="30" step="0.5" value={form.years_experience} onChange={e => { campos.limpiar('years_experience'); setForm(f => ({ ...f, years_experience: e.target.value })) }} className={fs} placeholder={t('skills.anos_placeholder')} />{msg('years_experience')}
           </div>
         </div>
         <div className="skl-add__row">
-          <Checkbox className="skl-check" checked={!!form.certified} onChange={v => setForm(f => ({ ...f, certified: v }))}
+          <Checkbox className="skl-check" checked={!!form.certified} onChange={v => { campos.limpiar('certified'); setForm(f => ({ ...f, certified: v })) }}
             label={t('skills.tiene_certificacion')} />
           {form.certified && (
-            <input aria-label={t('skills.nombre_de_la_certificacion')} value={form.cert_name} onChange={e => setForm(f => ({ ...f, cert_name: e.target.value }))} className={`${fs} skl-input--grow`} placeholder={t('skills.nombre_de_la_certificacion')} />
+            <input aria-label={t('skills.nombre_de_la_certificacion')} value={form.cert_name} onChange={e => { campos.limpiar('cert_name'); setForm(f => ({ ...f, cert_name: e.target.value })) }} className={`${fs} skl-input--grow`} placeholder={t('skills.nombre_de_la_certificacion')} />
           )}
+          {msg('cert_name')}
         </div>
         <Button
           icon={<Plus size={14} />}

@@ -14,7 +14,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { slaCalendarsApi, type SlaCalendar } from '../services/api'
 import type { SdComprobacionDeDia } from '../services/api/tipos-sd'
-import { Button, Card, EmptyState, IconButton, Spinner, Modal, Select, Pulsable, Checkbox } from '../components/ui'
+import { Button, Card, EmptyState, IconButton, Spinner, Modal, Select, Pulsable, Checkbox, useErroresDeCampo } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { CalendarClock, CalendarDays, Check, CheckCircle2, Clock, Globe, Pencil, Plus, Trash2, X, XCircle } from 'lucide-react'
@@ -62,7 +62,10 @@ function CalendarForm({ cal, onClose }: { cal?: SlaCalendar | null; onClose: () 
     set('work_days')(s)
   }
 
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: () => {
       const d = {...form, work_days: [...form.work_days].sort().join(','), applies_to_all: general}
       return isEdit
@@ -70,7 +73,7 @@ function CalendarForm({ cal, onClose }: { cal?: SlaCalendar | null; onClose: () 
         : slaCalendarsApi.create(d).then(r=>r.data)
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sla-calendars'] }); onClose() },
-    onError: (e: unknown) => toast.error(extractErr(e, t('sla_calendars_page.error_guardar'))),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, t('sla_calendars_page.error_guardar'))) },
   })
 
   return (
@@ -79,24 +82,24 @@ function CalendarForm({ cal, onClose }: { cal?: SlaCalendar | null; onClose: () 
         <div>
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="slac-label">{t('sla_calendars_page.nombre')}</label>
           <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="slac-input" value={form.name} onChange={e => set('name')(e.target.value)}
-            placeholder={t('sla_calendars_page.nombre_ph')} />
+            placeholder={t('sla_calendars_page.nombre_ph')} />{msg('name')}
         </div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="slac-label">{t('sla_calendars_page.zona_horaria')}</label>
           <Select suelto placeholder={false} id={`${idCampo}-2`} className="slac-input" value={form.timezone} onChange={e => set('timezone')(e.target.value)}>
             {timezoneOptions(form.timezone).map(tz => <option key={tz} value={tz}>{tz}</option>)}
-          </Select>
+          </Select>{msg('timezone')}
         </div>
         <div className="u-grid2-12">
           <div>
             <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="slac-label">{t('sla_calendars_page.inicio_jornada')}</label>
             <CampoFecha modo="hora" id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} className="slac-input" value={form.work_start}
-              onChange={v => set('work_start')(v)} />
+              onChange={v => set('work_start')(v)} />{msg('work_start')}
           </div>
           <div>
             <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="slac-label">{t('sla_calendars_page.fin_jornada')}</label>
             <CampoFecha modo="hora" id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} className="slac-input" value={form.work_end}
-              onChange={v => set('work_end')(v)} />
+              onChange={v => set('work_end')(v)} />{msg('work_end')}
           </div>
         </div>
         <fieldset className="slac-days ds-grupo-opciones">
@@ -144,15 +147,21 @@ function HolidaysModal({ cal, onClose }: { cal: SlaCalendar; onClose: () => void
     queryFn: () => slaCalendarsApi.holidays(cal.id).then(r => r.data),
   })
 
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate: addH, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: () => slaCalendarsApi.createHoliday(cal.id, {holiday_date:date, name:name||null}).then(r=>r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['holidays', cal.id] }); setDate(''); setName('') },
-    onError: (e: unknown) => toast.error(extractErr(e, t('sla_calendars_page.error_anadir'))),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, t('sla_calendars_page.error_anadir'))) },
   })
+  const camposB = useErroresDeCampo()
+  const msgB = (k: string) => camposB.de(k) ? <div className="u-field-error">{camposB.de(k)}</div> : null
   const { mutate: updateH } = useMutation({
+    onMutate: () => camposB.limpiar(),
     mutationFn: (id: string | number) => slaCalendarsApi.updateHoliday(cal.id, id, { holiday_date: editForm.holiday_date, name: editForm.name || null }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['holidays', cal.id] }); setEditingId(null) },
-    onError: (e: unknown) => toast.error(extractErr(e, t('sla_calendars_page.error_editar'))),
+    onError: (e: unknown) => { if (!camposB.recoger(e)) toast.error(extractErr(e, t('sla_calendars_page.error_editar'))) },
   })
   const { mutate: delH } = useMutation({
     mutationFn: (id: string | number) => slaCalendarsApi.deleteHoliday(cal.id, id),
@@ -178,11 +187,11 @@ function HolidaysModal({ cal, onClose }: { cal: SlaCalendar; onClose: () => void
         <div className="slac-add">
           <div>
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="slac-label">{t('sla_calendars_page.fecha')}</label>
-            <DateInput id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="slac-input" value={date} onChange={e => setDate(e.target.value)} />
+            <DateInput id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="slac-input" value={date} onChange={e => setDate(e.target.value)} />{msg('holiday_date')}
           </div>
           <div>
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="slac-label">{t('sla_calendars_page.nombre_opcional')}</label>
-            <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} className="slac-input" value={name} onChange={e => setName(e.target.value)} placeholder={t('sla_calendars_page.festivo_ph')} />
+            <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} className="slac-input" value={name} onChange={e => setName(e.target.value)} placeholder={t('sla_calendars_page.festivo_ph')} />{msg('name')}
           </div>
           <Button icon={<Plus size={14} />} onClick={() => addH()} disabled={isPending || !date} loading={isPending}>
             {t('sla_calendars_page.anadir')}
@@ -199,11 +208,11 @@ function HolidaysModal({ cal, onClose }: { cal: SlaCalendar; onClose: () => void
                 <div className="slac-edit-row">
                   <DateInput value={editForm.holiday_date} aria-label={t('sla_calendars_page.fecha')}
                     onChange={e => setEditForm(f => ({...f, holiday_date: e.target.value}))}
-                    className="slac-input slac-input--sm" />
+                    className="slac-input slac-input--sm" />{msgB('holiday_date')}
                   <input aria-label={t('slacalendars.nombre_del_festivo')} value={editForm.name}
                     onChange={e => setEditForm(f => ({...f, name: e.target.value}))}
                     placeholder={t('slacalendars.nombre_del_festivo')}
-                    className="slac-input slac-input--sm slac-input--grow" />
+                    className="slac-input slac-input--sm slac-input--grow" />{msgB('name')}
                   <IconButton onClick={() => updateH(h.id)}
                     ariaLabel={t('sla_calendars_page.guardar_festivo')} title={t('sla_calendars_page.guardar_festivo')}>
                     <Check size={15} aria-hidden />

@@ -1085,6 +1085,8 @@ const zh: Record<string, string> = {
   "fecha.desde": "开始",
   "fecha.hasta": "结束",
   "ticket_autor_sistema": "系统",
+  "ticket_comentario_editado": "已编辑",
+  "ticket_comentario_retirado": "评论已被作者撤回",
   "err_srv.sesion_invalida": "会话无效或已过期",
   "err_srv.credenciales_incorrectas": "邮箱或密码不正确",
   "err_srv.cliente_no_encontrado": "未找到客户",

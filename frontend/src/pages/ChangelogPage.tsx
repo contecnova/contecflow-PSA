@@ -6,7 +6,7 @@ import { useState, useId, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import api, { projectsApi } from '../services/api'
-import { Spinner, EmptyState, Button, Modal, Tabs, IconButton, Select } from '../components/ui'
+import { Spinner, EmptyState, Button, Modal, Tabs, IconButton, Select, useErroresDeCampo } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Bug, Flag, Plus, ScrollText, Sparkles, Trash2, TriangleAlert, Wand2, Zap, type LucideIcon } from 'lucide-react'
@@ -137,10 +137,13 @@ function ManualEntryModal({ projectId, onClose, onSaved }: { projectId: string; 
   const schema = useMemo(() => manualEntrySchema(t), [t])
   const validation = useFormValidation(schema)
 
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate: save, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: (data: ManualEntryPayload) => api.post(`/projects/${projectId}/changelog`, data),
     onSuccess: () => { validation.setErrors({}); onSaved(); onClose() },
-    onError: (e: unknown) => toast.error(extractErr(e, t('changelog.err_save'))),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, t('changelog.err_save'))) },
   })
 
   const submit = () => {
@@ -154,28 +157,28 @@ function ManualEntryModal({ projectId, onClose, onSaved }: { projectId: string; 
       <div className="chl-grid3">
         <div>
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="chl-label">{t('changelog.version_tag')}</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.version_tag} onChange={e => { setForm(f => ({ ...f, version_tag: e.target.value })); validation.clearFieldError('version_tag') }} className="chl-input" aria-invalid={!!validation.errors.version_tag} placeholder={t('changelog.version_tag_ph')} />
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.version_tag} onChange={e => { setForm(f => ({ ...f, version_tag: e.target.value })); validation.clearFieldError('version_tag') }} className="chl-input" aria-invalid={!!validation.errors.version_tag} placeholder={t('changelog.version_tag_ph')} />{msg('version_tag')}
         </div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="chl-label">{t('changelog.date')}</label>
-          <DateInput id={`${idCampo}-2`} value={form.entry_date} onChange={e => { setForm(f => ({ ...f, entry_date: e.target.value })); validation.clearFieldError('entry_date') }} className="chl-input" aria-invalid={!!validation.errors.entry_date} />
+          <DateInput id={`${idCampo}-2`} value={form.entry_date} onChange={e => { setForm(f => ({ ...f, entry_date: e.target.value })); validation.clearFieldError('entry_date') }} className="chl-input" aria-invalid={!!validation.errors.entry_date} />{msg('entry_date')}
           {validation.errors.entry_date && <p className="u-field-error">{validation.errors.entry_date}</p>}
         </div>
         <div>
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="chl-label">{t('changelog.type')}</label>
           <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.entry_type} onChange={e => { setForm((f) => ({ ...f, entry_type: e.target.value as EntryType })); validation.clearFieldError('entry_type') }} className="chl-input" aria-invalid={!!validation.errors.entry_type}>
             {Object.entries(typeMeta).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-          </Select>
+          </Select>{msg('entry_type')}
         </div>
       </div>
       <div>
         <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="chl-label">{t('changelog.title_label')}</label>
-        <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.title} onChange={e => { setForm(f => ({ ...f, title: e.target.value })); validation.clearFieldError('title') }} className="chl-input" aria-invalid={!!validation.errors.title} placeholder={t('changelog.title_ph')} />
+        <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.title} onChange={e => { setForm(f => ({ ...f, title: e.target.value })); validation.clearFieldError('title') }} className="chl-input" aria-invalid={!!validation.errors.title} placeholder={t('changelog.title_ph')} />{msg('title')}
         {validation.errors.title && <p className="u-field-error">{validation.errors.title}</p>}
       </div>
       <div>
         <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="chl-label">{t('changelog.description')}</label>
-        <textarea id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.description} onChange={e => { setForm(f => ({ ...f, description: e.target.value })); validation.clearFieldError('description') }} rows={3} className="chl-input" aria-invalid={!!validation.errors.description} placeholder={t('changelog.description_ph')} />
+        <textarea id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.description} onChange={e => { setForm(f => ({ ...f, description: e.target.value })); validation.clearFieldError('description') }} rows={3} className="chl-input" aria-invalid={!!validation.errors.description} placeholder={t('changelog.description_ph')} />{msg('description')}
       </div>
       <div className="u-actions-10">
         <Button variant="secondary" onClick={onClose}>{t('changelog.cancel')}</Button>

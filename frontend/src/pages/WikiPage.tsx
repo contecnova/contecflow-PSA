@@ -16,7 +16,7 @@ import { useDocCollab } from '../hooks/useDocCollab'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { wikiApi, projectsApi } from '../services/api'
 import type { VisibilidadDeWiki, WikiBloque, WikiEspacio, WikiEtiqueta, WikiPagina, WikiPaginaEnArbol, WikiResultadoDeBusqueda } from '../services/api/tipos-alm'
-import { Button, Spinner, EmptyState, IconButton, Modal, StatusBadge, Tabs, useDialogo, Select, Pulsable, Checkbox } from '../components/ui'
+import { Button, Spinner, EmptyState, IconButton, Modal, StatusBadge, Tabs, useDialogo, Select, Pulsable, Checkbox, useErroresDeCampo } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import {
@@ -248,7 +248,10 @@ function PageModal({ spaceId, parentId, editPage, onClose }: { spaceId?: string;
     { value: 'public', label: traducir('wiki.vis_public') },
   ]
 
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     // `WikiPageIn` no lleva visibilidad (se ignoraba): va por su ruta propia si cambia.
     mutationFn: async (d: Record<string, unknown>) => {
       const guardada = (isEdit ? await wikiApi.updatePage(editPage!.id, d) : await wikiApi.createPage(spaceId, d)).data
@@ -256,7 +259,7 @@ function PageModal({ spaceId, parentId, editPage, onClose }: { spaceId?: string;
       return guardada
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['wiki-pages', spaceId] }); onClose() },
-    onError: (e: unknown) => toast.error(extractErr(e, traducir('wiki.error_guardar'))),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, traducir('wiki.error_guardar'))) },
   })
 
   return (
@@ -292,11 +295,11 @@ function PageModal({ spaceId, parentId, editPage, onClose }: { spaceId?: string;
           )}
           <div>
             <label id={`${idCampo}-ettitulo`} htmlFor={`${idCampo}-titulo`} className="wk-label">{traducir('wiki.page_title')}</label>
-            <input id={`${idCampo}-titulo`} aria-labelledby={`${idCampo}-ettitulo`} className="ds-input wk-input" value={title} onChange={e=>{setTitle(e.target.value);if(!isEdit)setSlug(autoSlug(e.target.value))}} placeholder={traducir('wiki.titulo_de_la_pagina')}/>
+            <input id={`${idCampo}-titulo`} aria-labelledby={`${idCampo}-ettitulo`} className="ds-input wk-input" value={title} onChange={e=>{setTitle(e.target.value);if(!isEdit)setSlug(autoSlug(e.target.value))}} placeholder={traducir('wiki.titulo_de_la_pagina')}/>{msg('title')}{msg('title')}
           </div>
           <div>
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="wk-label">{traducir('wiki.slug')}</label>
-            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="ds-input wk-input wk-input--mono ds-campo-codigo" value={slug} onChange={e=>setSlug(e.target.value)}/>
+            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="ds-input wk-input wk-input--mono ds-campo-codigo" value={slug} onChange={e=>setSlug(e.target.value)}/>{msg('slug')}{msg('slug')}
           </div>
           <div>
             <div id={`${idCampo}-contenido-et`} className="wk-label">{traducir('wiki.content')}</div>

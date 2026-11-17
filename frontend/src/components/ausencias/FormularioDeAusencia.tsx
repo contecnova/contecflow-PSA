@@ -20,12 +20,12 @@ import {
 } from 'lucide-react'
 import { ausenciasApi } from '../../services/api/ausencias'
 import type { AusenciaServida, PeticionDeAusencia, SaldoDeAusencia, TipoDeAusencia, VistaPreviaDeAusencia } from '../../services/api/tipos-ausencias'
-import { Button, Modal, Spinner, Select, TablaSimple, GrupoDeOpciones, Checkbox, Segmentado } from '../ui'
+import { Button, Modal, Spinner, Select, TablaSimple, GrupoDeOpciones, Checkbox, Segmentado, useErroresDeCampo } from '../ui'
 import { CampoFecha } from '../ui/SelectorDeFecha'
 import DateInput from '../ui/DateInput'
 import { UserSelect } from '../ui/EntitySelect'
 import IconoDeAusencia from './IconoDeAusencia'
-import { AvisoDeError, Muestra } from './admin/comun'
+import { AvisoDeError, ErrorDeCampo, Muestra, hayDeCampo } from './admin/comun'
 import { fecha, modosDeTipo, nombreDeTipo, num, textoDeTramos, tramosDe, useTa, useTipos, useTiposDeDocumento, useTurnos } from './comun'
 
 interface Adjunto { tipoId: string; fichero: File }
@@ -64,6 +64,7 @@ export default function FormularioDeAusencia({ abierto, onCerrar, editar }: {
   }))
   const [adjuntos, setAdjuntos] = useState<Adjunto[]>([])
   const [subiendo, setSubiendo] = useState(false)
+  const campos = useErroresDeCampo()
   const tipo = (tipos.data ?? []).find(x => x.id === p.absence_type_id)
   useEffect(() => {
     if (!p.absence_type_id && tipos.data?.length) setP(x => ({ ...x, absence_type_id: tipos.data[0].id }))
@@ -90,6 +91,8 @@ export default function FormularioDeAusencia({ abierto, onCerrar, editar }: {
     retry: false,
   })
   const guardar = useMutation({
+    onMutate: () => campos.limpiar(),
+    onError: e => { campos.recoger(e) },
     mutationFn: async () => {
       const a = editar ? await ausenciasApi.editar(editar.id, peticion) : await ausenciasApi.pedir(peticion)
       setSubiendo(true)
@@ -99,7 +102,7 @@ export default function FormularioDeAusencia({ abierto, onCerrar, editar }: {
     onSettled: () => { setSubiendo(false); qc.invalidateQueries({ queryKey: ['ausencias'] }) },
     onSuccess: () => { setAdjuntos([]); onCerrar() },
   })
-  const poner = (cambios: Partial<PeticionDeAusencia>) => setP(x => ({ ...x, ...cambios }))
+  const poner = (cambios: Partial<PeticionDeAusencia>) => { Object.keys(cambios).forEach(k => campos.limpiar(k)); setP(x => ({ ...x, ...cambios })) }
   const v = previa.data
   const bloqueada = Boolean(v && (v.decision === 'block' || v.bloqueos.length))
   const cruza = Boolean(p.start_time && p.end_time && p.end_time < p.start_time)
@@ -126,10 +129,12 @@ export default function FormularioDeAusencia({ abierto, onCerrar, editar }: {
             <label className="aus-campo-con-etiqueta"><span className="aus-etiqueta">{ta('desde')}</span>
               <DateInput className="aus-campo" aria-label={ta('desde')} value={p.start_date}
                 onChange={e => poner({ start_date: e.target.value, end_date: p.end_date && p.end_date >= e.target.value ? p.end_date : e.target.value })} />
+              <ErrorDeCampo texto={campos.de('start_date')} />
             </label>
             <label className="aus-campo-con-etiqueta"><span className="aus-etiqueta">{ta('hasta')}</span>
               <DateInput className="aus-campo" aria-label={ta('hasta')} value={p.end_date} min={p.start_date || undefined}
                 onChange={e => poner({ end_date: e.target.value })} />
+              <ErrorDeCampo texto={campos.de('end_date')} />
             </label>
           </div>
           {modo === 'horas' ? (
@@ -137,11 +142,13 @@ export default function FormularioDeAusencia({ abierto, onCerrar, editar }: {
               <label className="aus-campo-con-etiqueta"><span className="aus-etiqueta">{ta('hora_inicio')}</span>
                 <CampoFecha modo="hora" className="aus-campo" aria-label={ta('hora_inicio')} required value={p.start_time ?? ''}
                   onChange={x => poner({ start_time: x || null })} />
-              </label>
+                <ErrorDeCampo texto={campos.de('start_time')} />
+            </label>
               <label className="aus-campo-con-etiqueta"><span className="aus-etiqueta">{ta('hora_fin')}</span>
                 <CampoFecha modo="hora" className="aus-campo" aria-label={ta('hora_fin')} required value={p.end_time ?? ''}
                   onChange={x => poner({ end_time: x || null })} />
-              </label>
+                <ErrorDeCampo texto={campos.de('end_time')} />
+            </label>
               <span id="aus-franja-ayuda" className="aus-ayuda" aria-live="polite">{ta(cruza ? 'franja_cruza' : 'franja_ayuda')}</span>
             </div>
           ) : modos.includes('medio_dia') && (
@@ -159,15 +166,18 @@ export default function FormularioDeAusencia({ abierto, onCerrar, editar }: {
               <Select suelto className="aus-campo" aria-label={ta('turno')} value={p.shift_id ?? ''} onChange={e => poner({ shift_id: e.target.value || null })} placeholder={ta('turno_del_cuadrante')}>
                 {turnos.map(t => <option key={t.id} value={t.id}>{t.nombre} · {textoDeTramos(tramosDe(t))}</option>)}
               </Select>
+              <ErrorDeCampo texto={campos.de('shift_id')} />
             </label>
           )}
           <label className="aus-campo-con-etiqueta">
             <span className="aus-etiqueta">{ta('sustituto')}{tipo?.requiere_sustituto ? ` · ${ta('obligatorio')}` : ''}</span>
             <UserSelect value={p.substitute_id ?? ''} onChange={(id: string) => poner({ substitute_id: id || null })} required={tipo?.requiere_sustituto} />
-          </label>
+            <ErrorDeCampo texto={campos.de('substitute_id')} />
+            </label>
           <label className="aus-campo-con-etiqueta"><span className="aus-etiqueta">{ta('motivo')}</span>
             <textarea className="aus-campo" rows={2} aria-label={ta('motivo')} value={p.reason ?? ''} onChange={e => poner({ reason: e.target.value })} />
-          </label>
+            <ErrorDeCampo texto={campos.de('reason')} />
+            </label>
           <Adjuntos docs={docs.map(d => ({ id: d.id, nombre: d.nombres?.[lang as 'es'] || d.nombre }))} valor={adjuntos} onChange={setAdjuntos} />
         </div>
         <aside className="aus-previa" aria-live="polite" aria-label={ta('vista_previa')}>
@@ -177,7 +187,7 @@ export default function FormularioDeAusencia({ abierto, onCerrar, editar }: {
           {completa && previa.isError && <AvisoDeError error={previa.error} defecto={ta('error_previa')} />}
           {v && <Previa v={v} turnos={turnos.map(t => ({ id: t.id, nombre: t.nombre, color: t.color }))} />}
         </aside>
-        {guardar.isError && <AvisoDeError error={guardar.error} defecto={ta('error_guardar')} />}
+        {guardar.isError && !hayDeCampo(campos) && <AvisoDeError error={guardar.error} defecto={ta('error_guardar')} />}
         <div className="aus-acciones">
           <Button variant="secondary" onClick={onCerrar}>{ta('cancelar')}</Button>
           <Button type="submit" disabled={!completa || bloqueada} loading={guardar.isPending || subiendo}>

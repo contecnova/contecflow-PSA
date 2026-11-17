@@ -16,14 +16,14 @@ import { ausenciasApi } from '../../../services/api/ausencias'
 import type {
   AmbitoDeJornada, AsignacionDeJornada, AsignacionDeJornadaIn, DiaDeSemana, Jornada, JornadaIn, Tramo,
 } from '../../../services/api/tipos-ausencias'
-import { Button, EmptyState, Modal, Spinner, Select, Pulsable } from '../../ui'
+import { Button, EmptyState, Modal, Spinner, Select, Pulsable , useErroresDeCampo } from '../../ui'
 import DateInput from '../../ui/DateInput'
 import { UserSelect } from '../../ui/EntitySelect'
 import { confirmar } from '../../../context/ConfirmContext'
 import { useToast } from '../../../context/ToastContext'
 import { useOpciones } from '../../politicas/comun'
 import { fecha, horasDeTramos, num } from '../comun'
-import { AvisoDeError, Casilla, DIAS_SEMANA, Muestra, NombresPorIdioma, colorPorDefecto, errorDe, nombreEn, useT } from './comun'
+import { AvisoDeError, ErrorDeCampo, hayDeCampo, Casilla, DIAS_SEMANA, Muestra, NombresPorIdioma, colorPorDefecto, errorDe, nombreEn, useT } from './comun'
 import EditorDeTramos from './EditorDeTramos'
 import { useOficinas } from './EditorDeTurnos'
 
@@ -97,7 +97,8 @@ function FormularioDeJornada({ id, inicial, asignaciones, puedeEditar, onGuardad
   const qc = useQueryClient()
   const toast = useToast()
   const [d, setD] = useState(inicial)
-  const cambiar = (c: Partial<JornadaIn>) => setD(x => ({ ...x, ...c }))
+  const campos = useErroresDeCampo()
+  const cambiar = (c: Partial<JornadaIn>) => { Object.keys(c).forEach(k => campos.limpiar(k)); setD(x => ({ ...x, ...c })) }
   const ponerDia = (dia: DiaDeSemana, tramos: Tramo[]) => setD(x => ({ ...x, semana: { ...x.semana, [dia]: tramos } }))
   // Copia los tramos del lunes a los demás días laborables que aún no tienen horario.
   const copiarLunes = () => setD(x => ({
@@ -108,6 +109,8 @@ function FormularioDeJornada({ id, inicial, asignaciones, puedeEditar, onGuardad
   const total = DIAS.reduce((s, dia) => s + horasDia(dia), 0)
   const refrescar = () => qc.invalidateQueries({ queryKey: ['ausencias'] })
   const guardar = useMutation({
+    onMutate: () => campos.limpiar(),
+    onError: e => { campos.recoger(e) },
     mutationFn: () => (id ? ausenciasApi.guardarJornada(id, d) : ausenciasApi.crearJornada(d)),
     onSuccess: j => { toast.success(ta('guardado')); refrescar(); if (!id) onGuardada(j); else onCerrar() },
   })
@@ -125,6 +128,7 @@ function FormularioDeJornada({ id, inicial, asignaciones, puedeEditar, onGuardad
             <label className="ausadm-campo-con-etiqueta">
               <span className="ausadm-etiqueta">{ta('nombre')}</span>
               <input aria-label={ta('nombre')} className="ausadm-campo" required value={d.nombre} onChange={e => cambiar({ nombre: e.target.value })} />
+              <ErrorDeCampo texto={campos.de('nombre')} />
             </label>
             <label className="ausadm-campo-con-etiqueta">
               <span className="ausadm-etiqueta">{ta('color')}</span>
@@ -151,12 +155,13 @@ function FormularioDeJornada({ id, inicial, asignaciones, puedeEditar, onGuardad
               <input aria-label={ta('pausa_minutos')} type="number" min={0} step={5} className="ausadm-campo ausadm-campo--corto" value={d.pausa_minutos}
                 onChange={e => cambiar({ pausa_minutos: Math.max(0, Number(e.target.value) || 0) })} />
               <span className="ausadm-ayuda">{ta('pausa_jornada_ayuda')}</span>
+              <ErrorDeCampo texto={campos.de('pausa_minutos')} />
             </label>
             <p className="ausadm-ayuda" aria-live="polite">{ta('horas_semana', { n: num(total) })}</p>
           </div>
           <Casilla etiqueta={ta('activo')} valor={d.activo} onChange={v => cambiar({ activo: v })} />
         </fieldset>
-        <AvisoDeError error={guardar.error} defecto={ta('error_guardar')} />
+        <AvisoDeError error={hayDeCampo(campos) ? null : guardar.error} defecto={ta('error_guardar')} />
         {puedeEditar && (
           <div className="ausadm-acciones">
             {id && <Button variant="danger" icon={<Trash2 size={14} />} loading={borrar.isPending}
@@ -204,9 +209,12 @@ function FilaDeAsignacion({ id, inicial, puedeEditar, onHecha }: {
   const qc = useQueryClient()
   const toast = useToast()
   const [a, setA] = useState(inicial)
-  const poner = (c: Partial<AsignacionDeJornadaIn>) => setA(x => ({ ...x, ...c }))
+  const campos = useErroresDeCampo()
+  const poner = (c: Partial<AsignacionDeJornadaIn>) => { Object.keys(c).forEach(k => campos.limpiar(k)); setA(x => ({ ...x, ...c })) }
   const refrescar = () => qc.invalidateQueries({ queryKey: ['ausencias'] })
   const guardar = useMutation({
+    onMutate: () => campos.limpiar(),
+    onError: e => { campos.recoger(e) },
     mutationFn: () => (id ? ausenciasApi.guardarAsignacion(id, a) : ausenciasApi.crearAsignacion(a)),
     onSuccess: () => { toast.success(ta('guardado')); refrescar(); onHecha?.() },
   })
@@ -239,15 +247,17 @@ function FilaDeAsignacion({ id, inicial, puedeEditar, onHecha }: {
           <label className="ausadm-fila"><span className="ausadm-ayuda">{ta('prioridad')}</span>
             <input type="number" className="ausadm-campo ausadm-campo--mini" aria-label={ta('prioridad')} value={a.prioridad}
               onChange={e => poner({ prioridad: Number(e.target.value) || 0 })} />
+            <ErrorDeCampo texto={campos.de('prioridad')} />
           </label>
         </div>
         <label className="ausadm-campo-con-etiqueta"><span className="ausadm-ayuda">{ta('nota')}</span>
           <input className="ausadm-campo" aria-label={ta('nota')} value={a.nota ?? ''} onChange={e => poner({ nota: e.target.value || null })} />
+          <ErrorDeCampo texto={campos.de('nota')} />
         </label>
         {!a.desde && !a.hasta && <span className="ausadm-ayuda">{ta('sin_fechas_siempre')}</span>}
         {a.desde && a.hasta && <span className="ausadm-ayuda">{ta(a.recurrente_anual ? 'vigencia_cada_anio' : 'vigencia', { desde: fecha(a.desde), hasta: fecha(a.hasta) })}</span>}
       </fieldset>
-      <AvisoDeError error={guardar.error} defecto={ta('error_guardar')} />
+      <AvisoDeError error={hayDeCampo(campos) ? null : guardar.error} defecto={ta('error_guardar')} />
       {puedeEditar && (
         <div className="ausadm-acciones">
           {id ? <Button size="xs" variant="danger" icon={<Trash2 size={13} />} loading={quitar.isPending}

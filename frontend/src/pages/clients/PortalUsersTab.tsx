@@ -3,7 +3,7 @@ import { type CSSProperties, useState, useId } from 'react'
 import { useToast } from '../../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { portalClientsApi, clientsApi } from '../../services/api'
-import { Button, EmptyState, Modal, Checkbox, GrupoDeOpciones } from '../../components/ui'
+import { Button, EmptyState, Modal, Checkbox, GrupoDeOpciones, useErroresDeCampo } from '../../components/ui'
 import { Check, ClipboardCopy, Coins, FolderOpen, Globe, KeyRound, Lock, LockOpen, Mail, Pause, Pencil, Play, Plus, TriangleAlert, Users } from 'lucide-react'
 import { extractErr, fmtDate } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
@@ -109,7 +109,15 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
   const projects = clientDetail?.projects || []
   const projectLabelById = new Map(projects.map(p => [p.id, `${p.code} — ${p.name}`]))
 
+  const campos = useErroresDeCampo()
+  const camposEdit = useErroresDeCampo()
+  const camposPwd = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
+  const msgEdit = (k: string) => camposEdit.de(k) ? <div className="u-field-error">{camposEdit.de(k)}</div> : null
+  const msgPwd = (k: string) => camposPwd.de(k) ? <div className="u-field-error">{camposPwd.de(k)}</div> : null
+
   const { mutate: add, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: (d: PortalForm & { client_org_id: string | number; project_ids?: string[] }) => portalClientsApi.create(d).then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['portal-clients-org', cid] })
@@ -117,7 +125,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
       setCreatedCreds({ email: form.email, password: form.password })
       setForm(emptyForm())
     },
-    onError: (e: unknown) => toast.error(extractErr(e, t('portaluserstab.error_crear'))),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, t('portaluserstab.error_crear'))) },
   })
 
   const { mutate: toggle } = useMutation({
@@ -127,12 +135,14 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
   })
 
   const { mutate: resetPwd, isPending: resetting } = useMutation({
+    onMutate: () => camposPwd.limpiar(),
     mutationFn: ({ id, password }: { id: string; password: string }) => portalClientsApi.update(id, { password }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['portal-clients-org', cid] }); setShowReset(null); setNewPassword('') },
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => { if (!camposPwd.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
   })
 
   const { mutate: updateUser, isPending: updating } = useMutation({
+    onMutate: () => camposEdit.limpiar(),
     mutationFn: ({ id, data }: { id: string; data: Partial<PortalEditForm> }) => portalClientsApi.update(id, data).then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['portal-clients-org', cid] })
@@ -140,7 +150,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
       setEditForm(null)
       toast.success(t('portaluserstab.usuario_actualizado'))
     },
-    onError: (e: unknown) => toast.error(extractErr(e, t('portaluserstab.error_actualizar'))),
+    onError: (e: unknown) => { if (!camposEdit.recoger(e)) toast.error(extractErr(e, t('portaluserstab.error_actualizar'))) },
   })
 
   const openEdit = (u: PortalUser) => {
@@ -273,8 +283,9 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
             <div className="pousta-box-15">{t('portaluserstab.usuario_dos_puntos')} <strong className="u-text1">{showReset.email}</strong></div>
             <div className="u-mb-16">
               <label id={`${idCampo}-pwd-et`} htmlFor={`${idCampo}-pwd`} className="pousta-lbl">{t('portalusers.nueva_contrasena')}</label>
-              <input id={`${idCampo}-pwd`} aria-labelledby={`${idCampo}-pwd-et`} type="password" autoComplete="new-password" value={newPassword} onChange={e => setNewPassword(e.target.value)}
+              <input id={`${idCampo}-pwd`} aria-labelledby={`${idCampo}-pwd-et`} type="password" autoComplete="new-password" value={newPassword} onChange={e => { camposPwd.limpiar('password'); setNewPassword(e.target.value) }}
                 className="pousta-inp" placeholder={t('portalusers.nueva_contrasena')} />
+              {msgPwd('password')}
             </div>
             <div className="u-actions-8">
               <Button variant="secondary" onClick={() => { setShowReset(null); setNewPassword('') }}>{t('common.cancel')}</Button>
@@ -293,19 +304,23 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
           <div className="pousta-grid-1">
             <div>
               <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="pousta-lbl">{t('portaluserstab.nombre_completo')} *</label>
-              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={editForm?.full_name ?? ''} onChange={e => setEditForm(f => f && ({ ...f, full_name: e.target.value }))} className="pousta-inp" />
+              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={editForm?.full_name ?? ''} onChange={e => { camposEdit.limpiar('full_name'); setEditForm(f => f && ({ ...f, full_name: e.target.value })) }} className="pousta-inp" />
+              {msgEdit('full_name')}
             </div>
             <div>
               <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="pousta-lbl">{t('portaluserstab.email')} *</label>
-              <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={editForm?.email ?? ''} onChange={e => setEditForm(f => f && ({ ...f, email: e.target.value }))} className="pousta-inp" />
+              <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={editForm?.email ?? ''} onChange={e => { camposEdit.limpiar('email'); setEditForm(f => f && ({ ...f, email: e.target.value })) }} className="pousta-inp" />
+              {msgEdit('email')}
             </div>
             <div>
               <label id={`${idCampo}-cargo-edit-et`} htmlFor={`${idCampo}-cargo-edit`} className="pousta-lbl">{t('portaluserstab.cargo')}</label>
-              <input id={`${idCampo}-cargo-edit`} aria-labelledby={`${idCampo}-cargo-edit-et`} value={editForm?.job_title ?? ''} onChange={e => setEditForm(f => f && ({ ...f, job_title: e.target.value }))} className="pousta-inp" placeholder={t('portaluserstab.cargo')} />
+              <input id={`${idCampo}-cargo-edit`} aria-labelledby={`${idCampo}-cargo-edit-et`} value={editForm?.job_title ?? ''} onChange={e => { camposEdit.limpiar('job_title'); setEditForm(f => f && ({ ...f, job_title: e.target.value })) }} className="pousta-inp" placeholder={t('portaluserstab.cargo')} />
+              {msgEdit('job_title')}
             </div>
             <div>
               <label id={`${idCampo}-tel-et`} htmlFor={`${idCampo}-tel`} className="pousta-lbl">{t('portalusers.telefono')}</label>
-              <input id={`${idCampo}-tel`} aria-labelledby={`${idCampo}-tel-et`} value={editForm?.phone ?? ''} onChange={e => setEditForm(f => f && ({ ...f, phone: e.target.value }))} className="pousta-inp" placeholder={t('portalusers.telefono')} />
+              <input id={`${idCampo}-tel`} aria-labelledby={`${idCampo}-tel-et`} value={editForm?.phone ?? ''} onChange={e => { camposEdit.limpiar('phone'); setEditForm(f => f && ({ ...f, phone: e.target.value })) }} className="pousta-inp" placeholder={t('portalusers.telefono')} />
+              {msgEdit('phone')}
             </div>
             <div className="u-col-full">
               <GrupoDeOpciones tipo="checkbox" forma="lista" className="pousta-proyectos" leyenda={t('portaluserstab.proyectos_asociados')}
@@ -372,11 +387,11 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
             {t('portalusers.crea_las_credenciales_que_el_cliente_usara')} <strong className="u-text1">{portalUrl}</strong>
           </div>
           <div className="pousta-grid-1">
-            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="pousta-lbl">{t('portaluserstab.nombre_completo')} *</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} className="pousta-inp" /></div>
-            <div><label id={`${idCampo}-mail-et`} htmlFor={`${idCampo}-mail`} className="pousta-lbl">{t('portalusers.email_sera_el_usuario_de_login')}</label><input id={`${idCampo}-mail`} aria-labelledby={`${idCampo}-mail-et`} type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="pousta-inp" placeholder={t('portalusers.email_de_acceso')} /></div>
-            <div><label id={`${idCampo}-pwdn-et`} htmlFor={`${idCampo}-pwdn`} className="pousta-lbl">{t('portalusers.contrasena_2')}</label><input id={`${idCampo}-pwdn`} aria-labelledby={`${idCampo}-pwdn-et`} type="password" autoComplete="new-password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} className="pousta-inp" placeholder={t('portaluserstab.contrasena_temporal')} /></div>
-            <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="pousta-lbl">{t('portalusers.confirmar_contrasena')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="password" autoComplete="new-password" value={form.confirm_password} onChange={e => setForm(f => ({ ...f, confirm_password: e.target.value }))} className="pousta-inp" /></div>
-            <div><label id={`${idCampo}-cargo-et`} htmlFor={`${idCampo}-cargo`} className="pousta-lbl">{t('portaluserstab.cargo')}</label><input id={`${idCampo}-cargo`} aria-labelledby={`${idCampo}-cargo-et`} value={form.job_title} onChange={e => setForm(f => ({ ...f, job_title: e.target.value }))} className="pousta-inp" placeholder={t('portaluserstab.cargo')} /></div>
+            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="pousta-lbl">{t('portaluserstab.nombre_completo')} *</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.full_name} onChange={e => { campos.limpiar('full_name'); setForm(f => ({ ...f, full_name: e.target.value })) }} className="pousta-inp" />{msg('full_name')}</div>
+            <div><label id={`${idCampo}-mail-et`} htmlFor={`${idCampo}-mail`} className="pousta-lbl">{t('portalusers.email_sera_el_usuario_de_login')}</label><input id={`${idCampo}-mail`} aria-labelledby={`${idCampo}-mail-et`} type="email" value={form.email} onChange={e => { campos.limpiar('email'); setForm(f => ({ ...f, email: e.target.value })) }} className="pousta-inp" placeholder={t('portalusers.email_de_acceso')} />{msg('email')}</div>
+            <div><label id={`${idCampo}-pwdn-et`} htmlFor={`${idCampo}-pwdn`} className="pousta-lbl">{t('portalusers.contrasena_2')}</label><input id={`${idCampo}-pwdn`} aria-labelledby={`${idCampo}-pwdn-et`} type="password" autoComplete="new-password" value={form.password} onChange={e => { campos.limpiar('password'); setForm(f => ({ ...f, password: e.target.value })) }} className="pousta-inp" placeholder={t('portaluserstab.contrasena_temporal')} />{msg('password')}</div>
+            <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="pousta-lbl">{t('portalusers.confirmar_contrasena')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="password" autoComplete="new-password" value={form.confirm_password} onChange={e => { campos.limpiar('confirm_password'); setForm(f => ({ ...f, confirm_password: e.target.value })) }} className="pousta-inp" />{msg('confirm_password')}</div>
+            <div><label id={`${idCampo}-cargo-et`} htmlFor={`${idCampo}-cargo`} className="pousta-lbl">{t('portaluserstab.cargo')}</label><input id={`${idCampo}-cargo`} aria-labelledby={`${idCampo}-cargo-et`} value={form.job_title} onChange={e => { campos.limpiar('job_title'); setForm(f => ({ ...f, job_title: e.target.value })) }} className="pousta-inp" placeholder={t('portaluserstab.cargo')} />{msg('job_title')}</div>
             <div>
               <GrupoDeOpciones tipo="checkbox" forma="lista" className="pousta-proyectos" leyenda={t('portaluserstab.asociar_proyectos')}
                 valor={form.project_ids}

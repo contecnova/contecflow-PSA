@@ -29,6 +29,7 @@ import PanelIaDelTicket from '../../components/servicedesk/PanelIaDelTicket'
 import EstadoDeCicloDeVida from '../../components/servicedesk/EstadoDeCicloDeVida'
 import AvisoDeColision from '../../components/servicedesk/AvisoDeColision'
 import ContextoDelCliente from '../../components/servicedesk/ContextoDelCliente'
+import AdjuntosPorCanalDelTicket from '../../components/servicedesk/AdjuntosPorCanalDelTicket'
 import { RecursoDelTicket } from '../../components/alm/EnlaceTicketRecurso'
 import { COLOR } from '../../constants/theme'
 import { almExtApi, sdApprovalsApi, sdCannedApi, ticketsApi, usersApi } from '../../services/api'
@@ -704,9 +705,14 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
                       {c.author_name}
                       {c.is_public === false && <span className="tkd-comment__internal">{t('service_desk.internal_note')}</span>}
                     </span>
-                    <span className="u-text3-xs">{fmtDate(c.created_at)}</span>
+                    <span className="u-text3-xs">
+                      {fmtDate(c.created_at)}
+                      {c.edited_at && !c.retracted_at && <> · {t('ticketdetail.comentario_editado')}</>}
+                    </span>
                   </div>
-                  <TextoTraducido className="tkd-comment__body" original={c.body} {...tradDe('ticket_comment', c.id)} />
+                  {c.retracted_at
+                    ? <em className="tkd-comment__body u-text3-xs">{t('ticketdetail.comentario_retirado')}</em>
+                    : <TextoTraducido className="tkd-comment__body" original={c.body} {...tradDe('ticket_comment', c.id)} />}
                 </div>
               ))}
             </div>
@@ -744,6 +750,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
 
           <SeguirYFusionar ticketId={ticketId} />
           <div className="u-mb-20"><DocumentsPanel ticketId={ticketId} /></div>
+          <div className="u-mb-20"><AdjuntosPorCanalDelTicket ticketId={ticketId} /></div>
           <div className="u-mb-20"><DocumentosDeFicha ficha="ticket" id={ticketId} sugerir /></div>
           <div className="u-mb-20"><LeccionesDeOrigen origen="ticket" id={ticketId} cerrado={['resolved', 'closed'].includes(String(ticket?.status))} /></div>
 

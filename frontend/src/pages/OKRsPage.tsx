@@ -13,7 +13,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { okrsApi, usersApi, projectsApi } from '../services/api'
 import type { EstadoDeObjetivo, Objetivo, PeriodoDeObjetivo, ResultadoClave } from '../services/api/tipos-proyectos'
-import { Button, Card, IconButton, KpiCard, Modal, Select, Spinner, EmptyState, Page } from '../components/ui'
+import { Button, Card, IconButton, KpiCard, Modal, Select, Spinner, EmptyState, Page, useErroresDeCampo } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import { CheckCircle2, ChevronDown, ChevronRight, Pencil, Plus, Target, Trash2, TrendingUp, Trophy, X, ListChecks } from 'lucide-react'
@@ -223,7 +223,10 @@ function ObjModal({ obj, onClose }: { obj: Objective | null; onClose: () => void
     },
   })
 
+  const camposB = useErroresDeCampo()
+  const msgB = (k: string) => camposB.de(k) ? <div className="u-field-error">{camposB.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
+    onMutate: () => camposB.limpiar(),
     mutationFn: () => {
       // Limpiamos cadenas vacías → null para que el backend no falle al castear UUIDs.
       const payload = Object.fromEntries(
@@ -232,7 +235,7 @@ function ObjModal({ obj, onClose }: { obj: Objective | null; onClose: () => void
       return isEdit && obj ? okrsApi.update(obj.id, payload) : okrsApi.create(payload)
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['okrs'] }); onClose() },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => { if (!camposB.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
   })
 
   return (
@@ -240,45 +243,46 @@ function ObjModal({ obj, onClose }: { obj: Objective | null; onClose: () => void
       <div className="ds-stack">
         <div className="ds-field">
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('okrs.titulo')}</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-            className="ds-input" placeholder={t('okrs.ej_incrementar_retencion_de_clientes')} autoFocus />
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e => { camposB.limpiar('title'); setForm(f => ({ ...f, title: e.target.value })) }}
+            className="ds-input" placeholder={t('okrs.ej_incrementar_retencion_de_clientes')} autoFocus />{msgB('title')}
         </div>
         <div className="ds-field">
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">{t('okrs.descripcion')}</label>
-          <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+          <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description} onChange={e => { camposB.limpiar('description'); setForm(f => ({ ...f, description: e.target.value })) }}
             rows={2} className="ds-input okr-textarea"
             placeholder={t('okrs.que_problema_resuelve_y_como_se_medira')} />
+          {msgB('description')}
         </div>
 
         {/* Asignaciones */}
         <div className="okr-grid">
           <div className="ds-field">
             <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ds-field__label">{t('pagina_okr.responsable')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.owner_id} onChange={e => setForm(f => ({ ...f, owner_id: e.target.value }))}>
+            <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.owner_id} onChange={e => { camposB.limpiar('owner_id'); setForm(f => ({ ...f, owner_id: e.target.value })) }}>
               <option value="">{t('okrs.sin_asignar')}</option>
               {users.map((u) => <option key={u.id} value={String(u.id)}>{u.full_name || u.username}</option>)}
-            </Select>
+            </Select>{msgB('owner_id')}
             <div className="ds-field__hint">{t('okrs.persona_que_rinde_cuentas_del_objetivo')}</div>
           </div>
           <div className="ds-field">
             <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="ds-field__label">{t('pagina_okr.departamento_equipo')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-4`} value={form.team_id} onChange={e => setForm(f => ({ ...f, team_id: e.target.value }))}>
+            <Select suelto placeholder={false} id={`${idCampo}-4`} value={form.team_id} onChange={e => { camposB.limpiar('team_id'); setForm(f => ({ ...f, team_id: e.target.value })) }}>
               <option value="">{t('okrs.compania')}</option>
               {departments.map((d) => {
                 const dep = typeof d === 'string' ? { id: d, name: d } : d
                 return <option key={String(dep.id || dep.name || '')} value={String(dep.id || dep.name || '')}>{dep.name || String(dep.id || '')}</option>
               })}
-            </Select>
+            </Select>{msgB('team_id')}
             <div className="ds-field__hint">{t('okrs.vacio_okr_de_empresa')}</div>
           </div>
         </div>
 
         <div className="ds-field">
           <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="ds-field__label">{t('pagina_okr.proyecto_vinculado')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-5`} value={form.project_id} onChange={e => setForm(f => ({ ...f, project_id: e.target.value }))}>
+          <Select suelto placeholder={false} id={`${idCampo}-5`} value={form.project_id} onChange={e => { camposB.limpiar('project_id'); setForm(f => ({ ...f, project_id: e.target.value })) }}>
             <option value="">{t('pagina_okr.ninguno')}</option>
             {projects.map((p) => <option key={p.id} value={String(p.id)}>{p.code ? `${p.code} · ` : ''}{p.name}</option>)}
-          </Select>
+          </Select>{msgB('project_id')}
           <div className="ds-field__hint">{t('okrs.si_lo_vinculas_los_krs_pueden_sincronizar')}</div>
         </div>
 
@@ -286,21 +290,21 @@ function ObjModal({ obj, onClose }: { obj: Objective | null; onClose: () => void
         <div className="okr-grid-3">
           <div className="ds-field">
             <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="ds-field__label">{t('okrs.periodo')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-6`} value={form.period} onChange={e => setForm(f => ({ ...f, period: e.target.value as PeriodoDeObjetivo }))}>
+            <Select suelto placeholder={false} id={`${idCampo}-6`} value={form.period} onChange={e => { camposB.limpiar('period'); setForm(f => ({ ...f, period: e.target.value as PeriodoDeObjetivo })) }}>
               {PERIOD_OPTS.map(p => <option key={p} value={p}>{etiquetaPeriodo(p, t)}</option>)}
-            </Select>
+            </Select>{msgB('period')}
           </div>
           <div className="ds-field">
             <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="ds-field__label">{t('okrs.year')}</label>
             <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} type="number" value={form.year}
-              onChange={e => setForm(f => ({ ...f, year: parseInt(e.target.value) || f.year }))}
-              className="ds-input" />
+              onChange={e => { camposB.limpiar('year'); setForm(f => ({ ...f, year: parseInt(e.target.value) || f.year })) }}
+              className="ds-input" />{msgB('year')}
           </div>
           <div className="ds-field">
             <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="ds-field__label">{t('pagina_okr.estado')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-8`} value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as EstadoDeObjetivo }))}>
+            <Select suelto placeholder={false} id={`${idCampo}-8`} value={form.status} onChange={e => { camposB.limpiar('status'); setForm(f => ({ ...f, status: e.target.value as EstadoDeObjetivo })) }}>
               {Object.entries(STATUS_CFG).map(([v, c]) => <option key={v} value={v}>{t(c.label)}</option>)}
-            </Select>
+            </Select>{msgB('status')}
           </div>
         </div>
 
@@ -331,7 +335,10 @@ function KRModal({ objective, onClose }: { objective: Objective; onClose: () => 
     queryFn: () => usersApi.list({ page_size: LARGE_PAGE_SIZE }).then(r => (r.data ?? []) as UserPick[]),
   })
 
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: () => {
       const payload = Object.fromEntries(
         Object.entries(form).map(([k, v]) => [k, v === '' ? null : v])
@@ -341,7 +348,7 @@ function KRModal({ objective, onClose }: { objective: Objective; onClose: () => 
       return okrsApi.createKR(payload)
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['okrs'] }); onClose() },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
   })
 
   return (
@@ -352,48 +359,49 @@ function KRModal({ objective, onClose }: { objective: Objective; onClose: () => 
       <div className="ds-stack">
         <div className="ds-field">
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('okrs.descripcion_del_resultado')}</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-            className="ds-input" placeholder={t('pagina_okr.ej_aumentar_nps_a_60')} autoFocus />
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e => { campos.limpiar('title'); setForm(f => ({ ...f, title: e.target.value })) }}
+            className="ds-input" placeholder={t('pagina_okr.ej_aumentar_nps_a_60')} autoFocus />{msg('title')}
         </div>
         <div className="okr-grid-3">
           <div className="ds-field">
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">{t('pagina_okr.tipo')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.kr_type} onChange={e => setForm(f => ({ ...f, kr_type: e.target.value }))}>
+            <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.kr_type} onChange={e => { campos.limpiar('kr_type'); setForm(f => ({ ...f, kr_type: e.target.value })) }}>
               {Object.entries(KR_TYPE_CFG).map(([v, c]) => <option key={v} value={v}>{t(c.label)}</option>)}
-            </Select>
+            </Select>{msg('kr_type')}
           </div>
           <div className="ds-field">
             <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ds-field__label">{t('pagina_okr.meta')}</label>
             <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.target_value}
-              onChange={e => setForm(f => ({ ...f, target_value: parseFloat(e.target.value) || 0 }))}
-              className="ds-input" />
+              onChange={e => { campos.limpiar('target_value'); setForm(f => ({ ...f, target_value: parseFloat(e.target.value) || 0 })) }}
+              className="ds-input" />{msg('target_value')}
           </div>
           <div className="ds-field">
             <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="ds-field__label">{t('pagina_okr.unidad')}</label>
-            <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))}
-              className="ds-input" placeholder={t('pagina_okr.puntos_nps')} />
+            <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.unit} onChange={e => { campos.limpiar('unit'); setForm(f => ({ ...f, unit: e.target.value })) }}
+              className="ds-input" placeholder={t('pagina_okr.puntos_nps')} />{msg('unit')}
           </div>
         </div>
         <div className="okr-grid">
           <div className="ds-field">
             <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="ds-field__label">{t('okrs.responsable_del_kr')}</label>
-            <Select suelto placeholder={false} id={`${idCampo}-5`} value={form.owner_id} onChange={e => setForm(f => ({ ...f, owner_id: e.target.value }))}>
+            <Select suelto placeholder={false} id={`${idCampo}-5`} value={form.owner_id} onChange={e => { campos.limpiar('owner_id'); setForm(f => ({ ...f, owner_id: e.target.value })) }}>
               <option value="">{t('okrs.hereda_del_objetivo')}</option>
               {users.map((u) => <option key={u.id} value={String(u.id)}>{u.full_name || u.username}</option>)}
-            </Select>
+            </Select>{msg('owner_id')}
           </div>
           <div className="ds-field">
             <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="ds-field__label">{t('okrs.fecha_limite')}</label>
             <DateInput id={`${idCampo}-6`} value={form.due_date}
-              onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
-              className="ds-input" />
+              onChange={e => { campos.limpiar('due_date'); setForm(f => ({ ...f, due_date: e.target.value })) }}
+              className="ds-input" />{msg('due_date')}
           </div>
         </div>
         <div className="ds-field">
           <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="ds-field__label">{t('pagina_okr.notas_opcional')}</label>
-          <textarea id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+          <textarea id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.notes} onChange={e => { campos.limpiar('notes'); setForm(f => ({ ...f, notes: e.target.value })) }}
             rows={2} className="ds-input okr-textarea"
             placeholder={t('okrs.detalles_criterios_de_exito_dependencias')} />
+          {msg('notes')}
         </div>
         <div className="okr-acciones">
           <Button variant="secondary" onClick={onClose}>{t('pagina_okr.cancelar')}</Button>

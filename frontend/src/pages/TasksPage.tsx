@@ -364,6 +364,8 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
   const [semSuggestion, setSemSuggestion] = useState<SemSuggestion | null>(null)
   const [semEffort, setSemEffort]         = useState<SemEffort | null>(null)
   const [suggesting, setSuggesting]       = useState(false)
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
 
   // Reset editing mode and form whenever the task changes or modal opens
   useEffect(() => {
@@ -420,6 +422,7 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
   }, [rawCustomValues])
 
   const { mutate: saveTask, isPending: saving } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: async ({ taskData, cfValues, cfFields, taskId, projectId }: { taskData: TaskBody; cfValues: CustomValues; cfFields: CustomField[]; taskId: string; projectId: string }) => {
       await tareas.update(taskId, taskData)
       if (cfFields.length > 0) {
@@ -428,7 +431,7 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
       }
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['tasks'] }); qc.invalidateQueries({ queryKey: ['dash-my-tasks'] }); qc.invalidateQueries({ queryKey: ['dash-overdue-tasks'] }); qc.invalidateQueries({ queryKey: ['cal-tasks'] }); qc.invalidateQueries({ queryKey: ['kanban-board'] }); setIsEditing(false); onClose() },
-    onError: (e: unknown) => toast.error(extractErr(e, t('common.error'))),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, t('common.error'))) },
   })
 
   const { mutate: deleteTask, isPending: deleting } = useMutation({
@@ -496,7 +499,7 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
     setIsEditing(false)
   }
 
-  const set = (k: keyof TaskForm) => (e: { target: { value: string } }) => setForm(f => ({ ...f, [k]: e.target.value }))
+  const set = (k: keyof TaskForm) => (e: { target: { value: string } }) => { campos.limpiar(k); setForm(f => ({ ...f, [k]: e.target.value })) }
   if (!open || !task || !form) return null
 
   return (
@@ -644,6 +647,7 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
           <div className="u-col-full">
             <label id={`${idCampo}-1-et`} htmlFor={`${idCampo}-1`} className="tsk-label">{t('tasks.title_required')}</label>
             <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-1-et`} value={form.title} onChange={set('title')} className="tsk-input" />
+            {msg('title')}
           </div>
 
           {/* Estado + Prioridad */}
@@ -654,6 +658,7 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
                 <option key={o.value} value={o.value}>{o.icon} {o.label}</option>
               ))}
             </Select>
+            {msg('status')}
           </div>
           <div>
             <label id={`${idCampo}-3-et`} htmlFor={`${idCampo}-3`} className="tsk-label">{t('common.priority')}</label>
@@ -663,6 +668,7 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
               <option value="high">{t('tasks.priority_high')}</option>
               <option value="critical">{t('tasks.priority_critical')}</option>
             </Select>
+            {msg('priority')}
           </div>
 
           {/* Asignado + botón IA */}
@@ -677,6 +683,7 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
               <option value="">{t('tasks.no_assignee')}</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
             </Select>
+            {msg('assignee_id')}
             {(semSuggestion || semEffort) && !semSuggestion?.error && (
               <div className="tsk-ai" role="status">
                 <div>
@@ -712,21 +719,25 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
                 <option key={it.id} value={it.value}>{it.icon} {it.name}</option>
               ))}
             </Select>
+            {msg('issue_type')}
           </div>
 
           {/* Horas + Fechas */}
           <div>
             <label id={`${idCampo}-horas-et`} htmlFor={`${idCampo}-horas`} className="tsk-label">{t('tasks.estimated_hours')}</label>
             <input id={`${idCampo}-horas`} aria-labelledby={`${idCampo}-horas-et`} type="number" value={form.estimated_hours} onChange={set('estimated_hours')} className="tsk-input" placeholder={t('tasks.estimated_hours')} min="0" step="0.5" />
+            {msg('estimated_hours')}
           </div>
           <div className="tsk-dates">
             <div>
               <label id={`${idCampo}-4-et`} htmlFor={`${idCampo}-4`} className="tsk-label">{t('tasks.date_start')}</label>
               <DateInput id={`${idCampo}-4`} aria-labelledby={`${idCampo}-4-et`} value={form.start_date} onChange={set('start_date')} className="tsk-input" />
+              {msg('start_date')}
             </div>
             <div>
               <label id={`${idCampo}-5-et`} htmlFor={`${idCampo}-5`} className="tsk-label">{t('tasks.due_date')}</label>
               <DateInput id={`${idCampo}-5`} aria-labelledby={`${idCampo}-5-et`} value={form.due_date} onChange={set('due_date')} className="tsk-input" />
+              {msg('due_date')}
             </div>
           </div>
 
@@ -734,6 +745,7 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
           <div className="u-col-full">
             <label id={`${idCampo}-descripcion-et`} htmlFor={`${idCampo}-descripcion`} className="tsk-label">{t('common.description')} <span className="tsk-label-hint">{t('tasks.description_hint')}</span></label>
             <AIInlineEditor inputId={`${idCampo}-descripcion`} value={form.description} onChange={val => set('description')({ target: { value: val } })} rows={4} style={ESTILO_EDITOR_DETALLE} />
+            {msg('description')}
           </div>
 
           {/* Motivo bloqueo */}
@@ -742,6 +754,7 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
               <label id={`${idCampo}-6-et`} htmlFor={`${idCampo}-6`} className="tsk-label">{t('tasks.blocked_reason')}</label>
               <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-6-et`} value={form.blocked_reason} onChange={set('blocked_reason')} className="tsk-input"
                 placeholder={t('tasks.blocked_reason_placeholder')} />
+              {msg('blocked_reason')}
             </div>
           )}
 
@@ -749,6 +762,7 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
           <div className="u-col-full">
             <label id={`${idCampo}-7-et`} htmlFor={`${idCampo}-7`} className="tsk-label">{t('tasks.tags_label')}</label>
             <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-7-et`} value={form.tags} onChange={set('tags')} className="tsk-input" placeholder={t('tasks.tags_placeholder')} />
+            {msg('tags')}
           </div>
 
           {/* Campos personalizados */}

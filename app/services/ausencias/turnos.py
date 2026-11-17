@@ -29,6 +29,7 @@ from typing import Iterable, Optional
 from sqlalchemy.orm import Session
 
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error as error_con_codigo
 from app.models.ausencias import AsignacionDeTurno, MiembroDePatron, PatronDeTurnos, Turno
 from app.services.horario import tramos as tr
 
@@ -136,18 +137,18 @@ def guardar_turno(db: Session, usuario, datos: dict, turno_id: Optional[str] = N
         try:
             tramos = tr.de_lista(tramos_in)
         except (ValueError, TypeError, IndexError) as exc:
-            raise ErrorDeDominio(422, f"Tramos del turno no válidos: {exc}")
+            raise error_con_codigo(422, "tramos_de_turno_no_validos", detalle=str(exc))
         if tramos[-1].fin - tramos[0].inicio > tr.DIA:
-            raise ErrorDeDominio(422, "Un turno no puede durar más de un día")
+            raise error_con_codigo(422, "turno_mas_de_un_dia")
         inicio, fin = _hora(tr.hhmm(tramos[0].inicio), "inicio"), _hora(tr.hhmm(tramos[-1].fin), "fin")
     else:
         inicio, fin = _hora(datos.get("hora_inicio"), "inicio"), _hora(datos.get("hora_fin"), "fin")
         if inicio == fin:
-            raise ErrorDeDominio(422, "El turno empieza y acaba a la misma hora")
+            raise error_con_codigo(422, "turno_misma_hora")
         tramos = (tr.desde_texto(inicio, fin),)
     pausa = int(datos.get("pausa_minutos") or 0)
     if pausa < 0 or pausa >= tr.total_horas(tramos) * 60:
-        raise ErrorDeDominio(422, "La pausa tiene que ser menor que la duración del turno")
+        raise error_con_codigo(422, "pausa_mayor_que_turno")
     requeridas = int(datos.get("personas_requeridas") or 0)
     if requeridas < 0:
         raise ErrorDeDominio(422, "Las personas requeridas no pueden ser negativas")

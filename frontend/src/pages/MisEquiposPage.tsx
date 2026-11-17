@@ -14,7 +14,7 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { AlertTriangle, FileSignature, History, KeyRound, Laptop, PackagePlus, Send, Undo2, Wrench } from 'lucide-react'
 import { almIntegracionApi } from '../services/api/almIntegracion'
 import type { MiEquipo, MiLicencia, Peticion, Devolucion, HistorialPropio, ActaResumen } from '../services/api/almIntegracion'
-import { Button, DataTable, EmptyState, KpiCard, Modal, Page, Select, Spinner, Tabs } from '../components/ui'
+import { Button, DataTable, EmptyState, KpiCard, Modal, Page, Select, Spinner, Tabs, useErroresDeCampo } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { useToast } from '../context/ToastContext'
 import { fmtDate } from '../utils/helpers'
@@ -174,26 +174,29 @@ function PedirModal({ que, onClose }: { que: 'licencia' | 'equipo'; onClose: () 
   const refrescar = useRefrescar()
   const opciones = useQuery({ queryKey: ['alm-mio', 'opciones'], queryFn: almIntegracionApi.opciones })
   const [f, setF] = useState({ license_id: '', asset_type: '', motivo: '', hasta: '' })
+  const camposB = useErroresDeCampo()
+  const msgB = (k: string) => camposB.de(k) ? <div className="u-field-error">{camposB.de(k)}</div> : null
   const m = useMutation({
+    onMutate: () => camposB.limpiar(),
     mutationFn: () => almIntegracionApi.pedir({ tipo: que, license_id: f.license_id || undefined, asset_type: f.asset_type || undefined,
       motivo: f.motivo || undefined, hasta: f.hasta || undefined }),
     onSuccess: () => { toast.success(t('almint.peticion_enviada')); refrescar(); onClose() },
-    onError: e => toast.error(mensajeDeError(t, e)),
+    onError: (e: unknown) => { if (!camposB.recoger(e)) toast.error(mensajeDeError(t, e)) },
   })
   const listo = que === 'licencia' ? !!f.license_id : !!f.asset_type
   return (
     <Modal open onClose={onClose} title={que === 'licencia' ? t('almint.pedir_licencia') : t('almint.pedir_equipo')} subtitle={t('almint.pedir_sub')}>
       <div className="almint-form">
         {que === 'licencia'
-          ? <Select label={t('almint.col_licencia')} value={f.license_id} onChange={e => setF({ ...f, license_id: e.target.value })}
+          ? <Select error={camposB.de('license_id')} label={t('almint.col_licencia')} value={f.license_id} onChange={e => setF({ ...f, license_id: e.target.value })}
               options={(opciones.data?.licencias ?? []).map(l => ({ value: l.id, label: l.product_name && l.product_name !== l.name ? `${l.name} · ${l.product_name}` : l.name }))} />
-          : <Select label={t('almint.tipo_de_equipo')} value={f.asset_type} onChange={e => setF({ ...f, asset_type: e.target.value })}
+          : <Select error={camposB.de('asset_type')} label={t('almint.tipo_de_equipo')} value={f.asset_type} onChange={e => setF({ ...f, asset_type: e.target.value })}
               options={(opciones.data?.tipos_de_equipo ?? []).map(v => ({ value: v, label: etiqueta(t, 'tipo_equipo', v) }))} />}
         {que === 'equipo' && <label className="almint-campo">{t('almint.prestamo_hasta')}
-          <DateInput className="ds-input" value={f.hasta} onChange={e => setF({ ...f, hasta: e.target.value })} />
+          <DateInput className="ds-input" value={f.hasta} onChange={e => setF({ ...f, hasta: e.target.value })} />{msgB('hasta')}
           <span className="almint-tenue">{t('almint.prestamo_hasta_ayuda')}</span></label>}
         <label className="almint-campo">{t('almint.motivo')}
-          <textarea className="ds-input" rows={3} value={f.motivo} onChange={e => setF({ ...f, motivo: e.target.value })} /></label>
+          <textarea className="ds-input" rows={3} value={f.motivo} onChange={e => setF({ ...f, motivo: e.target.value })} />{msgB('motivo')}</label>
         <div className="almint-acciones almint-acciones--fin">
           <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
           <Button icon={<Send size={14} />} disabled={!listo} loading={m.isPending} onClick={() => m.mutate()}>{t('almint.enviar_peticion')}</Button>

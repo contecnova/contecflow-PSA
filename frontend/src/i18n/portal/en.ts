@@ -1085,6 +1085,8 @@ const en: Record<string, string> = {
   "fecha.desde": "From",
   "fecha.hasta": "To",
   "ticket_autor_sistema": "System",
+  "ticket_comentario_editado": "edited",
+  "ticket_comentario_retirado": "Comment withdrawn by its author",
   "err_srv.sesion_invalida": "Your session is invalid or has expired",
   "err_srv.credenciales_incorrectas": "Incorrect email or password",
   "err_srv.cliente_no_encontrado": "Client not found",

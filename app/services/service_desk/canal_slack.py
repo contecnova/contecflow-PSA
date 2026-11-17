@@ -37,9 +37,16 @@ la aplicacion.
   «Cliente externo». Los ficheros (`files`) se descargan con el token del bot
   (solo `files.slack.com`, con tope) y pasan por `adjuntos_de_canal`.
 - **Sin bucles**: se ignoran los mensajes de bots (`bot_id`, `subtype`
-  `bot_message`), los del propio bot (`authorizations[].user_id`) y las
-  ediciones y borrados. Lo que entra queda unido a su comentario
-  (`ticket_comment_id`), asi que la salida no lo devuelve al hilo.
+  `bot_message`) y los del propio bot (`authorizations[].user_id`). Lo que
+  entra queda unido a su comentario (`ticket_comment_id`), asi que la salida
+  no lo devuelve al hilo.
+- **Ediciones y borrados** (17-11-2026, `message_changed`/`message_deleted`):
+  solo de respuestas de un hilo vinculado que ya entraron como comentario. La
+  edicion cambia el texto del comentario y lo marca (`edited_at`); el borrado lo
+  retira (`retracted_at`, `body` vacio). El texto anterior queda en la
+  auditoria (`UPDATE`/`RETRACT` sobre `ticket_comment`). No pasa por los eventos
+  del ticket: no sale a ningun canal ni avisa (sin bucles). Las ediciones de
+  bots o de mensajes que no entraron se ignoran.
 - **Salida**: la respuesta publica de un agente en el ticket sale al hilo
   (`salida_por_canales`), en el idioma del cliente si la traduccion lo hace.
 
@@ -535,12 +542,78 @@ def _canales_de_entrada(db: Session, org_id: str) -> set[str]:
     return {c.strip() for c in crudo.split(",") if c.strip()}
 
 
+#: Subtipos de edicion y borrado de un mensaje (`procesar_cambio`).
+SUBTIPOS_DE_CAMBIO = ("message_changed", "message_deleted")
+
+
+def _comentario_del_mensaje(db: Session, org: str, canal: Optional[str], raiz: Optional[str],
+                            ts: Optional[str]):
+    """(mensaje del canal, comentario) de una respuesta de hilo que entro al ticket."""
+    from app.models.service_desk import ChannelMessage, TicketComment
+    if not canal or not raiz or not ts or raiz == ts:
+        return None, None
+    conv = conversacion_del_hilo(db, org, canal, raiz)
+    if conv is None or not conv.ticket_id:
+        return None, None
+    m = db.query(ChannelMessage).filter(ChannelMessage.conversation_id == conv.id,
+                                        ChannelMessage.direction == "in",
+                                        ChannelMessage.external_message_id == ts).first()
+    if m is None or not m.ticket_comment_id:
+        return m, None
+    c = db.query(TicketComment).filter(TicketComment.id == m.ticket_comment_id,
+                                       TicketComment.ticket_id == conv.ticket_id).first()
+    return m, c
+
+
+def procesar_cambio(db: Session, payload: dict) -> dict:
+    """`message_changed` / `message_deleted` de una respuesta de hilo vinculada."""
+    from datetime import datetime, timezone
+    from app.services.audit import audit_log
+    org = db.info.get("organization_id")
+    evento = payload.get("event") or {}
+    canal = evento.get("channel")
+    ahora = datetime.now(timezone.utc)
+    if evento.get("subtype") == "message_changed":
+        nuevo = evento.get("message") or {}
+        if _es_del_bot({**nuevo, "subtype": None}, payload):
+            return {"ignored": True}
+        m, c = _comentario_del_mensaje(db, org, canal, nuevo.get("thread_ts"), nuevo.get("ts"))
+        texto = (nuevo.get("text") or "").strip()
+        if c is None or c.retracted_at is not None or not texto or texto == (c.body or "").strip():
+            return {"ignored": True}
+        anterior = c.body
+        c.body, c.edited_at = texto, ahora
+        m.body = texto
+        audit_log(db, None, "UPDATE", "ticket_comment", c.id, None,
+                  old_values={"body": anterior}, new_values={"body": texto},
+                  metadata={"channel": "slack", "ticket_id": c.ticket_id, "conversation_id": m.conversation_id,
+                            "slack_ts": nuevo.get("ts"), "organization_id": org})
+        db.commit()
+        return {"edited": c.id}
+    previo = evento.get("previous_message") or {}
+    if previo.get("bot_id"):
+        return {"ignored": True}
+    m, c = _comentario_del_mensaje(db, org, canal, previo.get("thread_ts"), evento.get("deleted_ts"))
+    if c is None or c.retracted_at is not None:
+        return {"ignored": True}
+    anterior = c.body
+    c.body, c.retracted_at = "", ahora
+    m.body = "[retirado]"
+    audit_log(db, None, "RETRACT", "ticket_comment", c.id, None, old_values={"body": anterior},
+              metadata={"channel": "slack", "ticket_id": c.ticket_id, "conversation_id": m.conversation_id,
+                        "slack_ts": evento.get("deleted_ts"), "organization_id": org})
+    db.commit()
+    return {"retracted": c.id}
+
+
 def procesar_evento(db: Session, payload: dict) -> dict:
     """Un `event_callback` ya verificado. La sesion corre en la empresa del workspace."""
     from app.models.service_desk import ChannelMessage
     from app.services.service_desk import conversaciones
     org = db.info.get("organization_id")
     evento = payload.get("event") or {}
+    if org and evento.get("type") == "message" and evento.get("subtype") in SUBTIPOS_DE_CAMBIO:
+        return procesar_cambio(db, payload)
     if not org or evento.get("type") != "message" or _es_del_bot(evento, payload):
         return {"ignored": True}
     canal, ts = evento.get("channel"), evento.get("ts")

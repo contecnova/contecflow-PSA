@@ -99,6 +99,9 @@ export type SdTicketComentario = {
   created_at: string
   /** Traducción en tiempo real (16-11-2026): idioma del cuerpo (null si no se sabe). */
   language?: string | null
+  /** 17-11-2026: editado o retirado en su canal (hilo de Slack). */
+  edited_at?: string | null
+  retracted_at?: string | null
 }
 
 /** ticket_out(include_comments=True): historial (`field`, no `field_name`). */

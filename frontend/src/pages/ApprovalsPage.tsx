@@ -28,7 +28,7 @@ import {
   Palmtree, Package, ClipboardList, Handshake, GitBranch, UserPlus, Tag, Plug, Laptop, Undo2, Circle,
   ArrowLeft, FolderOpen, Pencil, Check, Plus, X, AlertTriangle, Download,
 } from 'lucide-react'
-import { Button, Modal, EmptyState, Tabs, Page, Table, KpiCard, IconButton, StatusBadge, SelectorDePeriodo, Pulsable, Select, TablaSimple, Checkbox } from '../components/ui'
+import { Button, Modal, EmptyState, Tabs, Page, Table, KpiCard, IconButton, StatusBadge, SelectorDePeriodo, Pulsable, Select, TablaSimple, Checkbox, useErroresDeCampo } from '../components/ui'
 import { usePeriodo } from '../hooks/usePeriodo'
 import { CON_HORA, codigoDeErrorDePeriodo, formatearTramo } from '../utils/periodo'
 import { useAppT } from '../i18n/AppLangContext'
@@ -160,7 +160,10 @@ function StepModal({ workflowId, step, onClose }: { workflowId: string; step: Ap
     queryFn: () => settingsApi.getDepartments().then(r => r.data),
   })
 
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: (d: typeof form) => isEdit
       ? approvalsApi.updateStep(workflowId, step.id, d)
       : approvalsApi.addStep(workflowId, d),
@@ -169,7 +172,7 @@ function StepModal({ workflowId, step, onClose }: { workflowId: string; step: Ap
       toast.success(isEdit ? t('approvals.step_updated') : t('approvals.step_added'))
       onClose()
     },
-    onError: e => toast.error(extractErr(e, t('approvals.error_generic'))),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, t('approvals.error_generic'))) },
   })
   const id = (k: string) => `${idPrefix}-${k}`
 
@@ -178,60 +181,60 @@ function StepModal({ workflowId, step, onClose }: { workflowId: string; step: Ap
       <div className="apv-rejilla-2">
         <div>
           <label htmlFor={id('name')} className="apv-label">{t('approvals.step_name_required')}</label>
-          <input id={id('name')} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="apv-input" placeholder={t('approvals.step_name_placeholder')} />
+          <input id={id('name')} value={form.name} onChange={e => { campos.limpiar('name'); setForm(f => ({ ...f, name: e.target.value })) }} className="apv-input" placeholder={t('approvals.step_name_placeholder')} />{msg('name')}
         </div>
         <div>
           <label htmlFor={id('order')} className="apv-label">{t('approvals.order')}</label>
-          <input id={id('order')} type="number" value={form.step_order} onChange={e => setForm(f => ({ ...f, step_order: +e.target.value }))} className="apv-input" min="1" max="10" />
+          <input id={id('order')} type="number" value={form.step_order} onChange={e => { campos.limpiar('step_order'); setForm(f => ({ ...f, step_order: +e.target.value })) }} className="apv-input" min="1" max="10" />{msg('step_order')}
         </div>
         <div className="u-col-full">
           <label htmlFor={id('approver-type')} className="apv-label">{t('approvals.approver_type')}</label>
-          <Select suelto placeholder={false} id={id('approver-type')} value={form.approver_type} onChange={e => setForm(f => ({ ...f, approver_type: e.target.value }))} className="apv-input">
+          <Select suelto placeholder={false} id={id('approver-type')} value={form.approver_type} onChange={e => { campos.limpiar('approver_type'); setForm(f => ({ ...f, approver_type: e.target.value })) }} className="apv-input">
             {Object.entries(approverTypeLabels(t)).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-          </Select>
+          </Select>{msg('approver_type')}
         </div>
 
         {form.approver_type === 'role' && (
           <div className="u-col-full">
             <label htmlFor={id('approver-role')} className="apv-label">{t('approvals.required_role')}</label>
-            <Select suelto placeholder={false} id={id('approver-role')} value={form.approver_role} onChange={e => setForm(f => ({ ...f, approver_role: e.target.value }))} className="apv-input">
+            <Select suelto placeholder={false} id={id('approver-role')} value={form.approver_role} onChange={e => { campos.limpiar('approver_role'); setForm(f => ({ ...f, approver_role: e.target.value })) }} className="apv-input">
               <option value="">{t('approvals.select_role')}</option>
               {ROLES.map(r => <option key={r} value={r}>{t(`pol.rol_${r}`, r)}</option>)}
-            </Select>
+            </Select>{msg('approver_role')}
           </div>
         )}
 
         {form.approver_type === 'user' && (
           <div className="u-col-full">
             <label htmlFor={id('approver-user')} className="apv-label">{t('approvals.approver_user_label')}</label>
-            <Select suelto placeholder={false} id={id('approver-user')} value={form.approver_user_id} onChange={e => setForm(f => ({ ...f, approver_user_id: e.target.value }))} className="apv-input">
+            <Select suelto placeholder={false} id={id('approver-user')} value={form.approver_user_id} onChange={e => { campos.limpiar('approver_user_id'); setForm(f => ({ ...f, approver_user_id: e.target.value })) }} className="apv-input">
               <option value="">{t('approvals.select_user')}</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>)}
-            </Select>
+            </Select>{msg('approver_user_id')}
           </div>
         )}
 
         {form.approver_type === 'any_in_department' && (
           <div className="u-col-full">
             <label htmlFor={id('approver-department')} className="apv-label">{t('approvals.department')}</label>
-            <Select suelto placeholder={false} id={id('approver-department')} value={form.approver_department} onChange={e => setForm(f => ({ ...f, approver_department: e.target.value }))} className="apv-input">
+            <Select suelto placeholder={false} id={id('approver-department')} value={form.approver_department} onChange={e => { campos.limpiar('approver_department'); setForm(f => ({ ...f, approver_department: e.target.value })) }} className="apv-input">
               <option value="">{t('approvals.sin_departamento')}</option>
               {depts.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-            </Select>
+            </Select>{msg('approver_department')}
           </div>
         )}
 
         <div>
           <label htmlFor={id('timeout-hours')} className="apv-label">{t('approvals.timeout_hours')}</label>
-          <input id={id('timeout-hours')} type="number" value={form.timeout_hours} onChange={e => setForm(f => ({ ...f, timeout_hours: +e.target.value }))} className="apv-input" min="1" />
+          <input id={id('timeout-hours')} type="number" value={form.timeout_hours} onChange={e => { campos.limpiar('timeout_hours'); setForm(f => ({ ...f, timeout_hours: +e.target.value })) }} className="apv-input" min="1" />{msg('timeout_hours')}
         </div>
         <div>
           <label htmlFor={id('on-timeout')} className="apv-label">{t('approvals.on_timeout')}</label>
-          <Select suelto placeholder={false} id={id('on-timeout')} value={form.on_timeout} onChange={e => setForm(f => ({ ...f, on_timeout: e.target.value }))} className="apv-input">
+          <Select suelto placeholder={false} id={id('on-timeout')} value={form.on_timeout} onChange={e => { campos.limpiar('on_timeout'); setForm(f => ({ ...f, on_timeout: e.target.value })) }} className="apv-input">
             <option value="escalate">{t('approvals.timeout_escalate')}</option>
             <option value="auto_approve">{t('approvals.timeout_auto_approve')}</option>
             <option value="reject">{t('approvals.timeout_reject')}</option>
-          </Select>
+          </Select>{msg('on_timeout')}
         </div>
         <div className="u-col-full">
           <label htmlFor={id('is-optional')} className="apv-check">
@@ -243,10 +246,10 @@ function StepModal({ workflowId, step, onClose }: { workflowId: string; step: Ap
         {form.approver_type === 'group' && (
           <div className="u-col-full">
             <label htmlFor={id('group')} className="apv-label">{t('approvals.grupo_de_aprobadores')}</label>
-            <Select suelto placeholder={false} id={id('group')} value={form.approver_group_id} onChange={e => setForm(f => ({ ...f, approver_group_id: e.target.value }))} className="apv-input">
+            <Select suelto placeholder={false} id={id('group')} value={form.approver_group_id} onChange={e => { campos.limpiar('approver_group_id'); setForm(f => ({ ...f, approver_group_id: e.target.value })) }} className="apv-input">
               <option value="">{t('approvals.seleccionar_grupo')}</option>
               {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-            </Select>
+            </Select>{msg('approver_group_id')}
           </div>
         )}
 
@@ -261,14 +264,14 @@ function StepModal({ workflowId, step, onClose }: { workflowId: string; step: Ap
           <div>
             <label htmlFor={id('req-approvals')} className="apv-label">{t('approvals.aprobaciones_requeridas')}</label>
             <input id={id('req-approvals')} type="number" min="1" value={form.required_approvals}
-              onChange={e => setForm(f => ({ ...f, required_approvals: +e.target.value }))} className="apv-input" />
+              onChange={e => { campos.limpiar('required_approvals'); setForm(f => ({ ...f, required_approvals: +e.target.value })) }} className="apv-input" />{msg('required_approvals')}
           </div>
         )}
 
         <div>
           <label htmlFor={id('reminder')} className="apv-label">{t('approvals.recordatorio_horas')}</label>
           <input id={id('reminder')} type="number" min="1" value={form.reminder_hours}
-            onChange={e => setForm(f => ({ ...f, reminder_hours: e.target.value ? +e.target.value : '' }))} className="apv-input" placeholder={t('approvals.recordatorio_ejemplo')} />
+            onChange={e => { campos.limpiar('reminder_hours'); setForm(f => ({ ...f, reminder_hours: e.target.value ? +e.target.value : '' })) }} className="apv-input" placeholder={t('approvals.recordatorio_ejemplo')} />{msg('reminder_hours')}
         </div>
 
         <div className="u-col-full">
@@ -280,7 +283,7 @@ function StepModal({ workflowId, step, onClose }: { workflowId: string; step: Ap
 
         <fieldset className="ds-grupo-opciones u-col-full apr-regla">
           <legend className="apv-label">{t('approvals.condicion_de_paso')}</legend>
-          <CondicionDePaso raw={form.step_condition} onChange={raw => setForm(f => ({ ...f, step_condition: raw }))} />
+          <CondicionDePaso raw={form.step_condition} onChange={raw => { campos.limpiar('step_condition'); setForm(f => ({ ...f, step_condition: raw })) }} />
           <p className="apv-ayuda">{t('approvals.si_se_define_este_paso_solo_se')}</p>
         </fieldset>
       </div>

@@ -85,8 +85,12 @@ def _sembrar_departamentos(db):
             db.add(Department(name=d))
     db.commit()
 
-def _sembrar_festivos(db):
-    """Festivos del calendario laboral."""
+def _sembrar_festivos(db, org):
+    """Festivos del calendario laboral de la empresa `org`.
+
+    17-11-2026: con `organization_id` (antes sin empresa, y el horario efectivo
+    solo cuenta los festivos de la empresa: no contaban). Las bases ya
+    sembradas los pasan a cada empresa con la migracion 182."""
     from app.models.settings import Holiday
 
     for d_str, name in [
@@ -100,8 +104,8 @@ def _sembrar_festivos(db):
         ("2026-10-12","Fiesta Nacional"),("2026-12-25","Navidad"),
     ]:
         d = date.fromisoformat(d_str)
-        if not db.query(Holiday).filter(Holiday.date==d).first():
-            db.add(Holiday(date=d, name=name, type="national"))
+        if not db.query(Holiday).filter(Holiday.date==d, Holiday.organization_id==org.id).first():
+            db.add(Holiday(date=d, name=name, type="national", organization_id=org.id))
     db.commit()
 
 
@@ -670,8 +674,8 @@ def seed():
     # ── AppSettings ────────────────────────────────────────────────────────────
     _sembrar_ajustes(db)
     _sembrar_departamentos(db)
-    _sembrar_festivos(db)
     org = _sembrar_organizacion(db)
+    _sembrar_festivos(db, org)
     # Auditoria 2026-11: lo que se siembra desde aqui lleva la organizacion.
     db.info["organization_id"] = org.id
     users, seed_pwd = _sembrar_usuarios(db, org)

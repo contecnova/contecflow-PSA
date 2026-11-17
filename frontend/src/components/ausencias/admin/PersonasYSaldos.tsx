@@ -11,7 +11,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Calculator, Plus, Trash2, Users, Wallet } from 'lucide-react'
 import { ausenciasApi } from '../../../services/api/ausencias'
 import type { FichaLaboral, FichaLaboralIn, SaldoDeAusencia, SaldosDePersona, UnidadDeSaldo } from '../../../services/api/tipos-ausencias'
-import { Button, EmptyState, Modal, Spinner, Select, TablaSimple, SearchInput } from '../../ui'
+import { Button, EmptyState, Modal, Spinner, Select, TablaSimple, SearchInput, useErroresDeCampo } from '../../ui'
 import DateInput from '../../ui/DateInput'
 import { confirmar } from '../../../context/ConfirmContext'
 import { useToast } from '../../../context/ToastContext'
@@ -239,7 +239,10 @@ function NuevoAjuste({ userId, saldo }: { userId: string; saldo: SaldoDeAusencia
   const [nota, setNota] = useState('')
   const n = Number(cantidad)
   const valido = cantidad !== '' && !Number.isNaN(n) && n !== 0 && nota.trim().length > 0
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const guardar = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: () => ausenciasApi.ajustarSaldo({
       user_id: userId, saldo_clave: claveDeAjuste(saldo), cantidad: n, unidad, fecha: dia || null, caduca: caduca || null, nota: nota.trim(),
     }),
@@ -248,6 +251,7 @@ function NuevoAjuste({ userId, saldo }: { userId: string; saldo: SaldoDeAusencia
       setCantidad(''); setNota(''); setCaduca('')
       qc.invalidateQueries({ queryKey: ['ausencias'] })
     },
+    onError: (e: unknown) => { campos.recoger(e) },
   })
   return (
     <form className="ausadm-tarjeta" aria-labelledby="ausadm-ajuste-titulo" onSubmit={e => { e.preventDefault(); if (valido) guardar.mutate() }}>
@@ -255,21 +259,21 @@ function NuevoAjuste({ userId, saldo }: { userId: string; saldo: SaldoDeAusencia
       <div className="ausadm-fila">
         <label className="ausadm-fila"><span className="ausadm-ayuda">{ta('cantidad_mas_menos')}</span>
           <input type="number" step="0.25" required className="ausadm-campo ausadm-campo--corto" aria-label={ta('cantidad_mas_menos')}
-            value={cantidad} onChange={e => setCantidad(e.target.value)} />
+            value={cantidad} onChange={e => setCantidad(e.target.value)} />{msg('cantidad_mas_menos')}
         </label>
         <Select suelto className="ausadm-campo" aria-label={ta('unidad')} value={unidad} placeholder={false}
           onChange={e => setUnidad(e.target.value as UnidadDeSaldo)}>
           {(['dias', 'horas'] as const).map(u => <option key={u} value={u}>{ta(`unidad_${u}`)}</option>)}
-        </Select>
+        </Select>{msg('unidad')}
         <label className="ausadm-fila"><span className="ausadm-ayuda">{ta('fecha')}</span>
-          <DateInput className="ausadm-campo" aria-label={ta('fecha')} value={dia} onChange={e => setDia(e.target.value)} />
+          <DateInput className="ausadm-campo" aria-label={ta('fecha')} value={dia} onChange={e => setDia(e.target.value)} />{msg('fecha')}
         </label>
         <label className="ausadm-fila"><span className="ausadm-ayuda">{ta('caduca')}</span>
-          <DateInput className="ausadm-campo" aria-label={ta('caduca')} value={caduca} min={dia || undefined} onChange={e => setCaduca(e.target.value)} />
+          <DateInput className="ausadm-campo" aria-label={ta('caduca')} value={caduca} min={dia || undefined} onChange={e => setCaduca(e.target.value)} />{msg('caduca')}
         </label>
       </div>
       <label className="ausadm-campo-con-etiqueta"><span className="ausadm-ayuda">{ta('motivo_obligatorio')}</span>
-        <input className="ausadm-campo" required maxLength={500} aria-label={ta('motivo_obligatorio')} value={nota} onChange={e => setNota(e.target.value)} />
+        <input className="ausadm-campo" required maxLength={500} aria-label={ta('motivo_obligatorio')} value={nota} onChange={e => setNota(e.target.value)} />{msg('motivo_obligatorio')}
       </label>
       {cantidad !== '' && !Number.isNaN(n) && n !== 0 && (
         <span className="ausadm-ayuda">{ta(n > 0 ? 'ajuste_suma' : 'ajuste_resta', { n: cantidadDeSaldo(t, unidad, Math.abs(n)) })}</span>

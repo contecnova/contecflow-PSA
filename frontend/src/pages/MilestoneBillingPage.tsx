@@ -25,7 +25,7 @@ import {
   AlertTriangle, ArrowRight, CalendarDays, Check, CheckCircle2, Circle, Clock, Flag, FolderKanban,
   FolderOpen, Inbox, ListTodo, Plus, Receipt, RotateCcw, Send, X, XCircle,
 } from 'lucide-react'
-import { Button, Card, EmptyState, FormField, Input, Modal, Select, Tabs } from '../components/ui'
+import { Button, Card, EmptyState, FormField, Input, Modal, Select, Tabs, useErroresDeCampo } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import DsBadge from '../components/ui/StatusBadge'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
@@ -206,33 +206,38 @@ function NewMilestoneModal({ projectId, onClose, onSave }: { projectId: string; 
   const t = useAppT()
   const toast = useToast()
   const [form, setForm] = useState({ name: '', description: '', due_date: '', billing_amount: '', billing_pct: '' })
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: () => milestonesApi.create(projectId, {
       ...form,
       billing_amount: form.billing_amount ? +form.billing_amount : null,
       billing_pct:    form.billing_pct    ? +form.billing_pct    : null,
     }),
     onSuccess: () => { toast.success(t('pagina_mbill.milestone_creado')); onSave() },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
   })
 
   return (
     <Modal open title={t('milestonebilling.nuevo_milestone')} onClose={onClose} size="md">
       <div className="mbill-form">
-        <Input label={t('pagina_mbill.nombre')} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+        <Input error={campos.de('name')} label={t('pagina_mbill.nombre')} value={form.name} onChange={e => { campos.limpiar('name'); setForm(f => ({ ...f, name: e.target.value })) }}
           placeholder={t('milestonebilling.nombre_del_milestone')} />
         <FormField label={t('milestonebilling.fecha_limite')}>
-          <DateInput value={form.due_date} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} />
+          <DateInput value={form.due_date} onChange={e => { campos.limpiar('due_date'); setForm(f => ({ ...f, due_date: e.target.value })) }} />
         </FormField>
+        {msg('due_date')}
         <div className="mbill-form__dos">
-          <Input type="number" label={`${t('pagina_mbill.importe_a_facturar_2')} (${fmtMoneda.simbolo})`} value={form.billing_amount}
-            onChange={e => setForm(f => ({ ...f, billing_amount: e.target.value }))} placeholder={t('pagina_mbill.importe_a_facturar_2')} />
-          <Input type="number" label={t('milestonebilling.o_del_contrato')} value={form.billing_pct}
-            onChange={e => setForm(f => ({ ...f, billing_pct: e.target.value }))} placeholder={t('milestonebilling.porcentaje_del_contrato')} />
+          <Input error={campos.de('billing_amount')} type="number" label={`${t('pagina_mbill.importe_a_facturar_2')} (${fmtMoneda.simbolo})`} value={form.billing_amount}
+            onChange={e => { campos.limpiar('billing_amount'); setForm(f => ({ ...f, billing_amount: e.target.value })) }} placeholder={t('pagina_mbill.importe_a_facturar_2')} />
+          <Input error={campos.de('billing_pct')} type="number" label={t('milestonebilling.o_del_contrato')} value={form.billing_pct}
+            onChange={e => { campos.limpiar('billing_pct'); setForm(f => ({ ...f, billing_pct: e.target.value })) }} placeholder={t('milestonebilling.porcentaje_del_contrato')} />
         </div>
         <FormField label={t('milestonebilling.descripcion')}>
-          <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="mbill-textarea" />
+          <textarea value={form.description} onChange={e => { campos.limpiar('description'); setForm(f => ({ ...f, description: e.target.value })) }} className="mbill-textarea" />
         </FormField>
+        {msg('description')}
       </div>
       <div className="mbill-acciones-modal">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>

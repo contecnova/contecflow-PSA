@@ -52,6 +52,14 @@ export function errorDe(e: unknown, defecto: string): { mensaje: string; errores
   return { mensaje: o.message ?? defecto, errores: (o.errors ?? []).map(String) }
 }
 
+/** True si el formulario ya enseña algún error de campo (entonces el aviso general sobra). */
+export const hayDeCampo = (c: { errores: Record<string, string> }) => Object.keys(c.errores).some(Boolean)
+
+/** Error de validación del servidor junto a su campo (ver `useErroresDeCampo`). */
+export function ErrorDeCampo({ texto }: { texto?: string }) {
+  return texto ? <span className="u-field-error" role="alert">{texto}</span> : null
+}
+
 export function AvisoDeError({ error, defecto }: { error: unknown; defecto: string }) {
   if (!error) return null
   const { mensaje, errores } = errorDe(error, defecto)

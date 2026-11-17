@@ -4,7 +4,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, customFieldsApi } from '../services/api'
 import type { CampoPersonalizado } from '../services/api/tipos-rendimiento'
-import { Button, Spinner, EmptyState, Modal, IconButton, Pulsable, Select, TablaSimple, Checkbox, GrupoDeOpciones } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, IconButton, Pulsable, Select, TablaSimple, Checkbox, GrupoDeOpciones, useErroresDeCampo } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Calendar, CheckSquare, Hash, Link2, ListChecks, Pencil, Plus, SlidersHorizontal, Trash2, Type, User, X, type LucideIcon } from 'lucide-react'
@@ -64,12 +64,15 @@ function FieldForm({ field, projectId, onClose }: { field: CustomField | null; p
   })
   const [optionInput, setOptionInput] = useState('')
 
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: (d: FieldFormState) => isEdit
       ? customFieldsApi.update(projectId, field.id, d).then(r => r.data)
       : customFieldsApi.create(projectId, d).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['custom-fields', projectId] }); onClose() },
-    onError: (e: unknown) => toast.error(extractErr(e, traducir('customfields.error_guardar'))),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, traducir('customfields.error_guardar'))) },
   })
 
   const set = <K extends keyof FieldFormState>(k: K) => (v: FieldFormState[K]) => setForm(f => ({ ...f, [k]: v }))
@@ -90,7 +93,7 @@ function FieldForm({ field, projectId, onClose }: { field: CustomField | null; p
           <input id={`${idCampo}-nombre`} aria-labelledby={`${idCampo}-et-nombre`} className="cfl-input" value={form.name} onChange={e => {
             const n = e.target.value
             setForm(f => ({ ...f, name: n, field_key: isEdit ? f.field_key : autoKey(n) }))
-          }} placeholder={traducir('customfields.nombre_visible_del_campo')} />
+          }} placeholder={traducir('customfields.nombre_visible_del_campo')} />{msg('name')}
         </div>
 
         <div>
@@ -99,7 +102,7 @@ function FieldForm({ field, projectId, onClose }: { field: CustomField | null; p
             value={form.field_key}
             onChange={e => set('field_key')(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
             placeholder={traducir('customfields.clave_placeholder')} disabled={isEdit}
-            aria-describedby={isEdit ? `${idCampo}-clave-ayuda` : undefined} />
+            aria-describedby={isEdit ? `${idCampo}-clave-ayuda` : undefined} />{msg('field_key')}
           {isEdit && <div id={`${idCampo}-clave-ayuda`} className="cfl-hint">{traducir('customfields.la_clave_no_se_puede_cambiar_una')}</div>}
         </div>
 
@@ -147,7 +150,7 @@ function FieldForm({ field, projectId, onClose }: { field: CustomField | null; p
         <div>
           <label id={`${idCampo}-et-orden`} htmlFor={`${idCampo}-orden`} className="cfl-label">{traducir('customfields.orden_de_visualizacion')}</label>
           <input id={`${idCampo}-orden`} aria-labelledby={`${idCampo}-et-orden`} type="number" className="cfl-input cfl-input--order" value={form.sort_order}
-            onChange={e => set('sort_order')(+e.target.value)} />
+            onChange={e => set('sort_order')(+e.target.value)} />{msg('sort_order')}
         </div>
 
         <div className="cfl-footer">

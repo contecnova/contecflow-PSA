@@ -17,7 +17,7 @@ import { Boxes, CalendarClock, ClipboardCheck, KeyRound, Laptop, ListChecks, Pac
 import { almIntegracionApi } from '../services/api/almIntegracion'
 import type { Baja, Devolucion, ElementoDeKit, ItemDeCatalogoAlm, Kit, Peticion, PropuestaDeKit } from '../services/api/almIntegracion'
 import { licensesApi, sdCatalogApi, usersApi } from '../services/api'
-import { Button, DataTable, EmptyState, KpiCard, Modal, Page, Select, Spinner, Tabs, Pulsable, Checkbox } from '../components/ui'
+import { Button, DataTable, EmptyState, KpiCard, Modal, Page, Select, Spinner, Tabs, Pulsable, Checkbox, useErroresDeCampo } from '../components/ui'
 import DateInput from '../components/ui/DateInput'
 import { useAppT } from '../i18n/AppLangContext'
 import { useToast } from '../context/ToastContext'
@@ -133,19 +133,22 @@ function ProgramarBaja({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient()
   const [f, setF] = useState({ user_id: '', fecha: '', notas: '' })
   const personas = useQuery({ queryKey: ['alm-personas-activas'], queryFn: () => usersApi.list().then(r => (r.data ?? []).filter(u => u.is_active !== false)) })
+  const camposB = useErroresDeCampo()
+  const msgB = (k: string) => camposB.de(k) ? <div className="u-field-error">{camposB.de(k)}</div> : null
   const m = useMutation({
+    onMutate: () => camposB.limpiar(),
     mutationFn: () => almIntegracionApi.programarBaja({ user_id: f.user_id, fecha: f.fecha, notas: f.notas || undefined }),
     onSuccess: () => { toast.success(t('almint.baja_programada')); qc.invalidateQueries({ queryKey: ['alm-bajas'] }); onClose() },
-    onError: e => toast.error(mensajeDeError(t, e)),
+    onError: (e: unknown) => { if (!camposB.recoger(e)) toast.error(mensajeDeError(t, e)) },
   })
   return <Modal open onClose={onClose} title={t('almint.programar_baja')} subtitle={t('almint.programar_baja_sub')}>
     <div className="almint-form">
-      <Select label={t('almint.persona')} value={f.user_id} onChange={e => setF({ ...f, user_id: e.target.value })}
+      <Select error={camposB.de('user_id')} label={t('almint.persona')} value={f.user_id} onChange={e => setF({ ...f, user_id: e.target.value })}
         options={(personas.data ?? []).map(u => ({ value: u.id, label: u.full_name }))} />
       <label className="almint-campo">{t('almint.col_fecha_baja')}
-        <DateInput className="ds-input" value={f.fecha} onChange={e => setF({ ...f, fecha: e.target.value })} /></label>
+        <DateInput className="ds-input" value={f.fecha} onChange={e => setF({ ...f, fecha: e.target.value })} />{msgB('fecha')}</label>
       <label className="almint-campo">{t('almint.notas')}
-        <textarea className="ds-input" rows={2} value={f.notas} onChange={e => setF({ ...f, notas: e.target.value })} /></label>
+        <textarea className="ds-input" rows={2} value={f.notas} onChange={e => setF({ ...f, notas: e.target.value })} />{msgB('notas')}</label>
       <div className="almint-acciones almint-acciones--fin">
         <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
         <Button disabled={!f.user_id || !f.fecha} loading={m.isPending} onClick={() => m.mutate()}>{t('almint.programar_baja')}</Button>
@@ -323,27 +326,30 @@ function EditorDeKit({ kit, onClose }: { kit: Kit | null; onClose: () => void })
   const [f, setF] = useState({ nombre: kit?.nombre ?? '', descripcion: kit?.descripcion ?? '', criterio: kit?.criterio ?? 'todos', valor: kit?.valor ?? '' })
   const [elementos, setElementos] = useState<ElementoDeKit[]>(kit?.elementos ?? [])
   const licencias = useQuery({ queryKey: ['alm-licencias-para-asignar'], queryFn: () => licensesApi.list({ page_size: 200 }).then(r => r.data) })
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const m = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: () => {
       const datos = { ...f, valor: f.criterio === 'todos' ? null : f.valor, elementos }
       return kit ? almIntegracionApi.cambiarKit(kit.id, datos) : almIntegracionApi.crearKit(datos)
     },
     onSuccess: () => { toast.success(t('almint.kit_guardado')); qc.invalidateQueries({ queryKey: ['alm-kits'] }); onClose() },
-    onError: e => toast.error(mensajeDeError(t, e)),
+    onError: (e: unknown) => { campos.recoger(e); toast.error(mensajeDeError(t, e)) },
   })
   const cambiar = (i: number, cambio: Partial<ElementoDeKit>) => setElementos(elementos.map((e, j) => j === i ? { ...e, ...cambio } : e))
   return <Modal open onClose={onClose} size="lg" title={kit ? kit.nombre : t('almint.nuevo_kit')} subtitle={t('almint.kit_sub')}>
     <div className="almint-form">
       <label className="almint-campo">{t('almint.col_nombre')}
-        <input className="ds-input" value={f.nombre} onChange={e => setF({ ...f, nombre: e.target.value })} /></label>
+        <input className="ds-input" value={f.nombre} onChange={e => setF({ ...f, nombre: e.target.value })} />{msg('nombre')}</label>
       <div className="almint-fila">
-        <Select label={t('almint.col_aplica_a')} value={f.criterio} onChange={e => setF({ ...f, criterio: e.target.value })}
+        <Select error={campos.de('criterio')} label={t('almint.col_aplica_a')} value={f.criterio} onChange={e => setF({ ...f, criterio: e.target.value })}
           options={CRITERIOS.map(c => ({ value: c, label: etiqueta(t, 'criterio', c) }))} />
         {f.criterio !== 'todos' && <label className="almint-campo">{t('almint.valor_del_criterio')}
-          <input className="ds-input" value={f.valor} onChange={e => setF({ ...f, valor: e.target.value })} /></label>}
+          <input className="ds-input" value={f.valor} onChange={e => setF({ ...f, valor: e.target.value })} />{msg('valor')}</label>}
       </div>
       <label className="almint-campo">{t('common.description')}
-        <textarea className="ds-input" rows={2} value={f.descripcion} onChange={e => setF({ ...f, descripcion: e.target.value })} /></label>
+        <textarea className="ds-input" rows={2} value={f.descripcion} onChange={e => setF({ ...f, descripcion: e.target.value })} />{msg('descripcion')}</label>
       <h3 className="almint-subtitulo">{t('almint.col_contenido')}</h3>
       {elementos.map((e, i) => <div key={i} className="almint-fila">
         <Select label={t('almint.tipo')} value={e.tipo} onChange={ev => cambiar(i, { tipo: ev.target.value as 'licencia' | 'equipo', license_id: null, asset_type: null })}

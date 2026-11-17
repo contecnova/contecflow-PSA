@@ -19,7 +19,7 @@ import { useAuth } from '../../context/AuthContext'
 import { confirmar } from '../../context/ConfirmContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { Button, Checkbox, EmptyState, GrupoDeOpciones, KpiCard, Modal, Section, Select, Spinner, StatusBadge, Switch, Tabs } from '../ui'
+import { Button, Checkbox, EmptyState, GrupoDeOpciones, KpiCard, Modal, Section, Select, Spinner, StatusBadge, Switch, Tabs, useErroresDeCampo } from '../ui'
 import type { StatusBadgeKind } from '../ui/StatusBadge'
 import Pagination from '../ui/Pagination'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
@@ -246,7 +246,10 @@ function PlaybookModal({ inicial, onClose, onSaved }: { inicial: Playbook | null
   const [resolver, setResolver] = useState(Boolean(inicial?.conditions.auto_resolve))
   const [pasos, setPasos] = useState<PasoDePlaybook[]>(inicial?.steps ?? [{ type: 'comment', content: '' }])
   const lista = (s: string) => s.split(',').map(x => x.trim()).filter(Boolean)
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const guardar = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: () => {
       const datos = {
         name: nombre.trim(), description: descripcion.trim() || undefined,
@@ -256,7 +259,7 @@ function PlaybookModal({ inicial, onClose, onSaved }: { inicial: Playbook | null
       return inicial ? agenteAutonomoApi.editarPlaybook(inicial.id, datos) : agenteAutonomoApi.crearPlaybook(datos)
     },
     onSuccess: onSaved,
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => { campos.recoger(e); toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
   })
   return (
     <Modal open size="lg" onClose={onClose} title={inicial ? t('sd_mercado.playbook_editar') : t('sd_mercado.playbook_nuevo')}>
@@ -279,9 +282,9 @@ function PlaybookModal({ inicial, onClose, onSaved }: { inicial: Playbook | null
               <Select suelto placeholder={false} aria-label={t('sd_mercado.tipo_paso')} value={p.type}
                 onChange={e => setPasos(pasos.map((x, j) => j === i ? { ...x, type: e.target.value as PasoDePlaybook['type'] } : x))}>
                 {TIPOS_DE_PASO.map(tp => <option key={tp} value={tp}>{etiquetaCodigo(t, 'sd_mercado.paso', tp)}</option>)}
-              </Select>
+              </Select>{msg('type')}
               <textarea className="ds-input" rows={2} aria-label={t('sd_mercado.contenido_paso')} value={p.content}
-                onChange={e => setPasos(pasos.map((x, j) => j === i ? { ...x, content: e.target.value } : x))} />
+                onChange={e => setPasos(pasos.map((x, j) => j === i ? { ...x, content: e.target.value } : x))} />{msg('content')}
               <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} onClick={() => setPasos(pasos.filter((_, j) => j !== i))}>{t('sd_mercado.quitar')}</Button>
             </div>
           ))}

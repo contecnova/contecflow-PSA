@@ -2,6 +2,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { es, enUS, zhCN, fr, de, pt, it, pl } from 'date-fns/locale'
 import type { Locale } from 'date-fns'
 import { resumenDeValidacionSinHook } from './erroresDeValidacion'
+import { textoDeErrorDelOperador } from './errorDelOperador'
 
 export type DateInput = Date | string | number | null | undefined
 export type Maybe<T> = T | null | undefined
@@ -213,6 +214,9 @@ export function extractErr(e: unknown, fallback = 'Error inesperado'): string {
   // 17-11-2026: un 422 de validacion trae codigo y errores por campo: el aviso sale traducido.
   const validacion = resumenDeValidacionSinHook(e)
   if (validacion) return validacion
+  // 17-11-2026: los errores con código del operador (`err_srv.*`) salen en su idioma.
+  const delOperador = textoDeErrorDelOperador(e)
+  if (delOperador) return delOperador
   const d = (e as { response?: { data?: { detail?: unknown } } } | null | undefined)?.response?.data?.detail
   if (!d) return fallback
   if (typeof d === 'string') return d

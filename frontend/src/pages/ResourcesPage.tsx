@@ -14,7 +14,7 @@ import { settingsApi } from '../services/settingsApi'
  * con .ds-input; vacío de SmartMatch con
  * EmptyState; "skills" y "burnout" en castellano.
  */
-import { Avatar, LoadBar, Button, Card, KpiCard, Modal, Input, Select, Spinner, EmptyState, useSort, SortableTH, ViewToggle, Tabs, MarcaExterno, Pulsable } from '../components/ui'
+import { Avatar, LoadBar, Button, Card, KpiCard, Modal, Input, Select, Spinner, EmptyState, useSort, SortableTH, ViewToggle, Tabs, MarcaExterno, Pulsable, useErroresDeCampo } from '../components/ui'
 import AltaDeExternoModal from '../components/externos/AltaDeExternoModal'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -265,12 +265,14 @@ function EditUserModal({ user, open, onClose }: { user: Resource; open: boolean;
     queryKey: ['departments-select'],
     queryFn: () => settingsApi.getDepartments().then(r => r.data),
   })
+  const campos = useErroresDeCampo()
   const { mutate, isPending } = useMutation({
     mutationFn: (data: Record<string, unknown>) => usersApi.update(userId, data),
+    onMutate: () => campos.limpiar(),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['resources'] }); qc.invalidateQueries({ queryKey: ['users'] }); qc.invalidateQueries({ queryKey: ['capacity-board'] }); qc.invalidateQueries({ queryKey: ['forecast-heatmap'] }); qc.invalidateQueries({ queryKey: ['forecast-summary'] }); onClose() },
-    onError: (e: unknown) => toast.error(extractErr(e, t('resources_page.error_generico'))),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, t('resources_page.error_generico'))) },
   })
-  const set = (k: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm(f => ({ ...f, [k]: e.target.value }))
+  const set = (k: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => { campos.limpiar(k); setForm(f => ({ ...f, [k]: e.target.value })) }
   const handleSave = () => {
     const payload = {
       ...form,
@@ -286,14 +288,14 @@ function EditUserModal({ user, open, onClose }: { user: Resource; open: boolean;
   return (
     <Modal open={open} onClose={onClose} title={t('resources_page.editar_titulo')}>
       <div className="u-stack-14">
-        <Input label={t('resources_page.email')} type="email" value={form.email} onChange={set('email')} placeholder={undefined} required={undefined} hint={undefined} />
-        <Input label={t('resources_page.nombre_completo')} value={form.full_name} onChange={set('full_name')} placeholder={undefined} required={undefined} hint={undefined} />
-        <Input label={t('resources.job_title')} value={form.job_title} onChange={set('job_title')} placeholder={undefined} required={undefined} hint={undefined} />
-        <Select label={t('resources.department')} value={form.department} onChange={set('department')}
+        <Input error={campos.de('email')} label={t('resources_page.email')} type="email" value={form.email} onChange={set('email')} placeholder={undefined} required={undefined} hint={undefined} />
+        <Input error={campos.de('full_name')} label={t('resources_page.nombre_completo')} value={form.full_name} onChange={set('full_name')} placeholder={undefined} required={undefined} hint={undefined} />
+        <Input error={campos.de('job_title')} label={t('resources.job_title')} value={form.job_title} onChange={set('job_title')} placeholder={undefined} required={undefined} hint={undefined} />
+        <Select error={campos.de('department')} label={t('resources.department')} value={form.department} onChange={set('department')}
           options={[{ value: '', label: t('resources_page.sin_departamento') }, ...departments.filter((d) => d.is_active !== false).map((d) => ({ value: d.name, label: d.name }))]} />
-        <Select label={t('resources_page.rol')} value={form.role} onChange={set('role')} options={roles} />
-        <Input label={t('resources.weekly_capacity')} type="number" value={form.weekly_capacity_hours} onChange={set('weekly_capacity_hours')} placeholder={undefined} required={undefined} hint={undefined} />
-        {hasRole('admin') && <Input label={t('resources.tarifa_por_hora')} type="number" value={form.hourly_rate} onChange={set('hourly_rate')} placeholder={undefined} required={undefined} hint={undefined} />}
+        <Select error={campos.de('role')} label={t('resources_page.rol')} value={form.role} onChange={set('role')} options={roles} />
+        <Input error={campos.de('weekly_capacity_hours')} label={t('resources.weekly_capacity')} type="number" value={form.weekly_capacity_hours} onChange={set('weekly_capacity_hours')} placeholder={undefined} required={undefined} hint={undefined} />
+        {hasRole('admin') && <Input error={campos.de('hourly_rate')} label={t('resources.tarifa_por_hora')} type="number" value={form.hourly_rate} onChange={set('hourly_rate')} placeholder={undefined} required={undefined} hint={undefined} />}
         <div className="res-form-actions">
           <Button variant="secondary" onClick={onClose}>{t('resources_page.cancelar')}</Button>
           <Button onClick={handleSave} disabled={isPending} loading={isPending}>{isPending ? t('resources_page.guardando') : t('resources_page.guardar_cambios')}</Button>

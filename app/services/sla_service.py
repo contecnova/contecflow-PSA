@@ -806,6 +806,9 @@ def ticket_out(t: "Ticket", include_comments: bool = False, include_internal: bo
                 "author_type": ("system" if getattr(c, "system_template", None)
                                 else "agent" if c.author_user_id else "client"),
                 "created_at": str(c.created_at)[:16],
+                # 17-11-2026: editado o retirado en su canal (hilo de Slack).
+                "edited_at": c.edited_at.isoformat() if getattr(c, "edited_at", None) else None,
+                "retracted_at": c.retracted_at.isoformat() if getattr(c, "retracted_at", None) else None,
             }
             for c in t.comments
             # Las notas internas solo en la vista del agente (`include_internal`);

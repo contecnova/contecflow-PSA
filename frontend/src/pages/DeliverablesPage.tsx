@@ -5,7 +5,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, usersApi, deliverablesApi } from '../services/api'
 import type { Entregable } from '../services/api/tipos-alm'
-import { Button, Modal, Spinner, EmptyState, KpiCard, IconButton, useSort, SortableTH, Tabs, Pulsable, Select } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, KpiCard, IconButton, useSort, SortableTH, Tabs, Pulsable, Select, useErroresDeCampo } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AlertTriangle, Building2, CalendarDays, Check, CheckCircle2, ChevronDown, ClipboardList, Eye, FolderKanban, Globe, MessageSquare, Package, Pencil, Plus, RefreshCw, Send, Trash2, User, XCircle } from 'lucide-react'
@@ -102,12 +102,15 @@ function DeliverableFormModal({ del, projectId, onClose }: { del?: Entregable | 
     acceptance_criteria: del?.acceptance_criteria || '',
     sort_order: del?.sort_order || 0,
   })
-  const set = <K extends keyof DeliverableFormState>(k: K) => (e: { target: { value: string } }) => setForm((f) => ({ ...f, [k]: e.target.value as DeliverableFormState[K] }))
+  const set = <K extends keyof DeliverableFormState>(k: K) => (e: { target: { value: string } }) => { campos.limpiar(k); setForm((f) => ({ ...f, [k]: e.target.value as DeliverableFormState[K] })) }
 
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: (data: DeliverableFormState) => isEdit ? deliverablesApi.updateInProject(projectId, del!.id, data) : deliverablesApi.createForProject(projectId, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['deliverables', projectId] }); qc.invalidateQueries({ queryKey: ['deliverables-overview'] }); onClose() },
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
   })
 
   return (
@@ -115,34 +118,34 @@ function DeliverableFormModal({ del, projectId, onClose }: { del?: Entregable | 
       <div className="u-grid2-14">
         <div className="u-col-full">
           <label id={`${idCampo}-eta139`} htmlFor={`${idCampo}-a139`} className="dlv-label">{t('deliverables.nombre_obligatorio')}</label>
-          <input id={`${idCampo}-a139`} aria-labelledby={`${idCampo}-eta139`} value={form.name} onChange={set('name')} className="dlv-input" placeholder={t('deliverables.nombre_del_entregable')} />
+          <input id={`${idCampo}-a139`} aria-labelledby={`${idCampo}-eta139`} value={form.name} onChange={set('name')} className="dlv-input" placeholder={t('deliverables.nombre_del_entregable')} />{msg('name')}
         </div>
         <div>
           <label id={`${idCampo}-eta143`} htmlFor={`${idCampo}-a143`} className="dlv-label">{t('deliverables.formato')}</label>
-          <input id={`${idCampo}-a143`} aria-labelledby={`${idCampo}-eta143`} value={form.format} onChange={set('format')} className="dlv-input" placeholder={t('deliverables.formato_de_entrega')} />
+          <input id={`${idCampo}-a143`} aria-labelledby={`${idCampo}-eta143`} value={form.format} onChange={set('format')} className="dlv-input" placeholder={t('deliverables.formato_de_entrega')} />{msg('format')}
         </div>
         <div>
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="dlv-label">{t('deliverables.fecha_planificada')}</label>
-          <DateInput id={`${idCampo}-1`} value={form.planned_date} onChange={set('planned_date')} className="dlv-input" />
+          <DateInput id={`${idCampo}-1`} value={form.planned_date} onChange={set('planned_date')} className="dlv-input" />{msg('planned_date')}
         </div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="dlv-label">{t('deliverables.responsable')}</label>
           <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.owner_id} onChange={set('owner_id')} className="dlv-input">
             <option value="">{t('deliverables.sin_asignar')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-          </Select>
+          </Select>{msg('owner_id')}
         </div>
         <div>
           <label id={`${idCampo}-eta158`} htmlFor={`${idCampo}-a158`} className="dlv-label">{t('deliverables.contacto_cliente')}</label>
-          <input id={`${idCampo}-a158`} aria-labelledby={`${idCampo}-eta158`} value={form.client_contact} onChange={set('client_contact')} className="dlv-input" placeholder={t('deliverables.contacto_del_cliente')} />
+          <input id={`${idCampo}-a158`} aria-labelledby={`${idCampo}-eta158`} value={form.client_contact} onChange={set('client_contact')} className="dlv-input" placeholder={t('deliverables.contacto_del_cliente')} />{msg('client_contact')}
         </div>
         <div className="u-col-full">
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="dlv-label">{t('deliverables.descripcion')}</label>
-          <textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.description} onChange={set('description')} rows={2} className="dlv-input" />
+          <textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.description} onChange={set('description')} rows={2} className="dlv-input" />{msg('description')}
         </div>
         <div className="u-col-full">
           <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="dlv-label">{t('deliverables.criterios_de_aceptacion')}</label>
-          <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.acceptance_criteria} onChange={set('acceptance_criteria')} rows={2} className="dlv-input" placeholder={t('deliverables.criterios_de_aceptacion')} />
+          <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.acceptance_criteria} onChange={set('acceptance_criteria')} rows={2} className="dlv-input" placeholder={t('deliverables.criterios_de_aceptacion')} />{msg('acceptance_criteria')}
         </div>
         <div className="dlv-form-footer">
           <Button variant="secondary" onClick={onClose}>{t('deliverables.cancelar')}</Button>

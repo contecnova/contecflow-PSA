@@ -12,7 +12,7 @@ import { Boxes, Euro, KeyRound, Laptop, Plus, Users } from 'lucide-react'
 import { almIntegracionApi } from '../../services/api/almIntegracion'
 import type { AsignacionAlm, CosteAgrupado, RecursosDelProyecto } from '../../services/api/almIntegracion'
 import { assetsApi, licensesApi } from '../../services/api'
-import { Button, DataTable, EmptyState, KpiCard, Modal, Section, Select, SelectorDePeriodo, Spinner } from '../ui'
+import { Button, DataTable, EmptyState, KpiCard, Modal, Section, Select, SelectorDePeriodo, Spinner, useErroresDeCampo } from '../ui'
 import { usePeriodo } from '../../hooks/usePeriodo'
 import { SIN_HORA, codigoDeErrorDePeriodo } from '../../utils/periodo'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -129,7 +129,10 @@ function AsignarModal({ projectId, datos, onClose }: { projectId: string; datos:
   const licencias = useQuery({ queryKey: ['alm-licencias-para-asignar'], queryFn: () => licensesApi.list({ page_size: 200 }).then(r => r.data) })
   const activos = useQuery({ queryKey: ['alm-activos-disponibles'], queryFn: () => assetsApi.list({ status: 'available', page_size: 200 }).then(r => r.data) })
   const bolsas = datos.bolsas.filter(b => b.license_id === f.id && b.status === 'active')
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const m = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: () => almIntegracionApi.asignarAlProyecto(projectId, {
       holder_type: f.holder_type as 'project' | 'user', holder_id: f.holder_type === 'user' ? f.holder_id : undefined,
       license_id: f.recurso === 'license' ? f.id : undefined, asset_id: f.recurso === 'asset' ? f.id : undefined,
@@ -140,36 +143,36 @@ function AsignarModal({ projectId, datos, onClose }: { projectId: string; datos:
       toast.success(r.status === 'pending' ? t('almint.asignacion_pendiente') : t('almint.asignado_ok'))
       qc.invalidateQueries({ queryKey: ['alm-proyecto', projectId] }); onClose()
     },
-    onError: e => toast.error(mensajeDeError(t, e)),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(mensajeDeError(t, e)) },
   })
   const listo = !!f.id && (f.holder_type === 'project' || !!f.holder_id)
   return (
     <Modal open onClose={onClose} title={t('almint.asignar')} subtitle={t('almint.asignar_sub')}>
       <div className="almint-form">
         <div className="almint-fila">
-          <Select label={t('almint.que_asignar')} value={f.recurso} onChange={e => setF({ ...f, recurso: e.target.value, id: '', parent_id: '' })}
+          <Select error={campos.de('recurso')} label={t('almint.que_asignar')} value={f.recurso} onChange={e => setF({ ...f, recurso: e.target.value, id: '', parent_id: '' })}
             options={[{ value: 'license', label: t('almint.una_licencia') }, { value: 'asset', label: t('almint.un_equipo') }]} />
-          <Select label={t('almint.a_quien')} value={f.holder_type} onChange={e => setF({ ...f, holder_type: e.target.value, holder_id: '', parent_id: '' })}
+          <Select error={campos.de('holder_type')} label={t('almint.a_quien')} value={f.holder_type} onChange={e => setF({ ...f, holder_type: e.target.value, holder_id: '', parent_id: '' })}
             options={[{ value: 'project', label: t('almint.al_proyecto') }, { value: 'user', label: t('almint.a_una_persona_del_equipo') }]} />
         </div>
         {f.recurso === 'license'
-          ? <Select label={t('almint.col_licencia')} value={f.id} onChange={e => setF({ ...f, id: e.target.value, parent_id: '' })}
+          ? <Select error={campos.de('id')} label={t('almint.col_licencia')} value={f.id} onChange={e => setF({ ...f, id: e.target.value, parent_id: '' })}
               options={(licencias.data ?? []).map(l => ({ value: String(l.id), label: String(l.name) }))} />
-          : <Select label={t('almint.col_equipo')} value={f.id} onChange={e => setF({ ...f, id: e.target.value })}
+          : <Select error={campos.de('id')} label={t('almint.col_equipo')} value={f.id} onChange={e => setF({ ...f, id: e.target.value })}
               options={(activos.data ?? []).map(a => ({ value: String(a.id), label: [a.name, a.asset_tag].filter(Boolean).join(' · ') }))} />}
-        {f.holder_type === 'user' && <Select label={t('almint.persona')} value={f.holder_id} onChange={e => setF({ ...f, holder_id: e.target.value })}
+        {f.holder_type === 'user' && <Select error={campos.de('holder_id')} label={t('almint.persona')} value={f.holder_id} onChange={e => setF({ ...f, holder_id: e.target.value })}
           options={datos.equipo.map(p => ({ value: p.user_id, label: p.user_name }))} />}
         {f.holder_type === 'user' && f.recurso === 'license' && bolsas.length > 0 &&
-          <Select label={t('almint.de_la_bolsa')} value={f.parent_id} onChange={e => setF({ ...f, parent_id: e.target.value })}
+          <Select error={campos.de('parent_id')} label={t('almint.de_la_bolsa')} value={f.parent_id} onChange={e => setF({ ...f, parent_id: e.target.value })}
             options={bolsas.map(b => ({ value: b.id, label: t('almint.bolsa_uso', { usados: b.used_in_pool ?? 0, total: b.quantity }) }))} />}
         <div className="almint-fila">
           {f.recurso === 'license' && f.holder_type === 'project' && <label className="almint-campo">{t('almint.asientos')}
-            <input type="number" min={1} className="ds-input" value={f.quantity} onChange={e => setF({ ...f, quantity: e.target.value })} /></label>}
+            <input type="number" min={1} className="ds-input" value={f.quantity} onChange={e => setF({ ...f, quantity: e.target.value })} />{msg('quantity')}</label>}
           <label className="almint-campo">{f.recurso === 'asset' ? t('almint.devolver_antes_de') : t('almint.hasta')}
-            <DateInput className="ds-input" value={f.valid_to} onChange={e => setF({ ...f, valid_to: e.target.value })} /></label>
+            <DateInput className="ds-input" value={f.valid_to} onChange={e => setF({ ...f, valid_to: e.target.value })} />{msg('valid_to')}</label>
         </div>
         <label className="almint-campo">{t('almint.motivo')}
-          <textarea className="ds-input" rows={2} value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} /></label>
+          <textarea className="ds-input" rows={2} value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} />{msg('reason')}</label>
         <div className="almint-acciones almint-acciones--fin">
           <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
           <Button disabled={!listo} loading={m.isPending} onClick={() => m.mutate()}>{t('almint.asignar')}</Button>

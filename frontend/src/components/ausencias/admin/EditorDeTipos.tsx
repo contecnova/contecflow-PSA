@@ -18,12 +18,12 @@ import type {
   DestinatarioDeAviso, ModoDePeticion, PeriodoDeSaldo, PlazoDesde, ReglasDeBolsa, RequisitoDocumental, Saldo, TipoDeAusencia,
   TipoDeAusenciaIn, TipoDeDocumento,
 } from '../../../services/api/tipos-ausencias'
-import { Button, EmptyState, Modal, Spinner, Select, Pulsable, IconButton } from '../../ui'
+import { Button, EmptyState, Modal, Spinner, Select, Pulsable, IconButton , useErroresDeCampo } from '../../ui'
 import { confirmar } from '../../../context/ConfirmContext'
 import { useToast } from '../../../context/ToastContext'
 import { SelectorDeEntidad, useOpciones } from '../../politicas/comun'
 import IconoDeAusencia, { ICONOS_DE_AUSENCIA } from '../IconoDeAusencia'
-import { AvisoDeError, colorPorDefecto, Casilla, Muestra, NombresPorIdioma, errorDe, nombreEn, useT } from './comun'
+import { AvisoDeError, ErrorDeCampo, hayDeCampo, colorPorDefecto, Casilla, Muestra, NombresPorIdioma, errorDe, nombreEn, useT } from './comun'
 
 const tipoNuevo = (): TipoDeAusenciaIn => ({
   clave: '', nombre: '', nombres: {}, color: colorPorDefecto(), icono: 'umbrella', descuenta_saldo: false, saldo: null,
@@ -113,7 +113,8 @@ function FormularioDeTipo({ id, inicial, deSistema, onCerrar }: {
   const qc = useQueryClient()
   const toast = useToast()
   const [d, setD] = useState<TipoDeAusenciaIn>(inicial)
-  const cambiar = (c: Partial<TipoDeAusenciaIn>) => setD(x => ({ ...x, ...c }))
+  const campos = useErroresDeCampo()
+  const cambiar = (c: Partial<TipoDeAusenciaIn>) => { Object.keys(c).forEach(k => campos.limpiar(k)); setD(x => ({ ...x, ...c })) }
   const flujos = useQuery({
     queryKey: ['ausencias', 'flujos-leave'],
     queryFn: () => approvalsApi.listWorkflows({ entity_type: 'leave' }).then(r => (r.data ?? []).filter(w => w.entity_type === 'leave')),
@@ -124,6 +125,8 @@ function FormularioDeTipo({ id, inicial, deSistema, onCerrar }: {
   const tablas = (opciones?.tablas ?? []).filter(x => x.tipo_de_valor === 'numero' && (!x.dominio || x.dominio === 'ausencias'))
   const refrescar = () => qc.invalidateQueries({ queryKey: ['ausencias'] })
   const guardar = useMutation({
+    onMutate: () => campos.limpiar(),
+    onError: e => { campos.recoger(e) },
     mutationFn: () => (id ? ausenciasApi.guardarTipo(id, d) : ausenciasApi.crearTipo(d)),
     onSuccess: () => { toast.success(ta('guardado')); refrescar(); onCerrar() },
   })
@@ -141,10 +144,12 @@ function FormularioDeTipo({ id, inicial, deSistema, onCerrar }: {
             <input aria-label={ta('clave')} className="ausadm-campo" required pattern="[a-z0-9_]{2,50}" value={d.clave} disabled={deSistema}
               aria-describedby="ausadm-clave-ayuda" onChange={e => cambiar({ clave: e.target.value.toLowerCase() })} />
             <span id="ausadm-clave-ayuda" className="ausadm-ayuda">{ta('clave_ayuda')}</span>
+            <ErrorDeCampo texto={campos.de('clave')} />
           </label>
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('nombre_principal')}</span>
             <input aria-label={ta('nombre_principal')} className="ausadm-campo" value={d.nombre} onChange={e => cambiar({ nombre: e.target.value })} />
+            <ErrorDeCampo texto={campos.de('nombre')} />
           </label>
         </div>
         <NombresPorIdioma valor={d.nombres} onChange={nombres => cambiar({ nombres })} />
@@ -208,6 +213,7 @@ function FormularioDeTipo({ id, inicial, deSistema, onCerrar }: {
                     <input aria-label={ta('cupo_anual', { unidad: ta(`unidad_${d.unidad}`) })} type="number" min={0} step="0.5" className="ausadm-campo ausadm-campo--corto"
                       required={!d.derecho_tabla_id}
                       value={d.cupo_anual ?? ''} onChange={e => cambiar({ cupo_anual: numOpcional(e.target.value) })} />
+                    <ErrorDeCampo texto={campos.de('cupo_anual')} />
                   </label>
                 )}
               </div>
@@ -285,7 +291,7 @@ function FormularioDeTipo({ id, inicial, deSistema, onCerrar }: {
           <Casilla etiqueta={ta('activo')} valor={d.activo} onChange={v => cambiar({ activo: v })} />
         </fieldset>
         <Requisitos valor={d.requisitos} documentos={documentos.data ?? []} onChange={requisitos => cambiar({ requisitos })} />
-        <AvisoDeError error={guardar.error} defecto={ta('error_guardar')} />
+        <AvisoDeError error={hayDeCampo(campos) ? null : guardar.error} defecto={ta('error_guardar')} />
         <div className="ausadm-acciones">
           {id && <Button variant="danger" icon={<Trash2 size={14} />} loading={borrar.isPending}
             onClick={async () => { if (await confirmar({ title: ta('borrar'), danger: true, message: ta('borrar_tipo_confirmar') })) borrar.mutate() }}>

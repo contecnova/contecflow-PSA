@@ -17,7 +17,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, projectWorkflowsApi } from '../services/api'
 import type { EstadoDelFlujoDeProyecto, FlujoDelProyecto } from '../services/api/tipos-rendimiento'
-import { Button, Spinner, EmptyState, Modal, Select, IconButton, Pulsable, Checkbox } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, Select, IconButton, Pulsable, Checkbox, useErroresDeCampo } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { FolderOpen, GitBranch, MessageSquare, Pencil, Plus, RotateCcw, Trash2, Workflow, X, Zap } from 'lucide-react'
@@ -76,12 +76,15 @@ function StateForm({ projectId, state, onClose }: { projectId: string; state: Wo
   })
   const set = <K extends keyof StateFormData>(k: K) => (v: StateFormData[K]) => setForm(f => ({ ...f, [k]: v }))
 
+  const camposB = useErroresDeCampo()
+  const msgB = (k: string) => camposB.de(k) ? <div className="u-field-error">{camposB.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
+    onMutate: () => camposB.limpiar(),
     mutationFn: (d: StateFormData) => isEdit && state
       ? projectWorkflowsApi.updateState(projectId, state.id, d).then(r => r.data)
       : projectWorkflowsApi.createState(projectId, d).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['workflow', projectId] }); onClose() },
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => { camposB.recoger(e); toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
   })
 
   return (
@@ -100,12 +103,12 @@ function StateForm({ projectId, state, onClose }: { projectId: string; state: Wo
           <input id={`${idCampo}-valor`} aria-labelledby={`${idCampo}-valor-et`} className="ds-input wf-input--mono ds-campo-codigo"
             value={form.value} disabled={isEdit}
             onChange={e => set('value')(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
-            placeholder={t('workflows.valor_interno_ph')} />
+            placeholder={t('workflows.valor_interno_ph')} />{msgB('value')}
         </div>
         <div>
           <label id={`${idCampo}-icono-et`} htmlFor={`${idCampo}-icono`} className="wf-label">{t('workflows.icono_emoji')}</label>
           <input id={`${idCampo}-icono`} aria-labelledby={`${idCampo}-icono-et`} className="ds-input wf-input--icon"
-            value={form.icon} onChange={e => set('icon')(e.target.value)} />
+            value={form.icon} onChange={e => set('icon')(e.target.value)} />{msgB('icon')}
         </div>
         <div>
           <div id={`${idCampo}-color-et`} className="wf-label">{t('workflows.color')}</div>
@@ -149,10 +152,13 @@ function TransitionForm({ projectId, states, onClose }: { projectId: string; sta
   })
   const set = <K extends keyof TransitionFormData>(k: K) => (v: TransitionFormData[K]) => setForm(f => ({ ...f, [k]: v }))
 
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: (d: TransitionFormData) => projectWorkflowsApi.createTransition(projectId, d).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['workflow', projectId] }); onClose() },
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
   })
 
   return (
@@ -164,7 +170,7 @@ function TransitionForm({ projectId, states, onClose }: { projectId: string; sta
             <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.from_state_id} onChange={e => set('from_state_id')(e.target.value)}>
               <option value="">{t('workflows.selecciona_estado')}</option>
               {states.map(s => <option key={s.id} value={String(s.id)}>{s.icon} {s.name}</option>)}
-            </Select>
+            </Select>{msg('from_state_id')}
           </div>
           <div>
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="wf-label">{t('workflows.hasta')}</label>
@@ -173,19 +179,19 @@ function TransitionForm({ projectId, states, onClose }: { projectId: string; sta
               {states.filter(s => String(s.id) !== form.from_state_id).map(s => (
                 <option key={s.id} value={String(s.id)}>{s.icon} {s.name}</option>
               ))}
-            </Select>
+            </Select>{msg('to_state_id')}
           </div>
         </div>
         <div>
           <label id={`${idCampo}-etetiqueta`} htmlFor={`${idCampo}-etiqueta`} className="wf-label">{t('workflows.etiqueta_de_la_transicion_opcional')}</label>
-          <input id={`${idCampo}-etiqueta`} aria-labelledby={`${idCampo}-etetiqueta`} className="ds-input" value={form.label} onChange={e => set('label')(e.target.value)} placeholder={t('workflows.etiqueta_placeholder')} />
+          <input id={`${idCampo}-etiqueta`} aria-labelledby={`${idCampo}-etetiqueta`} className="ds-input" value={form.label} onChange={e => set('label')(e.target.value)} placeholder={t('workflows.etiqueta_placeholder')} />{msg('label')}
         </div>
         <div>
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="wf-label">{t('workflows.solo_puede_ejecutarla_este_rol')}</label>
           <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.required_role} onChange={e => set('required_role')(e.target.value)}>
             <option value="">{t('workflows.cualquier_rol')}</option>
             {ROLES.map(r => <option key={r} value={r}>{t(`workflows.rol_${r}`)}</option>)}
-          </Select>
+          </Select>{msg('required_role')}
         </div>
         <Checkbox className="u-row-center-8-pointer" checked={!!form.requires_comment} onChange={v => set('requires_comment')(v)}
           label={t('workflows.requiere_comentario_obligatorio_al_ejecutar')} />

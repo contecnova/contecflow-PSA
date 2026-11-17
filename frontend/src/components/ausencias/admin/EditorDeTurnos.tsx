@@ -12,11 +12,11 @@ import { Clock, MoonStar, Plus, Split, Trash2 } from 'lucide-react'
 import { ausenciasApi } from '../../../services/api/ausencias'
 import { advancedConfigApi } from '../../../services/settingsApi'
 import type { Turno, TurnoIn } from '../../../services/api/tipos-ausencias'
-import { Button, EmptyState, Modal, Spinner, Select, Pulsable, Checkbox } from '../../ui'
+import { Button, EmptyState, Modal, Spinner, Select, Pulsable, Checkbox , useErroresDeCampo } from '../../ui'
 import { confirmar } from '../../../context/ConfirmContext'
 import { useToast } from '../../../context/ToastContext'
 import { useOpciones } from '../../politicas/comun'
-import { AvisoDeError, colorPorDefecto, Casilla, DIAS_SEMANA, Muestra, errorDe, useT } from './comun'
+import { AvisoDeError, ErrorDeCampo, hayDeCampo, colorPorDefecto, Casilla, DIAS_SEMANA, Muestra, errorDe, useT } from './comun'
 import { horasDeTramos, textoDeTramos, tramosDe } from '../comun'
 import EditorDeTramos from './EditorDeTramos'
 
@@ -91,12 +91,15 @@ function Formulario({ id, inicial, oficinas, onCerrar }: { id: string | null; in
   const toast = useToast()
   const opciones = useOpciones().data
   const [d, setD] = useState(inicial)
-  const cambiar = (c: Partial<TurnoIn>) => setD(x => ({ ...x, ...c }))
+  const campos = useErroresDeCampo()
+  const cambiar = (c: Partial<TurnoIn>) => { Object.keys(c).forEach(k => campos.limpiar(k)); setD(x => ({ ...x, ...c })) }
   const h = horasDeTramos(d.tramos, d.pausa_minutos)
   const refrescar = () => qc.invalidateQueries({ queryKey: ['ausencias'] })
   // Inicio y fin del turno: el principio del primer tramo y el final del último.
   const aEnviar = (): TurnoIn => ({ ...d, hora_inicio: d.tramos[0]?.[0] ?? d.hora_inicio, hora_fin: d.tramos[d.tramos.length - 1]?.[1] ?? d.hora_fin })
   const guardar = useMutation({
+    onMutate: () => campos.limpiar(),
+    onError: e => { campos.recoger(e) },
     mutationFn: () => (id ? ausenciasApi.guardarTurno(id, aEnviar()) : ausenciasApi.crearTurno(aEnviar())),
     onSuccess: () => { toast.success(ta('guardado')); refrescar(); onCerrar() },
   })
@@ -112,6 +115,7 @@ function Formulario({ id, inicial, oficinas, onCerrar }: { id: string | null; in
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('nombre')}</span>
             <input aria-label={ta('nombre')} className="ausadm-campo" required value={d.nombre} onChange={e => cambiar({ nombre: e.target.value })} />
+            <ErrorDeCampo texto={campos.de('nombre')} />
           </label>
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('color')}</span>
@@ -123,6 +127,7 @@ function Formulario({ id, inicial, oficinas, onCerrar }: { id: string | null; in
           <span className="ausadm-etiqueta">{ta('pausa_minutos')}</span>
           <input aria-label={ta('pausa_minutos')} type="number" min={0} step={5} className="ausadm-campo ausadm-campo--corto" value={d.pausa_minutos}
             aria-describedby="ausadm-horario" onChange={e => cambiar({ pausa_minutos: Math.max(0, Number(e.target.value) || 0) })} />
+          <ErrorDeCampo texto={campos.de('pausa_minutos')} />
         </label>
         <p id="ausadm-horario" className="ausadm-ayuda" aria-live="polite">
           {h.cruza ? ta('horario_cruza', { n: h.horas }) : ta('horario_dura', { n: h.horas })}
@@ -144,29 +149,33 @@ function Formulario({ id, inicial, oficinas, onCerrar }: { id: string | null; in
             <Select suelto className="ausadm-campo" value={d.equipo ?? ''} onChange={e => cambiar({ equipo: e.target.value || null })} placeholder={ta('cualquiera')}>
               {(opciones?.equipos ?? []).map(x => <option key={x} value={x}>{x}</option>)}
             </Select>
+            <ErrorDeCampo texto={campos.de('equipo')} />
           </label>
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('departamento')}</span>
             <Select suelto className="ausadm-campo" value={d.departamento ?? ''} onChange={e => cambiar({ departamento: e.target.value || null })} placeholder={ta('cualquiera')}>
               {(opciones?.departamentos ?? []).map(x => <option key={x} value={x}>{x}</option>)}
             </Select>
+            <ErrorDeCampo texto={campos.de('departamento')} />
           </label>
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('oficina')}</span>
             <Select suelto className="ausadm-campo" value={d.office_id ?? ''} onChange={e => cambiar({ office_id: e.target.value || null })} placeholder={ta('cualquiera')}>
               {oficinas.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
             </Select>
+            <ErrorDeCampo texto={campos.de('office_id')} />
           </label>
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('personas_requeridas')}</span>
             <input aria-label={ta('personas_requeridas')} type="number" min={0} className="ausadm-campo ausadm-campo--corto" value={d.personas_requeridas}
               onChange={e => cambiar({ personas_requeridas: Math.max(0, Number(e.target.value) || 0) })} />
             <span className="ausadm-ayuda">{ta('personas_requeridas_ayuda')}</span>
+            <ErrorDeCampo texto={campos.de('personas_requeridas')} />
           </label>
         </div>
         <Casilla etiqueta={ta('trabaja_festivos')} valor={d.trabaja_festivos} onChange={v => cambiar({ trabaja_festivos: v })} />
         <Casilla etiqueta={ta('activo')} valor={d.activo} onChange={v => cambiar({ activo: v })} />
-        <AvisoDeError error={guardar.error} defecto={ta('error_guardar')} />
+        <AvisoDeError error={hayDeCampo(campos) ? null : guardar.error} defecto={ta('error_guardar')} />
         <div className="ausadm-acciones">
           {id && <Button variant="danger" icon={<Trash2 size={14} />} loading={borrar.isPending}
             onClick={async () => { if (await confirmar({ title: ta('borrar'), danger: true, message: ta('borrar_turno_confirmar') })) borrar.mutate() }}>

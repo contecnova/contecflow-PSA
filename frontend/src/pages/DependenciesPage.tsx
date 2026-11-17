@@ -6,7 +6,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, tasksApi, taskDependenciesApi } from '../services/api'
 import type { DependenciaDeTarea } from '../services/api/tipos-proyectos'
-import { Button, Spinner, EmptyState, Modal, KpiCard, IconButton, Tabs, Pulsable, Select, TablaSimple } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, KpiCard, IconButton, Tabs, Pulsable, Select, TablaSimple, useErroresDeCampo } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { ArrowLeft, ArrowRight, Check, FolderKanban, GitMerge, List, Network, Plus, Trash2 } from 'lucide-react'
@@ -71,7 +71,10 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
   const set = <K extends keyof DepFormState>(k: K) => (v: DepFormState[K]) => setForm(f => ({...f, [k]: v}));
   const selType = DEP_TYPES.find(d => d.value === form.dependency_type);
 
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: () => taskDependenciesApi.create({
       predecessor_id: form.predecessor_id,
       successor_id: form.successor_id,
@@ -79,7 +82,7 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
       lag_days: form.lag_days,
     }).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['task-deps', projectId] }); onClose(); },
-    onError: (e: unknown) => toast.error(extractErr(e, t('dependencies.error_create'))),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, t('dependencies.error_create'))) },
   });
 
   return (
@@ -91,7 +94,7 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
             <Select suelto placeholder={false} id={`${idCampo}-1`} className="dependencies-page-e8" value={form.predecessor_id} onChange={e => set('predecessor_id')(e.target.value)}>
               <option value="">{t('dependencies.select')}</option>
               {tasks.map(tk => <option key={tk.id} value={String(tk.id)}>{tk.title?.slice(0,45)}</option>)}
-            </Select>
+            </Select>{msg('predecessor_id')}
           </div>
           <div>
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="dependencies-page-e7">{t('dependencies.to_task')}</label>
@@ -99,7 +102,7 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
               <option value="">{t('dependencies.select')}</option>
               {tasks.filter(tk => String(tk.id) !== form.predecessor_id).map(tk => (
                 <option key={tk.id} value={String(tk.id)}>{tk.title?.slice(0,45)}</option>))}
-            </Select>
+            </Select>{msg('successor_id')}
           </div>
         </div>
 
@@ -124,7 +127,7 @@ function DepForm({ projectId, tasks, onClose }: { projectId: string; tasks: Task
           <div>
             <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="dependencies-page-e7">{t('dependencies.dias_de_lag_retraso')}</label>
             <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" className="dependencies-page-e8" value={form.lag_days} min={0}
-              onChange={e => set('lag_days')(+e.target.value)} />
+              onChange={e => set('lag_days')(+e.target.value)} />{msg('lag_days')}
             <div className="u-hint">{t('dependencies.dias_extra_tras_cumplir_la_condicion')}</div>
           </div>
         </div>

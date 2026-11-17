@@ -34,7 +34,6 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from app.core.errores import ErrorDeDominio
 from app.core.codigos_de_error import error as error_con_codigo
 from app.models.service_desk import ChannelConversation, ChannelMessage, Ticket, TicketComment
 from app.models.service_desk._enums import ESTADOS_DE_TICKET_CERRADOS
@@ -332,7 +331,7 @@ def enviar_adjunto(db: Session, conv_id: str, agente, document_id: str,
         raise error_con_codigo(409, "conversacion_cerrada")
     ticket = db.get(Ticket, conv.ticket_id) if conv.ticket_id else None
     if ticket is None:
-        raise ErrorDeDominio(409, "La conversación no tiene ticket")
+        raise error_con_codigo(409, "conversacion_sin_ticket")
     fichero = adjuntos_de_canal.leer(db, ticket, document_id)
     m = salida_por_canales.entregar_adjunto(db, conv, fichero, document_id, (caption or "").strip()[:1024], agente)
     audit_log(db, agente, "SEND", "channel_attachment", document_id, fichero.nombre,
@@ -341,6 +340,23 @@ def enviar_adjunto(db: Session, conv_id: str, agente, document_id: str,
     db.commit()
     canales_en_vivo.avisar_mensaje(db, conv, m)
     return m
+
+
+def del_ticket_para_adjuntos(db: Session, ticket_id: str, org_id) -> dict:
+    """Conversaciones abiertas de WhatsApp/Slack de un ticket de la empresa y sus
+    documentos: lo que la ficha del ticket puede enviar por el canal (17-11-2026).
+    El envio va por `enviar_adjunto`, el mismo que usa la bandeja."""
+    from app.services.service_desk.adjuntos_de_canal import listar as adjuntos_del_ticket
+    from app.services.service_desk.salida_por_canales import CANALES_DE_SALIDA
+    ticket = db.query(Ticket).filter(Ticket.id == ticket_id, Ticket.organization_id == org_id).first()
+    if ticket is None:
+        raise error_con_codigo(404, "ticket_no_encontrado")
+    convs = (db.query(ChannelConversation)
+             .filter(ChannelConversation.ticket_id == ticket.id, ChannelConversation.organization_id == org_id,
+                     ChannelConversation.channel.in_(CANALES_DE_SALIDA), ChannelConversation.status != "closed")
+             .order_by(ChannelConversation.last_message_at.desc().nullslast()).all())
+    return {"conversations": [serializar(db, c) for c in convs],
+            "attachments": adjuntos_del_ticket(db, ticket) if convs else []}
 
 
 def cerrar(db: Session, conv_id: str, agente) -> ChannelConversation:

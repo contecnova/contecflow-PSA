@@ -17,7 +17,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { projectsApi, revenueRecognitionApi } from '../services/api'
 import type { CierreAsc606, ContratoAsc606, EntradaAsc606DelDiario, ObligacionAsc606, PanelAsc606 } from '../services/api/tipos-finanzas'
 import type { MetaDeLista } from '../services/api/tipos-plataforma'
-import { Button, Card, KpiCard, Modal, Spinner, EmptyState, Tabs, IconButton, Select, TablaSimple } from '../components/ui'
+import { Button, Card, KpiCard, Modal, Spinner, EmptyState, Tabs, IconButton, Select, TablaSimple, useErroresDeCampo } from '../components/ui'
 import Pagination from '../components/ui/Pagination'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -99,12 +99,15 @@ function ObligationsPanel({ contractId, onClose, currency }: { contractId: strin
 
   const reset = () => { setForm({ name:'', method:'over_time', standalone_price:'', notes:'' }); setEditing(null); setShowForm(false) }
 
+  const camposB = useErroresDeCampo()
+  const msgB = (k: string) => camposB.de(k) ? <div className="u-field-error">{camposB.de(k)}</div> : null
   const { mutate: save, isPending: saving } = useMutation({
+    onMutate: () => camposB.limpiar(),
     mutationFn: (d: ObligationPayload) => editing
       ? revenueRecognitionApi.updateObligation(editing.id, d).then(r => r.data)
       : revenueRecognitionApi.createObligation(contractId, d).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['asc606-obligations', contractId] }); reset() },
-    onError: e => toast.error(extractErr(e, t('revenue_page.error_guardar_obligacion'))),
+    onError: (e: unknown) => { if (!camposB.recoger(e)) toast.error(extractErr(e, t('revenue_page.error_guardar_obligacion'))) },
   })
 
   const { mutate: del } = useMutation({
@@ -154,19 +157,19 @@ function ObligationsPanel({ contractId, onClose, currency }: { contractId: strin
           <div className="rev-ob-form">
             <div className="u-grid2-10">
               <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="rev-label">{t('revenue_page.nombre')}</label>
-                <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} className="ds-input" placeholder={t('revenue.ej_fase_1_analisis')} />
+                <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} className="ds-input" placeholder={t('revenue.ej_fase_1_analisis')} />{msgB('name')}
               </div>
               <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="rev-label">{t('revenue.metodo')}</label>
                 <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.method} onChange={e=>setForm(f=>({...f,method:e.target.value}))}>
                   {ASC_METHODS.map(k => { const v = metodo(t, k); return <option key={k} value={k}>{v.label}</option> })}
-                </Select>
+                </Select>{msgB('method')}
               </div>
             </div>
             <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="rev-label">{t('revenue_page.precio_independiente')}</label>
-              <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.standalone_price} onChange={e=>setForm(f=>({...f,standalone_price:e.target.value}))} className="ds-input" placeholder="0" />
+              <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.standalone_price} onChange={e=>setForm(f=>({...f,standalone_price:e.target.value}))} className="ds-input" placeholder="0" />{msgB('standalone_price')}
             </div>
             <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="rev-label">{t('revenue_page.notas')}</label>
-              <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} rows={2} className="ds-input" />
+              <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} rows={2} className="ds-input" />{msgB('notes')}
             </div>
             <div className="u-actions-8">
               <Button variant="secondary" onClick={reset}>{t('revenue_page.cancelar')}</Button>

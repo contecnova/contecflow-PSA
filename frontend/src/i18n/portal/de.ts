@@ -1085,6 +1085,8 @@ const de: Record<string, string> = {
   "fecha.desde": "Von",
   "fecha.hasta": "Bis",
   "ticket_autor_sistema": "System",
+  "ticket_comentario_editado": "bearbeitet",
+  "ticket_comentario_retirado": "Kommentar vom Verfasser zurückgezogen",
   "err_srv.sesion_invalida": "Ihre Sitzung ist ungültig oder abgelaufen",
   "err_srv.credenciales_incorrectas": "E-Mail oder Passwort falsch",
   "err_srv.cliente_no_encontrado": "Kunde nicht gefunden",

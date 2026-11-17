@@ -9,7 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, epicsApi, tasksApi } from '../services/api'
 import type { EpicaDelRoadmap, EpicaSerializada, RoadmapDeEpicas } from '../services/api/tipos-proyectos'
 import { useAuth } from '../context/AuthContext'
-import { Button, Spinner, EmptyState, Modal, KpiCard, Tabs, IconButton, Pulsable, Select } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, KpiCard, Tabs, IconButton, Pulsable, Select, useErroresDeCampo } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { CalendarDays, CalendarRange, FolderKanban, Layers, List, ListChecks, Map as MapIcon, Pencil, Plus, Target, Trash2 } from 'lucide-react'
@@ -66,7 +66,7 @@ function EpicForm({ projectId, epic, onClose }: { projectId: string; epic?: Epic
     end_date:    epic?.end_date    || '',
     sort_order:  epic?.sort_order  || 0,
   })
-  const set = <K extends keyof EpicFormState>(k: K) => (v: EpicFormState[K]) => setForm((f) => ({ ...f, [k]: v }))
+  const set = <K extends keyof EpicFormState>(k: K) => (v: EpicFormState[K]) => { campos.limpiar(k); setForm((f) => ({ ...f, [k]: v })) }
 
   const STATUS_CFG = {
     open:        { label: t('epics.status_open'),        color:'var(--text-2)', bg:'color-mix(in srgb, var(--text-2) 9%, transparent)' },
@@ -81,34 +81,37 @@ function EpicForm({ projectId, epic, onClose }: { projectId: string; epic?: Epic
     critical: { label: t('epics.priority_critical'), color:'var(--danger)' },
   }
 
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: (d: EpicFormState) => isEdit
       ? epicsApi.update(epic.id, d).then(r=>r.data)
       : epicsApi.createForProject(projectId, d).then(r=>r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['epics',projectId] }); onClose() },
-    onError: (e: unknown) => toast.error(extractErr(e, t('pagina_epics.error_al_guardar'))),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, t('pagina_epics.error_al_guardar'))) },
   })
 
   return (
     <Modal open onClose={onClose} title={isEdit ? t('epics.edit_epic') : t('epics.new_epic')}>
       <div className="u-stack-14">
-        <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="epics-page-e13">{t('epics.title_label')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="epics-page-e14" value={form.title} onChange={e=>set('title')(e.target.value)} placeholder={t('epics.epic_name')}/></div>
-        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="epics-page-e13">{t('common.description')}</label><textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} className="epics-page-e1" value={form.description} onChange={e=>set('description')(e.target.value)}/></div>
+        <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="epics-page-e13">{t('epics.title_label')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="epics-page-e14" value={form.title} onChange={e=>set('title')(e.target.value)} placeholder={t('epics.epic_name')}/>{msg('title')}</div>
+        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="epics-page-e13">{t('common.description')}</label><textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} className="epics-page-e1" value={form.description} onChange={e=>set('description')(e.target.value)}/>{msg('description')}</div>
         <div className="u-grid2-12">
           <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="epics-page-e13">{t('common.status')}</label>
             <Select suelto placeholder={false} id={`${idCampo}-3`} className="epics-page-e14" value={form.status} onChange={e=>set('status')(e.target.value)}>
               {Object.entries(STATUS_CFG).map(([v,c])=><option key={v} value={v}>{c.label}</option>)}
-            </Select>
+            </Select>{msg('status')}
           </div>
           <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="epics-page-e13">{t('common.priority')}</label>
             <Select suelto placeholder={false} id={`${idCampo}-4`} className="epics-page-e14" value={form.priority} onChange={e=>set('priority')(e.target.value)}>
               {Object.entries(PRIORITY_CFG).map(([v,c])=><option key={v} value={v}>{c.label}</option>)}
-            </Select>
+            </Select>{msg('priority')}
           </div>
         </div>
         <div className="u-grid2-12">
-          <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="epics-page-e13">{t('epics.start_date')}</label><DateInput id={`${idCampo}-5`} className="epics-page-e14" value={form.start_date} onChange={e=>set('start_date')(e.target.value)}/></div>
-          <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="epics-page-e13">{t('epics.end_date')}</label><DateInput id={`${idCampo}-6`} className="epics-page-e14" value={form.end_date} onChange={e=>set('end_date')(e.target.value)}/></div>
+          <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="epics-page-e13">{t('epics.start_date')}</label><DateInput id={`${idCampo}-5`} className="epics-page-e14" value={form.start_date} onChange={e=>set('start_date')(e.target.value)}/>{msg('start_date')}</div>
+          <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="epics-page-e13">{t('epics.end_date')}</label><DateInput id={`${idCampo}-6`} className="epics-page-e14" value={form.end_date} onChange={e=>set('end_date')(e.target.value)}/>{msg('end_date')}</div>
         </div>
         <div><label className="epics-page-e13">{t('epics.color_label')}</label>
           <div className="u-wrap-8">

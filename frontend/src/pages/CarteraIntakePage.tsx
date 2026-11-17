@@ -17,7 +17,7 @@ import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRightCircle, CheckCircle2, FolderPlus, Inbox, Plus, Settings2, XCircle } from 'lucide-react'
 import Page from '../components/ui/Page'
-import { Button, EmptyState, Input, Modal, Spinner, StatusBadge, Tabs, Pulsable, Select, TablaSimple, Checkbox } from '../components/ui'
+import { Button, EmptyState, Input, Modal, Spinner, StatusBadge, Tabs, Pulsable, Select, TablaSimple, Checkbox, useErroresDeCampo } from '../components/ui'
 import { approvalsApi, carteraApi, type Criterio, type Fase, type Propuesta } from '../services/api'
 import { useAppT } from '../i18n/AppLangContext'
 import { useToast } from '../context/ToastContext'
@@ -167,7 +167,10 @@ function FormularioDePropuesta({ propuesta, onClose }: { propuesta: Propuesta | 
   })
   const [roles, setRoles] = useState(propuesta?.roles_needed ?? [])
   const [notas, setNotas] = useState<Record<string, number>>(propuesta?.scores ?? {})
+  const camposB = useErroresDeCampo()
+  const msgB = (k: string) => camposB.de(k) ? <div className="u-field-error">{camposB.de(k)}</div> : null
   const guardar = useMutation({
+    onMutate: () => camposB.limpiar(),
     mutationFn: () => {
       const cuerpo = {
         title: f.title.trim(), description: f.description || null,
@@ -179,7 +182,7 @@ function FormularioDePropuesta({ propuesta, onClose }: { propuesta: Propuesta | 
       return propuesta ? carteraApi.editarPropuesta(propuesta.id, cuerpo) : carteraApi.crearPropuesta(cuerpo)
     },
     onSuccess: () => { toast.success(t('cartera.guardada')); qc.invalidateQueries({ queryKey: ['propuestas'] }); onClose() },
-    onError: e => toast.error(extractErr(e, t('cartera.error'))),
+    onError: (e: unknown) => { camposB.recoger(e); toast.error(extractErr(e, t('cartera.error'))) },
   })
   const campo = (k: keyof typeof f, etiqueta: string, tipo = 'text') => (
     <Input label={etiqueta} type={tipo} value={String(f[k] ?? '')} onChange={e => setF(x => ({ ...x, [k]: e.target.value }))} />
@@ -196,15 +199,15 @@ function FormularioDePropuesta({ propuesta, onClose }: { propuesta: Propuesta | 
         </div>
         <div className="ui-field">
           <label className="uiinde-estiloetiqueta" htmlFor="cit-descripcion">{t('cartera.campo_descripcion')}</label>
-          <textarea id="cit-descripcion" className="ds-input plan-textarea" value={f.description} onChange={e => setF(x => ({ ...x, description: e.target.value }))} />
+          <textarea id="cit-descripcion" className="ds-input plan-textarea" value={f.description} onChange={e => { camposB.limpiar('description'); setF(x => ({ ...x, description: e.target.value })) }} />{msgB('description')}
         </div>
         <div className="ds-card plan-stack">
           <h3 className="plan-card__titulo">{t('cartera.roles_que_pide')}</h3>
           {roles.map((r, i) => (
             <div key={i} className="plan-row">
-              <input className="ds-input cit-rol" aria-label={t('cartera.col_rol')} value={r.role} onChange={e => setRoles(rs => rs.map((x, j) => j === i ? { ...x, role: e.target.value } : x))} />
+              <input className="ds-input cit-rol" aria-label={t('cartera.col_rol')} value={r.role} onChange={e => setRoles(rs => rs.map((x, j) => j === i ? { ...x, role: e.target.value } : x))} />{msgB('role')}
               <input type="number" min={0} className="ds-input cit-num" aria-label={t('cartera.col_pedidas')} value={r.hours}
-                onChange={e => setRoles(rs => rs.map((x, j) => j === i ? { ...x, hours: Number(e.target.value) } : x))} />
+                onChange={e => setRoles(rs => rs.map((x, j) => j === i ? { ...x, hours: Number(e.target.value) } : x))} />{msgB('hours')}
               <Button size="xs" variant="ghost" onClick={() => setRoles(rs => rs.filter((_, j) => j !== i))}>{t('cartera.quitar')}</Button>
             </div>
           ))}

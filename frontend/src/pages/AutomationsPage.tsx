@@ -16,7 +16,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, automationsApi } from '../services/api'
 import type { AccionDeRegla, CatalogoDeAutomatizaciones, CondicionDeRegla, PlantillaDeRegla, ReglaDeAutomatizacion, SimulacionDeRegla } from '../services/api/tipos-plataforma'
-import { Button, Modal, Spinner, EmptyState, Page, Table, KpiCard, IconButton, StatusBadge, Select, Checkbox, Radio } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, Page, Table, KpiCard, IconButton, StatusBadge, Select, Checkbox, Radio, useErroresDeCampo } from '../components/ui'
 import {
   Bot, FileStack, Plus, Zap, Pause, Play, Settings as SettingsIcon, Search,
   ListChecks, FolderKanban, Wallet, AlertTriangle, Clock, Palmtree, Ticket, Receipt, TrendingUp, FileText,
@@ -201,10 +201,13 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
   const triggerDefs = catalog?.triggers ?? []
   const actionDefs = catalog?.actions ?? []
 
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: (d: typeof form & { schedule_cron: string | null }) => isEdit ? automationsApi.update(rule.id, d) : automationsApi.create(d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['automations'] }); onClose() },
-    onError: e => toast.error(extractErr(e, t('common.error'))),
+    onError: (e: unknown) => { campos.recoger(e); toast.error(extractErr(e, t('common.error'))) },
   })
 
   const addAction = () => setForm(f => ({ ...f, actions: [...f.actions, { type: 'create_alert', params: { message: '', severity: 'info' } }] }))
@@ -237,18 +240,18 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
         <div className="u-grid2-14">
           <div className="u-col-full">
             <label id={`${idPrefix}-name-et`} htmlFor={`${idPrefix}-name`} className="aut-label">{t('automations.rule_name_lbl')}</label>
-            <input id={`${idPrefix}-name`} aria-labelledby={`${idPrefix}-name-et`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="aut-input" placeholder={t('automations.rule_name_lbl')} />
+            <input id={`${idPrefix}-name`} aria-labelledby={`${idPrefix}-name-et`} value={form.name} onChange={e => { campos.limpiar('name'); setForm(f => ({ ...f, name: e.target.value })) }} className="aut-input" placeholder={t('automations.rule_name_lbl')} />{msg('name')}
           </div>
           <div>
             <label id={`${idPrefix}-description-et`} htmlFor={`${idPrefix}-description`} className="aut-label">{t('automations.description')}</label>
-            <input id={`${idPrefix}-description`} aria-labelledby={`${idPrefix}-description-et`} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="aut-input" />
+            <input id={`${idPrefix}-description`} aria-labelledby={`${idPrefix}-description-et`} value={form.description} onChange={e => { campos.limpiar('description'); setForm(f => ({ ...f, description: e.target.value })) }} className="aut-input" />{msg('description')}
           </div>
           <div>
             <label htmlFor={`${idPrefix}-project`} className="aut-label">{t('automations.project_lbl')}</label>
-            <Select suelto placeholder={false} id={`${idPrefix}-project`} value={form.project_id} onChange={e => setForm(f => ({ ...f, project_id: e.target.value, is_global: !e.target.value }))} className="aut-input">
+            <Select suelto placeholder={false} id={`${idPrefix}-project`} value={form.project_id} onChange={e => { campos.limpiar('project_id'); setForm(f => ({ ...f, project_id: e.target.value, is_global: !e.target.value })) }} className="aut-input">
               <option value="">{t('automations.project_global')}</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-            </Select>
+            </Select>{msg('project_id')}
           </div>
         </div>
 
@@ -260,7 +263,7 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
           <div className="aut-section-body">
             <div>
               <label htmlFor={`${idPrefix}-trigger`} className="aut-label">{t('automations.trigger_lbl')}</label>
-              <Select suelto placeholder={false} id={`${idPrefix}-trigger`} value={form.trigger_type} onChange={e => setForm(f => ({ ...f, trigger_type: e.target.value }))} className="aut-input">
+              <Select suelto placeholder={false} id={`${idPrefix}-trigger`} value={form.trigger_type} onChange={e => { campos.limpiar('trigger_type'); setForm(f => ({ ...f, trigger_type: e.target.value })) }} className="aut-input">
                 {byCategory(triggerDefs).map(([cat, defs]) => (
                   <optgroup key={cat} label={t('automations.cat_' + cat, cat)}>
                     {defs.map(d => (
@@ -268,7 +271,7 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
                     ))}
                   </optgroup>
                 ))}
-              </Select>
+              </Select>{msg('trigger_type')}
               {catalogError && <div role="alert" className="u-field-error">{t('automations.catalog_unavailable')}</div>}
               {isScan && <div className="u-hint">{t('automations.simulation_scan')}</div>}
             </div>

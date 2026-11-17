@@ -11,7 +11,7 @@ import {
   RotateCcw, ShieldAlert, Trash2, Undo2, Upload, UserPlus, Wrench, X,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { Button, Drawer, Modal, Spinner, Tabs, Pulsable, Select } from '../ui'
+import { Button, Drawer, Modal, Spinner, Tabs, Pulsable, Select, useErroresDeCampo } from '../ui'
 import { LicenseSelect } from '../ui/EntitySelect'
 import DateInput from '../ui/DateInput'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -48,10 +48,13 @@ function AccionModal({ assetId, accion, onClose }: { assetId: string; accion: st
   const [datos, setDatos] = useState<Record<string, string>>(accion === 'retired' ? { reason: 'obsolete' } : accion === 'disposed' ? { method: 'recycle' } : {})
   const [error, setError] = useState('')
   const campo = (k: string) => (e: { target: { value: string } }) => setDatos(d => ({ ...d, [k]: e.target.value }))
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: () => almApi.ciclo(assetId, accion, motivo || undefined, datos),
     onSuccess: () => { toast.success(t('alm.lifecycle_done')); CLAVES.forEach(k => qc.invalidateQueries({ queryKey: [k] })); onClose() },
-    onError: e => setError(errorAlm(t, e)),
+    onError: (e: unknown) => { if (!campos.recoger(e)) setError(errorAlm(t, e)) },
   })
   return (
     <Modal open onClose={onClose} width={560} title={t(`alm.action_${accion}`)}>
@@ -60,29 +63,29 @@ function AccionModal({ assetId, accion, onClose }: { assetId: string; accion: st
         {accion === 'repair_sent' && (
           <div className="almf-rejilla-2">
             <div><label className="alm-label" htmlFor={`${id}-v`}>{t('alm.repair_vendor')}</label>
-              <input id={`${id}-v`} className="alm-input" value={datos.vendor ?? ''} onChange={campo('vendor')} /></div>
+              <input id={`${id}-v`} className="alm-input" value={datos.vendor ?? ''} onChange={campo('vendor')} />{msg('vendor')}</div>
             <div><label className="alm-label" htmlFor={`${id}-tk`}>{t('alm.repair_ticket')}</label>
-              <input id={`${id}-tk`} className="alm-input" value={datos.ticket ?? ''} onChange={campo('ticket')} /></div>
+              <input id={`${id}-tk`} className="alm-input" value={datos.ticket ?? ''} onChange={campo('ticket')} />{msg('ticket')}</div>
             <div><label className="alm-label" htmlFor={`${id}-b`}>{t('alm.repair_expected_back')}</label>
-              <DateInput id={`${id}-b`} className="alm-input" value={datos.expected_back ?? ''} onChange={campo('expected_back')} /></div>
+              <DateInput id={`${id}-b`} className="alm-input" value={datos.expected_back ?? ''} onChange={campo('expected_back')} />{msg('expected_back')}</div>
             <div><label className="alm-label" htmlFor={`${id}-c`}>{t('alm.repair_cost')}</label>
-              <input id={`${id}-c`} type="number" min={0} className="alm-input" value={datos.cost ?? ''} onChange={campo('cost')} /></div>
+              <input id={`${id}-c`} type="number" min={0} className="alm-input" value={datos.cost ?? ''} onChange={campo('cost')} />{msg('cost')}</div>
           </div>
         )}
         {accion === 'retired' && (
           <div><label className="alm-label" htmlFor={`${id}-r`}>{t('alm.disposal_reason')}</label>
             <Select suelto placeholder={false} id={`${id}-r`} className="alm-input" value={datos.reason} onChange={campo('reason')}>
               {MOTIVOS_DE_BAJA.map(m => <option key={m} value={m}>{t(`alm.disposal_reason_${m}`)}</option>)}
-            </Select></div>
+            </Select>{msg('reason')}</div>
         )}
         {accion === 'disposed' && (
           <div className="almf-rejilla-2">
             <div><label className="alm-label" htmlFor={`${id}-m`}>{t('alm.disposal_method')}</label>
               <Select suelto placeholder={false} id={`${id}-m`} className="alm-input" value={datos.method} onChange={campo('method')}>
                 {METODOS.map(m => <option key={m} value={m}>{t(`alm.disposal_method_${m}`)}</option>)}
-              </Select></div>
+              </Select>{msg('method')}</div>
             <div><label className="alm-label" htmlFor={`${id}-val`}>{t('alm.disposal_value')}</label>
-              <input id={`${id}-val`} type="number" min={0} className="alm-input" value={datos.value ?? ''} onChange={campo('value')} /></div>
+              <input id={`${id}-val`} type="number" min={0} className="alm-input" value={datos.value ?? ''} onChange={campo('value')} />{msg('value')}</div>
           </div>
         )}
         <div><label className="alm-label" htmlFor={`${id}-mot`}>{t('alm.reason')}</label>

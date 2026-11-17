@@ -32,6 +32,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import (get_current_user, require_admin, require_admin_or_hr, require_any_manager,
                            require_internal_user, require_worker)
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error as error_con_codigo
 from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User
@@ -300,7 +301,7 @@ def movimientos_de_saldo(user_id: str, saldo_clave: Optional[str] = None, db: Se
                          current_user: User = Depends(require_worker)):
     rol = str(getattr(current_user.role, "value", current_user.role))
     if user_id != current_user.id and rol not in ("admin", "hr") and not getattr(current_user, "is_superadmin", False):
-        raise ErrorDeDominio(403, "Solo la persona, RRHH o administración")
+        raise error_con_codigo(403, "solo_persona_rrhh_o_admin")
     return APIResponse.ok(data=movimientos.listar(db, user_id, saldo_clave))
 
 
@@ -320,7 +321,7 @@ def quitar_ajuste(movimiento_id: str, db: Session = Depends(get_db), current_use
 def recalcular_bolsa(payload: RecalcularBolsaIn, db: Session = Depends(get_db),
                      current_user: User = Depends(require_admin_or_hr)):
     if payload.hasta < payload.desde or (payload.hasta - payload.desde).days > 400:
-        raise ErrorDeDominio(422, "Un rango de 1 a 400 días")
+        raise error_con_codigo(422, "rango_de_1_a_400_dias")
     from app.services.audit import audit_log
     r = bolsa.recalcular(db, payload.desde, payload.hasta, payload.user_ids, current_user.id)
     audit_log(db, current_user, "RECALCULATE", "hour_bank", None, None,

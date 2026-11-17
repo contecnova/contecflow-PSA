@@ -15,7 +15,7 @@ import type { ChangeEvent, CSSProperties, ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { projectsApi, usersApi } from '../services/api'
 import type { PersonaVisible } from '../services/api'
-import { Avatar, Spinner, EmptyState, Button, Card, Modal, Pulsable, Select, TablaSimple } from '../components/ui'
+import { Avatar, Spinner, EmptyState, Button, Card, Modal, Pulsable, Select, TablaSimple, useErroresDeCampo } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -117,12 +117,15 @@ function AddEntryModal({ projectId, users, onClose, onSaved }: { projectId: IdTy
   const toast = useToast()
   const [form, setForm] = useState({ item_type: 'deliverable', item_label: '', user_id: '', role: 'R' })
 
+  const camposB = useErroresDeCampo()
+  const msgB = (k: string) => camposB.de(k) ? <div className="u-field-error">{camposB.de(k)}</div> : null
   const { mutate: save, isPending } = useMutation({
+    onMutate: () => camposB.limpiar(),
     mutationFn: () => api.put(`/projects/${projectId}/raci`, {
       entries: [{ item_type: form.item_type, item_label: form.item_label, user_id: form.user_id, role: form.role }]
     }),
     onSuccess: () => { onSaved(); onClose() },
-    onError: (e: unknown) => toast.error(extractErr(e, t('raci_ui.error_guardar'))),
+    onError: (e: unknown) => { if (!camposB.recoger(e)) toast.error(extractErr(e, t('raci_ui.error_guardar'))) },
   })
 
   const onField = (key: 'item_type' | 'item_label' | 'user_id' | 'role') => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -136,11 +139,11 @@ function AddEntryModal({ projectId, users, onClose, onSaved }: { projectId: IdTy
           <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-1`}>{t('raci_ui.tipo')}</label>
           <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.item_type} onChange={onField('item_type')}>
             {ITEM_TYPES.map(it => <option key={it.value} value={it.value}>{t(it.label)}</option>)}
-          </Select>
+          </Select>{msgB('item_type')}
         </div>
         <div className="ui-field">
           <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-4`}>{traducir('raci.nombre_del_elemento')}</label>
-          <input id={`${idCampo}-4`} className="ds-input" value={form.item_label} onChange={onField('item_label')} placeholder={traducir('raci.nombre_del_elemento')} />
+          <input id={`${idCampo}-4`} className="ds-input" value={form.item_label} onChange={onField('item_label')} placeholder={traducir('raci.nombre_del_elemento')} />{msgB('item_label')}
         </div>
       </div>
       <div className="raci-grid-2">
@@ -149,13 +152,13 @@ function AddEntryModal({ projectId, users, onClose, onSaved }: { projectId: IdTy
           <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.user_id} onChange={onField('user_id')}>
             <option value="">{t('raci_ui.selecciona_persona')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}{(u.job_title || u.role) ? ` (${u.job_title || u.role})` : ''}</option>)}
-          </Select>
+          </Select>{msgB('user_id')}
         </div>
         <div className="ui-field">
           <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-3`}>{t('raci_ui.rol_raci')}</label>
           <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.role} onChange={onField('role')}>
             {Object.entries(ROLES_META).map(([k, v]) => <option key={k} value={k}>{k} — {t(v.label)}</option>)}
-          </Select>
+          </Select>{msgB('role')}
         </div>
       </div>
       <div className="u-actions-10">

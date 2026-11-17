@@ -9,12 +9,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarX2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { ausenciasApi } from '../../../services/api/ausencias'
 import type { Festivo, FestivoIn, TipoDeFestivo } from '../../../services/api/tipos-ausencias'
-import { Button, EmptyState, Modal, Spinner, Select, TablaSimple } from '../../ui'
+import { Button, EmptyState, Modal, Spinner, Select, TablaSimple , useErroresDeCampo } from '../../ui'
 import DateInput from '../../ui/DateInput'
 import { confirmar } from '../../../context/ConfirmContext'
 import { useToast } from '../../../context/ToastContext'
 import { fecha } from '../comun'
-import { AvisoDeError, errorDe, useT } from './comun'
+import { AvisoDeError, ErrorDeCampo, hayDeCampo, errorDe, useT } from './comun'
 import { useOficinas } from './EditorDeTurnos'
 
 const TIPOS: TipoDeFestivo[] = ['public', 'regional', 'company']
@@ -106,8 +106,11 @@ function FormularioDeFestivo({ id, inicial, onCerrar }: { id: string | null; ini
   const toast = useToast()
   const oficinas = useOficinas().data ?? []
   const [d, setD] = useState(inicial)
-  const cambiar = (c: Partial<FestivoIn>) => setD(x => ({ ...x, ...c }))
+  const campos = useErroresDeCampo()
+  const cambiar = (c: Partial<FestivoIn>) => { Object.keys(c).forEach(k => campos.limpiar(k)); setD(x => ({ ...x, ...c })) }
   const guardar = useMutation({
+    onMutate: () => campos.limpiar(),
+    onError: e => { campos.recoger(e) },
     mutationFn: () => (id ? ausenciasApi.guardarFestivo(id, d) : ausenciasApi.crearFestivo(d)),
     onSuccess: () => { toast.success(ta('guardado')); qc.invalidateQueries({ queryKey: ['ausencias'] }); onCerrar() },
   })
@@ -118,22 +121,26 @@ function FormularioDeFestivo({ id, inicial, onCerrar }: { id: string | null; ini
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('nombre')}</span>
             <input aria-label={ta('nombre')} className="ausadm-campo" required value={d.name} onChange={e => cambiar({ name: e.target.value })} />
+            <ErrorDeCampo texto={campos.de('name')} />
           </label>
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('fecha')}</span>
             <DateInput aria-label={ta('fecha')} className="ausadm-campo" required value={d.date} onChange={e => cambiar({ date: e.target.value })} />
+            <ErrorDeCampo texto={campos.de('date')} />
           </label>
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('tipo_festivo')}</span>
             <Select suelto className="ausadm-campo" value={d.type} placeholder={false} onChange={e => cambiar({ type: e.target.value })}>
               {TIPOS.map(x => <option key={x} value={x}>{ta(`festivo_${x}`)}</option>)}
             </Select>
+            <ErrorDeCampo texto={campos.de('type')} />
           </label>
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('sede')}</span>
             <Select suelto className="ausadm-campo" value={d.office_id ?? ''} onChange={e => cambiar({ office_id: e.target.value || null })} placeholder={ta('toda_la_empresa')}>
               {oficinas.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
             </Select>
+            <ErrorDeCampo texto={campos.de('office_id')} />
           </label>
         </div>
         <label className="ausadm-campo-con-etiqueta">
@@ -141,8 +148,9 @@ function FormularioDeFestivo({ id, inicial, onCerrar }: { id: string | null; ini
           <input aria-label={ta('ambito_opcional')} className="ausadm-campo" value={d.applies_to ?? ''} aria-describedby="ausadm-festivo-ambito"
             onChange={e => cambiar({ applies_to: e.target.value || null })} />
           <span id="ausadm-festivo-ambito" className="ausadm-ayuda">{ta('festivo_ambito_ayuda')}</span>
+          <ErrorDeCampo texto={campos.de('applies_to')} />
         </label>
-        <AvisoDeError error={guardar.error} defecto={ta('error_guardar')} />
+        <AvisoDeError error={hayDeCampo(campos) ? null : guardar.error} defecto={ta('error_guardar')} />
         <div className="ausadm-acciones">
           <Button variant="secondary" onClick={onCerrar}>{ta('cancelar')}</Button>
           <Button type="submit" loading={guardar.isPending}>{ta('guardar')}</Button>

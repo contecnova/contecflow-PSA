@@ -5,7 +5,7 @@
  */
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Button, Modal, Select } from '../ui'
+import { Button, Modal, Select, useErroresDeCampo } from '../ui'
 import { enterpriseSubsApi, subcontractorsApi } from '../../services/api'
 import type { Subcontratista, SubTrabajadorCreado } from '../../services/api/tipos-alm'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -23,6 +23,7 @@ export default function AltaDeExternoModal({ onClose }: { onClose: () => void })
   const { currency } = useOrgSettings()
   const [subId, setSubId] = useState('')
   const [form, setForm] = useState<FormDeExterno>(() => formularioDeExternoInicial(null, currency))
+  const campos = useErroresDeCampo()
   const [creds, setCreds] = useState<{ usuario: string; contrasena?: string } | null>(null)
 
   const { data: proveedores = [], isLoading } = useQuery<Subcontratista[]>({
@@ -39,6 +40,7 @@ export default function AltaDeExternoModal({ onClose }: { onClose: () => void })
   }
 
   const { mutate: crear, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: async (): Promise<SubTrabajadorCreado> => (await enterpriseSubsApi.createWorker(subId, cargaDeExterno(form))).data,
     onSuccess: (creado) => {
       qc.invalidateQueries({ queryKey: ['resources'] })
@@ -52,7 +54,7 @@ export default function AltaDeExternoModal({ onClose }: { onClose: () => void })
         onClose()
       }
     },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
   })
 
   if (creds) return <CredencialesDeExterno usuario={creds.usuario} contrasena={creds.contrasena} onClose={onClose} />
@@ -63,7 +65,7 @@ export default function AltaDeExternoModal({ onClose }: { onClose: () => void })
         onChange={e => elegirProveedor(e.target.value)} placeholder={t('externos.elegir_proveedor')}
         hint={!isLoading && activos.length === 0 ? t('externos.sin_proveedores') : undefined}
         options={activos.map(p => ({ value: p.id, label: p.company && p.company !== p.name ? `${p.name} (${p.company})` : p.name }))} />
-      <CamposDeExterno form={form} onChange={c => setForm(f => ({ ...f, ...c }))} />
+      <CamposDeExterno form={form} errores={campos.de} onChange={c => { Object.keys(c).forEach(k => campos.limpiar(k)); setForm(f => ({ ...f, ...c })) }} />
       <div className="u-actions-8">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
         <Button onClick={() => crear()} loading={isPending} disabled={!subId || !externoCompleto(form) || isPending}>

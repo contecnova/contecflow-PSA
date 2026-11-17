@@ -7,7 +7,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, epicsApi, epicDependenciesApi } from '../services/api'
 import type { DependenciaDeEpica, EpicaDelRoadmap, RoadmapDeEpicas } from '../services/api/tipos-proyectos'
-import { Button, Spinner, EmptyState, Modal, IconButton, Pulsable, Select } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, IconButton, Pulsable, Select, useErroresDeCampo } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { ArrowRight, BarChart2, CalendarRange, FolderKanban, GitMerge, Plus, Target, Trash2 } from 'lucide-react'
@@ -141,13 +141,16 @@ function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: 
   const qc = useQueryClient()
   const toast = useToast()
   const [form, setForm] = useState({ epic_id:'', depends_on_id:'', dep_type:'finish_to_start', lag_days:0 })
-  const set = (k: 'epic_id' | 'depends_on_id' | 'dep_type' | 'lag_days') => (v: string | number) => setForm((f) => ({...f, [k]: v}))
+  const set = (k: 'epic_id' | 'depends_on_id' | 'dep_type' | 'lag_days') => (v: string | number) => { campos.limpiar(k); setForm((f) => ({...f, [k]: v})) }
   const _selType = DEP_TYPES.find(d => d.value === form.dep_type)
 
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: () => epicDependenciesApi.create(form).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['epic-deps', projectId] }); qc.invalidateQueries({ queryKey: ['epic-gantt', projectId] }); onClose() },
-    onError: (e: unknown) => toast.error(extractErr(e, t('pagina_egantt.error_al_crear_dependencia'))),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, t('pagina_egantt.error_al_crear_dependencia'))) },
   })
 
   return (
@@ -159,7 +162,7 @@ function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: 
             <Select suelto placeholder={false} id={`${idCampo}-1`} className="epic-gantt-page-e14" value={form.epic_id} onChange={e => set('epic_id')(e.target.value)}>
               <option value="">{t('epicgantt.selecciona_epica')}</option>
               {epics.map(e => <option key={e.id} value={e.id}>{e.title}</option>)}
-            </Select>
+            </Select>{msg('epic_id')}
           </div>
           <div>
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="epic-gantt-page-e13">{t('epicgantt.epica_b_depende_de_a')}</label>
@@ -168,7 +171,7 @@ function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: 
               {epics.filter(e => e.id !== form.epic_id).map(e => (
                 <option key={e.id} value={e.id}>{e.title}</option>
               ))}
-            </Select>
+            </Select>{msg('depends_on_id')}
           </div>
         </div>
 
@@ -191,7 +194,7 @@ function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: 
         <div>
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="epic-gantt-page-e13">{t('epicgantt.lag_dias_de_retraso_adicional')}</label>
           <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" className="epic-gantt-page-e8" value={form.lag_days} min={0}
-            onChange={e => set('lag_days')(+e.target.value)} />
+            onChange={e => set('lag_days')(+e.target.value)} />{msg('lag_days')}
         </div>
 
         <div className="egantt-row-5">

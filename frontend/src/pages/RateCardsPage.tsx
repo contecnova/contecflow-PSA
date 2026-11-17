@@ -21,7 +21,7 @@ import type { TablaDeTarifas, TarifaAplicaA, TarifaEntrada } from '../services/a
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Tag, Plus, ArrowLeft, Copy, Pencil, Trash2, Check, Coins, Table2 } from 'lucide-react'
-import { Button, Card, EmptyState, Input, Modal, Select, Spinner, Checkbox, Pulsable, TablaSimple } from '../components/ui'
+import { Button, Card, EmptyState, Input, Modal, Select, Spinner, Checkbox, Pulsable, TablaSimple, useErroresDeCampo } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import { useAppT } from '../i18n/AppLangContext'
 import { z } from 'zod'
@@ -101,7 +101,10 @@ function EntryForm({ tableId, entry, onClose }: { tableId: string | number; entr
   })
   const validation = useFormValidation(useMemo(() => makeRateEntrySchema(t), [t]))
 
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: (d: Record<string, unknown>) => isEdit && entry
       ? rateCardsApi.updateEntry(tableId, entry.id, d)
       : rateCardsApi.addEntry(tableId, d),
@@ -110,7 +113,7 @@ function EntryForm({ tableId, entry, onClose }: { tableId: string | number; entr
       toast.success(isEdit ? t('tarifas_ui.entrada_actualizada') : t('tarifas_ui.entrada_anadida'))
       onClose()
     },
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
   })
 
   const save = () => {
@@ -129,22 +132,22 @@ function EntryForm({ tableId, entry, onClose }: { tableId: string | number; entr
       <div className="u-stack-16">
         <div className="rc-grid">
           <div className="u-col-full">
-            <Input label={t('tarifas_ui.rol_perfil_req')} value={form.label} onChange={e => setForm(f=>({...f,label:e.target.value}))} placeholder={t('tarifas_ui.rol_perfil')} />
+            <Input error={campos.de('label')} label={t('tarifas_ui.rol_perfil_req')} value={form.label} onChange={e => setForm(f=>({...f,label:e.target.value}))} placeholder={t('tarifas_ui.rol_perfil')} />
           </div>
-          <Input label={t('tarifas_ui.facturacion_moneda', { moneda: fmtMoneda.simbolo })} type="number" value={form.billing_rate} onChange={e => setForm(f=>({...f,billing_rate:e.target.value}))} />
-          <Input label={t('tarifas_ui.coste_interno_moneda', { moneda: fmtMoneda.simbolo })} type="number" value={form.cost_rate} onChange={e => setForm(f=>({...f,cost_rate:e.target.value}))} />
-          <Input label={t('tarifas_ui.escalado_anual_pct')} type="number" value={form.escalation_pct} onChange={e => setForm(f=>({...f,escalation_pct:e.target.value}))} />
+          <Input error={campos.de('billing_rate')} label={t('tarifas_ui.facturacion_moneda', { moneda: fmtMoneda.simbolo })} type="number" value={form.billing_rate} onChange={e => setForm(f=>({...f,billing_rate:e.target.value}))} />
+          <Input error={campos.de('cost_rate')} label={t('tarifas_ui.coste_interno_moneda', { moneda: fmtMoneda.simbolo })} type="number" value={form.cost_rate} onChange={e => setForm(f=>({...f,cost_rate:e.target.value}))} />
+          <Input error={campos.de('escalation_pct')} label={t('tarifas_ui.escalado_anual_pct')} type="number" value={form.escalation_pct} onChange={e => setForm(f=>({...f,escalation_pct:e.target.value}))} />
           <div />
           <div className="ui-field">
             <label className="uiinde-estiloetiqueta" htmlFor="rc-desde">{t('ratecards.valido_desde')}</label>
-            <DateInput id="rc-desde" value={form.valid_from} onChange={e => setForm(f=>({...f,valid_from:e.target.value}))} className="ds-input" />
+            <DateInput id="rc-desde" value={form.valid_from} onChange={e => setForm(f=>({...f,valid_from:e.target.value}))} className="ds-input" />{msg('valid_from')}
           </div>
           <div className="ui-field">
             <label className="uiinde-estiloetiqueta" htmlFor="rc-hasta">{t('ratecards.valido_hasta')}</label>
-            <DateInput id="rc-hasta" value={form.valid_to} onChange={e => setForm(f=>({...f,valid_to:e.target.value}))} className="ds-input" />
+            <DateInput id="rc-hasta" value={form.valid_to} onChange={e => setForm(f=>({...f,valid_to:e.target.value}))} className="ds-input" />{msg('valid_to')}
           </div>
           <div className="u-col-full">
-            <Input label={t('tarifas_ui.notas')} value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))} placeholder={t('tarifas_ui.notas_internas')} />
+            <Input error={campos.de('notes')} label={t('tarifas_ui.notas')} value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))} placeholder={t('tarifas_ui.notas_internas')} />
           </div>
         </div>
 

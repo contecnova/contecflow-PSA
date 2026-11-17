@@ -26,7 +26,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error as error_con_codigo
 from app.models.service_desk import ChannelConversation, ChannelMessage, Ticket
 
 logger = logging.getLogger(__name__)
@@ -40,12 +40,11 @@ def exigir_que_se_pueda_enviar(db: Session, conv: ChannelConversation) -> None:
     if conv.channel == "whatsapp":
         from app.services.service_desk import canal_whatsapp
         if not canal_whatsapp.ventana_abierta(conv) and canal_whatsapp.plantilla(db, conv.organization_id) is None:
-            raise ErrorDeDominio(409, "Han pasado más de 24 h desde el último mensaje del cliente y no hay "
-                                      "plantilla de WhatsApp configurada: el mensaje no se puede enviar.")
+            raise error_con_codigo(409, "whatsapp_fuera_de_ventana")
     elif conv.channel == "slack":
         from app.services.service_desk import canal_slack
         if not canal_slack.token_del_bot(db, conv.organization_id):
-            raise ErrorDeDominio(409, "Slack sin token de bot en la empresa: no se puede contestar en el hilo.")
+            raise error_con_codigo(409, "slack_sin_token")
 
 
 def _numero_del_ticket(db: Session, conv: ChannelConversation) -> Optional[str]:
@@ -75,12 +74,11 @@ def entregar_adjunto(db: Session, conv: ChannelConversation, fichero, document_i
     if conv.channel == "whatsapp":
         from app.services.service_desk import canal_whatsapp
         if not canal_whatsapp.ventana_abierta(conv):
-            raise ErrorDeDominio(409, "Fuera de la ventana de 24 h de WhatsApp: los adjuntos solo salen "
-                                      "después de un mensaje del cliente.")
+            raise error_con_codigo(409, "whatsapp_adjunto_fuera_de_ventana")
     elif conv.channel == "slack":
         exigir_que_se_pueda_enviar(db, conv)
     else:
-        raise ErrorDeDominio(422, "Este canal no admite enviar adjuntos desde aquí.")
+        raise error_con_codigo(422, "canal_sin_adjuntos")
     cuerpo = f"[adjunto: {fichero.nombre}]" + (f"\n{caption}" if caption else "")
     m = conversaciones.anotar(db, conv, "out", "agent", cuerpo, author_user_id=agente.id)
     m.attachment_document_id = document_id

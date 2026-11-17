@@ -9,7 +9,7 @@
 import { useId, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FileWarning, Link2, Plus, RefreshCw, Trash2, Unlink } from 'lucide-react'
-import { Button, EmptyState, Modal, Section, Spinner, Select } from '../../components/ui'
+import { Button, EmptyState, Modal, Section, Spinner, Select, useErroresDeCampo } from '../../components/ui'
 import Pagination from '../../components/ui/Pagination'
 import DateInput from '../../components/ui/DateInput'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -39,43 +39,46 @@ function NuevaFactura({ factura, onClose }: { factura?: FacturaDeProveedor | nul
   })
   const [error, setError] = useState('')
   const campo = (k: keyof typeof f) => (e: { target: { value: string } }) => setF(v => ({ ...v, [k]: e.target.value }))
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: () => {
       const cuerpo = { ...f, vendor_id: f.vendor_id || null, contract_id: f.contract_id || null, currency: f.currency || null }
       return factura ? almApi.editarFactura(factura.id, cuerpo) : almApi.crearFactura(cuerpo)
     },
     onSuccess: () => { toast.success(t('alm.invoice_saved')); CLAVES.forEach(k => qc.invalidateQueries({ queryKey: [k] })); onClose() },
-    onError: e => setError(errorAlm(t, e)),
+    onError: (e: unknown) => { if (!campos.recoger(e)) setError(errorAlm(t, e)) },
   })
   return (
     <Modal open onClose={onClose} width={680} title={factura ? t('alm.invoice_edit') : t('alm.invoice_new')}>
       <div className="almf-rejilla-2">
         <div><label className="alm-label" htmlFor={`${id}-n`}>{t('alm.invoice_number')} *</label>
-          <input id={`${id}-n`} className="alm-input" value={f.number} onChange={campo('number')} /></div>
+          <input id={`${id}-n`} className="alm-input" value={f.number} onChange={campo('number')} />{msg('number')}</div>
         <div><label className="alm-label" htmlFor={`${id}-d`}>{t('alm.invoice_date')} *</label>
-          <DateInput id={`${id}-d`} className="alm-input" value={f.issue_date} onChange={campo('issue_date')} /></div>
+          <DateInput id={`${id}-d`} className="alm-input" value={f.issue_date} onChange={campo('issue_date')} />{msg('issue_date')}</div>
         <div><label className="alm-label" htmlFor={`${id}-c`}>{t('alm.licenses_label_contract')}</label>
           <Select suelto placeholder={false} id={`${id}-c`} className="alm-input" value={f.contract_id} onChange={campo('contract_id')}>
             <option value="">{t('alm.licenses_none_contract')}</option>
             {contratos.map(c => <option key={c.id} value={c.id}>{c.title}{c.vendor_name ? ` · ${c.vendor_name}` : ''}</option>)}
-          </Select></div>
+          </Select>{msg('contract_id')}</div>
         <div><label className="alm-label" htmlFor={`${id}-v`}>{t('alm.licenses_label_vendor')}</label>
           <Select suelto placeholder={false} id={`${id}-v`} className="alm-input" value={f.vendor_id} onChange={campo('vendor_id')}>
             <option value="">{t('alm.vendor_from_contract')}</option>
             {proveedores.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-          </Select></div>
+          </Select>{msg('vendor_id')}</div>
         <div><label className="alm-label" htmlFor={`${id}-pf`}>{t('alm.period_from')}</label>
-          <DateInput id={`${id}-pf`} className="alm-input" value={f.period_from} onChange={campo('period_from')} /></div>
+          <DateInput id={`${id}-pf`} className="alm-input" value={f.period_from} onChange={campo('period_from')} />{msg('period_from')}</div>
         <div><label className="alm-label" htmlFor={`${id}-pt`}>{t('alm.period_to')}</label>
-          <DateInput id={`${id}-pt`} className="alm-input" value={f.period_to} onChange={campo('period_to')} /></div>
+          <DateInput id={`${id}-pt`} className="alm-input" value={f.period_to} onChange={campo('period_to')} />{msg('period_to')}</div>
         <div><label className="alm-label" htmlFor={`${id}-a`}>{t('alm.invoice_amount')} *</label>
-          <input id={`${id}-a`} type="number" min={0} step="0.01" className="alm-input" value={f.amount} onChange={campo('amount')} /></div>
+          <input id={`${id}-a`} type="number" min={0} step="0.01" className="alm-input" value={f.amount} onChange={campo('amount')} />{msg('amount')}</div>
         <div><label className="alm-label" htmlFor={`${id}-t`}>{t('alm.invoice_tax')}</label>
-          <input id={`${id}-t`} type="number" min={0} step="0.01" className="alm-input" value={f.tax_amount} onChange={campo('tax_amount')} /></div>
+          <input id={`${id}-t`} type="number" min={0} step="0.01" className="alm-input" value={f.tax_amount} onChange={campo('tax_amount')} />{msg('tax_amount')}</div>
         <div><label className="alm-label" htmlFor={`${id}-cur`}>{t('alm.cost_centers_label_currency')}</label>
-          <input id={`${id}-cur`} maxLength={3} className="alm-input" value={f.currency} onChange={campo('currency')} placeholder={t('alm.currency_from_contract')} /></div>
+          <input id={`${id}-cur`} maxLength={3} className="alm-input" value={f.currency} onChange={campo('currency')} placeholder={t('alm.currency_from_contract')} />{msg('currency')}</div>
         <div className="almf-col-completa"><label className="alm-label" htmlFor={`${id}-no`}>{t('alm.contracts_label_notes')}</label>
-          <textarea id={`${id}-no`} rows={2} className="alm-input" value={f.notes} onChange={campo('notes')} /></div>
+          <textarea id={`${id}-no`} rows={2} className="alm-input" value={f.notes} onChange={campo('notes')} />{msg('notes')}</div>
       </div>
       {error && <p className="u-field-error" role="alert">{error}</p>}
       <div className="almf-acciones-modal">

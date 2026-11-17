@@ -323,8 +323,11 @@ export default function ImputarPage(): JSX.Element {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState({ hours: 0, description: '', is_billable: false })
 
+  const camposEdit = useErroresDeCampo()
+  const msgEdit = (k: string) => camposEdit.de(k) ? <div className="imput-horas-error" role="alert">{camposEdit.de(k)}</div> : null
   const { mutate: updateImp, isPending: updating } = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => imputationsApi.update(id, data),
+    onMutate: () => camposEdit.limpiar(),
     onSuccess: () => {
       setEditingId(null)
       qc.invalidateQueries({ queryKey: ['my-week'] })
@@ -335,7 +338,7 @@ export default function ImputarPage(): JSX.Element {
       qc.invalidateQueries({ queryKey: ['timesheets-team'] })
       toast.success(t('imputa_page.updated_ok'))
     },
-    onError: (e: unknown) => toast.error(extractErr(e, t('common.error') || GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => { if (!camposEdit.recoger(e)) toast.error(extractErr(e, t('common.error') || GENERIC_ERROR_FALLBACK)) },
   })
 
   const { mutate: deleteImp } = useMutation({
@@ -566,18 +569,20 @@ export default function ImputarPage(): JSX.Element {
                       type="number" step="0.25" min="0.25" max="24"
                       value={editForm.hours}
                       aria-label={t('imputa_page.hours_edit')}
-                      onChange={e => setEditForm(f => ({ ...f, hours: parseFloat(e.target.value) || 0 }))}
+                      onChange={e => { camposEdit.limpiar('hours'); setEditForm(f => ({ ...f, hours: parseFloat(e.target.value) || 0 })) }}
                       className="imput-input-6"
                     />
+                    {msgEdit('hours')}
                   </div>
                   <div className="imput-box-11">
                     <label className="imput-label-10">{t('imputa_page.description_edit').toUpperCase()}</label>
                     <input
                       value={editForm.description}
                       aria-label={t('imputa_page.description_edit')}
-                      onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
+                      onChange={e => { camposEdit.limpiar('description'); setEditForm(f => ({ ...f, description: e.target.value })) }}
                       className="imput-input-7"
                     />
+                    {msgEdit('description')}
                   </div>
                   <div className="imput-box-12">
                     <label className={`imput-label-11 ${editForm.is_billable ? 'imputarp-sx14' : 'imputarp-sx17'}`}>

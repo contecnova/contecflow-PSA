@@ -186,6 +186,14 @@ def send_attachment(conv_id: str, payload: AdjuntoIn, db: Session = Depends(get_
     return APIResponse.ok(data=conversaciones.serializar_mensaje(m, db))
 
 
+@router.get("/tickets/{ticket_id}/conversations", summary="Conversaciones de canal abiertas de un ticket y sus adjuntos")
+def ticket_channel_conversations(ticket_id: str, db: Session = Depends(get_db),
+                                 current_user: User = Depends(require_internal_user)):
+    """Para enviar adjuntos desde la ficha del ticket (17-11-2026): el envio es
+    `POST /conversations/{id}/attachments`, igual que en la bandeja."""
+    return APIResponse.ok(data=conversaciones.del_ticket_para_adjuntos(db, ticket_id, current_user.organization_id))
+
+
 @router.post("/conversations/{conv_id}/close", summary="Cerrar la conversación")
 def close_conversation(conv_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
     return APIResponse.ok(data=conversaciones.serializar(db, conversaciones.cerrar(db, conv_id, current_user)))

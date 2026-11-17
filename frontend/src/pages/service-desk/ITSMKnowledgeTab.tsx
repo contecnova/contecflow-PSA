@@ -30,7 +30,7 @@ import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import { sdKbApi, problemsApi } from '../../services/api'
 import type { SdArticuloKb, SdArticuloKbDetalle, SdCalidadKb, SdErrorConocido, SdTicketDeErrorConocido } from '../../services/api/tipos-sd'
-import { Button, Checkbox, Spinner, EmptyState, Modal, Select, StatusBadge, Tabs, IconButton } from '../../components/ui'
+import { Button, Checkbox, Spinner, EmptyState, Modal, Select, StatusBadge, Tabs, IconButton, useErroresDeCampo } from '../../components/ui'
 import type { StatusBadgeKind } from '../../components/ui/StatusBadge'
 import MarkdownText from '../../components/ui/MarkdownText'
 import { etiquetaSd, PBadge, PRIORITY_LABEL, SBadge } from './sdUtils'
@@ -537,10 +537,13 @@ function KBArticleModal({ article, onClose, onSaved, inicial }: KBArticleModalPr
     status: article?.status || 'draft',
     is_public: article?.is_public ?? true,
   })
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: (data: typeof form): Promise<unknown> => isEdit && article ? sdKbApi.update(article.id, data) : sdKbApi.create(data),
     onSuccess: () => { toast.success(isEdit ? t('itsmknowledge.articulo_actualizado') : t('itsmknowledge.articulo_creado')); onSaved() },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
   })
   const set = (k: keyof typeof form) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm(f => ({ ...f, [k]: e.target.type === 'checkbox' ? (e.target as HTMLInputElement).checked : e.target.value }))
@@ -548,14 +551,14 @@ function KBArticleModal({ article, onClose, onSaved, inicial }: KBArticleModalPr
   return (
     <Modal open title={isEdit ? t('itsmknowledge.editar_articulo') : t('itsmknowledge.nuevo_articulo_titulo')} onClose={onClose} size="lg">
       <div className="u-stack-14">
-        <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="itk-label">{t('itsmknowledge.titulo_req')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={set('title')} className="ds-input" /></div>
-        <div><label id={`${idPrefix}-summary-et`} htmlFor={`${idPrefix}-summary`} className="itk-label">{t('itsmknowledge.resumen')}</label><input id={`${idPrefix}-summary`} aria-labelledby={`${idPrefix}-summary-et`} value={form.summary} onChange={set('summary')} className="ds-input" placeholder={t('itsmknowledge.resumen_del_articulo')} /></div>
-        <div><label id={`${idPrefix}-body-et`} htmlFor={`${idPrefix}-body`} className="itk-label">{t('itsmknowledge.contenido_req')}</label><textarea id={`${idPrefix}-body`} aria-labelledby={`${idPrefix}-body-et`} value={form.body} onChange={set('body')} rows={8} className="ds-input itk-textarea" placeholder={t('itsmknowledge.contenido_del_articulo')} /></div>
+        <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="itk-label">{t('itsmknowledge.titulo_req')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={set('title')} className="ds-input" />{msg('title')}</div>
+        <div><label id={`${idPrefix}-summary-et`} htmlFor={`${idPrefix}-summary`} className="itk-label">{t('itsmknowledge.resumen')}</label><input id={`${idPrefix}-summary`} aria-labelledby={`${idPrefix}-summary-et`} value={form.summary} onChange={set('summary')} className="ds-input" placeholder={t('itsmknowledge.resumen_del_articulo')} />{msg('summary')}</div>
+        <div><label id={`${idPrefix}-body-et`} htmlFor={`${idPrefix}-body`} className="itk-label">{t('itsmknowledge.contenido_req')}</label><textarea id={`${idPrefix}-body`} aria-labelledby={`${idPrefix}-body-et`} value={form.body} onChange={set('body')} rows={8} className="ds-input itk-textarea" placeholder={t('itsmknowledge.contenido_del_articulo')} />{msg('body')}</div>
         <div className="u-grid2-12">
-          <div><label id={`${idPrefix}-tags-et`} htmlFor={`${idPrefix}-tags`} className="itk-label">{t('itsmknowledge.etiquetas_separadas_por_coma')}</label><input id={`${idPrefix}-tags`} aria-labelledby={`${idPrefix}-tags-et`} value={form.tags} onChange={set('tags')} className="ds-input" placeholder={t('itsmknowledge.ph_tags')} /></div>
-          <div><label htmlFor={`${idPrefix}-status`} className="itk-label">{t('itsmknowledge.estado')}</label><Select suelto placeholder={false} id={`${idPrefix}-status`} value={form.status} onChange={set('status')}>{['draft', 'published', 'archived'].map(v => <option key={v} value={v}>{t(`sd_cfg.kb_status_${v}`)}</option>)}</Select></div>
+          <div><label id={`${idPrefix}-tags-et`} htmlFor={`${idPrefix}-tags`} className="itk-label">{t('itsmknowledge.etiquetas_separadas_por_coma')}</label><input id={`${idPrefix}-tags`} aria-labelledby={`${idPrefix}-tags-et`} value={form.tags} onChange={set('tags')} className="ds-input" placeholder={t('itsmknowledge.ph_tags')} />{msg('tags')}</div>
+          <div><label htmlFor={`${idPrefix}-status`} className="itk-label">{t('itsmknowledge.estado')}</label><Select suelto placeholder={false} id={`${idPrefix}-status`} value={form.status} onChange={set('status')}>{['draft', 'published', 'archived'].map(v => <option key={v} value={v}>{t(`sd_cfg.kb_status_${v}`)}</option>)}</Select>{msg('status')}</div>
         </div>
-        <Checkbox className="itk-check" aria-label={t('itsmknowledge.visible_en_el_portal_cliente')} checked={!!form.is_public} onChange={v => setForm(f => ({ ...f, is_public: v }))} label={t('itsmknowledge.visible_en_el_portal_cliente')} />
+        <Checkbox className="itk-check" aria-label={t('itsmknowledge.visible_en_el_portal_cliente')} checked={!!form.is_public} onChange={v => { campos.limpiar('is_public'); setForm(f => ({ ...f, is_public: v })) }} label={t('itsmknowledge.visible_en_el_portal_cliente')} />
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('itsmknowledge.cancelar')}</Button>
           <Button onClick={() => mutate(form)} disabled={isPending || !form.title || !form.body} loading={isPending}>{isEdit ? t('itsmknowledge.guardar_cambios') : t('itsmknowledge.crear_articulo')}</Button>

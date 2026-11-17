@@ -18,7 +18,7 @@ import { useToast } from '../../context/ToastContext'
 import { sdRoutingApi, sdGroupsApi, sdSlaPoliciesApi, usersApi, ticketsApi } from '../../services/api'
 import type { SdIncidenteMayor, SdReglaDeEnrutado, SdTicket } from '../../services/api/tipos-sd'
 import type { AxiosResponse } from 'axios'
-import { Button, IconButton, Pulsable, Select, TablaSimple, Spinner, EmptyState, Modal, useSort, SortableTH, ariaSort } from '../../components/ui'
+import { Button, IconButton, Pulsable, Select, TablaSimple, Spinner, EmptyState, Modal, useSort, SortableTH, ariaSort, useErroresDeCampo } from '../../components/ui'
 import StatusBadge from '../../components/ui/StatusBadge'
 import Pagination from '../../components/ui/Pagination'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -285,10 +285,13 @@ function DeclareMIModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
   const toast = useToast()
   const idPrefix = useId()
   const [form, setForm] = useState({ title: '', severity: 'P1', impact_statement: '' })
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: (data: Record<string, unknown>) => sdRoutingApi.createMajorIncident(data),
     onSuccess: onSaved,
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
   })
   const set = (k: string) => (e: { target: { value: string } }) => setForm(f => ({ ...f, [k]: e.target.value }))
 
@@ -297,19 +300,19 @@ function DeclareMIModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
       <div className="u-stack-16">
         <div>
           <label id={`${idPrefix}-title-et`} htmlFor={`${idPrefix}-title`} className="campo-etiqueta">{t('service_desk.mi_title_lbl')} *</label>
-          <input id={`${idPrefix}-title`} aria-labelledby={`${idPrefix}-title-et`} value={form.title} onChange={set('title')} className="campo-form" />
+          <input id={`${idPrefix}-title`} aria-labelledby={`${idPrefix}-title-et`} value={form.title} onChange={set('title')} className="campo-form" />{msg('title')}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-severity`} className="campo-etiqueta">{t('service_desk.mi_severity_lbl')}</label>
           <Select suelto placeholder={false} id={`${idPrefix}-severity`} value={form.severity} onChange={set('severity')} className="campo-form">
             <option value="P1">{t('service_desk.priority_p1')}</option>
             <option value="P2">{t('service_desk.priority_p2')}</option>
-          </Select>
+          </Select>{msg('severity')}
         </div>
         <div>
           <label id={`${idPrefix}-impact-et`} htmlFor={`${idPrefix}-impact`} className="campo-etiqueta">{t('service_desk.mi_impact_lbl')}</label>
           <textarea id={`${idPrefix}-impact`} aria-labelledby={`${idPrefix}-impact-et`} value={form.impact_statement} onChange={set('impact_statement')} rows={3}
-            className="campo-form sdqr-textarea" />
+            className="campo-form sdqr-textarea" />{msg('impact_statement')}
         </div>
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -500,12 +503,15 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
     queryFn: () => sdSlaPoliciesApi.list().then(r => r.data).catch(() => []),
   })
 
+  const camposB = useErroresDeCampo()
+  const msgB = (k: string) => camposB.de(k) ? <div className="u-field-error">{camposB.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
+    onMutate: () => camposB.limpiar(),
     mutationFn: (data: Record<string, unknown>): Promise<unknown> => isEdit
       ? sdRoutingApi.update(rule!.id, data)
       : sdRoutingApi.create(data),
     onSuccess: onSaved,
-    onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => { camposB.recoger(e); toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
   })
 
   const IS = 'campo-form'
@@ -643,14 +649,14 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
         <div className="sdqr-name-row">
           <div>
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('service_desk.routing_name_lbl')} *</label>
-            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              className={IS} autoFocus />
+            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => { camposB.limpiar('name'); setForm(f => ({ ...f, name: e.target.value })) }}
+              className={IS} autoFocus />{msgB('name')}
           </div>
           <div>
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('service_desk.routing_order_lbl')}</label>
             <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={form.priority}
-              onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}
-              className={IS} />
+              onChange={e => { camposB.limpiar('priority'); setForm(f => ({ ...f, priority: e.target.value })) }}
+              className={IS} />{msgB('priority')}
           </div>
         </div>
 

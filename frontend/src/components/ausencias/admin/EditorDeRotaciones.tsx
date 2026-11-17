@@ -8,12 +8,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Repeat, Trash2 } from 'lucide-react'
 import { ausenciasApi } from '../../../services/api/ausencias'
 import type { Rotacion, RotacionIn, Turno } from '../../../services/api/tipos-ausencias'
-import { Button, EmptyState, Modal, Spinner, Select, Pulsable } from '../../ui'
+import { Button, EmptyState, Modal, Spinner, Select, Pulsable , useErroresDeCampo } from '../../ui'
 import { UserSelect } from '../../ui/EntitySelect'
 import DateInput from '../../ui/DateInput'
 import { confirmar } from '../../../context/ConfirmContext'
 import { useToast } from '../../../context/ToastContext'
-import { AvisoDeError, Casilla, Muestra, errorDe, isoDe, useT } from './comun'
+import { AvisoDeError, ErrorDeCampo, hayDeCampo, Casilla, Muestra, errorDe, isoDe, useT } from './comun'
 
 const NUEVA = (): RotacionIn => ({ nombre: '', ciclo: [null, null, null, null, null, null, null], inicio: isoDe(new Date()), activo: true, miembros: [] })
 
@@ -64,8 +64,11 @@ function Formulario({ id, inicial, turnos, onCerrar }: { id: string | null; inic
   const qc = useQueryClient()
   const toast = useToast()
   const [d, setD] = useState(inicial)
+  const campos = useErroresDeCampo()
   const refrescar = () => qc.invalidateQueries({ queryKey: ['ausencias'] })
   const guardar = useMutation({
+    onMutate: () => campos.limpiar(),
+    onError: e => { campos.recoger(e) },
     mutationFn: () => (id ? ausenciasApi.guardarRotacion(id, d) : ausenciasApi.crearRotacion(d)),
     onSuccess: () => { toast.success(ta('guardado')); refrescar(); onCerrar() },
   })
@@ -82,6 +85,7 @@ function Formulario({ id, inicial, turnos, onCerrar }: { id: string | null; inic
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('nombre')}</span>
             <input aria-label={ta('nombre')} className="ausadm-campo" required value={d.nombre} onChange={e => setD({ ...d, nombre: e.target.value })} />
+            <ErrorDeCampo texto={campos.de('nombre')} />
           </label>
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('inicio_del_ciclo')}</span>
@@ -134,7 +138,7 @@ function Formulario({ id, inicial, turnos, onCerrar }: { id: string | null; inic
             {ta('anadir_persona')}</Button>
         </fieldset>
         <Casilla etiqueta={ta('activa')} valor={d.activo} onChange={v => setD({ ...d, activo: v })} />
-        <AvisoDeError error={guardar.error} defecto={ta('error_guardar')} />
+        <AvisoDeError error={hayDeCampo(campos) ? null : guardar.error} defecto={ta('error_guardar')} />
         <div className="ausadm-acciones">
           {id && <Button variant="danger" icon={<Trash2 size={14} />} loading={borrar.isPending}
             onClick={async () => { if (await confirmar({ title: ta('borrar'), danger: true, message: ta('borrar_rotacion_confirmar') })) borrar.mutate() }}>

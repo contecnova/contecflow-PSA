@@ -275,6 +275,9 @@ export const canalesApi = {
   /** Envía un documento del ticket por el canal (WhatsApp o el hilo de Slack), 17-11-2026. */
   enviarAdjunto: (id: string, documentId: string, caption?: string) =>
     D<MensajeDeCanal>(api.post(`/sd/channels/conversations/${id}/attachments`, { document_id: documentId, caption: caption || undefined })),
+  /** Conversaciones abiertas de WhatsApp/Slack de un ticket y sus documentos (ficha del ticket, 17-11-2026). */
+  delTicket: (ticketId: string) =>
+    D<{ conversations: Conversacion[]; attachments: AdjuntoDelTicket[] }>(api.get(`/sd/channels/tickets/${ticketId}/conversations`)),
   tomar: (id: string) => D<Conversacion>(api.post(`/sd/channels/conversations/${id}/take`)),
   /** `salida`: la vista previa revisada (`client_text`/`client_language`); es lo que recibe el cliente (16-11-2026). */
   responder: (id: string, body: string, salida?: { client_text: string; client_language: string } | null) =>

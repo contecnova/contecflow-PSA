@@ -17,7 +17,7 @@ import { useToast } from '../../context/ToastContext'
 import useUserPreferences from '../../hooks/useUserPreferences'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { Bell, Languages, Palette, ShieldCheck, UserRound } from 'lucide-react'
-import { Avatar, Checkbox, IconButton, Pulsable } from '../ui'
+import { Avatar, Checkbox, IconButton, Pulsable, useErroresDeCampo } from '../ui'
 import { Drawer } from '../ui/Drawer'
 import { useTabListKeys } from '../ui/Tabs'
 import PasskeysSection from '../security/PasskeysSection'
@@ -104,15 +104,18 @@ export default function UserProfilePanel({ onClose }: Props) {
     avatar_url: (user?.avatar_url as string) || '',
   })
 
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate: saveProfile, isPending: savingProfile } = useMutation({
     mutationFn: (data: ProfileForm) => usersApi.updateMe(data),
+    onMutate: () => campos.limpiar(),
     onSuccess: (res: { data: unknown }) => {
       setUser(res.data as import('../../context/AuthContext').User)
       qc.invalidateQueries({ queryKey: ['auth-me'] })
       toast.success(traducir('userprofilepanel.perfil_actualizado'))
     },
     // TODO type: backend error envelope — needs shared type
-    onError: (e: { response?: { data?: { detail?: string } } }) => toast.error(e?.response?.data?.detail || traducir('userprofilepanel.error_guardar')),
+    onError: (e: { response?: { data?: { detail?: string } } }) => { if (!campos.recoger(e)) toast.error(e?.response?.data?.detail || traducir('userprofilepanel.error_guardar')) },
   })
 
   // ── Apariencia ──────────────────────────────────────────────────────────────
@@ -145,11 +148,14 @@ export default function UserProfilePanel({ onClose }: Props) {
 
   // ── Contraseña ──────────────────────────────────────────────────────────────
   const [pwForm, setPwForm] = useState<PasswordForm>({ current: '', new: '', confirm: '' })
+  const camposPw = useErroresDeCampo()
+  const msgPw = (k: string) => camposPw.de(k) ? <div className="u-field-error">{camposPw.de(k)}</div> : null
   const { mutate: changePassword, isPending: changingPw } = useMutation({
     mutationFn: (data: { current_password: string; new_password: string }) => authApi.changePassword(data),
+    onMutate: () => camposPw.limpiar(),
     onSuccess: () => { toast.success(traducir('userprofilepanel.contrasena_actualizada')); setPwForm({ current:'', new:'', confirm:'' }) },
     // TODO type: backend error envelope — needs shared type
-    onError: (e: { response?: { data?: { detail?: string } } }) => toast.error(e?.response?.data?.detail || traducir('userprofilepanel.error_contrasena')),
+    onError: (e: { response?: { data?: { detail?: string } } }) => { if (!camposPw.recoger(e)) toast.error(e?.response?.data?.detail || traducir('userprofilepanel.error_contrasena')) },
   })
 
   // Cinco pestañas en 380 px: columnas iguales con el icono encima, para que
@@ -216,7 +222,7 @@ export default function UserProfilePanel({ onClose }: Props) {
                 <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="usprpa-box-7">{traducir('userprofilepanel.email')}</label>
                 <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={profileForm.email}
                   onChange={e => setProfileForm(f => ({ ...f, email: e.target.value }))}
-                  className="usprpa-is" type="email" placeholder={traducir('userprofilepanel.ph_email')} />
+                  className="usprpa-is" type="email" placeholder={traducir('userprofilepanel.ph_email')} />{msg('email')}
               </div>
 
               {/* Nombre */}
@@ -225,13 +231,13 @@ export default function UserProfilePanel({ onClose }: Props) {
                   <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="usprpa-box-7">{traducir('userprofilepanel.nombre')}</label>
                   <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={profileForm.first_name}
                     onChange={e => setProfileForm(f => ({ ...f, first_name: e.target.value }))}
-                    className="usprpa-is" placeholder={traducir('userprofilepanel.ph_nombre')} />
+                    className="usprpa-is" placeholder={traducir('userprofilepanel.ph_nombre')} />{msg('first_name')}
                 </div>
                 <div>
                   <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="usprpa-box-7">{traducir('userprofilepanel.apellidos')}</label>
                   <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={profileForm.last_name}
                     onChange={e => setProfileForm(f => ({ ...f, last_name: e.target.value }))}
-                    className="usprpa-is" placeholder={traducir('userprofilepanel.ph_apellidos')} />
+                    className="usprpa-is" placeholder={traducir('userprofilepanel.ph_apellidos')} />{msg('last_name')}
                 </div>
               </div>
 
@@ -239,21 +245,21 @@ export default function UserProfilePanel({ onClose }: Props) {
                 <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="usprpa-box-7">{traducir('userprofilepanel.cargo')}</label>
                 <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={profileForm.job_title}
                   onChange={e => setProfileForm(f => ({ ...f, job_title: e.target.value }))}
-                  className="usprpa-is" placeholder={traducir('userprofilepanel.ph_cargo')} />
+                  className="usprpa-is" placeholder={traducir('userprofilepanel.ph_cargo')} />{msg('job_title')}
               </div>
 
               <div>
                 <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="usprpa-box-7">{traducir('userprofile.telefono')}</label>
                 <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={profileForm.phone}
                   onChange={e => setProfileForm(f => ({ ...f, phone: e.target.value }))}
-                  className="usprpa-is" placeholder="+34 600 000 000" type="tel" />
+                  className="usprpa-is" placeholder="+34 600 000 000" type="tel" />{msg('phone')}
               </div>
 
               <div>
                 <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="usprpa-box-7">{traducir('userprofile.url_de_avatar_opcional')}</label>
                 <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={profileForm.avatar_url}
                   onChange={e => setProfileForm(f => ({ ...f, avatar_url: e.target.value }))}
-                  className="usprpa-is" placeholder="https://..." />
+                  className="usprpa-is" placeholder="https://..." />{msg('avatar_url')}
                 {profileForm.avatar_url && (
                   <img src={profileForm.avatar_url} alt="preview"
                     loading="lazy" decoding="async"
@@ -420,8 +426,9 @@ export default function UserProfilePanel({ onClose }: Props) {
                     <div key={key}>
                       <label id={`${idCampo}-pw-${key}-et`} htmlFor={`${idCampo}-pw-${key}`} className="usprpa-box-7">{label}</label>
                       <input id={`${idCampo}-pw-${key}`} aria-labelledby={`${idCampo}-pw-${key}-et`} type="password" value={pwForm[key]}
-                        onChange={e => setPwForm(f => ({ ...f, [key]: e.target.value }))}
+                        onChange={e => { camposPw.limpiar(); setPwForm(f => ({ ...f, [key]: e.target.value })) }}
                         className="usprpa-is" placeholder={ph} />
+                      {msgPw(key === 'current' ? 'current_password' : key === 'new' ? 'new_password' : key)}
                     </div>
                   ))}
                   {pwForm.new && pwForm.confirm && pwForm.new !== pwForm.confirm && (

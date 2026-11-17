@@ -8,7 +8,7 @@ from app.models.service_desk import Announcement
 from app.schemas.service_desk import AnnouncementIn, AnnouncementUpdate
 from app.services.pagination_service import ConCabeceras, paginate_query
 import logging
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error as error_con_codigo
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +61,7 @@ def get_announcement_by_id(db: Session, ann_id: str) -> Optional[Announcement]:
 def deactivate_announcement_record(db: Session, ann_id: str) -> Announcement:
     announcement = get_announcement_by_id(db, ann_id)
     if not announcement:
-        raise ErrorDeDominio(404)
+        raise error_con_codigo(404, "aviso_no_encontrado")
     announcement.is_active = False
     return announcement
 
@@ -69,9 +69,9 @@ def deactivate_announcement_record(db: Session, ann_id: str) -> Announcement:
 def update_announcement_record(db: Session, ann_id: str, payload: AnnouncementUpdate) -> Announcement:
     announcement = get_announcement_by_id(db, ann_id)
     if not announcement or not announcement.is_active:
-        raise ErrorDeDominio(404)
+        raise error_con_codigo(404, "aviso_no_encontrado")
     for key, value in payload.model_dump(exclude_unset=True).items():
         if key in ("title", "body") and (value is None or not str(value).strip()):
-            raise ErrorDeDominio(422, f"{key} es obligatorio")
+            raise error_con_codigo(422, "campo_obligatorio", campo=key)
         setattr(announcement, key, value)
     return announcement

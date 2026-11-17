@@ -14,7 +14,7 @@ import type { PlanDeCapacidad } from '../services/api/tipos-personas'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { TrendingUp, Plus, X, Users, Building2, ClipboardList, CalendarRange, Info } from 'lucide-react'
-import { Button, Modal, EmptyState, KpiCard, RejillaPersonaDia, columnasDeSemanas, Pulsable, Select } from '../components/ui'
+import { Button, Modal, EmptyState, KpiCard, RejillaPersonaDia, columnasDeSemanas, Pulsable, Select, useErroresDeCampo } from '../components/ui'
 import type { TonoDeRejilla } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
@@ -121,7 +121,10 @@ function AssignModal({ prefill, onClose }: { prefill: AssignPrefill | null; onCl
     queryFn: () => projectsApi.list({}).then(r => (unwrapList(r) as ProjectItem[]).filter((p) => p.status === 'active')),
   })
 
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: (d: z.infer<EsquemaAsignacion>) => capacityApi.createPlan(d),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['capacity-board'] })
@@ -131,7 +134,7 @@ function AssignModal({ prefill, onClose }: { prefill: AssignPrefill | null; onCl
       validation.setErrors({})
       onClose()
     },
-    onError: e => toast.error(extractErr(e, t('capacity.error_guardar'))),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, t('capacity.error_guardar'))) },
   })
 
   const setField = (key: keyof AssignForm) => (e: { target: { value: string } }) => {
@@ -156,7 +159,7 @@ function AssignModal({ prefill, onClose }: { prefill: AssignPrefill | null; onCl
           <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.user_id} onChange={setField('user_id')} className="cap-input" aria-invalid={!!validation.errors.user_id}>
             <option value="">{t('capacity.seleccionar')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-          </Select>
+          </Select>{msg('user_id')}
           {validation.errors.user_id && <div className="u-field-error" role="alert">{validation.errors.user_id}</div>}
         </div>
         <div>
@@ -164,7 +167,7 @@ function AssignModal({ prefill, onClose }: { prefill: AssignPrefill | null; onCl
           <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.project_id} onChange={setField('project_id')} className="cap-input">
             <option value="">{t('capacity.sin_proyecto_disponible')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-          </Select>
+          </Select>{msg('project_id')}
         </div>
         <div className="u-grid2-12">
           <div>
@@ -173,19 +176,19 @@ function AssignModal({ prefill, onClose }: { prefill: AssignPrefill | null; onCl
               onChange={e => {
                 setForm(current => ({ ...current, week_start: monday(e.target.value) }))
                 validation.clearFieldError('week_start')
-              }} className="cap-input" aria-invalid={!!validation.errors.week_start} />
+              }} className="cap-input" aria-invalid={!!validation.errors.week_start} />{msg('week_start')}
             {validation.errors.week_start && <div className="u-field-error" role="alert">{validation.errors.week_start}</div>}
           </div>
           <div>
             <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cap-label">{t('capacity.horas_planificadas')}</label>
             <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={form.planned_hours} min="1" max="80" step="0.5"
-              onChange={setField('planned_hours')} className="cap-input" aria-invalid={!!validation.errors.planned_hours} />
+              onChange={setField('planned_hours')} className="cap-input" aria-invalid={!!validation.errors.planned_hours} />{msg('planned_hours')}
             {validation.errors.planned_hours && <div className="u-field-error" role="alert">{validation.errors.planned_hours}</div>}
           </div>
         </div>
         <div>
           <label id={`${idCampo}-eta183`} htmlFor={`${idCampo}-a183`} className="cap-label">{t('capacity.notas')}</label>
-          <input id={`${idCampo}-a183`} aria-labelledby={`${idCampo}-eta183`} value={form.notes} onChange={setField('notes')} className="cap-input" placeholder={t('capacity.notas_de_la_asignacion')} />
+          <input id={`${idCampo}-a183`} aria-labelledby={`${idCampo}-eta183`} value={form.notes} onChange={setField('notes')} className="cap-input" placeholder={t('capacity.notas_de_la_asignacion')} />{msg('notes')}
         </div>
       </div>
       <div className="u-actions-8">

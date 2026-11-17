@@ -6,7 +6,7 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { cmdbApi } from '../services/api'
-import { Button, Spinner, Modal, Tabs, KpiCard, EmptyState, IconButton, Pulsable, Select, TablaSimple } from '../components/ui'
+import { Button, Spinner, Modal, Tabs, KpiCard, EmptyState, IconButton, Pulsable, Select, TablaSimple, useErroresDeCampo } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { ArrowDown, ArrowUp, Bot, Box, Database, History, Link2, ListTree, Network, Pencil, Plus, Radar, Shapes, Trash2, X, Zap } from 'lucide-react'
@@ -124,12 +124,15 @@ function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () => void 
   const { data: propias } = useQuery({ queryKey: ['sdm-ci-classes'], queryFn: cmdbMercadoApi.clases, staleTime: STALE_DEFAULT_MS })
   const [attrs, setAttrs] = useState<Record<string, string>>(
     Object.fromEntries(Object.entries(item?.attributes || {}).map(([k, v]) => [k, String(v ?? '')])))
-  const set = (k: string) => (v: string) => setForm(f => ({ ...f, [k]: v }))
+  const set = (k: string) => (v: string) => { camposForm.limpiar(k); setForm(f => ({ ...f, [k]: v })) }
   const { data: deClase } = useCamposDeClase()
   const etiquetaDeCampo = useEtiquetaDeCampo()
   const campos = deClase?.clases[form.ci_type] ?? []
 
+  const camposForm = useErroresDeCampo()
+  const msgForm = (k: string) => camposForm.de(k) ? <div className="u-field-error">{camposForm.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
+    onMutate: () => camposForm.limpiar(),
     mutationFn: (): Promise<unknown> => {
       // Se envían solo los atributos de la clase elegida y con valor: cambiar
       // de clase no arrastra los de la anterior.
@@ -140,7 +143,7 @@ function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () => void 
       return isEdit ? cmdbApi.sdUpdate(item.id, d) : cmdbApi.sdCreate(d)
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['cmdb-items'] }); onClose() },
-    onError: e => toast.error(extractErr(e, t('cmdb.save_error'))),
+    onError: (e: unknown) => { if (!camposForm.recoger(e)) toast.error(extractErr(e, t('cmdb.save_error'))) },
   })
 
   const etiqueta = useEtiqueta()
@@ -151,7 +154,7 @@ function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () => void 
         <div className="cmdb-grid cmdb-grid--wide">
           <div>
             <label id={`${id('name')}-et`} className="cmdb-label" htmlFor={id('name')}>{t('cmdb.ci_name')}</label>
-            <input id={id('name')} aria-labelledby={`${id('name')}-et`} className="cmdb-input" value={form.name} onChange={e => set('name')(e.target.value)} />
+            <input id={id('name')} aria-labelledby={`${id('name')}-et`} className="cmdb-input" value={form.name} onChange={e => set('name')(e.target.value)} />{msgForm('name')}
           </div>
           <div>
             <label id={`${id('type')}-et`} className="cmdb-label" htmlFor={id('type')}>{t('cmdb.ci_type')}</label>
@@ -163,7 +166,7 @@ function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () => void 
               }}>
               {CI_TYPES.map(c => <option key={c} value={c}>{etiqueta('type_', c)}</option>)}
               {(propias?.classes ?? []).filter(c => c.is_active || c.key === form.ci_class).map(c => <option key={c.id} value={`clase:${c.key}`}>{c.label}</option>)}
-            </Select>
+            </Select>{msgForm('ci_type')}
           </div>
         </div>
         <div className="cmdb-grid">
@@ -171,26 +174,26 @@ function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () => void 
             <label id={`${id('status')}-et`} className="cmdb-label" htmlFor={id('status')}>{t('cmdb.status')}</label>
             <Select suelto placeholder={false} id={id('status')} className="cmdb-input" value={form.status} onChange={e => set('status')(e.target.value)}>
               {Object.keys(STATUS_COLOR).map(v => <option key={v} value={v}>{etiqueta('st_', v)}</option>)}
-            </Select>
+            </Select>{msgForm('status')}
           </div>
           <div>
             <label id={`${id('env')}-et`} className="cmdb-label" htmlFor={id('env')}>{t('cmdb.environment')}</label>
             <Select suelto placeholder={false} id={id('env')} className="cmdb-input" value={form.environment} onChange={e => set('environment')(e.target.value)}>
               {Object.keys(ENV_COLOR).map(v => <option key={v} value={v}>{etiqueta('env_', v)}</option>)}
-            </Select>
+            </Select>{msgForm('environment')}
           </div>
           <div>
             <label id={`${id('crit')}-et`} className="cmdb-label" htmlFor={id('crit')}>{t('cmdb.criticality')}</label>
             <Select suelto placeholder={false} id={id('crit')} className="cmdb-input" value={form.criticality} onChange={e => set('criticality')(e.target.value)}>
               {CRITICALITIES.map(v => <option key={v} value={v}>{etiqueta('crit_', v)}</option>)}
-            </Select>
+            </Select>{msgForm('criticality')}
           </div>
         </div>
         <div className="cmdb-grid">
           {(['hostname','ip_address','version'] as const).map(k => (
             <div key={k}>
               <label id={`${id(k)}-et`} className="cmdb-label" htmlFor={id(k)}>{t(`cmdb.f_${k}`)}</label>
-              <input id={id(k)} aria-labelledby={`${id(k)}-et`} className="cmdb-input" value={form[k]} onChange={e => set(k)(e.target.value)} />
+              <input id={id(k)} aria-labelledby={`${id(k)}-et`} className="cmdb-input" value={form[k]} onChange={e => set(k)(e.target.value)} />{msgForm(k)}
             </div>
           ))}
         </div>
@@ -213,7 +216,7 @@ function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () => void 
         </div>
         <div>
           <label id={`${id('descr')}-et`} className="cmdb-label" htmlFor={id('descr')}>{t('cmdb.descripcion')}</label>
-          <textarea id={id('descr')} aria-labelledby={`${id('descr')}-et`} className="cmdb-input" value={form.description} onChange={e => set('description')(e.target.value)} />
+          <textarea id={id('descr')} aria-labelledby={`${id('descr')}-et`} className="cmdb-input" value={form.description} onChange={e => set('description')(e.target.value)} />{msgForm('description')}
         </div>
         <div className="cmdb-form-actions">
           <Button variant="secondary" onClick={onClose}>{t('cmdb.cancel')}</Button>

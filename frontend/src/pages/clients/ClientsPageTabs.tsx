@@ -6,7 +6,7 @@ import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import { clientExtApi, clientsApi, contractsApi, type ClientContact, type Contract, licensesApi, portalApi, wsApi, apiWsUrl } from '../../services/api'
-import { Button, Spinner, EmptyState, Modal, Tabs, IconButton, Select, TablaSimple, Checkbox } from '../../components/ui'
+import { Button, Spinner, EmptyState, Modal, Tabs, IconButton, Select, TablaSimple, Checkbox, useErroresDeCampo } from '../../components/ui'
 import Pagination from '../../components/ui/Pagination'
 import { BadgeWithTooltip } from '../../components/ui/BadgeWithTooltip'
 import { IconFR, IconCR } from '../../components/ui/FRCRIcons'
@@ -219,10 +219,13 @@ export function ContactsTab({ cid }: { cid: string }) {
     queryKey: ['client-contacts', cid],
     queryFn: () => clientsApi.contacts(cid).then(r => r.data),
   })
+  const camposB = useErroresDeCampo()
+  const msgB = (k: string) => camposB.de(k) ? <div className="u-field-error">{camposB.de(k)}</div> : null
   const { mutate: add } = useMutation({
+    onMutate: () => camposB.limpiar(),
     mutationFn: (d: ContactForm) => clientExtApi.createContact(cid, d).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['client-contacts', cid] }); setShowAdd(false); setForm({ full_name: '', email: '', phone: '', job_title: '', role: 'other', is_primary: false }) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => { if (!camposB.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
   })
   const { mutate: remove } = useMutation({
     mutationFn: (id: string) => clientExtApi.deleteContact(cid, id),
@@ -272,14 +275,14 @@ export function ContactsTab({ cid }: { cid: string }) {
       {showAdd && (
         <Modal open title={traducir('clients.nuevo_contacto')} onClose={() => setShowAdd(false)} width={500}>
           <div className="clpata-grid-1">
-            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="clpata-lbl">{traducir('clientstabs.nombre_completo')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} className="clpata-inp" /></div>
-            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="clpata-lbl">{traducir('clientstabs.email')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="clpata-inp" /></div>
-            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="clpata-lbl">{traducir('clients.telefono')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className="clpata-inp" /></div>
-            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="clpata-lbl">{traducir('clientstabs.cargo')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.job_title} onChange={e => setForm(f => ({ ...f, job_title: e.target.value }))} className="clpata-inp" /></div>
+            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="clpata-lbl">{traducir('clientstabs.nombre_completo')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.full_name} onChange={e => { camposB.limpiar('full_name'); setForm(f => ({ ...f, full_name: e.target.value })) }} className="clpata-inp" />{msgB('full_name')}</div>
+            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="clpata-lbl">{traducir('clientstabs.email')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={form.email} onChange={e => { camposB.limpiar('email'); setForm(f => ({ ...f, email: e.target.value })) }} className="clpata-inp" />{msgB('email')}</div>
+            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="clpata-lbl">{traducir('clients.telefono')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.phone} onChange={e => { camposB.limpiar('phone'); setForm(f => ({ ...f, phone: e.target.value })) }} className="clpata-inp" />{msgB('phone')}</div>
+            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="clpata-lbl">{traducir('clientstabs.cargo')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.job_title} onChange={e => { camposB.limpiar('job_title'); setForm(f => ({ ...f, job_title: e.target.value })) }} className="clpata-inp" />{msgB('job_title')}</div>
             <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="clpata-lbl">{traducir('clientstabs.rol')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-5`} value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} className="clpata-inp">
+              <Select suelto placeholder={false} id={`${idCampo}-5`} value={form.role} onChange={e => { camposB.limpiar('role'); setForm(f => ({ ...f, role: e.target.value })) }} className="clpata-inp">
                 {roles.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
-              </Select>
+              </Select>{msgB('role')}
             </div>
             <div className="clpata-row-4">
               <label className="u-row-center-8-pointer">

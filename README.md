@@ -4614,6 +4614,11 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **30 gr
 | service_desk | SD_PORTAL_ASSISTANT_ACTION_TTL_MINUTES | int | `15` | Portal assistant — minutes a proposed action can be confirmed | rt |
 | service_desk | SD_PORTAL_ASSISTANT_MIN_MATCH | float | `0.2` | Portal assistant — minimum similarity (0-1) to propose a catalogue service | rt |
 | service_desk | SD_PASSWORD_RESET_SERVICE_ID | str | — | Portal assistant — catalogue service that resets passwords (empty: not offered) | rt |
+| service_desk | SD_PORTAL_ASSISTANT_AI | bool | `true` | Portal assistant — understand with the AI (route 'portal_assistant' in the AI Hub); off: keyword matching | rt |
+| service_desk | SD_PORTAL_ASSISTANT_MAX_TOKENS | int | `700` | Portal assistant — max tokens per AI answer | rt |
+| service_desk | SD_SLACK_TICKET_CHANNEL | str | — | Slack — channel id where each new ticket's card is posted (its thread is linked to the ticket; empty: off) | rt |
+| service_desk | SD_SLACK_INTAKE_CHANNELS | str | — | Slack — intake channel ids (CSV): each top-level message opens a ticket linked to its thread | rt |
+| service_desk | SD_CHANNEL_MAX_ATTACHMENT_MB | int | `16` | Channels — max attachment size received or sent by WhatsApp/Slack (MB) | rt |
 | service_desk | ALERT_CORRELATION_PROBLEM_SCORE | float | 0.65 | Alert correlation — score (0-1) to suggest/create a problem (with 3+ tickets) | rt (`app/core/escalas.py`) |
 | service_desk | ALERT_CORRELATION_REVIEW_SCORE | float | 0.35 | Alert correlation — score (0-1) to suggest a review | rt (`app/core/escalas.py`) |
 | tenants | IMPERSONATION_ENABLED | bool | true | Platform support may sign in as a company user (with a reason, audited) | rt |
@@ -5951,6 +5956,11 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `SD_PORTAL_ASSISTANT_ACTION_TTL_MINUTES` | `15` | Portal assistant — minutes a proposed action can be confirmed |
 | `SD_PORTAL_ASSISTANT_MIN_MATCH` | `0.2` | Portal assistant — minimum similarity (0-1) to propose a catalogue service |
 | `SD_PASSWORD_RESET_SERVICE_ID` | — | Portal assistant — catalogue service that resets passwords (empty: not offered) |
+| `SD_PORTAL_ASSISTANT_AI` | `true` | Portal assistant — understand with the AI (route 'portal_assistant' in the AI Hub); off: keyword matching |
+| `SD_PORTAL_ASSISTANT_MAX_TOKENS` | `700` | Portal assistant — max tokens per AI answer |
+| `SD_SLACK_TICKET_CHANNEL` | — | Slack — channel id where each new ticket's card is posted (its thread is linked to the ticket; empty: off) |
+| `SD_SLACK_INTAKE_CHANNELS` | — | Slack — intake channel ids (CSV): each top-level message opens a ticket linked to its thread |
+| `SD_CHANNEL_MAX_ATTACHMENT_MB` | `16` | Channels — max attachment size received or sent by WhatsApp/Slack (MB) |
 | `AI_LOCAL_HTTP_TIMEOUT_SECONDS` | `120` | Ollama (local model) call — timeout (s) |
 | `AI_PROVIDER_ERROR_COOLDOWN_SECONDS` | `300` | A failing provider is set aside for (s), then retried |
 | `MCP_WRITE_MODE` | `'off'` | MCP — tools that write: off (hidden), approval (a human approves each call) or direct |

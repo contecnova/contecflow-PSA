@@ -35,8 +35,9 @@ from app.db.seed_parts import core
 ORDEN_ESPERADO = [
     "_sembrar_ajustes",
     "_sembrar_departamentos",
-    "_sembrar_festivos",
+    # 17-11-2026: los festivos van despues de la empresa (llevan su organization_id).
     "_sembrar_organizacion",
+    "_sembrar_festivos",
     "_sembrar_usuarios",
     "_sembrar_catalogo_de_habilidades",
     "_sembrar_habilidades_de_usuario",
@@ -132,7 +133,6 @@ def test_los_clientes_se_devuelven(db):
 @pytest.mark.parametrize("fase", [
     "_sembrar_ajustes",
     "_sembrar_departamentos",
-    "_sembrar_festivos",
     "_sembrar_secuencias_de_numeracion",
     "_sembrar_tipos_de_tarea",
     "_sembrar_configuracion_de_alertas",
@@ -164,6 +164,20 @@ def test_las_fases_de_catalogo_son_idempotentes(db, fase):
     }
     crecieron = {k: (antes[k], despues[k]) for k in antes if despues[k] != antes[k]}
     assert not crecieron, f"{fase} duplicó filas: {crecieron}"
+
+
+def test_los_festivos_son_de_la_empresa_e_idempotentes(db):
+    """17-11-2026: el horario solo cuenta los festivos de la empresa; la
+    semilla los crea con su `organization_id` y no los duplica."""
+    from app.models.settings import Holiday
+    org = core._sembrar_organizacion(db)
+    db.commit()
+    core._sembrar_festivos(db, org)
+    n = db.query(Holiday).filter(Holiday.organization_id == org.id).count()
+    core._sembrar_festivos(db, org)
+    assert n > 0
+    assert db.query(Holiday).filter(Holiday.organization_id == org.id).count() == n
+    assert db.query(Holiday).filter(Holiday.organization_id.is_(None)).count() == 0
 
 
 def test_la_organizacion_no_se_duplica(db):

@@ -76,6 +76,9 @@ interface TicketComment {
   created_at?: string
   body?: string
   is_public?: boolean
+  /** 17-11-2026: editado o retirado en su canal (Slack). */
+  edited_at?: string | null
+  retracted_at?: string | null
 }
 interface TicketHistory {
   changed_at?: string
@@ -455,8 +458,9 @@ export function PortalSupportDesk() {
                       <span className="u-sm-700">{autor}</span>
                       <span className="u-text3-xs">{fmtDateTime(c.created_at)}</span>
                       {c.author_type === 'agent' && <PortalBadge tone="accent">{traducir('agent_dashboard.agent')}</PortalBadge>}
+                      {c.edited_at && !c.retracted_at && <span className="u-text3-xs">({traducir('ticket_comentario_editado')})</span>}
                     </div>
-                    <div className={`posude-box-18 portalsu-sx4 portal-support-desk-e3 ${delEquipo ? 'portal-support-desk-m4' : 'portal-support-desk-m5'}`} style={{ '--portal-support-desk-border': `1px solid ${delEquipo ? 'var(--surface-4)' : 'var(--accent-border, color-mix(in srgb, var(--accent) 25%, transparent))'}` } as CSSProperties}>{c.body}</div>
+                    <div className={`posude-box-18 portalsu-sx4 portal-support-desk-e3 ${delEquipo ? 'portal-support-desk-m4' : 'portal-support-desk-m5'}`} style={{ '--portal-support-desk-border': `1px solid ${delEquipo ? 'var(--surface-4)' : 'var(--accent-border, color-mix(in srgb, var(--accent) 25%, transparent))'}` } as CSSProperties}>{c.retracted_at ? <em>{traducir('ticket_comentario_retirado')}</em> : c.body}</div>
                   </div>
                 </div>
                 )

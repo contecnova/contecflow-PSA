@@ -17,7 +17,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, BookA, CheckCircle2, Coins, FileClock, KeyRound, Languages, Lock, Pencil, Plus, Save, Sparkles, Trash2, Trash, XCircle, FlaskConical, Gauge } from 'lucide-react'
-import { Button, Checkbox, Confirm, DataTable, IconButton, KpiCard, Modal, Section, Select, StatusBadge, Switch, Tabs, Spinner, EmptyState, type ColumnaDeTabla } from '../../components/ui'
+import { Button, Checkbox, Confirm, DataTable, IconButton, KpiCard, Modal, Section, Select, StatusBadge, Switch, Tabs, Spinner, EmptyState, type ColumnaDeTabla, useErroresDeCampo } from '../../components/ui'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { useAppLang } from '../../i18n/AppLangContext'
@@ -491,7 +491,10 @@ export function ModalDeTermino({ termino, onClose, onGuardado }: { termino: Term
   const usados = new Set(form.filas.map(f => f.idioma))
   const libres = idiomas.filter(i => !usados.has(i))
 
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const guardar = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: () => {
       const translations: Record<string, string> = {}
       for (const f of form.filas) if (f.idioma && f.texto.trim()) translations[f.idioma] = f.texto.trim()
@@ -499,7 +502,7 @@ export function ModalDeTermino({ termino, onClose, onGuardado }: { termino: Term
       return termino ? traduccionApi.cambiarTermino(termino.id, cuerpo) : traduccionApi.crearTermino(cuerpo)
     },
     onSuccess: () => { toast.success(termino ? t('traduccion_admin.termino_guardado') : t('traduccion_admin.termino_creado')); onGuardado() },
-    onError: (e: unknown) => toast.error(mensajeDeError(e)),
+    onError: (e: unknown) => { campos.recoger(e); toast.error(mensajeDeError(e)) },
   })
 
   const cambiarFila = (i: number, cambio: Partial<FilaTraduccion>) =>
@@ -512,7 +515,7 @@ export function ModalDeTermino({ termino, onClose, onGuardado }: { termino: Term
       <div className="u-stack-14">
         <div className="ds-field">
           <label className="ds-field__label" htmlFor="trad-termino">{t('traduccion_admin.col_termino')}</label>
-          <input id="trad-termino" className="ds-input" value={form.term} maxLength={200} onChange={e => setForm(f => ({ ...f, term: e.target.value }))} />
+          <input id="trad-termino" className="ds-input" value={form.term} maxLength={200} onChange={e => { campos.limpiar('term'); setForm(f => ({ ...f, term: e.target.value })) }} />{msg('term')}
         </div>
 
         <fieldset className="ds-grupo-opciones trad-admin__grupo">
@@ -538,13 +541,13 @@ export function ModalDeTermino({ termino, onClose, onGuardado }: { termino: Term
           </div>
         </fieldset>
 
-        <Checkbox className="trad-admin__casilla" checked={form.case_sensitive} onChange={m => setForm(f => ({ ...f, case_sensitive: m }))}
+        <Checkbox className="trad-admin__casilla" checked={form.case_sensitive} onChange={m => { campos.limpiar('case_sensitive'); setForm(f => ({ ...f, case_sensitive: m })) }}
           label={t('traduccion_admin.distingue_mayusculas')} />
-        <Checkbox className="trad-admin__casilla" checked={form.is_active} onChange={m => setForm(f => ({ ...f, is_active: m }))}
+        <Checkbox className="trad-admin__casilla" checked={form.is_active} onChange={m => { campos.limpiar('is_active'); setForm(f => ({ ...f, is_active: m })) }}
           label={t('traduccion_admin.activo')} />
         <div className="ds-field">
           <label className="ds-field__label" htmlFor="trad-notas">{t('traduccion_admin.col_notas')}</label>
-          <textarea id="trad-notas" className="ds-input" rows={2} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+          <textarea id="trad-notas" className="ds-input" rows={2} value={form.notes} onChange={e => { campos.limpiar('notes'); setForm(f => ({ ...f, notes: e.target.value })) }} />{msg('notes')}
         </div>
         <div className="u-actions-8">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>

@@ -169,7 +169,13 @@ EXENCIONES_ESPERADAS = {
     # (`get_current_portal_client`, que el clasificador no reconoce, como las
     # demas de /sd/tickets/client); y los webhooks firmados de Slack (POST
     # /sd/channels/slack/interactions) y WhatsApp (POST /sd/channels/whatsapp/webhook).
-    "superficie: sin sujeto autenticado": 52,  # +1 elegir empresa tras la contraseña; +1 decidir desde el correo; +1 webhook de Stripe (firma); +1 POST /client-errors (solo log)
+    # 53 desde 2026-11-17 (+1, medido con _clasificar): POST /sd/channels/slack/events
+    # (Events API de Slack, rev. 179). Sin sesion: `canal_slack.leer_evento` exige la
+    # firma `X-Slack-Signature` (HMAC-SHA256 con el signing secret de la empresa del
+    # `team_id`, marca de tiempo de 5 min como mucho) y responde 403 si no cuadra o si
+    # el workspace no es de una sola empresa; `url_verification` vale con cualquier
+    # signing secret conocido. El evento se procesa en la empresa del workspace.
+    "superficie: sin sujeto autenticado": 53,  # +1 elegir empresa tras la contraseña; +1 decidir desde el correo; +1 webhook de Stripe (firma); +1 POST /client-errors (solo log)
 }
 
 #: Rutas de escritura que sí llevan guarda de rol. Sólo puede subir.

@@ -284,6 +284,10 @@ class TicketComment(Base):
     # en el idioma del cliente; `body` queda en el idioma en que se guardaron.
     system_template = Column(String(60), nullable=True)
     system_params = Column(Text, nullable=True)
+    # Migracion 182: el mensaje de origen se edito o se borro en su canal (hilo
+    # de Slack). Retirado: `body` queda vacio; el original, en la auditoria.
+    edited_at = Column(DateTime(timezone=True), nullable=True)
+    retracted_at = Column(DateTime(timezone=True), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

@@ -20,7 +20,7 @@ import { useState, useEffect, useMemo, useId } from 'react'
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
 import { performanceApi, usersApi } from '../services/api'
 import type { Campana360, CicloDeEvaluacion, EvaluacionDeDesempeno, EvaluadoresElegibles, Historico360, KpisDeCiclo, KpisDeDesempeno, PanelDeCampana360, PlanDeDesarrollo, PreguntaDeEvaluacion, RespuestasDeEvaluacion } from '../services/api/tipos-rendimiento'
-import { Button, Checkbox, KpiCard, Modal, Pulsable, Select, Spinner, EmptyState, Page, Tabs } from '../components/ui'
+import { Button, Checkbox, KpiCard, Modal, Pulsable, Select, Spinner, EmptyState, Page, Tabs, useErroresDeCampo } from '../components/ui'
 import {
   Star, Plus, ChevronRight, ChevronDown, Clock, CheckCircle2,
   User, Users as UsersIcon, Crown, ArrowUp, UserPlus, Save, Send,
@@ -334,7 +334,10 @@ function AssignReviewModal({ cycle, onClose }: { cycle: Cycle; onClose: () => vo
     }
   }, [form.reviewee_id, form.review_type])
 
+  const camposD = useErroresDeCampo()
+  const msgD = (k: string) => camposD.de(k) ? <div className="u-field-error">{camposD.de(k)}</div> : null
   const { mutate: assign, isPending } = useMutation({
+    onMutate: () => camposD.limpiar(),
     mutationFn: () => performanceApi.createReview(cycle.id, form),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['perf-cycle-reviews', cycle.id] })
@@ -342,7 +345,7 @@ function AssignReviewModal({ cycle, onClose }: { cycle: Cycle; onClose: () => vo
       toast.success(t('pagina_perf.evaluacion_asignada'))
       onClose()
     },
-    onError: e => toast.error(extractErr(e, t('pagina_perf.error_al_asignar'))),
+    onError: (e: unknown) => { if (!camposD.recoger(e)) toast.error(extractErr(e, t('pagina_perf.error_al_asignar'))) },
   })
 
   const isSelfType = form.review_type === 'self'
@@ -358,10 +361,10 @@ function AssignReviewModal({ cycle, onClose }: { cycle: Cycle; onClose: () => vo
         <div className="ds-field">
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('pagina_perf.persona_evaluada')}</label>
           <Select suelto placeholder={false} id={`${idCampo}-1`} value={form.reviewee_id}
-            onChange={e => setForm(f => ({ ...f, reviewee_id: e.target.value }))}>
+            onChange={e => { camposD.limpiar('reviewee_id'); setForm(f => ({ ...f, reviewee_id: e.target.value })) }}>
             <option value="">{t('pagina_perf.selecciona')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-          </Select>
+          </Select>{msgD('reviewee_id')}
         </div>
 
         {/* Tipo de evaluación */}
@@ -401,7 +404,7 @@ function AssignReviewModal({ cycle, onClose }: { cycle: Cycle; onClose: () => vo
           <div className="ds-field">
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">{t('pagina_perf.evaluador')}</label>
             <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.reviewer_id}
-              onChange={e => setForm(f => ({ ...f, reviewer_id: e.target.value }))}
+              onChange={e => { camposD.limpiar('reviewer_id'); setForm(f => ({ ...f, reviewer_id: e.target.value })) }}
               disabled={!form.reviewee_id || !!blockedReason}>
               <option value="">{form.reviewee_id ? t('pagina_perf.selecciona') : t('pagina_perf.elige_primero_la_persona_evaluada')}</option>
               {eligibleUsers.map(u => (
@@ -409,7 +412,7 @@ function AssignReviewModal({ cycle, onClose }: { cycle: Cycle; onClose: () => vo
                   {u.full_name}{u.team ? ` · ${u.team}` : (u.department ? ` · ${u.department}` : '')}
                 </option>
               ))}
-            </Select>
+            </Select>{msgD('reviewer_id')}
             {form.reviewee_id && !blockedReason && eligibleUsers.length > 0 && (
               <div className="ds-field__hint">
                 {eligibleUsers.length} {traducir('performancereviews.evaluador_es_elegible_s_segun_organigrama_y')}
@@ -712,7 +715,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
       toast.success(t('pagina_perf.campana_360_creada_con_evaluador_es', { totalReviewers }))
       onClose()
     },
-    onError: e => toast.error(extractErr(e, t('pagina_perf.error_al_crear_campana'))),
+    onError: (e: unknown) => toast.error(extractErr(e, t('pagina_perf.error_al_crear_campana'))),
   })
 
   const canCreate = !!subjectId && totalReviewers > 0 && !isPending
@@ -1393,7 +1396,10 @@ function NewCycleModal({ existingCycles, onClose }: { existingCycles: Cycle[]; o
     [existingCycles],
   )
 
+  const camposB = useErroresDeCampo()
+  const msgB = (k: string) => camposB.de(k) ? <div className="u-field-error">{camposB.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
+    onMutate: () => camposB.limpiar(),
     mutationFn: () => {
       const payload = {
         name: form.name,
@@ -1409,7 +1415,7 @@ function NewCycleModal({ existingCycles, onClose }: { existingCycles: Cycle[]; o
       toast.success(t('pagina_perf.ciclo_creado'))
       onClose()
     },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => { if (!camposB.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
   })
 
   const canCreate = !!form.name.trim() &&
@@ -1420,21 +1426,21 @@ function NewCycleModal({ existingCycles, onClose }: { existingCycles: Cycle[]; o
       <div className="ds-stack">
         <div className="ds-field">
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('pagina_perf.nombre')}</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-            className="ds-input" placeholder={traducir('performancereviews.ej_evaluacion_q1_2026')} autoFocus />
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => { camposB.limpiar('name'); setForm(f => ({ ...f, name: e.target.value })) }}
+            className="ds-input" placeholder={traducir('performancereviews.ej_evaluacion_q1_2026')} autoFocus />{msgB('name')}
         </div>
         <div className="performance-reviews-page-e15">
           <div className="ds-field">
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">{t('pagina_perf.inicio')}</label>
             <DateInput id={`${idCampo}-2`} value={form.start_date}
-              onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
-              className="ds-input" />
+              onChange={e => { camposB.limpiar('start_date'); setForm(f => ({ ...f, start_date: e.target.value })) }}
+              className="ds-input" />{msgB('start_date')}
           </div>
           <div className="ds-field">
             <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ds-field__label">{t('pagina_perf.fin')}</label>
             <DateInput id={`${idCampo}-3`} value={form.end_date}
-              onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
-              className="ds-input" />
+              onChange={e => { camposB.limpiar('end_date'); setForm(f => ({ ...f, end_date: e.target.value })) }}
+              className="ds-input" />{msgB('end_date')}
           </div>
         </div>
         <div className="ds-field">
@@ -1459,10 +1465,10 @@ function NewCycleModal({ existingCycles, onClose }: { existingCycles: Cycle[]; o
           {form.template_mode === 'clone' && (
             <div className="perf-box-28">
               <Select suelto placeholder={false} value={form.clone_from}
-                onChange={e => setForm(f => ({ ...f, clone_from: e.target.value }))}>
+                onChange={e => { camposB.limpiar('clone_from'); setForm(f => ({ ...f, clone_from: e.target.value })) }}>
                 <option value="">{t('pagina_perf.selecciona_ciclo_origen')}</option>
                 {cloneable.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </Select>
+              </Select>{msgB('clone_from')}
             </div>
           )}
         </div>
@@ -1734,7 +1740,10 @@ function NewDevPlanModal({ subjectId, onClose }: { subjectId?: string; onClose: 
   const addRow = () => setForm(f => ({ ...f, goals: [...f.goals, { title: '', due_date: '' }] }))
   const removeRow = (idx: number) => setForm(f => ({ ...f, goals: f.goals.filter((_, i) => i !== idx) }))
 
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: () => performanceApi.createPlan({
       subject_id: subjectId,
       title: form.title.trim(),
@@ -1750,7 +1759,7 @@ function NewDevPlanModal({ subjectId, onClose }: { subjectId?: string; onClose: 
       toast.success(t('pagina_perf.plan_creado'))
       onClose()
     },
-    onError: e => toast.error(extractErr(e, t('pagina_perf.error_al_crear_plan'))),
+    onError: (e: unknown) => { campos.recoger(e); toast.error(extractErr(e, t('pagina_perf.error_al_crear_plan'))) },
   })
 
   return (
@@ -1763,28 +1772,28 @@ function NewDevPlanModal({ subjectId, onClose }: { subjectId?: string; onClose: 
         <div className="ds-field">
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{traducir('performancereviews.titulo')}</label>
           <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title}
-            onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-            className="ds-input" placeholder={traducir('performancereviews.ej_mejora_comunicacion_2026')} autoFocus />
+            onChange={e => { campos.limpiar('title'); setForm(f => ({ ...f, title: e.target.value })) }}
+            className="ds-input" placeholder={traducir('performancereviews.ej_mejora_comunicacion_2026')} autoFocus />{msg('title')}
         </div>
         <div className="ds-field">
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">{t('pagina_perf.resumen_contexto')}</label>
           <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.summary}
-            onChange={e => setForm(f => ({ ...f, summary: e.target.value }))}
+            onChange={e => { campos.limpiar('summary'); setForm(f => ({ ...f, summary: e.target.value })) }}
             rows={3} className="ds-input perf-input"
-            placeholder={traducir('performancereviews.resumen_del_360_y_areas_de_mejora')} />
+            placeholder={traducir('performancereviews.resumen_del_360_y_areas_de_mejora')} />{msg('summary')}
         </div>
         <div className="performance-reviews-page-e15">
           <div className="ds-field">
             <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ds-field__label">{t('pagina_perf.fecha_objetivo')}</label>
             <DateInput id={`${idCampo}-3`} value={form.target_date}
-              onChange={e => setForm(f => ({ ...f, target_date: e.target.value }))}
-              className="ds-input" />
+              onChange={e => { campos.limpiar('target_date'); setForm(f => ({ ...f, target_date: e.target.value })) }}
+              className="ds-input" />{msg('target_date')}
           </div>
           <div className="ds-field">
             <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="ds-field__label">{traducir('performancereviews.proxima_revision_2')}</label>
             <DateInput id={`${idCampo}-4`} value={form.next_review_at}
-              onChange={e => setForm(f => ({ ...f, next_review_at: e.target.value }))}
-              className="ds-input" />
+              onChange={e => { campos.limpiar('next_review_at'); setForm(f => ({ ...f, next_review_at: e.target.value })) }}
+              className="ds-input" />{msg('next_review_at')}
           </div>
         </div>
         <div className="ds-field" role="group" aria-labelledby={`${idCampo}-objetivos-et`}>

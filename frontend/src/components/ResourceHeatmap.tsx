@@ -19,7 +19,7 @@ import { useMemo, useState, type CSSProperties, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { projectsApi, usersApi } from '../services/api'
-import { Button, Card, KpiCard, Modal, Select, Spinner, EmptyState, SelectorDePeriodo, RejillaPersonaDia, columnasDeSemanas } from './ui'
+import { Button, Card, KpiCard, Modal, Select, Spinner, EmptyState, SelectorDePeriodo, RejillaPersonaDia, columnasDeSemanas, useErroresDeCampo } from './ui'
 import type { TonoDeRejilla } from './ui'
 import { usePeriodo } from '../hooks/usePeriodo'
 import { AlertTriangle, ArrowLeft, BatteryLow, CalendarDays, Flame, List, Plus, Trash2, Users } from 'lucide-react'
@@ -147,9 +147,13 @@ function BookingModal({ onClose, prefill }: { onClose: () => void; prefill?: Boo
   const projects = projRaw as ProjectItem[]
   const users = usersRaw as UserItem[]
 
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate: create, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: (d: unknown) => api.post('/bookings', d),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['heatmap'] }); qc.invalidateQueries({ queryKey: ['bookings'] }); validation.setErrors({}); onClose() },
+    onError: (e: unknown) => { campos.recoger(e) },
   })
 
   const setField = (key: 'user_id' | 'project_id' | 'booking_type' | 'start_date' | 'end_date' | 'hours_per_day' | 'note') => (e: { target: { value: string } }) => {
@@ -172,36 +176,36 @@ function BookingModal({ onClose, prefill }: { onClose: () => void; prefill?: Boo
         <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="resoheat-ls">{t('capacity.persona_obligatoria')}</label>
           <Select suelto id={`${idCampo}-1`} value={form.user_id} onChange={setField('user_id')} className={validation.inputClass('ds-input', 'user_id')} placeholder={t('invoices.select')}>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}{u.role ? ` (${nombreDeRol(t, u.role)})` : ''}</option>)}
-          </Select>
+          </Select>{msg('user_id')}
           {validation.errors.user_id && <div className="u-field-error">{validation.errors.user_id}</div>}
         </div>
         <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="resoheat-ls">{t('gas.proyecto')}</label>
           <Select suelto id={`${idCampo}-2`} value={form.project_id} onChange={setField('project_id')} className="ds-input" placeholder={t('resourceheatmap.sin_proyecto')}>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-          </Select>
+          </Select>{msg('project_id')}
         </div>
         <div className="u-grid2-12">
           <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="resoheat-ls">{t('alm.type')}</label>
             <Select suelto id={`${idCampo}-3`} value={form.booking_type} onChange={setField('booking_type')} className="ds-input" placeholder={false}>
               <option value="hard">{t('resourceheatmap.hard_confirmado')}</option>
               <option value="soft">{t('resourceheatmap.soft_tentativo')}</option>
-            </Select>
+            </Select>{msg('booking_type')}
           </div>
           <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="resoheat-ls">{t('resourceheatmap.h_dia')}</label>
-            <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" min={1} max={24} value={form.hours_per_day} onChange={setField('hours_per_day')} className={validation.inputClass('ds-input', 'hours_per_day')} />
+            <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" min={1} max={24} value={form.hours_per_day} onChange={setField('hours_per_day')} className={validation.inputClass('ds-input', 'hours_per_day')} />{msg('hours_per_day')}
             {validation.errors.hours_per_day && <div className="u-field-error">{validation.errors.hours_per_day}</div>}
           </div>
           <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="resoheat-ls">{t('resourceheatmap.fecha_inicio')}</label>
-            <DateInput id={`${idCampo}-5`} value={form.start_date} onChange={setField('start_date')} className={validation.inputClass('ds-input', 'start_date')} />
+            <DateInput id={`${idCampo}-5`} value={form.start_date} onChange={setField('start_date')} className={validation.inputClass('ds-input', 'start_date')} />{msg('start_date')}
             {validation.errors.start_date && <div className="u-field-error">{validation.errors.start_date}</div>}
           </div>
           <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="resoheat-ls">{t('resourceheatmap.fecha_fin')}</label>
-            <DateInput id={`${idCampo}-6`} value={form.end_date} onChange={setField('end_date')} className={validation.inputClass('ds-input', 'end_date')} />
+            <DateInput id={`${idCampo}-6`} value={form.end_date} onChange={setField('end_date')} className={validation.inputClass('ds-input', 'end_date')} />{msg('end_date')}
             {validation.errors.end_date && <div className="u-field-error">{validation.errors.end_date}</div>}
           </div>
         </div>
         <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="resoheat-ls">{t('aus.nota')}</label>
-          <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.note} onChange={setField('note')} className="ds-input" placeholder={t('resourceheatmap.motivo_de_la_reserva')} />
+          <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.note} onChange={setField('note')} className="ds-input" placeholder={t('resourceheatmap.motivo_de_la_reserva')} />{msg('note')}
         </div>
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>

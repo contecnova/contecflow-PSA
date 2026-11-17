@@ -7,7 +7,7 @@ import { z } from 'zod'
 import { projectsApi, projectChangesApi, cabApi } from '../services/api'
 import type { CambioEnCab } from '../services/api/tipos-cambios'
 import type { SolicitudDeCambio } from '../services/api/tipos-proyectos'
-import { Button, Modal, Spinner, EmptyState, Tabs, KpiCard, IconButton, Select } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, Tabs, KpiCard, IconButton, Select, useErroresDeCampo } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { ArrowLeftRight, CalendarClock, Check, Coins, FolderOpen, Hourglass, ListChecks, MessageSquare, Pencil, Plus, ThumbsDown, ThumbsUp, Trash2, User, Users, Wrench, X, Zap } from 'lucide-react'
@@ -121,12 +121,15 @@ function CRFormModal({ cr, projectId, onClose }: { cr?: SolicitudDeCambio | null
     ? <p id={`${idPrefix}-${k}-err`} className="u-field-error">{validation.errors[k]}</p>
     : null
 
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: (data: Record<string, unknown>) => isEdit && cr
       ? projectChangesApi.update(projectId, cr.id, data)
       : projectChangesApi.create(projectId, data),
     onSuccess: () => { validation.setErrors({}); qc.invalidateQueries({ queryKey: ['changes', projectId] }); qc.invalidateQueries({ queryKey: ['all-pending-crs'] }); onClose() },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
   })
 
   const submit = () => {
@@ -140,39 +143,39 @@ function CRFormModal({ cr, projectId, onClose }: { cr?: SolicitudDeCambio | null
       <div className="u-grid2-14">
         <div className="u-col-full">
           <label htmlFor={`${idPrefix}-title`} className="chg-label">{t('changes.titulo')}</label>
-          <input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} className="chg-input" {...err('title')} placeholder={t('changes.titulo_de_la_solicitud')} />
+          <input id={`${idPrefix}-title`} value={form.title} onChange={set('title')} className="chg-input" {...err('title')} placeholder={t('changes.titulo_de_la_solicitud')} />{msg('title')}
           {errMsg('title')}
         </div>
         <div className="u-col-full">
           <label htmlFor={`${idPrefix}-description`} className="chg-label">{t('changes.descripcion')}</label>
-          <textarea id={`${idPrefix}-description`} value={form.description} onChange={set('description')} rows={3} className="chg-input" {...err('description')} placeholder={t('changes.describe_el_cambio_solicitado')} />
+          <textarea id={`${idPrefix}-description`} value={form.description} onChange={set('description')} rows={3} className="chg-input" {...err('description')} placeholder={t('changes.describe_el_cambio_solicitado')} />{msg('description')}
           {errMsg('description')}
         </div>
         <div className="u-col-full">
           <label htmlFor={`${idPrefix}-justification`} className="chg-label">{t('changes.justificacion')}</label>
-          <textarea id={`${idPrefix}-justification`} value={form.justification} onChange={set('justification')} rows={2} className="chg-input" {...err('justification')} placeholder={t('changes.justificacion_del_cambio')} />
+          <textarea id={`${idPrefix}-justification`} value={form.justification} onChange={set('justification')} rows={2} className="chg-input" {...err('justification')} placeholder={t('changes.justificacion_del_cambio')} />{msg('justification')}
           {errMsg('justification')}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-impact`} className="chg-label">{t('changes.impact')}</label>
           <Select suelto placeholder={false} id={`${idPrefix}-impact`} value={form.impact} onChange={set('impact')} className="chg-input" {...err('impact')}>
             {Object.entries(IMPACT_CFG).map(([v, c]) => <option key={v} value={v}>{t(c.labelKey)}</option>)}
-          </Select>
+          </Select>{msg('impact')}
           {errMsg('impact')}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-cost-impact`} className="chg-label">{t('changes.cost_impact_label', { symbol: fmtMoneda.simbolo })}</label>
-          <input id={`${idPrefix}-cost-impact`} type="number" value={form.cost_impact} onChange={set('cost_impact')} className="chg-input" {...err('cost_impact')} placeholder={t('changes.cost_impact_ph')} />
+          <input id={`${idPrefix}-cost-impact`} type="number" value={form.cost_impact} onChange={set('cost_impact')} className="chg-input" {...err('cost_impact')} placeholder={t('changes.cost_impact_ph')} />{msg('cost_impact')}
           {errMsg('cost_impact')}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-schedule-impact`} className="chg-label">{t('changes.impacto_en_plazo_dias')}</label>
-          <input id={`${idPrefix}-schedule-impact`} type="number" value={form.schedule_impact_days} onChange={set('schedule_impact_days')} className="chg-input" {...err('schedule_impact_days')} placeholder={t('changes.extra_days_ph')} />
+          <input id={`${idPrefix}-schedule-impact`} type="number" value={form.schedule_impact_days} onChange={set('schedule_impact_days')} className="chg-input" {...err('schedule_impact_days')} placeholder={t('changes.extra_days_ph')} />{msg('schedule_impact_days')}
           {errMsg('schedule_impact_days')}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-scope-impact`} className="chg-label">{t('changes.scope_impact_label')}</label>
-          <input id={`${idPrefix}-scope-impact`} value={form.scope_impact} onChange={set('scope_impact')} className="chg-input" {...err('scope_impact')} placeholder={t('changes.impacto_en_el_alcance')} />
+          <input id={`${idPrefix}-scope-impact`} value={form.scope_impact} onChange={set('scope_impact')} className="chg-input" {...err('scope_impact')} placeholder={t('changes.impacto_en_el_alcance')} />{msg('scope_impact')}
           {errMsg('scope_impact')}
         </div>
         <div className="chg-form-actions">

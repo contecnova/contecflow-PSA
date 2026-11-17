@@ -102,10 +102,76 @@ MENSAJES: dict[str, str] = {
     "validacion": "Revisa los datos",
 }
 
+#: Codigos que solo ve el operador (back office): se traducen en la interfaz de
+#: operador con `err_srv.<codigo>` en `frontend/src/i18n/langs/{es,en,zh}.mjs`
+#: (`extractErr` los resuelve), no en los 8 idiomas del portal. Mismo `detail`
+#: en castellano de siempre. 17-11-2026: canales, turnos/ausencias por horas y
+#: avisos (bloques 179-181).
+MENSAJES_DEL_OPERADOR: dict[str, str] = {
+    # Canales del service desk (bandeja y ficha del ticket)
+    "whatsapp_fuera_de_ventana": "Han pasado más de 24 h desde el último mensaje del cliente y no hay "
+                                 "plantilla de WhatsApp configurada: el mensaje no se puede enviar.",
+    "whatsapp_adjunto_fuera_de_ventana": "Fuera de la ventana de 24 h de WhatsApp: los adjuntos solo salen "
+                                         "después de un mensaje del cliente.",
+    "slack_sin_token": "Slack sin token de bot en la empresa: no se puede contestar en el hilo.",
+    "canal_sin_adjuntos": "Este canal no admite enviar adjuntos desde aquí.",
+    "conversacion_sin_ticket": "La conversación no tiene ticket",
+    "adjunto_no_encontrado": "Adjunto no encontrado",
+    # Turnos, jornadas y ausencias por horas
+    "solo_persona_rrhh_o_admin": "Solo la persona, RRHH o administración",
+    "rango_de_1_a_400_dias": "Un rango de 1 a 400 días",
+    "saldo_no_existe": "Ese saldo no existe",
+    "persona_no_existe_en_empresa": "Esa persona no existe en tu empresa",
+    "cantidad_no_numerica": "La cantidad tiene que ser un número",
+    "cantidad_cero": "La cantidad no puede ser 0",
+    "caduca_antes_de_empezar": "Caduca antes de empezar a contar",
+    "ajuste_sin_motivo": "Explica el motivo del ajuste",
+    "unidad_de_saldo_no_valida": "La unidad es «dias» u «horas»",
+    "ajuste_no_encontrado": "Ajuste no encontrado",
+    "ajuste_de_bolsa_no_borrable": "Las horas de la bolsa salen de las imputaciones: corrige la imputación",
+    "fecha_no_valida_en": "Fecha no válida en «{nombre}»",
+    "hora_no_valida_en": "Hora no válida en «{nombre}» (HH:MM)",
+    "indica_hora_inicio_y_fin": "Indica la hora de inicio y la de fin",
+    "franja_misma_hora": "La franja empieza y acaba a la misma hora",
+    "modo_de_peticion_no_valido": "El modo de la petición es «dias» u «horas»",
+    "tipo_no_se_pide_por_horas": "«{tipo}» no se puede pedir por horas",
+    "tipo_se_pide_por_horas": "«{tipo}» se pide por horas",
+    "tipo_no_se_pide_por_medio_dia": "«{tipo}» no se puede pedir por medio día",
+    "por_horas_indica_franja": "Por horas: indica la franja (hora de inicio y de fin)",
+    "tipo_necesita_sustituto": "«{tipo}» necesita un sustituto",
+    "franja_fuera_de_horario": "Esa franja no cae dentro de tu horario (turno o jornada) en esas fechas",
+    "sin_dia_de_trabajo": "En esas fechas no tienes ningún día de trabajo (cuadrante o calendario laboral)",
+    "saldo_insuficiente": "Pides {cantidad} y te quedan {disponible}",
+    "saldo_insuficiente_con_limite": "Pides {cantidad} y te quedan {disponible} (se permite hasta −{permitido})",
+    "saldo_agotado": "Pides {cantidad} y no te queda saldo",
+    "saldo_agotado_con_limite": "Pides {cantidad} y no te queda saldo (se permite hasta −{permitido})",
+    "tramos_de_turno_no_validos": "Tramos del turno no válidos: {detalle}",
+    "turno_mas_de_un_dia": "Un turno no puede durar más de un día",
+    "turno_misma_hora": "El turno empieza y acaba a la misma hora",
+    "pausa_mayor_que_turno": "La pausa tiene que ser menor que la duración del turno",
+    "jornada_no_encontrada": "Jornada no encontrada",
+    "jornada_sin_nombre": "La jornada necesita un nombre",
+    "asignacion_no_encontrada": "Asignación no encontrada",
+    "ambito_desconocido": "Ámbito desconocido: {ambito}",
+    "asignacion_sin_destino": "Indica a quién se aplica",
+    "destino_no_existe_en_empresa": "Ese destino no existe en tu empresa",
+    "jornada_anual_sin_fechas": "Una jornada que se repite cada año necesita fecha de inicio y de fin",
+    "fecha_final_anterior": "La fecha final es anterior a la inicial",
+    "persona_no_encontrada": "Persona no encontrada",
+    "sede_no_existe": "Esa sede no existe",
+    "maximo_de_dias": "Como mucho {max} días de una vez",
+    # Avisos del service desk
+    "aviso_no_encontrado": "Aviso no encontrado",
+    "campo_obligatorio": "{campo} es obligatorio",
+}
+
+#: Todos los codigos (portal y operador): para `texto` y las comprobaciones.
+TODOS: dict[str, str] = {**MENSAJES, **MENSAJES_DEL_OPERADOR}
+
 
 def texto(codigo: str, params: Optional[dict] = None) -> str:
     """El texto en castellano del codigo con sus datos (o el codigo si no existe)."""
-    plantilla = MENSAJES.get(codigo, codigo)
+    plantilla = TODOS.get(codigo, codigo)
     try:
         return plantilla.format(**(params or {}))
     except (KeyError, IndexError, ValueError):

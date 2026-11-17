@@ -127,10 +127,12 @@ export function usePersonasInternas() {
 export interface CamposDeExternoProps {
   form: FormDeExterno
   onChange: (cambio: Partial<FormDeExterno>) => void
+  /** Error de validación del servidor de un campo (`useErroresDeCampo().de`). */
+  errores?: (campo: string) => string | undefined
 }
 
 /** Rejilla de campos del externo (sin proveedor ni botones). */
-export function CamposDeExterno({ form, onChange }: CamposDeExternoProps) {
+export function CamposDeExterno({ form, onChange, errores }: CamposDeExternoProps) {
   const t = useAppT()
   const idBase = useId()
   const { currencies } = useOrgSettings()
@@ -143,18 +145,18 @@ export function CamposDeExterno({ form, onChange }: CamposDeExternoProps) {
 
   return (
     <div className="ext-grid">
-      <Input className="ext-full" label={t('externos.nombre')} required value={form.name} onChange={campo('name')} />
-      <Input label={t('externos.cargo')} value={form.role} onChange={campo('role')} />
-      <Input label={t('externos.email')} type="email" value={form.email} onChange={campo('email')} />
-      <Input label={t('externos.coste_hora', { moneda })} type="number" min={0} step="0.5" value={form.cost_rate} onChange={campo('cost_rate')} />
-      <Input label={t('externos.venta_hora', { moneda })} type="number" min={0} step="0.5" value={form.sell_rate} onChange={campo('sell_rate')} />
-      <Select label={t('externos.moneda')} value={form.currency} onChange={campo('currency')} placeholder={false}
+      <Input className="ext-full" label={t('externos.nombre')} required value={form.name} onChange={campo('name')} error={errores?.('name')} />
+      <Input label={t('externos.cargo')} value={form.role} onChange={campo('role')} error={errores?.('role')} />
+      <Input label={t('externos.email')} type="email" value={form.email} onChange={campo('email')} error={errores?.('email')} />
+      <Input label={t('externos.coste_hora', { moneda })} type="number" min={0} step="0.5" value={form.cost_rate} onChange={campo('cost_rate')} error={errores?.('cost_rate')} />
+      <Input label={t('externos.venta_hora', { moneda })} type="number" min={0} step="0.5" value={form.sell_rate} onChange={campo('sell_rate')} error={errores?.('sell_rate')} />
+      <Select label={t('externos.moneda')} value={form.currency} onChange={campo('currency')} error={errores?.('currency')} placeholder={false}
         options={monedas.map(c => ({ value: c, label: c }))} />
-      <Input label={t('externos.capacidad_semanal')} type="number" min={0} step="0.5" value={form.weekly_capacity_hours} onChange={campo('weekly_capacity_hours')} />
-      <Input label={t('externos.disponible_desde')} type="date" value={form.available_from} onChange={campo('available_from')} />
-      <Input label={t('externos.disponible_hasta')} type="date" value={form.available_until} onChange={campo('available_until')} />
+      <Input label={t('externos.capacidad_semanal')} type="number" min={0} step="0.5" value={form.weekly_capacity_hours} onChange={campo('weekly_capacity_hours')} error={errores?.('weekly_capacity_hours')} />
+      <Input label={t('externos.disponible_desde')} type="date" value={form.available_from} onChange={campo('available_from')} error={errores?.('available_from')} />
+      <Input label={t('externos.disponible_hasta')} type="date" value={form.available_until} onChange={campo('available_until')} error={errores?.('available_until')} />
       <Select className="ext-full" label={`${t('externos.responsable_interno')} *`} required value={form.internal_owner_id}
-        onChange={campo('internal_owner_id')} disabled={isLoading}
+        onChange={campo('internal_owner_id')} error={errores?.('internal_owner_id')} disabled={isLoading}
         placeholder={t('externos.elegir_responsable')}
         hint={t('externos.responsable_ayuda')}
         options={personas.map(p => ({ value: p.id, label: etiquetaDePersona(t, p) }))} />
@@ -168,12 +170,13 @@ export function CamposDeExterno({ form, onChange }: CamposDeExternoProps) {
         {form.has_access && (
           <Input label={t('externos.fin_de_acceso')} type="date" value={finDeAcceso}
             hint={form.access_until_manual ? undefined : t('externos.fin_de_acceso_ayuda')}
-            onChange={e => onChange({ access_until: e.target.value, access_until_manual: true })} />
+            onChange={e => onChange({ access_until: e.target.value, access_until_manual: true })} error={errores?.('access_until')} />
         )}
       </div>
       <div className="ext-full ui-field">
         <label htmlFor={`${idBase}-notas`} className="uiinde-estiloetiqueta">{t('externos.notas')}</label>
         <textarea id={`${idBase}-notas`} value={form.notes} onChange={campo('notes')} className="ds-input ext-notas" />
+        {errores?.('notes') && <div className="u-field-error" role="alert">{errores('notes')}</div>}
       </div>
     </div>
   )

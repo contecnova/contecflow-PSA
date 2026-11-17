@@ -24,7 +24,7 @@ import type { SkillDelCatalogo, SubAsignacion, SubConciliacion, SubFactura, SubP
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AlertTriangle, ArrowLeft, Award, Briefcase, Clock, Coins, Handshake, HardHat, Mail, Pencil, Plus, Receipt, Scale, Square, Trash2, UserRound, Users, X } from 'lucide-react'
-import { Button, Card, EmptyState, IconButton, KpiCard, Modal, Spinner, useSort, SortableTH, ViewToggle, Tabs, Table, Select, TablaSimple, Checkbox } from '../components/ui'
+import { Button, Card, EmptyState, IconButton, KpiCard, Modal, Spinner, useSort, SortableTH, ViewToggle, Tabs, Table, Select, TablaSimple, Checkbox, useErroresDeCampo } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import { useAppT } from '../i18n/AppLangContext'
@@ -77,7 +77,9 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
 
   const [credsInfo, setCredsInfo] = useState<CredsInfo | null>(null)
 
+  const campos = useErroresDeCampo()
   const { mutate: save, isPending: saving } = useMutation({
+    onMutate: () => campos.limpiar(),
     // El alta devuelve además la contraseña temporal del usuario creado (SubTrabajadorCreado).
     mutationFn: async (d: Record<string, unknown>): Promise<SubTrabajador & { temp_password?: string }> => isEdit
       ? (await enterpriseSubsApi.updateWorker(worker!.id, d)).data
@@ -94,7 +96,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
         toast.success(isEdit ? t('subcontractors.trabajador_actualizado') : t('subcontractors.trabajador_anadido'))
       }
     },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
   })
 
   const { mutate: addSkill, isPending: addingSkill } = useMutation({
@@ -121,7 +123,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
 
   return (
     <Modal open title={isEdit ? `${t('subcontractors.edit_person', { name: worker?.name })}` : t('subcontractors.new_person')} onClose={onClose} width={560}>
-      <CamposDeExterno form={form} onChange={c => setForm(f => ({ ...f, ...c }))} />
+      <CamposDeExterno form={form} errores={campos.de} onChange={c => { Object.keys(c).forEach(k => campos.limpiar(k)); setForm(f => ({ ...f, ...c })) }} />
 
       {/* Skills section — only shown in edit mode */}
       {isEdit && (
@@ -154,7 +156,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
             <div className="sub-skill-form">
               <div className="u-col-full">
                 <label id={`${idCampo}-9-et`} htmlFor={`${idCampo}-9`} className="sub-label">{t('subcontractors.add_skill')} *</label>
-                <Select suelto placeholder={false} id={`${idCampo}-9`} value={skillForm.skill_id} onChange={e => setSkillForm(f => ({ ...f, skill_id: e.target.value }))} className="sub-input">
+                <Select suelto placeholder={false} id={`${idCampo}-9`} value={skillForm.skill_id} onChange={e => { campos.limpiar('skill_id'); setSkillForm(f => ({ ...f, skill_id: e.target.value })) }} className="sub-input">
                   <option value="">{t('subcontractors.select_skill')}</option>
                   {Object.entries(byCategory).map(([cat, skills]) => (
                     <optgroup key={cat} label={cat.charAt(0).toUpperCase() + cat.slice(1)}>
@@ -165,19 +167,19 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
               </div>
               <div>
                 <label id={`${idCampo}-10-et`} htmlFor={`${idCampo}-10`} className="sub-label">{t('subcontractors.level')}</label>
-                <Select suelto placeholder={false} id={`${idCampo}-10`} value={skillForm.level} onChange={e => setSkillForm(f => ({ ...f, level: e.target.value }))} className="sub-input">
+                <Select suelto placeholder={false} id={`${idCampo}-10`} value={skillForm.level} onChange={e => { campos.limpiar('level'); setSkillForm(f => ({ ...f, level: e.target.value })) }} className="sub-input">
                   {NIVELES.map(l => <option key={l} value={l}>{etiquetaNivel(l)}</option>)}
                 </Select>
               </div>
               <div>
                 <label id={`${idCampo}-11-et`} htmlFor={`${idCampo}-11`} className="sub-label">{t('subcontractors.years_experience')}</label>
-                <input id={`${idCampo}-11`} aria-labelledby={`${idCampo}-11-et`} type="number" value={skillForm.years_experience} onChange={e => setSkillForm(f => ({ ...f, years_experience: e.target.value }))} className="sub-input" min="0" step="0.5" />
+                <input id={`${idCampo}-11`} aria-labelledby={`${idCampo}-11-et`} type="number" value={skillForm.years_experience} onChange={e => { campos.limpiar('years_experience'); setSkillForm(f => ({ ...f, years_experience: e.target.value })) }} className="sub-input" min="0" step="0.5" />
               </div>
               <div className="sub-check-row">
-                <Checkbox className="sub-check-label" checked={!!skillForm.certified} onChange={v => setSkillForm(f => ({ ...f, certified: v }))}
+                <Checkbox className="sub-check-label" checked={!!skillForm.certified} onChange={v => { campos.limpiar('certified'); setSkillForm(f => ({ ...f, certified: v })) }}
                   label={t('subcontractors.certified')} />
                 {skillForm.certified && (
-                  <input aria-label={t('subcontractors.placeholder_cert')} value={skillForm.cert_name} onChange={e => setSkillForm(f => ({ ...f, cert_name: e.target.value }))} className="sub-input sub-input--flex" placeholder={t('subcontractors.placeholder_cert')} />
+                  <input aria-label={t('subcontractors.placeholder_cert')} value={skillForm.cert_name} onChange={e => { campos.limpiar('cert_name'); setSkillForm(f => ({ ...f, cert_name: e.target.value })) }} className="sub-input sub-input--flex" placeholder={t('subcontractors.placeholder_cert')} />
                 )}
               </div>
               <div className="sub-row-end-full">
@@ -827,7 +829,10 @@ export default function SubcontractorsPage() {
   const [view, setView] = useState('grid')
   const { sort: subSort, setSort: setSubSort, sortedData: sortedSubs } = useSort<Sub>(subs, 'name')
 
+  const campos = useErroresDeCampo()
+  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
   const { mutate: create, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: (d: Record<string, unknown>) => subcontractorsApi.create(d),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['subcontractors'] })
@@ -836,9 +841,12 @@ export default function SubcontractorsPage() {
       setSelected(res.data)
       toast.success(t('subcontractors.subcontratista_creado'))
     },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
   })
+  const camposEdit = useErroresDeCampo()
+  const msgEdit = (k: string) => camposEdit.de(k) ? <div className="u-field-error">{camposEdit.de(k)}</div> : null
   const { mutate: update, isPending: updating } = useMutation({
+    onMutate: () => camposEdit.limpiar(),
     mutationFn: ({ id, ...d }: { id: string; [k: string]: unknown }) => subcontractorsApi.update(id, d),
     onSuccess: (_res) => {
       qc.invalidateQueries({ queryKey: ['subcontractors'] })
@@ -846,7 +854,7 @@ export default function SubcontractorsPage() {
       setEditTarget(null)
       toast.success(t('subcontractors.subcontratista_actualizado'))
     },
-    onError: e => toast.error(extractErr(e, t('common.error_update'))),
+    onError: (e: unknown) => { if (!camposEdit.recoger(e)) toast.error(extractErr(e, t('common.error_update'))) },
   })
   const { mutate: remove } = useMutation({
     mutationFn: (id: string) => subcontractorsApi.delete(id),
@@ -977,34 +985,34 @@ export default function SubcontractorsPage() {
           <div className="sub-form-grid sub-form-grid--mb16">
             <div>
               <label id={`${idCampo}-nombre-et`} htmlFor={`${idCampo}-nombre`} className="sub-label">{t('subcontractors.nombre_razon_social')}</label>
-              <input id={`${idCampo}-nombre`} aria-labelledby={`${idCampo}-nombre-et`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} className="sub-input" placeholder={t('subcontractors.nombre_o_razon_social')} />
+              <input id={`${idCampo}-nombre`} aria-labelledby={`${idCampo}-nombre-et`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} className="sub-input" placeholder={t('subcontractors.nombre_o_razon_social')} />{msg('name')}
             </div>
             <div>
               <label id={`${idCampo}-1-et`} htmlFor={`${idCampo}-1`} className="sub-label">{t('subcontractors.empresa_si_es_persona_fisica')}</label>
-              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-1-et`} value={form.company} onChange={e => setForm(f=>({...f,company:e.target.value}))} className="sub-input" />
+              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-1-et`} value={form.company} onChange={e => setForm(f=>({...f,company:e.target.value}))} className="sub-input" />{msg('company')}
             </div>
             <div>
               <label id={`${idCampo}-2-et`} htmlFor={`${idCampo}-2`} className="sub-label">{t('subcontractors.email')}</label>
-              <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-2-et`} type="email" value={form.email} onChange={e => setForm(f=>({...f,email:e.target.value}))} className="sub-input" />
+              <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-2-et`} type="email" value={form.email} onChange={e => setForm(f=>({...f,email:e.target.value}))} className="sub-input" />{msg('email')}
             </div>
             <div>
               <label id={`${idCampo}-3-et`} htmlFor={`${idCampo}-3`} className="sub-label">{t('subcontractors.telefono')}</label>
-              <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-3-et`} value={form.phone} onChange={e => setForm(f=>({...f,phone:e.target.value}))} className="sub-input" />
+              <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-3-et`} value={form.phone} onChange={e => setForm(f=>({...f,phone:e.target.value}))} className="sub-input" />{msg('phone')}
             </div>
             <div>
               <label id={`${idCampo}-4-et`} htmlFor={`${idCampo}-4`} className="sub-label">{t('subcontractors.nif_vat')}</label>
-              <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-4-et`} value={form.vat_number} onChange={e => setForm(f=>({...f,vat_number:e.target.value}))} className="sub-input" />
+              <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-4-et`} value={form.vat_number} onChange={e => setForm(f=>({...f,vat_number:e.target.value}))} className="sub-input" />{msg('vat_number')}
             </div>
             <div>
               <label id={`${idCampo}-5-et`} htmlFor={`${idCampo}-5`} className="sub-label">{t('subcontractors.moneda')}</label>
               <Select suelto placeholder={false} id={`${idCampo}-5`} value={form.currency} onChange={e => setForm(f=>({...f,currency:e.target.value}))} className="sub-input">
                 {monedasDeLaEmpresa.map(c => <option key={c} value={c}>{c}</option>)}
-              </Select>
+              </Select>{msg('currency')}
             </div>
           </div>
           <div className="u-mb-16">
             <label id={`${idCampo}-6-et`} htmlFor={`${idCampo}-6`} className="sub-label">{t('subcontractors.notes')}</label>
-            <textarea id={`${idCampo}-6`} aria-labelledby={`${idCampo}-6-et`} value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))} className="sub-input sub-textarea" />
+            <textarea id={`${idCampo}-6`} aria-labelledby={`${idCampo}-6-et`} value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))} className="sub-input sub-textarea" />{msg('notes')}
           </div>
           <div className="u-actions-8">
             <Button variant="secondary" onClick={() => setShowCreate(false)}>{t('common.cancel')}</Button>
@@ -1018,34 +1026,34 @@ export default function SubcontractorsPage() {
           <div className="sub-form-grid sub-form-grid--mb16">
             <div>
               <label id={`${idCampo}-7-et`} htmlFor={`${idCampo}-7`} className="sub-label">{t('subcontractors.nombre_razon_social')}</label>
-              <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-7-et`} value={editForm.name} onChange={e => setEditForm(f=>({...f,name:e.target.value}))} className="sub-input" />
+              <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-7-et`} value={editForm.name} onChange={e => setEditForm(f=>({...f,name:e.target.value}))} className="sub-input" />{msgEdit('name')}
             </div>
             <div>
               <label id={`${idCampo}-8-et`} htmlFor={`${idCampo}-8`} className="sub-label">{t('subcontractors.empresa')}</label>
-              <input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-8-et`} value={editForm.company} onChange={e => setEditForm(f=>({...f,company:e.target.value}))} className="sub-input" />
+              <input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-8-et`} value={editForm.company} onChange={e => setEditForm(f=>({...f,company:e.target.value}))} className="sub-input" />{msgEdit('company')}
             </div>
             <div>
               <label id={`${idCampo}-9-et`} htmlFor={`${idCampo}-9`} className="sub-label">{t('subcontractors.email')}</label>
-              <input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-9-et`} type="email" value={editForm.email} onChange={e => setEditForm(f=>({...f,email:e.target.value}))} className="sub-input" />
+              <input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-9-et`} type="email" value={editForm.email} onChange={e => setEditForm(f=>({...f,email:e.target.value}))} className="sub-input" />{msgEdit('email')}
             </div>
             <div>
               <label id={`${idCampo}-10-et`} htmlFor={`${idCampo}-10`} className="sub-label">{t('subcontractors.telefono')}</label>
-              <input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-10-et`} value={editForm.phone} onChange={e => setEditForm(f=>({...f,phone:e.target.value}))} className="sub-input" />
+              <input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-10-et`} value={editForm.phone} onChange={e => setEditForm(f=>({...f,phone:e.target.value}))} className="sub-input" />{msgEdit('phone')}
             </div>
             <div>
               <label id={`${idCampo}-11-et`} htmlFor={`${idCampo}-11`} className="sub-label">{t('subcontractors.nif_vat')}</label>
-              <input id={`${idCampo}-11`} aria-labelledby={`${idCampo}-11-et`} value={editForm.vat_number} onChange={e => setEditForm(f=>({...f,vat_number:e.target.value}))} className="sub-input" />
+              <input id={`${idCampo}-11`} aria-labelledby={`${idCampo}-11-et`} value={editForm.vat_number} onChange={e => setEditForm(f=>({...f,vat_number:e.target.value}))} className="sub-input" />{msgEdit('vat_number')}
             </div>
             <div>
               <label id={`${idCampo}-12-et`} htmlFor={`${idCampo}-12`} className="sub-label">{t('subcontractors.moneda')}</label>
               <Select suelto placeholder={false} id={`${idCampo}-12`} value={editForm.currency} onChange={e => setEditForm(f=>({...f,currency:e.target.value}))} className="sub-input">
                 {monedasDeLaEmpresa.map(c => <option key={c} value={c}>{c}</option>)}
-              </Select>
+              </Select>{msgEdit('currency')}
             </div>
           </div>
           <div className="u-mb-16">
             <label id={`${idCampo}-13-et`} htmlFor={`${idCampo}-13`} className="sub-label">{t('subcontractors.notes')}</label>
-            <textarea id={`${idCampo}-13`} aria-labelledby={`${idCampo}-13-et`} value={editForm.notes} onChange={e => setEditForm(f=>({...f,notes:e.target.value}))} className="sub-input sub-textarea" />
+            <textarea id={`${idCampo}-13`} aria-labelledby={`${idCampo}-13-et`} value={editForm.notes} onChange={e => setEditForm(f=>({...f,notes:e.target.value}))} className="sub-input sub-textarea" />{msgEdit('notes')}
           </div>
           <div className="u-actions-8">
             <Button variant="secondary" onClick={() => { setShowEdit(false); setEditTarget(null) }}>{t('common.cancel')}</Button>

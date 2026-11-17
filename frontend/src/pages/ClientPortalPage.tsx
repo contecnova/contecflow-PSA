@@ -14,7 +14,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { z } from 'zod'
 import { portalApi, portalClientsApi, projectsApi, deliverablesApi, wikiApi, type PathId } from '../services/api'
 import type { Entregable, PortalPeticion, PortalSesionUat, PortalUsuario, VisibilidadDeWiki, WikiPaginaEnArbol } from '../services/api/tipos-alm'
-import { Button, Checkbox, IconButton, Modal, Pulsable, Select, Spinner, EmptyState, Page, KpiCard, Tabs } from '../components/ui'
+import { Button, Checkbox, IconButton, Modal, Pulsable, Select, Spinner, EmptyState, Page, KpiCard, Tabs, useErroresDeCampo } from '../components/ui'
 import Pagination from '../components/ui/Pagination'
 import { SMALL_PAGE_SIZE } from '../constants/pagination'
 import {
@@ -249,10 +249,13 @@ function CreateClientModal({ projectId, onClose }: { projectId: string; onClose:
     queryFn: () => projectsApi.list({ page_size: LARGE_PAGE_SIZE }).then(r => r.data),
   })
 
+  const camposC = useErroresDeCampo()
+  const msgC = (k: string) => camposC.de(k) ? <div className="u-field-error">{camposC.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
+    onMutate: () => camposC.limpiar(),
     mutationFn: (data: DatosAltaCliente & { project_id: string; project_ids: string[] }) => portalClientsApi.create(data),
     onSuccess: () => { validation.setErrors({}); qc.invalidateQueries({ queryKey: ['portal-clients', projectId] }); onClose() },
-    onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
+    onError: (e: unknown) => { if (!camposC.recoger(e)) toast.error(extractErr(e, t('ai.generic_error'))) },
   })
 
   const allProjectIds = [...new Set([projectId, ...extraProjectIds].filter(Boolean))]
@@ -268,20 +271,20 @@ function CreateClientModal({ projectId, onClose }: { projectId: string; onClose:
       <div className="u-grid2-14">
         <div className="u-col-full">
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cpp-label">{t('client_portal.label_full_name')} *</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.full_name} onChange={set('full_name')} className="cpp-input cpp-input--roomy" {...err('full_name')} />
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.full_name} onChange={set('full_name')} className="cpp-input cpp-input--roomy" {...err('full_name')} />{msgC('full_name')}
           {msg('full_name')}
         </div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cpp-label">{t('client_portal.label_email')} *</label>
-          <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={form.email} onChange={set('email')} className="cpp-input cpp-input--roomy" {...err('email')} />
+          <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={form.email} onChange={set('email')} className="cpp-input cpp-input--roomy" {...err('email')} />{msgC('email')}
           {msg('email')}
         </div>
-        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.label_job_title')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.job_title} onChange={set('job_title')} className="cpp-input cpp-input--roomy" placeholder={t('client_portal.label_job_title')} /></div>
-        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.label_company')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.company} onChange={set('company')} className="cpp-input cpp-input--roomy" /></div>
-        <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="cpp-label">{t('client_portal.label_phone')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.phone} onChange={set('phone')} className="cpp-input cpp-input--roomy" /></div>
+        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.label_job_title')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.job_title} onChange={set('job_title')} className="cpp-input cpp-input--roomy" placeholder={t('client_portal.label_job_title')} />{msgC('job_title')}</div>
+        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.label_company')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.company} onChange={set('company')} className="cpp-input cpp-input--roomy" />{msgC('company')}</div>
+        <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="cpp-label">{t('client_portal.label_phone')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.phone} onChange={set('phone')} className="cpp-input cpp-input--roomy" />{msgC('phone')}</div>
         <div className="u-col-full">
           <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="cpp-label">{t('client_portal.label_password')} *</label>
-          <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="password" value={form.password} onChange={set('password')} className="cpp-input cpp-input--roomy" placeholder={t('client_portal.password_placeholder')} {...err('password')} />
+          <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="password" value={form.password} onChange={set('password')} className="cpp-input cpp-input--roomy" placeholder={t('client_portal.password_placeholder')} {...err('password')} />{msgC('password')}
           {msg('password')}
         </div>
         {allProjects.length > 1 && (
@@ -323,10 +326,13 @@ function EditClientModal({ client, onClose, onSaved }: { client: ClientePortal; 
     queryKey: ['projects-list'],
     queryFn: () => projectsApi.list({ page_size: LARGE_PAGE_SIZE }).then(r => r.data),
   })
+  const camposB = useErroresDeCampo()
+  const msgB = (k: string) => camposB.de(k) ? <div className="u-field-error">{camposB.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
+    onMutate: () => camposB.limpiar(),
     mutationFn: (data: DatosEdicionCliente) => portalClientsApi.update(client.id, data),
     onSuccess: onSaved,
-    onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
+    onError: (e: unknown) => { if (!camposB.recoger(e)) toast.error(extractErr(e, t('ai.generic_error'))) },
   })
 
   const toast = useToast()
@@ -366,30 +372,30 @@ function EditClientModal({ client, onClose, onSaved }: { client: ClientePortal; 
       <div className="u-grid2-14">
         <div className="u-col-full">
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cpp-label">{t('client_portal.label_full_name')} *</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.full_name} onChange={set('full_name')} className="cpp-input" {...err('full_name')} />
+          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.full_name} onChange={set('full_name')} className="cpp-input" {...err('full_name')} />{msgB('full_name')}
           {msg('full_name')}
         </div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cpp-label">{t('client_portal.label_email')} *</label>
-          <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={form.email} onChange={set('email')} className="cpp-input" {...err('email')} />
+          <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={form.email} onChange={set('email')} className="cpp-input" {...err('email')} />{msgB('email')}
           {msg('email')}
         </div>
-        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.label_job_title')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.job_title} onChange={set('job_title')} className="cpp-input" placeholder={t('client_portal.label_job_title')} /></div>
-        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.label_company')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.company} onChange={set('company')} className="cpp-input" /></div>
-        <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="cpp-label">{t('client_portal.label_phone')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.phone} onChange={set('phone')} className="cpp-input" /></div>
+        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.label_job_title')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.job_title} onChange={set('job_title')} className="cpp-input" placeholder={t('client_portal.label_job_title')} />{msgB('job_title')}</div>
+        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.label_company')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.company} onChange={set('company')} className="cpp-input" />{msgB('company')}</div>
+        <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="cpp-label">{t('client_portal.label_phone')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.phone} onChange={set('phone')} className="cpp-input" />{msgB('phone')}</div>
         <fieldset className="u-col-full cpp-fieldset ds-grupo-opciones">
           <legend className="cpp-label cpp-label--group">{t('client_portal.additional_projects_access')}</legend>
           <div className="cpp-projects-box">
             {allProjects.map(project => (
               <Checkbox key={project.id} checked={form.project_ids.includes(String(project.id))}
-                onChange={marcado => setForm(f => ({ ...f, project_ids: marcado ? [...f.project_ids, String(project.id)] : f.project_ids.filter(id => id !== String(project.id)) }))}
+                onChange={marcado => { camposB.limpiar('project_ids'); setForm(f => ({ ...f, project_ids: marcado ? [...f.project_ids, String(project.id)] : f.project_ids.filter(id => id !== String(project.id)) })) }}
                 label={<><span className="cpp-project-code">{project.code}</span> <span className="u-text2-sm">{project.name}</span></>} />
             ))}
           </div>
         </fieldset>
         <div className="u-col-full">
           <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="cpp-label">{t('client_portal.label_password')}</label>
-          <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} type="password" value={form.password} onChange={set('password')} className="cpp-input" placeholder={t('client_portal.password_placeholder')} />
+          <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} type="password" value={form.password} onChange={set('password')} className="cpp-input" placeholder={t('client_portal.password_placeholder')} />{msgB('password')}
           <div className="u-hint">{t('client_portal.password_placeholder')}</div>
         </div>
         <fieldset className="u-col-full cpp-fieldset ds-grupo-opciones">
@@ -496,13 +502,15 @@ function CreateUATModal({ projectId, deliverables, onClose }: { projectId: strin
   const validation = useFormValidation(esquema)
   const errs = validation.errors as Record<string, string | undefined>
   const err = (k: string) => propsDeError(errs, k, idCampo)
-  const msg = (k: string) => <MensajeError errors={errs} campo={k} idBase={idCampo} />
+  const msg = (k: string) => (campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : <MensajeError errors={errs} campo={k} idBase={idCampo} />)
   const set = (k: keyof FormUat) => (e: EventoDeCampo) => {
     setForm(f => ({ ...f, [k]: e.target.value }))
     validation.clearFieldError(k)
   }
 
+  const campos = useErroresDeCampo()
   const { mutate, isPending } = useMutation({
+    onMutate: () => campos.limpiar(),
     mutationFn: async (data: { form: FormUat; testCases: CasoNuevo[] }) => {
       const res = await portalApi.createUat(projectId, data.form)
       for (const tc of data.testCases.filter(t => t.title)) {
@@ -511,7 +519,7 @@ function CreateUATModal({ projectId, deliverables, onClose }: { projectId: strin
       return res
     },
     onSuccess: () => { validation.setErrors({}); qc.invalidateQueries({ queryKey: ['uat-team', projectId] }); onClose() },
-    onError: e => toast.error(extractErr(e, t('ai.generic_error'))),
+    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, t('ai.generic_error'))) },
   })
 
   const submit = () => {
@@ -526,23 +534,23 @@ function CreateUATModal({ projectId, deliverables, onClose }: { projectId: strin
         <div className="cpp-grid-2-1">
           <div>
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cpp-label">{t('client_portal.uat_label_title')} *</label>
-            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={set('title')} className="cpp-input" placeholder={t('client_portal.uat_placeholder_title')} {...err('title')} />
+            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={set('title')} className="cpp-input" placeholder={t('client_portal.uat_placeholder_title')} {...err('title')} />{msg('title')}
             {msg('title')}
           </div>
           <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cpp-label">{t('client_portal.uat_label_deliverable')}</label>
             <Select suelto id={`${idCampo}-2`} placeholder={t('client_portal.uat_unlinked')} value={form.deliverable_id} onChange={set('deliverable_id')} className="cpp-input">
               {deliverables.map(d => <option key={d.id} value={d.id}>{d.code} — {d.name}</option>)}
-            </Select>
+            </Select>{msg('deliverable_id')}
           </div>
         </div>
-        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.uat_label_description')}</label><textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.description} onChange={set('description')} rows={2} className="cpp-input" /></div>
+        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.uat_label_description')}</label><textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.description} onChange={set('description')} rows={2} className="cpp-input" />{msg('description')}</div>
         <div className="u-grid2-12">
-          <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.uat_label_test_env_url')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.test_environment} onChange={set('test_environment')} className="cpp-input" placeholder={t('client_portal.uat_placeholder_test_env_url')} /></div>
-          <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="cpp-label">{t('client_portal.uat_label_test_credentials')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.test_credentials} onChange={set('test_credentials')} className="cpp-input" placeholder={t('client_portal.uat_placeholder_test_credentials')} /></div>
-          <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="cpp-label">{t('client_portal.uat_label_available_from')}</label><DateInput id={`${idCampo}-6`} value={form.available_from} onChange={set('available_from')} className="cpp-input" {...err('available_from')} /></div>
+          <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.uat_label_test_env_url')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.test_environment} onChange={set('test_environment')} className="cpp-input" placeholder={t('client_portal.uat_placeholder_test_env_url')} />{msg('test_environment')}</div>
+          <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="cpp-label">{t('client_portal.uat_label_test_credentials')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.test_credentials} onChange={set('test_credentials')} className="cpp-input" placeholder={t('client_portal.uat_placeholder_test_credentials')} />{msg('test_credentials')}</div>
+          <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="cpp-label">{t('client_portal.uat_label_available_from')}</label><DateInput id={`${idCampo}-6`} value={form.available_from} onChange={set('available_from')} className="cpp-input" {...err('available_from')} />{msg('available_from')}</div>
           <div>
             <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="cpp-label">{t('client_portal.uat_label_deadline')}</label>
-            <DateInput id={`${idCampo}-7`} value={form.deadline} onChange={set('deadline')} className="cpp-input" {...err('deadline')} />
+            <DateInput id={`${idCampo}-7`} value={form.deadline} onChange={set('deadline')} className="cpp-input" {...err('deadline')} />{msg('deadline')}
             {msg('deadline')}
           </div>
         </div>
@@ -551,9 +559,9 @@ function CreateUATModal({ projectId, deliverables, onClose }: { projectId: strin
           <div className="cpp-subtitle-accent">{t('client_portal.uat_test_cases')}</div>
           {testCases.map((tc, i) => (
             <div key={i} className="cpp-case">
-              <input aria-label={t('client_portal.uat_test_case_title_placeholder', { index: i + 1 })} value={tc.title} onChange={e => setTestCases(tcs => tcs.map((c, j) => j === i ? { ...c, title: e.target.value } : c))} className="cpp-input" placeholder={t('client_portal.uat_test_case_title_placeholder', { index: i + 1 })} />
-              <input aria-label={t('client_portal.uat_test_case_steps_placeholder')} value={tc.steps} onChange={e => setTestCases(tcs => tcs.map((c, j) => j === i ? { ...c, steps: e.target.value } : c))} className="cpp-input" placeholder={t('client_portal.uat_test_case_steps_placeholder')} />
-              <input aria-label={t('client_portal.uat_test_case_expected_placeholder')} value={tc.expected_result} onChange={e => setTestCases(tcs => tcs.map((c, j) => j === i ? { ...c, expected_result: e.target.value } : c))} className="cpp-input" placeholder={t('client_portal.uat_test_case_expected_placeholder')} />
+              <input aria-label={t('client_portal.uat_test_case_title_placeholder', { index: i + 1 })} value={tc.title} onChange={e => setTestCases(tcs => tcs.map((c, j) => j === i ? { ...c, title: e.target.value } : c))} className="cpp-input" placeholder={t('client_portal.uat_test_case_title_placeholder', { index: i + 1 })} />{msg('title')}
+              <input aria-label={t('client_portal.uat_test_case_steps_placeholder')} value={tc.steps} onChange={e => setTestCases(tcs => tcs.map((c, j) => j === i ? { ...c, steps: e.target.value } : c))} className="cpp-input" placeholder={t('client_portal.uat_test_case_steps_placeholder')} />{msg('steps')}
+              <input aria-label={t('client_portal.uat_test_case_expected_placeholder')} value={tc.expected_result} onChange={e => setTestCases(tcs => tcs.map((c, j) => j === i ? { ...c, expected_result: e.target.value } : c))} className="cpp-input" placeholder={t('client_portal.uat_test_case_expected_placeholder')} />{msg('expected_result')}
               <IconButton onClick={() => setTestCases(tcs => tcs.filter((_, j) => j !== i))} className="cpp-case__remove"
                 ariaLabel={t('clientportalpage.quitar_caso', { index: i + 1 })}><X size={14} aria-hidden="true" /></IconButton>
             </div>

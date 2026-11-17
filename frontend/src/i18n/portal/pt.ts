@@ -1085,6 +1085,8 @@ const pt: Record<string, string> = {
   "fecha.desde": "De",
   "fecha.hasta": "Até",
   "ticket_autor_sistema": "Sistema",
+  "ticket_comentario_editado": "editado",
+  "ticket_comentario_retirado": "Comentário retirado pelo autor",
   "err_srv.sesion_invalida": "A sua sessão não é válida ou expirou",
   "err_srv.credenciales_incorrectas": "Email ou palavra-passe incorretos",
   "err_srv.cliente_no_encontrado": "Cliente não encontrado",

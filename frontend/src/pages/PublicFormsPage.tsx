@@ -13,7 +13,7 @@ import type { ChangeEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { formsApi, projectsApi } from '../services/api'
 import type { FormularioPublico } from '../services/api/tipos-documentos'
-import { Button, Card, Input, Modal, EmptyState, Spinner, Table, Checkbox, Select } from '../components/ui'
+import { Button, Card, Input, Modal, EmptyState, Spinner, Table, Checkbox, Select, useErroresDeCampo } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import Pagination from '../components/ui/Pagination'
 import { SMALL_PAGE_SIZE } from '../constants/pagination'
@@ -72,7 +72,10 @@ function FormModal({ form, onClose }: { form?: PublicForm | null; onClose: () =>
     enabled: f.form_type === 'task',
   })
 
+  const camposB = useErroresDeCampo()
+  const msgB = (k: string) => camposB.de(k) ? <div className="u-field-error">{camposB.de(k)}</div> : null
   const { mutate, isPending } = useMutation({
+    onMutate: () => camposB.limpiar(),
     mutationFn: (data: PublicFormPayload) => isEdit
       ? formsApi.update(form.id, data).then(r => r.data)
       : formsApi.create(data).then(r => r.data),
@@ -81,16 +84,16 @@ function FormModal({ form, onClose }: { form?: PublicForm | null; onClose: () =>
       toast.success(isEdit ? t('public_forms.form_updated') : t('public_forms.form_created'))
       onClose()
     },
-    onError: (e: unknown) => toast.error(extractErr(e, t('public_forms.save_error'))),
+    onError: (e: unknown) => { if (!camposB.recoger(e)) toast.error(extractErr(e, t('public_forms.save_error'))) },
   })
 
   return (
     <Modal open title={isEdit ? `${t('public_forms.edit_form')} — ${form.name}` : t('public_forms.new_form_title')} onClose={onClose} width={520}>
       <div className="u-stack-14">
-        <Input label={t('public_forms.name_label')} value={f.name} onChange={set('name')} placeholder={t('public_forms.name_placeholder')} />
+        <Input error={camposB.de('name')} label={t('public_forms.name_label')} value={f.name} onChange={set('name')} placeholder={t('public_forms.name_placeholder')} />
         <div className="ui-field">
           <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-2`}>{t('public_forms.description_label')}</label>
-          <textarea className="ds-input pubf-textarea" id={`${idCampo}-2`} value={f.description} onChange={set('description')} rows={2} />
+          <textarea className="ds-input pubf-textarea" id={`${idCampo}-2`} value={f.description} onChange={set('description')} rows={2} />{msgB('description')}
         </div>
         <div className="u-grid2-12">
           <div className="ui-field">
@@ -98,7 +101,7 @@ function FormModal({ form, onClose }: { form?: PublicForm | null; onClose: () =>
             <Select suelto placeholder={false} id={`${idCampo}-3`} value={f.form_type} onChange={set('form_type')} disabled={isEdit}>
               <option value="ticket">{t('public_forms.type_ticket')}</option>
               <option value="task">{t('public_forms.type_task')}</option>
-            </Select>
+            </Select>{msgB('form_type')}
           </div>
           <div className="ui-field">
             <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-4`}>{t('public_forms.default_priority_label')}</label>
@@ -107,24 +110,24 @@ function FormModal({ form, onClose }: { form?: PublicForm | null; onClose: () =>
               <option value="medium">{t('public_forms.priority_medium')}</option>
               <option value="high">{t('public_forms.priority_high')}</option>
               <option value="critical">{t('public_forms.priority_critical')}</option>
-            </Select>
+            </Select>{msgB('default_priority')}
           </div>
         </div>
         {f.form_type === 'task' && (
           <div className="ui-field">
             <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-7`}>{t('public_forms.target_project_label')}</label>
             <Select suelto placeholder={false} id={`${idCampo}-7`} value={f.target_project_id ?? ''}
-              onChange={e => setF(p => ({ ...p, target_project_id: e.target.value || null }))}>
+              onChange={e => { camposB.limpiar('target_project_id'); setF(p => ({ ...p, target_project_id: e.target.value || null })) }}>
               <option value="">—</option>
               {proyectos.map(pr => <option key={pr.id} value={pr.id}>{pr.code} · {pr.name}</option>)}
-            </Select>
+            </Select>{msgB('target_project_id')}
           </div>
         )}
-        <Input label={t('public_forms.default_category_label')} value={f.default_category} onChange={set('default_category')} placeholder={t('public_forms.default_category_placeholder')} />
+        <Input error={camposB.de('default_category')} label={t('public_forms.default_category_label')} value={f.default_category} onChange={set('default_category')} placeholder={t('public_forms.default_category_placeholder')} />
         <div className="ui-field">
           <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-6`}>{t('public_forms.success_message_label')}</label>
           <textarea className="ds-input pubf-textarea" id={`${idCampo}-6`} value={f.success_message} onChange={set('success_message')} rows={2}
-            placeholder={t('public_forms.success_message_placeholder')} />
+            placeholder={t('public_forms.success_message_placeholder')} />{msgB('success_message')}
         </div>
         <Checkbox className="u-row-center-8-pointer" checked={!!f.is_active} onChange={setCheck('is_active')} label={t('public_forms.active_form_label')} />
         <div className="pubf-row">

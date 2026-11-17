@@ -36,6 +36,7 @@ from sqlalchemy.orm import Session
 
 from app.core import timeutil
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error as error_con_codigo
 from app.models.ausencias import EventoDeAusencia
 from app.models.resources import Absence, AbsenceStatus
 from app.services.ausencias import catalogo, cupos, reglas, saldos
@@ -81,7 +82,7 @@ def _fecha(v, nombre: str) -> date:
     try:
         return date.fromisoformat(str(v)[:10])
     except (TypeError, ValueError):
-        raise ErrorDeDominio(422, f"Fecha no válida en «{nombre}»")
+        raise error_con_codigo(422, "fecha_no_valida_en", nombre=nombre)
 
 
 def _hora(v, nombre: str) -> Optional[time]:
@@ -93,7 +94,7 @@ def _hora(v, nombre: str) -> Optional[time]:
         h, m = str(v).split(":")[:2]
         return time(int(h), int(m))
     except (TypeError, ValueError):
-        raise ErrorDeDominio(422, f"Hora no válida en «{nombre}» (HH:MM)")
+        raise error_con_codigo(422, "hora_no_valida_en", nombre=nombre)
 
 
 def construir(db: Session, usuario, datos: dict, a: Optional[Absence] = None) -> Absence:
@@ -120,23 +121,23 @@ def construir(db: Session, usuario, datos: dict, a: Optional[Absence] = None) ->
         raise ErrorDeDominio(422, "Las horas tienen que ser más de 0")
     h_ini, h_fin = _hora(datos.get("start_time"), "hora de inicio"), _hora(datos.get("end_time"), "hora de fin")
     if (h_ini is None) != (h_fin is None):
-        raise ErrorDeDominio(422, "Indica la hora de inicio y la de fin")
+        raise error_con_codigo(422, "indica_hora_inicio_y_fin")
     if h_ini is not None and h_ini == h_fin:
-        raise ErrorDeDominio(422, "La franja empieza y acaba a la misma hora")
+        raise error_con_codigo(422, "franja_misma_hora")
     permitidos = catalogo.modos_de(tipo)
     solo_horas = "dias" not in permitidos and "medio_dia" not in permitidos
     modo = datos.get("modo") or ("horas" if (h_ini is not None or horas not in (None, "") or solo_horas) else "dias")
     if modo not in ("dias", "horas"):
-        raise ErrorDeDominio(422, "El modo de la petición es «dias» u «horas»")
+        raise error_con_codigo(422, "modo_de_peticion_no_valido")
     medio = bool(datos.get("half_day_start")) or bool(datos.get("half_day_end"))
     if modo == "horas" and "horas" not in permitidos:
-        raise ErrorDeDominio(422, f"«{tipo.nombre}» no se puede pedir por horas")
+        raise error_con_codigo(422, "tipo_no_se_pide_por_horas", tipo=tipo.nombre)
     if modo == "dias" and "dias" not in permitidos and not (medio and "medio_dia" in permitidos):
-        raise ErrorDeDominio(422, f"«{tipo.nombre}» se pide por horas")
+        raise error_con_codigo(422, "tipo_se_pide_por_horas", tipo=tipo.nombre)
     if modo == "dias" and medio and "medio_dia" not in permitidos:
-        raise ErrorDeDominio(422, f"«{tipo.nombre}» no se puede pedir por medio día")
+        raise error_con_codigo(422, "tipo_no_se_pide_por_medio_dia", tipo=tipo.nombre)
     if modo == "horas" and h_ini is None and horas in (None, ""):
-        raise ErrorDeDominio(422, "Por horas: indica la franja (hora de inicio y de fin)")
+        raise error_con_codigo(422, "por_horas_indica_franja")
     if a is None:
         a = Absence(id=None, user_id=usuario.id, organization_id=getattr(usuario, "organization_id", None),
                     status=AbsenceStatus.pending, is_active=True)
@@ -210,18 +211,24 @@ def _exigencias(db: Session, a: Absence, tipo, ctx: dict, m: Optional[dict] = No
     """Lo que no depende de una política: sustituto si el tipo lo exige, que
     caiga en su horario y el saldo (con el negativo que permitan las políticas)."""
     if tipo.requiere_sustituto and not a.substitute_id:
-        raise ErrorDeDominio(422, f"«{tipo.nombre}» necesita un sustituto")
+        raise error_con_codigo(422, "tipo_necesita_sustituto", tipo=tipo.nombre)
     if not ctx.get("dias_laborables"):
         if a.start_time is not None:
-            raise ErrorDeDominio(422, "Esa franja no cae dentro de tu horario (turno o jornada) en esas fechas")
-        raise ErrorDeDominio(422, "En esas fechas no tienes ningún día de trabajo (cuadrante o calendario laboral)")
+            raise error_con_codigo(422, "franja_fuera_de_horario")
+        raise error_con_codigo(422, "sin_dia_de_trabajo")
     restante = (m or {}).get("saldo_restante", ctx.get("saldo_restante"))
     permitido = float((m or {}).get("negativo_permitido") or 0)
     if tipo.descuenta_saldo and restante is not None and restante < -permitido - 1e-9:
         disponible = ctx.get("saldo_disponible")
-        texto = f"te quedan {disponible:g}" if disponible is not None else "no te queda saldo"
-        limite = f" (se permite hasta −{permitido:g})" if permitido else ""
-        raise ErrorDeDominio(400, f"Pides {(m or ctx).get('cantidad', ctx.get('cantidad')):g} y {texto}{limite}")
+        cantidad = f"{(m or ctx).get('cantidad', ctx.get('cantidad')):g}"
+        codigo = "saldo_insuficiente" if disponible is not None else "saldo_agotado"
+        params = {"cantidad": cantidad}
+        if disponible is not None:
+            params["disponible"] = f"{disponible:g}"
+        if permitido:
+            codigo += "_con_limite"
+            params["permitido"] = f"{permitido:g}"
+        raise error_con_codigo(400, codigo, **params)
 
 
 def _solapada(db: Session, a: Absence) -> None:

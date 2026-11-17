@@ -109,7 +109,8 @@ function Entrega({ m }: { m: MensajeDeCanal }) {
   return <StatusBadge kind={ENTREGA_KIND[m.delivery_status] || 'neutral'} caps={false}>{etiquetaCodigo(t, 'sd_mercado.entrega', m.delivery_status)}</StatusBadge>
 }
 
-function Ventana({ c }: { c: ConversacionDeCanal }) {
+/** Estado de la ventana de 24 h de WhatsApp (también en la ficha del ticket). */
+export function Ventana({ c }: { c: ConversacionDeCanal }) {
   const t = useAppT()
   const v = c.whatsapp_window
   if (!v) return null
