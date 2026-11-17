@@ -1028,6 +1028,10 @@ const pt: Record<string, string> = {
   // comentarios automaticos y errores del servidor con codigo (`err_srv.<codigo>`).
   "uikit.cargando": "A carregar…",
   "uikit.cerrar": "Fechar",
+  "uikit.editar_celda": "Editar {columna}: {valor}",
+  "uikit.seleccionar_todas": "Selecionar todas as linhas",
+  "uikit.seleccionar_fila": "Selecionar a linha {n}",
+  "uikit.barra_de_filtros": "Filtros",
   "uikit.filtrar": "Filtrar…",
   "uikit.n_registros": "{{n}} registos",
   "uikit.sin_datos": "Sem dados",

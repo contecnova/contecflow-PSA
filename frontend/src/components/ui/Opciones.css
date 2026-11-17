@@ -1,0 +1,59 @@
+/* Casillas, radios e interruptor del kit (Opciones.tsx). Las tarjetas son
+   `ds-opcion` (index.css). Solo tokens de index.css. */
+.ui-casilla {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-1);
+  cursor: pointer;
+  min-width: 0;
+}
+.ui-casilla--sola { display: inline-flex; align-items: center; cursor: default; }
+.ui-casilla--desactivada { cursor: default; opacity: 0.6; }
+.ui-casilla__control {
+  accent-color: var(--accent);
+  width: 16px;
+  aspect-ratio: 1;
+  margin: 1px 0 0;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.ui-casilla__control:disabled { cursor: default; }
+.ui-casilla__texto { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ui-casilla__titulo { color: var(--text-1); }
+.ui-casilla__ayuda { font-size: var(--text-xs); color: var(--text-3); overflow-wrap: anywhere; }
+
+/* Interruptor: el mismo input, dibujado como pista con botón. */
+.ui-switch { align-items: center; }
+.ui-switch__control {
+  appearance: none;
+  position: relative;
+  width: 34px;
+  aspect-ratio: 34 / 20;
+  margin: 0;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  background: var(--surface-4);
+  border: 1px solid var(--surface-4);
+  cursor: pointer;
+  transition: background 0.15s var(--easing), border-color 0.15s var(--easing);
+}
+.ui-switch__control::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--text-1);
+  transition: transform 0.15s var(--easing);
+}
+.ui-switch__control:checked { background: var(--accent); border-color: var(--accent); }
+.ui-switch__control:checked::after { transform: translateX(14px); background: var(--on-accent); }
+.ui-switch__control:disabled { cursor: default; opacity: 0.6; }
+
+/* Formas de GrupoDeOpciones además de las tarjetas (`ds-opciones`). */
+.ui-opciones-lista { display: flex; flex-direction: column; gap: var(--space-2); }
+.ui-opciones-fila { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }

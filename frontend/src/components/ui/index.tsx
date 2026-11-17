@@ -9,6 +9,8 @@ import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { px } from '../../utils/estilos'
 import { CampoFecha } from './SelectorDeFecha'
 import { eventoDeCambio } from './DateInput'
+import StatusBadge, { type StatusBadgeKind } from './StatusBadge'
+import { Tabla } from './Tabla'
 
 export { default as Confirm } from './Confirm'
 export { default as IconButton } from './IconButton'
@@ -19,6 +21,14 @@ export { default as FormField } from './FormField'
 export { default as Page } from './Page'
 export { default as Section } from './Section'
 export { default as StatusBadge } from './StatusBadge'
+export type { StatusBadgeKind, StatusBadgeProps } from './StatusBadge'
+// Migración al kit, fase 1 (16-11-2026): tabla común, casillas y controles.
+export { Tabla, TablaSimple, CeldaEditable, EditorTexto, EditorLista, EditorFecha } from './Tabla'
+export type { TablaProps, TablaSimpleProps, ColumnaTabla, EdicionDeCelda, OrdenDeTabla, ClaveDeFila, DensidadDeTabla, VacioDeTabla, CerrarEditor } from './Tabla'
+export { Checkbox, Radio, Switch, GrupoDeOpciones } from './Opciones'
+export type { CheckboxProps, GrupoDeOpcionesProps, OpcionDeGrupo } from './Opciones'
+export { BarraDeFiltros, Chip, Segmentado, Pulsable } from './Controles'
+export type { BarraDeFiltrosProps, ChipProps, SegmentadoProps, OpcionSegmentada, PulsableProps } from './Controles'
 // Recurso externo («Externo · proveedor») en listas y selectores de persona
 export { default as MarcaExterno, esExterno, textoMarcaExterno, etiquetaDePersona } from './MarcaExterno'
 export type { PersonaConEmpresa } from './MarcaExterno'
@@ -79,19 +89,6 @@ export interface ColumnaDeTabla<T = unknown> {
   render?: (valor: never, fila: T) => React.ReactNode
 }
 
-/** El contenido de una celda: lo que diga `render`, o el valor crudo, o guion.
- *
- *  Vive fuera de los dos componentes porque los dos hacían exactamente esto, y
- *  el acceso dinámico `fila[col.key]` necesita **un** sitio donde justificarse:
- *  la tabla no conoce la forma de la fila —es genérica— y la columna sí, así
- *  que aquí es donde el `Record` es la verdad y no una tirita.
- */
-function celda<T>(col: ColumnaDeTabla<T>, fila: T): React.ReactNode {
-  const valor = (fila as Record<string, unknown>)[col.key]
-  if (col.render) return (col.render as unknown as (v: unknown, f: T) => React.ReactNode)(valor, fila)
-  return (valor ?? '—') as React.ReactNode
-}
-
 /** Convert snake_case to Title Case as fallback for unknown values. */
 function humanize(str?: string | null): string {
   if (!str) return ''
@@ -99,59 +96,40 @@ function humanize(str?: string | null): string {
 }
 
 interface BadgeProps {
-  /** El valor crudo (p. ej. `p1_critical`); elige color y, si no hay
-   *  `display`, tambien el texto. */
+  /** El valor crudo (p. ej. `p1_critical`); elige el tono y, si no hay
+   *  `display` ni `children`, tambien el texto. */
   label?: string | null
   /** Texto a mostrar cuando el valor crudo no se quiere ensenar tal cual. */
   display?: React.ReactNode
+  /** Tono semantico explicito (prevalece sobre el que sale de `label`). */
+  tono?: StatusBadgeKind
+  children?: React.ReactNode
   /** Sin uso: se conserva porque hay llamadas que lo pasan. */
   _color?: string
 }
 
-export function Badge({ label, display, _color }: BadgeProps) {
+/** Tono de cada estado conocido (el resto, neutro). */
+const TONO_DE_ESTADO: Record<string, StatusBadgeKind> = {
+  low: 'success', medium: 'warning', high: 'danger', critical: 'danger',
+  p1_critical: 'danger', p2_high: 'orange', p3_medium: 'warning', p4_low: 'neutral',
+  active: 'accent', in_progress: 'accent',
+  planning: 'neutral', todo: 'neutral', backlog: 'neutral', draft: 'neutral', normal: 'neutral', cancelled: 'neutral',
+  paused: 'warning', in_review: 'warning', review: 'warning', submitted: 'warning', pending: 'warning',
+  closed: 'success', done: 'success', accepted: 'success', approved: 'success', resolved: 'success',
+  blocked: 'danger', rejected: 'danger', materialized: 'danger',
+}
+
+/**
+ * Etiqueta de estado. Es `StatusBadge` (la unica pastilla del kit) con el
+ * tono sacado del valor crudo: `<Badge label="approved" />`. Con `tono` y
+ * `children` es una pastilla libre: `<Badge tono="warning">Pendiente</Badge>`.
+ */
+export function Badge({ label, display, tono, children, _color }: BadgeProps) {
   const t = useTextoUi()
-  const presets: Record<string, { bg: string; text: string; border: string }> = {
-    low:         { bg: 'var(--success-bg)',  text: 'var(--success)',  border: 'var(--success-border)' },
-    medium:      { bg: 'var(--warning-bg)',  text: 'var(--warning)',  border: 'var(--warning-border)' },
-    high:        { bg: 'var(--danger-bg)',   text: 'var(--danger)',   border: 'var(--danger-border)' },
-    critical:    { bg: 'var(--danger-bg)',   text: 'var(--danger)',   border: 'var(--danger-border)' },
-    p1_critical: { bg: 'var(--danger-bg)',   text: 'var(--danger)',   border: 'var(--danger-border)' },
-    p2_high:     { bg: 'var(--orange-bg)',   text: 'var(--orange)',   border: 'var(--orange-border)' },
-    p3_medium:   { bg: 'var(--warning-bg)',  text: 'var(--warning)',  border: 'var(--warning-border)' },
-    p4_low:      { bg: 'var(--surface-3)',   text: 'var(--text-2)',   border: 'var(--surface-4)' },
-    active:      { bg: 'var(--accent-muted)', text: 'var(--accent)', border: 'color-mix(in srgb, var(--accent) 25%, transparent)' },
-    planning:    { bg: 'var(--surface-3)',   text: 'var(--text-2)',   border: 'var(--surface-4)' },
-    paused:      { bg: 'var(--warning-bg)',  text: 'var(--warning)',  border: 'var(--warning-border)' },
-    closed:      { bg: 'var(--success-bg)',  text: 'var(--success)',  border: 'var(--success-border)' },
-    done:        { bg: 'var(--success-bg)',  text: 'var(--success)',  border: 'var(--success-border)' },
-    accepted:    { bg: 'var(--success-bg)',  text: 'var(--success)',  border: 'var(--success-border)' },
-    approved:    { bg: 'var(--success-bg)',  text: 'var(--success)',  border: 'var(--success-border)' },
-    cancelled:   { bg: 'var(--surface-3)',   text: 'var(--text-3)',   border: 'var(--surface-4)' },
-    in_progress: { bg: 'var(--accent-muted)', text: 'var(--accent)', border: 'color-mix(in srgb, var(--accent) 25%, transparent)' },
-    in_review:   { bg: 'var(--warning-bg)',  text: 'var(--warning)',  border: 'var(--warning-border)' },
-    blocked:     { bg: 'var(--danger-bg)',   text: 'var(--danger)',   border: 'var(--danger-border)' },
-    rejected:    { bg: 'var(--danger-bg)',   text: 'var(--danger)',   border: 'var(--danger-border)' },
-    materialized:{ bg: 'var(--danger-bg)',   text: 'var(--danger)',   border: 'var(--danger-border)' },
-    review:      { bg: 'var(--warning-bg)',  text: 'var(--warning)',  border: 'var(--warning-border)' },
-    todo:        { bg: 'var(--surface-3)',   text: 'var(--text-2)',   border: 'var(--surface-4)' },
-    backlog:     { bg: 'var(--surface-3)',   text: 'var(--text-3)',   border: 'var(--surface-4)' },
-    draft:       { bg: 'var(--surface-3)',   text: 'var(--text-2)',   border: 'var(--surface-4)' },
-    submitted:   { bg: 'var(--warning-bg)',  text: 'var(--warning)',  border: 'var(--warning-border)' },
-    pending:     { bg: 'var(--warning-bg)',  text: 'var(--warning)',  border: 'var(--warning-border)' },
-    resolved:    { bg: 'var(--success-bg)',  text: 'var(--success)',  border: 'var(--success-border)' },
-    normal:      { bg: 'var(--surface-3)',   text: 'var(--text-2)',   border: 'var(--surface-4)' },
-  }
-  const c = (label && presets[label]) || presets.normal
-  const texto = etiquetaCodigo(t, 'estado', label, humanize(label))
-  const shown: React.ReactNode = display || texto
-  return (
-    <span className="uiinde-box-13 index-sx1 ui-index-e1"
-      style={{ '--ui-index-background': c.bg, '--ui-index-color': c.text, '--ui-index-border': `1px solid ${c.border}` } as CSSProperties}
-      aria-label={texto}
-    >
-      {shown}
-    </span>
-  )
+  void _color
+  const kind = tono ?? (label ? TONO_DE_ESTADO[label] : undefined) ?? 'neutral'
+  const texto = children ?? display ?? etiquetaCodigo(t, 'estado', label, humanize(label))
+  return <StatusBadge kind={kind}>{texto}</StatusBadge>
 }
 
 // ── LoadBar ───────────────────────────────────────────────────────────────────
@@ -296,7 +274,8 @@ const RE_PICTOGRAMA_G = /[\p{Extended_Pictographic}\u{FE0F}\u{200D}]/gu
 interface ButtonProps {
   children?: React.ReactNode
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'subtle'
+  /** `link`: boton con aspecto de enlace (texto en acento, sin caja). */
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'subtle' | 'link'
   size?: 'xs' | 'sm' | 'md' | 'lg'
   disabled?: boolean
   /** Deshabilita ademas de mostrar el spinner: un boton cargando no se pulsa. */
@@ -317,7 +296,7 @@ interface ButtonProps {
 export function Button({ children, onClick, variant = 'primary', size = 'md', disabled = false, loading = false, icon = null, className, style, type = 'button', title = undefined, ...resto }: ButtonProps) {
   // 16-11-2026: `subtle` (azul claro) ya no es una variante del estándar; se
   // pinta como `secondary`. Las variantes son primary/secondary/ghost/danger.
-  const v = variant === 'subtle' ? 'secondary' : ['primary', 'secondary', 'danger', 'ghost'].includes(variant) ? variant : 'primary'
+  const v = variant === 'subtle' ? 'secondary' : ['primary', 'secondary', 'danger', 'ghost', 'link'].includes(variant) ? variant : 'primary'
   const sz = ['xs', 'sm', 'md', 'lg'].includes(size) ? size : 'md'
   const isDisabled = disabled || loading
   // 16-11-2026 (pasada de diseño): red de seguridad para textos heredados. Un
@@ -469,30 +448,65 @@ export function Input({ label, value, onChange, placeholder, type = 'text', requ
 }
 
 // ── Select ────────────────────────────────────────────────────────────────────
+// El unico desplegable de la app (16-11-2026, migracion al kit): `<select>`
+// nativo estilizado, 38 px como Input y Button md (32 px con `tamano="sm"`).
+// Con `label`/`hint`/`error` va dentro de un campo (`ui-field`); con `suelto`
+// es solo el control, para barras de filtros y celdas de tabla.
 interface SelectProps {
   label?: React.ReactNode
-  value?: string
+  value?: string | number
   onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void
   /** `disabled` deja ver la opción sin poder elegirla (p. ej. una granularidad no admitida). */
-  options?: Array<{ value: string; label: string; disabled?: boolean }>
-  /** Clases del contenedor (la maqueta base es `ui-field`). */
+  options?: Array<{ value: string | number; label: string; disabled?: boolean }>
+  /** Opciones propias (`<option>`, `<optgroup>`) tras las de `options`. */
+  children?: React.ReactNode
+  /** Clases del contenedor (la maqueta base es `ui-field`); con `suelto`, del `<select>`. */
   className?: string
   style?: React.CSSProperties
   hint?: React.ReactNode
   error?: React.ReactNode
   id?: string
+  name?: string
   disabled?: boolean
   required?: boolean
+  autoFocus?: boolean
+  title?: string
+  onBlur?: (e: React.FocusEvent<HTMLSelectElement>) => void
+  onKeyDown?: (e: React.KeyboardEvent<HTMLSelectElement>) => void
   /** Nombre accesible cuando no hay `label` visible. */
   'aria-label'?: string
+  'aria-describedby'?: string
   /** Texto de la opción vacía inicial («Selecciona…» por defecto); `false`
    *  la quita (cuando siempre hay un valor elegido). */
   placeholder?: string | false
+  /** Solo el control, sin el campo con etiqueta (barras, tablas). */
+  suelto?: boolean
+  tamano?: 'sm' | 'md'
+  /** Marcas para tours y pruebas. */
+  [atributoData: `data-${string}`]: string | undefined
 }
 
-export function Select({ label, value, onChange, options = [], className, style, hint, error, id, disabled, required, 'aria-label': ariaLabel, placeholder }: SelectProps) {
+export function Select({ label, value, onChange, options = [], children, className, style, hint, error, id, disabled, required, 'aria-label': ariaLabel, 'aria-describedby': ariaDescribedBy, placeholder, suelto = false, tamano = 'md', ...resto }: SelectProps) {
   const t = useTextoUi()
   const { base, idHint, idError, describedBy } = useIdsDeCampo(id, hint, error)
+  const vacio = value === undefined || value === null || value === ''
+  const control = (
+    <select className={`uiinde-box-19 index-sx3 ui-index-e7 ${vacio ? 'ui-index-m9' : 'ui-index-m8'}${tamano === 'sm' ? ' ui-select--sm' : ''}${suelto ? ' ui-select--suelto' : ''}${suelto && className ? ` ${className}` : ''}`}
+      {...resto}
+      id={suelto ? id : base}
+      value={value} onChange={onChange}
+      disabled={disabled} required={required || undefined}
+      aria-label={label ? undefined : ariaLabel}
+      aria-invalid={error ? true : undefined}
+      aria-describedby={[describedBy, ariaDescribedBy].filter(Boolean).join(' ') || undefined}
+      style={{ ...(suelto ? style : null), '--ui-index-border': `1px solid ${error ? 'var(--danger-border)' : 'var(--surface-4)'}` } as CSSProperties}
+    >
+      {placeholder !== false && <option value="">{placeholder ?? t('invoices.select')}</option>}
+      {options.map(o => <option key={o.value} value={o.value} disabled={o.disabled || undefined}>{o.label}</option>)}
+      {children}
+    </select>
+  )
+  if (suelto) return control
   return (
     <div className={className ? `ui-field ${className}` : 'ui-field'} style={style}>
       {label && (
@@ -500,18 +514,7 @@ export function Select({ label, value, onChange, options = [], className, style,
           {label}
         </label>
       )}
-      <select className={`uiinde-box-19 index-sx3 ui-index-e7 ${value ? 'ui-index-m8' : 'ui-index-m9'}`}
-        id={base}
-        value={value} onChange={onChange}
-        disabled={disabled} required={required || undefined}
-        aria-label={label ? undefined : ariaLabel}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy}
-        style={{ '--ui-index-border': `1px solid ${error ? 'var(--danger-border)' : 'var(--surface-4)'}` } as CSSProperties}
-      >
-        {placeholder !== false && <option value="">{placeholder ?? t('invoices.select')}</option>}
-        {options.map(o => <option key={o.value} value={o.value} disabled={o.disabled || undefined}>{o.label}</option>)}
-      </select>
+      {control}
       {hint && <div id={idHint} className="u-text3-xs">{hint}</div>}
       {error && <div id={idError} role="alert" className="u-field-error">{error}</div>}
     </div>
@@ -530,13 +533,6 @@ export function Spinner({ size = 22, color = 'var(--accent)', label }: SpinnerPr
   return (
     <div className="uiinde-box-20 ui-index-e10" role="status" aria-label={label ?? t('uikit.cargando')} style={{ '--ui-index-width': px(size), '--ui-index-height': px(size), '--ui-index-border-top-color': color } as CSSProperties} />
   )
-}
-
-/** Spinner centrado en su contenedor (celda de carga de DataTable). Como
- *  componente propio, la regla control-has-associated-label ve su nombre
- *  accesible (el role="status" del Spinner) sin tener que bajar niveles. */
-function SpinnerCentrado() {
-  return <div className="uiinde-row-2"><Spinner /></div>
 }
 
 // ── Empty state ───────────────────────────────────────────────────────────────
@@ -671,6 +667,8 @@ export function Modal({ open, onClose, title, children, width, size, subtitle }:
 }
 
 // ── DataTable ─────────────────────────────────────────────────────────────────
+// 16-11-2026 (migracion al kit): `DataTable` y `Table` son `Tabla` con su API
+// de siempre. DataTable anade el filtro de texto y la paginacion en cliente.
 interface DataTableProps<T> {
   columns: Array<ColumnaDeTabla<T>>
   data?: T[]
@@ -698,8 +696,6 @@ export function DataTable<T>({ columns, data = [], loading, emptyIcon = 'inbox',
     : filtered
   const pages    = Math.max(1, Math.ceil(sorted.length / pageSize))
   const pageData = sorted.slice(page * pageSize, (page + 1) * pageSize)
-  const toggleSort = (col: string) => setSort(s => s.col === col ? { col, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { col, dir: 'asc' })
-
 
   return (
     <div>
@@ -709,42 +705,14 @@ export function DataTable<T>({ columns, data = [], loading, emptyIcon = 'inbox',
             placeholder={t('uikit.filtrar')} className="uiinde-box-5" />
         </div>
       )}
-      <div className="u-scroll-x">
-        <table className="uiinde-box-6">
-          <thead>
-            <tr className="u-border-b">
-              {columns.map(col => (
-                <th className={`uiinde-box-22 ${sort.col === col.key ? 'ui-index-m12' : 'ui-index-m13'} ${col.sortable !== false ? 'ui-index-m14' : 'ui-index-m15'}`} key={col.key} onClick={() => col.sortable !== false && toggleSort(col.key)}>
-                  {col.label}
-                  {sort.col === col.key && <span className="uiinde-box-7">{sort.dir === 'asc' ? '↑' : '↓'}</span>}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={columns.length} className="uiinde-box-8">
-                <SpinnerCentrado />
-              </td></tr>
-            ) : pageData.length === 0 ? (
-              <tr><td colSpan={columns.length}>
-                <EmptyState icon={emptyIcon} title={emptyTitle ?? t('uikit.sin_datos')} />
-              </td></tr>
-            ) : pageData.map((row, i) => (
-              <tr key={(row as { id?: string }).id || i}
-                className="uiinde-box-9"
-                onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-3)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                {columns.map(col => (
-                  <td key={col.key} className={col.className ? `ui-celda-datos ${col.className}` : 'ui-celda-datos'} style={col.style}>
-                    {celda(col, row)}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Tabla<T>
+        columnas={columns.map(c => ({ ...c, sortable: c.sortable !== false }))}
+        filas={pageData}
+        orden={sort}
+        onOrden={setSort}
+        cargando={loading}
+        vacio={{ icono: iconoDeVacio(emptyIcon), titulo: emptyTitle ?? t('uikit.sin_datos') }}
+      />
       {pages > 1 && (
         <div className="uiinde-row-5">
           <span className="u-text3-xs">{t('uikit.n_registros', { n: sorted.length })}</span>
@@ -766,41 +734,7 @@ interface TableProps<T> {
 }
 
 export function Table<T>({ columns = [], data = [], onRowClick }: TableProps<T>) {
-  return (
-    <div className="u-scroll-x">
-      <table className="uiinde-box-6">
-        <thead>
-          <tr className="u-border-b">
-            {columns.map(col => (
-              <th key={col.key} className="uiinde-box-11">{col.label}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((row, i) => (
-            <tr className={`uiinde-box-23 ${onRowClick ? 'ui-index-m14' : 'ui-index-m15'}`} key={i} onClick={() => onRowClick?.(row)}
-              role={onRowClick ? 'button' : undefined}
-              tabIndex={onRowClick ? 0 : undefined}
-              onKeyDown={onRowClick ? (e: React.KeyboardEvent<HTMLTableRowElement>) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  onRowClick(row)
-                }
-              } : undefined}
-              onMouseEnter={e => onRowClick && (e.currentTarget.style.background = 'var(--surface-3)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-            >
-              {columns.map(col => (
-                <td key={col.key} className="uiinde-box-12">
-                  {celda(col, row)}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
+  return <Tabla<T> columnas={columns} filas={data} onFila={onRowClick} claveDeFila={(_f, i) => i} />
 }
 
 export { useDialogo } from './useDialogo'

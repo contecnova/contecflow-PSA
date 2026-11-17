@@ -1028,6 +1028,10 @@ const zh: Record<string, string> = {
   // comentarios automaticos y errores del servidor con codigo (`err_srv.<codigo>`).
   "uikit.cargando": "加载中…",
   "uikit.cerrar": "关闭",
+  "uikit.editar_celda": "编辑{columna}：{valor}",
+  "uikit.seleccionar_todas": "选择所有行",
+  "uikit.seleccionar_fila": "选择第 {n} 行",
+  "uikit.barra_de_filtros": "筛选",
   "uikit.filtrar": "筛选…",
   "uikit.n_registros": "{{n}} 条记录",
   "uikit.sin_datos": "无数据",

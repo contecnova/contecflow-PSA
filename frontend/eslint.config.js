@@ -5,9 +5,23 @@ import jsxA11y from 'eslint-plugin-jsx-a11y'
 import tsParser from '@typescript-eslint/parser'
 import tsPlugin from '@typescript-eslint/eslint-plugin'
 import soloVariablesCssEnStyle from './scripts/eslint/solo-variables-css-en-style.mjs'
+import { reglasDelKit, IGNORADOS_KIT } from './scripts/eslint/kit-sin-marcado-propio.mjs'
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 // Reglas propias del proyecto (scripts/eslint). Plugin local `contec`.
-const pluginContec = { rules: { 'solo-variables-css-en-style': soloVariablesCssEnStyle } }
+const pluginContec = { rules: { 'solo-variables-css-en-style': soloVariablesCssEnStyle, ...reglasDelKit } }
+
+// Migración al kit (16-11-2026): las reglas `contec/sin-*` son error fuera de
+// components/ui. kit-pendientes.json da a cada fichero que hoy incumple un cupo
+// (lo que tenía al crear la lista); por encima del cupo, o en un fichero que no
+// está en la lista, es error. La lista solo encoge: `node scripts/kit_pendientes.mjs`.
+const RAIZ = dirname(fileURLToPath(import.meta.url))
+const PENDIENTES_DEL_KIT = JSON.parse(readFileSync(join(RAIZ, 'kit-pendientes.json'), 'utf8')).eslint
+const REGLAS_DEL_KIT = Object.fromEntries(Object.keys(reglasDelKit).map(r => [
+  `contec/${r}`, ['error', { raiz: RAIZ, pendientes: PENDIENTES_DEL_KIT[`contec/${r}`] ?? {} }],
+]))
 
 // Reglas de estilo con no-restricted-syntax. Van en una constante porque el
 // bloque de services/api las repite sin la de fetch (una regla solo admite una
@@ -241,6 +255,13 @@ export default [
           DIALOGOS_NATIVOS.map(property => ({ object, property, message: MENSAJE_DIALOGOS }))),
       ],
     },
+  },
+  {
+    // Migración al kit: nada de <button>, <table>, <select>, casillas sueltas ni
+    // <fieldset> propios fuera del kit (ver arriba, PENDIENTES_DEL_KIT).
+    files: ['src/**/*.{js,jsx,ts,tsx}'],
+    ignores: IGNORADOS_KIT,
+    rules: REGLAS_DEL_KIT,
   },
   {
     // El cliente API es el unico sitio donde se permite fetch directo.

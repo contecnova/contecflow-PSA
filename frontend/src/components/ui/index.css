@@ -456,3 +456,21 @@
 :where(.ui-btn--lg) { min-height: 44px; }
 .uiinde-box-18,
 .uiinde-box-19 { box-sizing: border-box; min-height: 38px; }
+
+/* Botón-enlace (16-11-2026): `<Button variant="link">`. Texto en el acento,
+   sin caja ni alto mínimo; va después de los tamaños para ganarles. */
+:where(.ui-btn--link) {
+  background: none;
+  border: none;
+  box-shadow: none;
+  color: var(--accent);
+  padding: 0;
+  min-height: 0;
+  font-weight: 500;
+}
+:where(.ui-btn--link:hover:not(:disabled)) { opacity: 1; text-decoration: underline; }
+:where(.ui-btn--link:active:not(:disabled)) { transform: none; }
+
+/* Select del kit en tamaño pequeño (barras densas, tablas): 32 px como Button sm. */
+.uiinde-box-19.ui-select--sm { min-height: 32px; padding: 5px 10px; font-size: var(--text-sm); }
+.ui-select--suelto { width: auto; max-width: 100%; }

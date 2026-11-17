@@ -78,20 +78,9 @@
 .plan-vtabla__persona { display: inline-flex; align-items: center; gap: 8px; }
 .plan-vtabla .plan-num { text-align: right; }
 
-.plan-celda__ver {
-  display: flex; align-items: center; width: 100%; min-height: var(--plan-alto-editor);
-  background: none; border: 1px solid transparent; border-radius: var(--radius-md);
-  padding: 0 6px; margin: 0 -7px; box-sizing: content-box;
-  color: inherit; font: inherit; text-align: inherit; cursor: pointer;
-}
-.plan-num .plan-celda__ver { justify-content: flex-end; }
-.plan-vtabla__tarea .plan-celda__ver { white-space: normal; text-align: left; }
-.plan-celda__ver:hover { border-color: var(--surface-4); }
-.plan-celda__ver:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-.plan-celda__editor { min-width: 120px; }
-.plan-celda__campo.ds-input { height: var(--plan-alto-editor); padding-block: 0; --uifecha-alto: var(--plan-alto-editor); }
-.plan-celda__campo--num.ds-input { width: 96px; text-align: right; font-variant-numeric: tabular-nums; }
-.plan-celda__fecha { min-width: 150px; }
+/* La celda editable (ver, editor, campo) es la del kit: CeldaEditable (Tabla.css). */
+.plan-num .ui-celda-ed__ver { justify-content: flex-end; }
+.plan-vtabla__tarea .ui-celda-ed__ver { white-space: normal; text-align: left; }
 
 /* Calendario */
 .plan-cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }

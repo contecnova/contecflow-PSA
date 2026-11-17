@@ -133,3 +133,12 @@ export function _reiniciarTextosDeInterfaz(): void {
   pila.length = 0
   avisar()
 }
+
+/**
+ * Sustituye los `{param}` que el traductor haya dejado sin rellenar (el de
+ * respaldo, `traducirSinHook`, no interpola: pasa en pruebas y en árboles sin
+ * `AppLangProvider`).
+ */
+export function conParametros(texto: string, params: Record<string, string | number>): string {
+  return texto.replace(/\{(\w+)\}/g, (m, k: string) => (k in params ? String(params[k]) : m))
+}

@@ -29,6 +29,101 @@ Tests que lo vigilan: `__tests__/kitDiseno.test.tsx`, `__tests__/disenoSinEmojis
 
 ---
 
+## Migración al kit (16-11-2026) — una pieza para cada cosa
+
+Fuera de `components/ui` no se escribe marcado propio para lo que resuelve el kit. ESLint lo exige (`contec/sin-*`, al final de esta guía) y el test `kitCssSinRestos` vigila las hojas de estilo. Lo que hoy incumple está en `frontend/kit-pendientes.json` (cupo por fichero que solo encoge) y su reparto en `frontend/kit-migracion-plan.md`.
+
+| Necesitas… | Usa | No |
+|---|---|---|
+| Una acción con aspecto de botón | `Button` (`primary` la principal, `secondary`, `ghost`, `danger` solo para destruir) | `<button className="…">` |
+| Un enlace que hace una acción («Ver todo», «Limpiar») | `Button variant="link"` | `<button className="link">` |
+| Solo un icono | `IconButton ariaLabel="…"` | `<button><X/></button>` |
+| Tarjeta, elemento de lista o zona entera pulsable | `Pulsable className="tu-clase"` (botón sin aspecto, foco visible) | `<div onClick>` / `<button>` con reset propio |
+| Elegir entre 2–5 vistas o modos | `Segmentado` (`ds-segmented`); con contenido por pestaña, `Tabs` | botones sueltos con `aria-pressed` |
+| Filtro rápido conmutable o quitable | `Chip` (`activo`, `onClick`, `onQuitar`, `cuenta`, `color`) | `<button className="pill">` |
+| Barra de filtros bajo la cabecera | `BarraDeFiltros acciones={…}` (`ds-toolbar`) | `<div className="mi-toolbar">` |
+| Desplegable | `Select` (con `label` en formularios; `suelto` en barras y celdas; `tamano="sm"`; opciones por `options` o como hijos) | `<select>` (tampoco `<select className="ds-input">`) |
+| Casilla / interruptor | `Checkbox` (`indeterminado`, `ayuda`, `tarjeta`), `Switch` (ajuste que se aplica al momento) | `<input type="checkbox">` |
+| Varias opciones con leyenda | `GrupoDeOpciones` (`tipo` `radio` o `checkbox`; `forma` `tarjetas`, `lista` o `fila`) | `<fieldset>` + `<input type="radio">` |
+| Estado / etiqueta | `StatusBadge kind="…"`, o `Badge label="approved"` / `<Badge tono="warning">…</Badge>` (la misma pastilla `ds-pill`) | `.mi-badge`, `.pill`, `.chip` propios |
+| Tabla de datos | `Tabla` | `<table>` |
+| Tabla con celdas combinadas o grupos de filas | `TablaSimple` (mismo estilo; dentro, `<thead>/<tbody>/<tr>/<td>`) + `CeldaEditable` si se edita | `<table className="contecflow-table">` |
+
+### `<Tabla>` — la tabla común
+
+Su estilo es `contecflow-table` (index.css) + `Tabla.css`. `DataTable` y `Table` son `Tabla` con su API de siempre.
+
+```jsx
+<Tabla etiqueta="Facturas" filas={facturas} claveDeFila={f => f.id}
+  ordenable ordenInicial={{ col: 'fecha', dir: 'desc' }}          // o orden + onOrden (orden del servidor)
+  columnas={[
+    { key: 'numero', label: t('x.numero'), cabeceraDeFila: true },
+    { key: 'cliente', label: t('x.cliente'), render: (_, f) => f.cliente.nombre, valorOrden: f => f.cliente.nombre },
+    { key: 'importe', label: t('x.importe'), alinear: 'derecha', render: v => fmtMoney(v), pie: fmtMoney(total) },
+    { key: 'estado', label: t('x.estado'), render: v => <Badge label={v} />,
+      editar: { tipo: 'lista', valor: f => f.estado, opciones: ESTADOS, onGuardar: (f, v) => guardar(f.id, { estado: v }) } },
+  ]}
+  seleccion={sel} onSeleccion={setSel}      // casillas + «seleccionar todas»
+  onFila={abrir} filaActiva={actual?.id}     // fila pulsable (Intro / Espacio)
+  cargando={isLoading} vacio={{ icono: <Inbox size={28} />, titulo: t('x.vacio'), accion: <Button>…</Button> }}
+  densidad="compacta" cabeceraFija />
+```
+
+- **Edición en el sitio** (`columna.editar`, tipos `texto`, `numero`, `lista`, `fecha`): clic, Intro o F2 abren el editor; Escape cancela; Intro o salir guardan; el foco vuelve a la celda. `onGuardar` solo se llama si el valor cambia. Es la de las vistas de trabajo del planificador, que ya la toman del kit.
+- **Densidad**: `compacta` (listas largas, rejillas de edición), `normal`, `comoda`.
+- **Pie**: `columna.pie` pinta una fila de totales; `pie` admite filas propias.
+- Los clics en botones, enlaces y campos dentro de una fila no disparan `onFila`.
+
+### `<Select>`
+
+Un solo desplegable: `<select>` nativo con el estilo del kit, 38 px como `Input` y `Button md` (32 px con `tamano="sm"`). Mientras quede algún `<select className="ds-input">`, index.css le da el mismo alto.
+
+```jsx
+<Select label="Estado" value={v} onChange={e => setV(e.target.value)} options={[{ value: 'a', label: 'A' }]} />
+<Select suelto aria-label="Estado" value={v} onChange={…} placeholder={t('x.todos')}>   {/* barra de filtros */}
+  <optgroup label="…"><option value="a">A</option></optgroup>
+</Select>
+```
+
+### Casillas y opciones
+
+```jsx
+<Checkbox checked={c} onChange={setC} label="Facturable" ayuda="Se incluye en la factura del mes" />
+<Checkbox checked={todas} indeterminado={algunas} onChange={alternar} aria-label="Seleccionar todas" />
+<Switch checked={activo} onChange={setActivo} label="Notificaciones por correo" />
+<GrupoDeOpciones leyenda="Modo de facturación" valor={modo} onChange={setModo}
+  opciones={[{ valor: 'hito', titulo: 'Por hito', ayuda: '…' }, { valor: 'tm', titulo: 'T&M' }]} />
+<GrupoDeOpciones tipo="checkbox" forma="lista" leyenda="Canales" valor={canales} onChange={setCanales} opciones={…} />
+```
+
+`onChange` de `Checkbox`/`Switch` recibe `(marcado, evento)`.
+
+### Barra de filtros, chips y segmentado
+
+```jsx
+<BarraDeFiltros acciones={<Button variant="link" onClick={limpiar}>{t('uikit.limpiar_todo')}</Button>}>
+  <SearchInput value={q} onChange={setQ} />
+  <Select suelto aria-label="Estado" … />
+  <Chip activo={soloMias} onClick={() => setSoloMias(v => !v)} cuenta={n}>Mías</Chip>
+  <Segmentado aria-label="Vista" valor={vista} onChange={setVista} opciones={[{ valor: 'lista', etiqueta: 'Lista', icon: <List size={14} /> }, …]} />
+</BarraDeFiltros>
+```
+
+### Hojas de estilo de las pantallas
+
+Fuera de `components/ui` e `index.css` (lo comprueba `src/__tests__/kitCssSinRestos.test.ts`):
+
+- Sin `text-transform: uppercase` ni `capitalize`: el texto va como se escribe. Un rótulo pequeño es `ds-eyebrow` (del kit).
+- Sin letra monoespaciada: cifras alineadas con `font-variant-numeric: tabular-nums`.
+- Sin colores literales (`#hex`, `rgb()/rgba()/hsl()` con números): `var(--token)`; mezclas con `color-mix(in srgb, var(--x) 20%, transparent)`.
+- Sin `height: NNpx` en botones, campos y selects: los controles del kit ya miden 38/32 px; si hace falta, `min-height`.
+
+### Excepciones temporales
+
+`kit-pendientes.json` da a cada fichero que hoy incumple un cupo por regla. ESLint (`eslint.config.js` pasa el cupo como opción de cada regla) y el test de CSS fallan si un fichero supera su cupo o si el incumplimiento aparece en un fichero fuera de la lista: nada nuevo puede incumplir y lo migrado no puede volver atrás. Tras migrar, `node scripts/kit_pendientes.mjs` encoge los cupos, saca los ficheros limpios y rehace el plan (nunca sube un cupo; si encuentra incumplimientos nuevos, los lista y sale con error). `--comprobar` solo comprueba; `--regenerar` rehace la lista desde cero (solo para crearla).
+
+---
+
 ## Cuándo usar primitivos vs clases CSS
 
 - **Primitivos** (`<Page>`, `<Section>`, `<Card>`, `<Button>`, `<StatusBadge>`,
@@ -111,7 +206,7 @@ Kinds: `neutral` (def), `success`, `warning`, `danger`, `info`, `accent`, `purpl
 
 Cierra con Esc + click-outside.  Soporta `width`, `subtitle`, header/footer.
 
-### `<DataTable>` — tabla con sort/empty/loading
+### `<DataTable>` — tabla con sort/empty/loading (es `Tabla` + filtro y paginación en cliente)
 
 ```jsx
 <DataTable
@@ -299,12 +394,10 @@ sólo con teclado. No hay que quitarlo con `outline: none`.
 ```jsx
 <Page icon={...} title="..." subtitle="...">
   {/* Toolbar (search + filters + actions) */}
-  <div className="ds-toolbar">
+  <BarraDeFiltros acciones={<Button>Nuevo</Button>}>
     <SearchInput value={q} onChange={setQ} />
-    <select className="ds-input">...</select>
-    <div className="ds-toolbar__spacer" />
-    <Button>Nuevo</Button>
-  </div>
+    <Select suelto aria-label="Estado" value={estado} onChange={…} options={…} />
+  </BarraDeFiltros>
 
   {/* Grid o tabla */}
   {loading ? <Spinner /> : items.length === 0 ? (
@@ -322,7 +415,7 @@ sólo con teclado. No hay que quitarlo con `outline: none`.
 ```jsx
 <Page title={item.name} rightActions={<><Button variant="secondary">Cancelar</Button><Button>Guardar</Button></>}>
   <Section title="General">
-    <FormField label="Nombre"><input className="ds-input" /></FormField>
+    <Input label="Nombre" value={nombre} onChange={e => setNombre(e.target.value)} />
     ...
   </Section>
   <Section title="Permisos">
@@ -395,3 +488,7 @@ Las siguientes páginas usan el sistema completo y son intercambiables como
    anti-patrón principal de "cada página reinventa cómo se ve un card".
 
 Las violaciones son `warn`, no `error` — adopción gradual.
+4. **Migración al kit (16-11-2026), nivel `error`** fuera de `components/ui` y de las pruebas, con el cupo por fichero de `kit-pendientes.json`:
+   `contec/sin-boton-nativo` (`<button>`), `contec/sin-tabla-propia` (`<table>`), `contec/sin-select-nativo` (`<select>`),
+   `contec/sin-casilla-suelta` (`<input type="checkbox|radio">`), `contec/sin-fieldset-propio` (`<fieldset>` sin `ds-grupo-opciones`).
+   Reglas en `scripts/eslint/kit-sin-marcado-propio.mjs`, pruebas en `src/__tests__/reglasDelKit.test.ts`.

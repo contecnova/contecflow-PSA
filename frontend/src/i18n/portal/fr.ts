@@ -1028,6 +1028,10 @@ const fr: Record<string, string> = {
   // comentarios automaticos y errores del servidor con codigo (`err_srv.<codigo>`).
   "uikit.cargando": "Chargement…",
   "uikit.cerrar": "Fermer",
+  "uikit.editar_celda": "Modifier {columna} : {valor}",
+  "uikit.seleccionar_todas": "Sélectionner toutes les lignes",
+  "uikit.seleccionar_fila": "Sélectionner la ligne {n}",
+  "uikit.barra_de_filtros": "Filtres",
   "uikit.filtrar": "Filtrer…",
   "uikit.n_registros": "{{n}} enregistrements",
   "uikit.sin_datos": "Aucune donnée",

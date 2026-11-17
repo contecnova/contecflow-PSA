@@ -121,7 +121,7 @@ describe('Planificador', () => {
     tareas.update.mockResolvedValue({ data: {} })
     envolver(<VistasDeTrabajo projectId="p1" />)
     // 16-11-2026: la celda muestra el estado y se edita en el sitio al pulsarla.
-    fireEvent.click(await screen.findByRole('button', { name: /editar_celda.*columna_status/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /columna_status/ }))
     const select = await screen.findByRole('combobox', { name: 'planificador.columna_status' })
     fireEvent.change(select, { target: { value: 'in_progress' } })
     await waitFor(() => expect(tareas.update).toHaveBeenCalledWith('t1', { status: 'in_progress' }))

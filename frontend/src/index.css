@@ -1958,6 +1958,10 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 .ds-input:disabled { opacity: 0.6; cursor: not-allowed; }
+/* 16-11-2026 (migración al kit): un `<select class="ds-input">` mide lo
+   mismo que el Select del kit, Input y Button md (38 px). Especificidad baja
+   (`:where`) para que una celda densa lo baje con su propia clase. */
+select.ds-input:where(:not([multiple]):not([size])) { height: 38px; padding-block: 0; cursor: pointer; }
 
 /* Tab-style toggle: pill-shaped segmented control */
 .ds-segmented {

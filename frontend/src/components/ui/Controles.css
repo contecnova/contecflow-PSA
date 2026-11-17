@@ -1,0 +1,75 @@
+/* Controles.tsx: barra de filtros, chip, segmentado y pulsable. Solo tokens. */
+.ui-barra-filtros__acciones { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+
+/* Chip: texto libre (sin mayúsculas), alto 28 px, mismo radio que las pastillas. */
+.ui-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--surface-4);
+  background: var(--surface-3);
+  color: var(--text-2);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ui-chip--accion { padding: 0; }
+.ui-chip--color {
+  color: var(--chip-color);
+  background: color-mix(in srgb, var(--chip-color) 12%, transparent);
+  border-color: color-mix(in srgb, var(--chip-color) 30%, transparent);
+}
+.ui-chip--activo { background: var(--accent-muted); color: var(--accent); border-color: var(--accent-border); }
+.ui-chip__boton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 26px;
+  padding: 0 10px;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-full);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+span.ui-chip__boton { cursor: default; }
+.ui-chip__boton:disabled { cursor: default; opacity: 0.6; }
+.ui-chip__boton + .ui-chip__quitar { margin-left: -6px; }
+.ui-chip__quitar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  aspect-ratio: 1;
+  margin-right: 3px;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 50%;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.7;
+}
+.ui-chip__quitar:hover { opacity: 1; background: var(--surface-4); }
+.ui-chip__icono, .ui-segmentado__icono { display: inline-flex; }
+.ui-chip__cuenta { font-variant-numeric: tabular-nums; opacity: 0.75; }
+
+/* Pulsable: botón sin aspecto; el aspecto lo pone la clase de quien lo usa. */
+/* :where = especificidad 0: gana cualquier clase de la pantalla. */
+:where(.ui-pulsable) {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+:where(.ui-pulsable:disabled) { cursor: default; opacity: 0.6; }

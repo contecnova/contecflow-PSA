@@ -13,14 +13,13 @@
  * usa `NavegadorDeMes` y la carga por persona la rejilla única
  * `RejillaPersonaDia`.
  */
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarDays, Columns3, GanttChartSquare, Save, Table2, Trash2, Users } from 'lucide-react'
 import { planificacionApi, tasksApi, usersApi, type TaskListItem, type VistaGuardada } from '../../services/api'
 import type { TaskUpdatePayload } from '../../services/api/tasks'
-import { Avatar, Button, EmptyState, NavegadorDeMes, RejillaPersonaDia, Spinner, StatusBadge, columnasDeSemanas, isoLocal } from '../ui'
+import { Avatar, Button, CeldaEditable, EditorFecha, EditorLista, EditorTexto, EmptyState, NavegadorDeMes, RejillaPersonaDia, Spinner, StatusBadge, TablaSimple, columnasDeSemanas, isoLocal } from '../ui'
 import type { StatusBadgeKind } from '../ui/StatusBadge'
-import { CampoFecha } from '../ui/SelectorDeFecha'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { useConfirm } from '../../context/ConfirmContext'
@@ -214,128 +213,6 @@ function SelectorDeColumnas({ visibles, onCambiar }: { visibles: Columna[]; onCa
   )
 }
 
-// ── Celda editable ───────────────────────────────────────────────────────────
-
-/** Cierra el editor; devuelve `false` si ya estaba cerrado (para no guardar dos veces). */
-type Cerrar = (devolverFoco: boolean) => boolean
-
-/**
- * Celda que muestra su valor y, si es editable, se edita en el sitio: clic,
- * Enter o F2 abren el editor (con la misma altura de fila); Escape cancela,
- * Enter o salir del campo guardan, y el foco vuelve a la celda.
- */
-function CeldaEditable({ columna, valorTexto, editable, className, extra, children, editor }: {
-  columna: string; valorTexto: string; editable: boolean; className?: string
-  /** Contenido fijo bajo el valor (código y «crítica» en la columna de tarea). */
-  extra?: ReactNode
-  children: ReactNode
-  editor: (cerrar: Cerrar) => ReactNode
-}) {
-  const t = useAppT()
-  const [editando, setEditando] = useState(false)
-  const abierto = useRef(false)
-  const volverFoco = useRef(false)
-  const boton = useRef<HTMLButtonElement>(null)
-
-  useEffect(() => {
-    if (!editando && volverFoco.current) { volverFoco.current = false; boton.current?.focus() }
-  }, [editando])
-
-  const abrir = () => { abierto.current = true; setEditando(true) }
-  const cerrar = useCallback<Cerrar>(foco => {
-    if (!abierto.current) return false
-    abierto.current = false
-    volverFoco.current = foco
-    setEditando(false)
-    return true
-  }, [])
-
-  if (!editable) return <td className={className}>{children}{extra}</td>
-  return (
-    <td className={`plan-celda${className ? ` ${className}` : ''}`}>
-      {editando ? <div className="plan-celda__editor">{editor(cerrar)}</div> : (
-        <button ref={boton} type="button" className="plan-celda__ver"
-          aria-label={t('planificador.editar_celda', { columna, valor: valorTexto })}
-          onClick={abrir}
-          onKeyDown={e => { if (e.key === 'F2') { e.preventDefault(); abrir() } }}>
-          {children}
-        </button>
-      )}
-      {extra}
-    </td>
-  )
-}
-
-function EditorTexto({ etiqueta, valor, numero, min, max, cerrar, onGuardar }: {
-  etiqueta: string; valor: string; numero?: boolean; min?: number; max?: number
-  cerrar: Cerrar; onGuardar: (v: string) => void
-}) {
-  const terminar = (v: string, foco: boolean) => { if (cerrar(foco)) onGuardar(v) }
-  return (
-    <input className={`ds-input plan-celda__campo${numero ? ' plan-celda__campo--num' : ''}`} autoFocus aria-label={etiqueta}
-      type={numero ? 'number' : 'text'} min={min} max={max} defaultValue={valor}
-      onFocus={e => e.currentTarget.select()}
-      onKeyDown={e => {
-        if (e.key === 'Enter') { e.preventDefault(); terminar(e.currentTarget.value, true) }
-        else if (e.key === 'Escape') { e.preventDefault(); cerrar(true) }
-      }}
-      onBlur={e => terminar(e.currentTarget.value, false)} />
-  )
-}
-
-function EditorLista({ etiqueta, valor, opciones, cerrar, onGuardar }: {
-  etiqueta: string; valor: string; opciones: { valor: string; etiqueta: string }[]
-  cerrar: Cerrar; onGuardar: (v: string) => void
-}) {
-  return (
-    <select className="ds-input plan-celda__campo" autoFocus aria-label={etiqueta} value={valor}
-      onChange={e => { const v = e.target.value; if (cerrar(true) && v !== valor) onGuardar(v) }}
-      onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); cerrar(true) } }}
-      onBlur={() => cerrar(false)}>
-      {opciones.map(o => <option key={o.valor} value={o.valor}>{o.etiqueta}</option>)}
-    </select>
-  )
-}
-
-function EditorFecha({ etiqueta, valor, cerrar, onGuardar }: {
-  etiqueta: string; valor: string; cerrar: Cerrar; onGuardar: (v: string) => void
-}) {
-  const raiz = useRef<HTMLDivElement>(null)
-  const pendiente = useRef(valor)
-  const id = useId()
-  const terminar = useCallback((foco: boolean) => { if (cerrar(foco)) onGuardar(pendiente.current) }, [cerrar, onGuardar])
-  // ¿El foco o el clic siguen en el campo o en su calendario (que sale en un portal)?
-  const dentro = useCallback((n: Node | null) =>
-    !!n && (!!raiz.current?.contains(n) || !!document.getElementById(`${id}-panel`)?.contains(n)), [id])
-
-  // Escuchas en `document` (después de las del campo): si el campo ya usó la
-  // tecla (Escape con el calendario abierto) llega con defaultPrevented.
-  useEffect(() => {
-    const fuera = (e: Event) => { if (!dentro(e.target as Node)) terminar(false) }
-    const teclas = (e: KeyboardEvent) => {
-      const el = e.target as HTMLElement
-      if (e.defaultPrevented || !raiz.current?.contains(el)) return
-      if (e.key === 'Escape') { e.preventDefault(); cerrar(true) }
-      else if (e.key === 'Enter' && el.tagName === 'INPUT') { e.preventDefault(); terminar(true) }
-    }
-    document.addEventListener('mousedown', fuera)
-    document.addEventListener('focusin', fuera)
-    document.addEventListener('keydown', teclas)
-    return () => {
-      document.removeEventListener('mousedown', fuera)
-      document.removeEventListener('focusin', fuera)
-      document.removeEventListener('keydown', teclas)
-    }
-  }, [dentro, terminar, cerrar])
-
-  return (
-    <div ref={raiz} className="plan-celda__fecha">
-      <CampoFecha id={id} className="ds-input plan-celda__campo" autoFocus aria-label={etiqueta} value={valor}
-        onChange={v => { pendiente.current = v; if (v) terminar(true) }} />
-    </div>
-  )
-}
-
 // ── Tabla editable ───────────────────────────────────────────────────────────
 
 function TablaEditable({ tareas, columnas, personas, editable, onCambio }: {
@@ -352,8 +229,7 @@ function TablaEditable({ tareas, columnas, personas, editable, onCambio }: {
   const opcionesPersona = [{ valor: '', etiqueta: t('planificador.sin_asignar') }, ...personas.map(p => ({ valor: p.id, etiqueta: p.full_name }))]
 
   return (
-    <div className="plan-card plan-vtabla-marco">
-      <table className="contecflow-table plan-vtabla">
+    <TablaSimple className="plan-card plan-vtabla-marco" claseTabla="plan-vtabla" etiqueta={t('planificador.vista_table')}>
         <thead>
           <tr>
             <th scope="col" className="plan-vtabla__tarea">{t('planificador.col_tarea')}</th>
@@ -439,8 +315,7 @@ function TablaEditable({ tareas, columnas, personas, editable, onCambio }: {
             )
           })}
         </tbody>
-      </table>
-    </div>
+    </TablaSimple>
   )
 }
 
