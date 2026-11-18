@@ -28,26 +28,16 @@ import './ClientsPage.css'
 
 type Traductor = ReturnType<typeof useAppT>
 
-// Estados que se pueden asignar a un cliente; la etiqueta sale de i18n
-// (`clientspage.estado_<clave>`) y el color es un token del tema.
+// Estados de la EMPRESA cliente (ClientStatus en app/models/clients.py): en
+// captación, activo, inactivo o perdido. «Rechazado», «aprobado», «en
+// revisión»… son de oportunidades, presupuestos o peticiones, no de un
+// cliente. La etiqueta sale de i18n (`clientspage.estado_<clave>`) y el color
+// es un token del tema.
 const STATUS_COLOR: Record<string, string> = {
+  prospect: 'var(--accent)',
   active: 'var(--success)',
-  planning: 'var(--accent)',
-  on_hold: 'var(--warning)',
-  completed: 'var(--text-2)',
-  cancelled: 'var(--danger)',
-  new: 'var(--accent)',
-  reviewing: 'var(--warning)',
-  estimated: 'var(--accent)',
-  approved: 'var(--success)',
-  rejected: 'var(--danger)',
-  in_development: 'var(--accent)',
-  done: 'var(--success)',
-  pending: 'var(--text-2)',
-  in_progress: 'var(--accent)',
-  passed: 'var(--success)',
-  failed: 'var(--danger)',
-  conditional: 'var(--warning)',
+  inactive: 'var(--text-2)',
+  churned: 'var(--danger)',
 }
 const STATUS_KEYS = Object.keys(STATUS_COLOR)
 const SLA_COLOR: Record<string, string> = {

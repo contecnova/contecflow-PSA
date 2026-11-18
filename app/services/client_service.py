@@ -24,7 +24,7 @@ from app.models.user import User
 from app.models.alm import ALMLicense
 from app.models.billing_reports import Invoice
 from app.models.client_portal import ClientUser
-from app.models.clients import Client
+from app.models.clients import Client, ClientStatus
 from app.models.clients import ClientPortalConfig
 from app.models.clients import ClientContact, ClientContactRole, ClientLicenseLink, ClientContractLink
 from app.models.pipeline import Contract
@@ -112,6 +112,23 @@ def recuentos_de_clientes(db: Session, ids: list) -> dict:
     return recuentos
 
 
+# ── Estado del cliente ────────────────────────────────────────────────────────
+# Un cliente solo está en captación, activo, inactivo o perdido (ClientStatus).
+# «Rechazado», «aprobado», «en revisión»… son estados de oportunidades,
+# presupuestos, peticiones o pruebas, nunca de la empresa cliente.
+
+def _validar_estado(data: dict) -> None:
+    estado = data.get("status")
+    if estado in (None, ""):
+        return
+    validos = [e.value for e in ClientStatus]
+    if getattr(estado, "value", estado) not in validos:
+        raise ErrorDeDominio(
+            status_code=422,
+            detail=f"Estado de cliente no válido: {estado}. Válidos: {', '.join(validos)}",
+        )
+
+
 # ── Create client ──────────────────────────────────────────────────────────────
 
 def create_client_record(data: dict, current_user: User, db: Session) -> dict:
@@ -122,6 +139,7 @@ def create_client_record(data: dict, current_user: User, db: Session) -> dict:
 
     if current_user.role not in (UserRole.admin, UserRole.pm) and not current_user.is_superadmin:
         raise ErrorDeDominio(status_code=403, detail="Solo admin o PM pueden crear clientes")
+    _validar_estado(data)
 
     with atomic(db):
         c = Client(**{k: v for k, v in campos_asignables(Client, data).items() if v != "" and v is not None})
@@ -424,6 +442,7 @@ def get_client_360(client_id: str, db: Session) -> dict:
 def update_client(cid: str, data: dict, current_user: User, db: Session) -> dict:
     if current_user.role not in (UserRole.admin, UserRole.pm) and not current_user.is_superadmin:
         raise ErrorDeDominio(status_code=403, detail="Solo admin o PM pueden editar clientes")
+    _validar_estado(data)
     c = get_scoped_client_or_404(db, current_user, cid)
     for k, v in data.items():
         if es_asignable(c, k):
