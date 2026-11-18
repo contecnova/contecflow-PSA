@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+import './silenciarAvisoDeDevTools'
 // Patch HTMLCanvasElement.getContext so Plotly 3D charts don't trigger the
 // "willReadFrequently" browser warning on repeated getImageData calls.
 // Audit #C9: getContext is a heavily overloaded method (2d / webgl / bitmaprenderer
@@ -149,21 +150,6 @@ const queryClient = new QueryClient({
 })
 // Tras cualquier escritura con éxito se refrescan las pantallas (refrescoTrasEscritura.ts).
 registrarClienteDeConsultas(queryClient)
-
-// Suppress the React DevTools development hint — informational-only, not actionable.
-if (import.meta.env.DEV) {
-  const _consoleLog = console.log
-  const _consoleInfo = console.info
-  const isDevToolsHint = (msg: unknown): boolean => typeof msg === 'string' && msg.includes('Download the React DevTools')
-  console.log = (...args: unknown[]) => {
-    if (isDevToolsHint(args[0])) return
-    _consoleLog.apply(console, args as Parameters<typeof console.log>)
-  }
-  console.info = (...args: unknown[]) => {
-    if (isDevToolsHint(args[0])) return
-    _consoleInfo.apply(console, args as Parameters<typeof console.info>)
-  }
-}
 
 // ── Render ────────────────────────────────────────────────────────────────────
 const rootEl = document.getElementById('root')
