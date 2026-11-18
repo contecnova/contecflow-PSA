@@ -28,6 +28,7 @@ from app.services import documents_service as doc_svc
 
 from app.services import reserva_de_documentos as _reserva
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.core.codigos_de_error import error as error_con_codigo
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 logger = logging.getLogger(__name__)
@@ -667,22 +668,16 @@ def ai_summary(
     check_document_access(doc, current_user)
 
     if not doc.versions:
-        raise HTTPException(400, "Document has no versions to summarise")
+        raise error_con_codigo(400, "documento_sin_versiones")
 
     latest = doc.versions[0]
     if not latest.file_key:
-        raise HTTPException(400, "No file attached to latest version")
+        raise error_con_codigo(400, "documento_sin_archivo")
 
     text_content = doc_svc.extract_document_text(latest.file_key, latest.file_name or "", latest.file_mime_type or "")
 
     if not text_content:
-        raise HTTPException(
-            422,
-            (
-                "No se pudo extraer texto del documento. "
-                "Sube una version con capa de texto o habilita OCR (tesseract + pytesseract + pypdfium2)."
-            ),
-        )
+        raise error_con_codigo(422, "documento_sin_texto")
 
     visual_marker = "[ANALISIS_VISUAL]"
     is_visual_source = isinstance(text_content, str) and text_content.startswith(visual_marker)

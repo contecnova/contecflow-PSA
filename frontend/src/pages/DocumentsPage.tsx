@@ -24,7 +24,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { Page, Button, Drawer, useDialogo, KpiCard, EmptyState, Tabs, IconButton, Pulsable, Select, TablaSimple, Checkbox } from '../components/ui'
-import { localeActivo, fmtDate, fmtDateTime } from '../utils/helpers'
+import { localeActivo, fmtDate, fmtDateTime, extractErr } from '../utils/helpers'
 import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
 import DateInput from '../components/ui/DateInput'
 import { STALE_DEFAULT_MS, STALE_SHORT_MS } from '../constants/timings'
@@ -753,7 +753,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
       qc.invalidateQueries({ queryKey: ['document', documentId] });
       setTab('meta');
     },
-    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || t('pagina_docs.error_ia')),
+    onError: (e: ApiError) => toast.error(extractErr(e, t('pagina_docs.error_ia'))),
   });
 
   const reserva: Reserva = doc?.checkout
@@ -1270,7 +1270,7 @@ export default function DocumentsPage(): JSX.Element {
   const summaryMutation = useMutation({
     mutationFn: (id: string) => documentsApi.aiSummary(id),
     onSuccess: () => { toast.success(t('pagina_docs.resumen_ia_generado')); qc.invalidateQueries({ queryKey: ['documents'] }); },
-    onError: (e: ApiError) => toast.error(e?.response?.data?.detail || t('pagina_docs.error_ia')),
+    onError: (e: ApiError) => toast.error(extractErr(e, t('pagina_docs.error_ia'))),
   });
 
   const bulkDeleteMutation = useMutation({

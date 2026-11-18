@@ -577,6 +577,62 @@ _EXTENSIONES_DE_IMAGEN = (".png", ".jpg", ".jpeg", ".tiff", ".tif", ".webp")
 #: Extensiones que se tratan como texto plano aunque el MIME no lo diga.
 _EXTENSIONES_DE_TEXTO = (".md", ".txt", ".csv")
 
+# Ofimática (18-11-2026): Word, Excel, PowerPoint y OpenDocument son ZIP con
+# XML dentro; el texto se saca de ese XML sin dependencias nuevas. Antes un
+# .docx daba «No se pudo extraer texto» y el resumen IA nunca funcionaba.
+_EXTENSIONES_DE_OFIMATICA = (".docx", ".docm", ".xlsx", ".xlsm", ".pptx", ".pptm", ".odt", ".ods", ".odp")
+#: Partes del ZIP con texto, por formato (prefijo de la ruta dentro del ZIP).
+_PARTES_DE_OFIMATICA = (
+    "word/document.xml", "word/header", "word/footer", "word/footnotes.xml", "word/endnotes.xml",
+    "word/comments.xml", "ppt/slides/slide", "ppt/notesSlides/notesSlide", "xl/sharedStrings.xml",
+    "xl/worksheets/sheet", "content.xml",
+)
+#: Etiquetas que cierran un párrafo, fila o celda: se separan con salto o tab.
+_FIN_DE_BLOQUE = {"p", "tr", "br", "row", "h", "list-item", "table-row"}
+_FIN_DE_CELDA = {"tc", "c", "tab", "table-cell"}
+#: Tope de lectura: un documento enorme no debe tumbar el proceso.
+_MAX_BYTES_XML = 20 * 1024 * 1024
+
+
+def _texto_de_xml(xml: bytes) -> str:
+    import xml.etree.ElementTree as ET
+    partes: list[str] = []
+
+    def recorrer(e) -> None:
+        local = e.tag.rsplit("}", 1)[-1] if isinstance(e.tag, str) else ""
+        if e.text and local in ("t", "v", "span", "p", "h", "a"):
+            partes.append(e.text)
+        for hijo in e:
+            recorrer(hijo)
+            if hijo.tail and local in ("p", "span", "h"):
+                partes.append(hijo.tail)
+        if local in _FIN_DE_BLOQUE:
+            partes.append("\n")
+        elif local in _FIN_DE_CELDA:
+            partes.append("\t")
+
+    recorrer(ET.fromstring(xml))
+    return "".join(partes)
+
+
+def _texto_de_ofimatica(raw: bytes) -> Optional[str]:
+    import io
+    import zipfile
+    try:
+        with zipfile.ZipFile(io.BytesIO(raw)) as z:
+            nombres = sorted(n for n in z.namelist() if n.startswith(_PARTES_DE_OFIMATICA) and n.endswith(".xml"))
+            textos, leidos = [], 0
+            for n in nombres:
+                info = z.getinfo(n)
+                leidos += info.file_size
+                if leidos > _MAX_BYTES_XML:
+                    break
+                textos.append(_texto_de_xml(z.read(n)))
+    except Exception:
+        logger.warning("No se pudo leer el documento de ofimática para el resumen IA", exc_info=True)
+        return None
+    return _normalize_extracted_text("\n".join(textos)) or None
+
 
 def extract_document_text(file_key: str, file_name: str, file_mime_type: str) -> Optional[str]:
     """Intenta sacar texto de un fichero guardado, para resumirlo con IA.
@@ -600,6 +656,8 @@ def extract_document_text(file_key: str, file_name: str, file_mime_type: str) ->
         return _texto_de_pdf(raw, file_name)
     if mime.startswith("image/") or nombre.endswith(_EXTENSIONES_DE_IMAGEN):
         return _texto_de_imagen(raw, file_name)
+    if nombre.endswith(_EXTENSIONES_DE_OFIMATICA) or "officedocument" in mime or "opendocument" in mime:
+        return _texto_de_ofimatica(raw)
     return None
 
 
