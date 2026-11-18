@@ -24,7 +24,9 @@ ORIGENES = ("previa", "posterior")
 AMBITOS = ("empresa", "departamento", "equipo", "proyecto")
 PERIODOS = ("mes", "anio")
 
-DEFECTO = {"activo": False, "control_imputacion": "avisar", "tolerancia_minutos": 15,
+# 18-11-2026: activado por defecto (decisión del usuario): toda empresa tiene
+# horas extra desde el principio, con control «avisar» al imputar (no bloquea).
+DEFECTO = {"activo": True, "control_imputacion": "avisar", "tolerancia_minutos": 15,
            "compensaciones": list(COMPENSACIONES), "compensacion_por_defecto": "bolsa", "workflow_id": None,
            "tipo_bolsa_id": None, "pedir_en_nombre": True, "exigir_motivo": True}
 

@@ -1,7 +1,8 @@
 """Horas extra y trabajo fuera de horario aprobados por flujos (18-11-2026, rev. 184).
 
 Lo que se mide:
-- sin configuración el módulo está desactivado y la imputación no cambia;
+- sin configuración el módulo está ACTIVO (por defecto) con control «avisar»;
+- desactivado, no se pide nada y la imputación no cambia;
 - registro de jornada coherente (franja dentro de horario, tipo de día);
 - ciclo sin flujo (decide su responsable) con línea de tiempo y auditoría;
 - segregación: ni lo propio ni lo pedido para otro, también en la bandeja;
@@ -87,9 +88,14 @@ def _regla(nombre, condicion, *resultados):
 
 # ── Desactivado ──────────────────────────────────────────────────────────────
 
-def test_sin_configuracion_esta_desactivado_y_no_toca_la_imputacion(client, dev_token, ctx):
+def test_por_defecto_esta_activo_con_aviso(client, dev_token):
     r = client.get("/api/v1/overtime/config", headers=auth(dev_token))
-    assert r.status_code == 200 and r.json()["data"]["activo"] is False
+    d = r.json()["data"]
+    assert r.status_code == 200 and d["activo"] is True and d["control_imputacion"] == "avisar"
+
+
+def test_desactivado_no_toca_la_imputacion(client, dev_token, hr_token, ctx):
+    assert _activar(client, hr_token, activo=False)["activo"] is False
     r = _pedir(client, dev_token, fecha=str(LUNES), tipo="laborable", horas=2)
     assert r.status_code == 409 and r.json()["code"] == "horas_extra_desactivadas"
     assert control.capacidad_semanal_extra(ctx, "dev-test-id", LUNES) == 0.0

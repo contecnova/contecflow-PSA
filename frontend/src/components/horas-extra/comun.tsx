@@ -24,7 +24,7 @@ export function useTh() {
 
 /** Sin configuración (o sin el módulo en el servidor) la pantalla funciona con los valores por defecto: desactivado. */
 export const CONFIG_HE_POR_DEFECTO: ConfigHe = {
-  activo: false, control_imputacion: 'avisar', tolerancia_minutos: 15, compensaciones: ['pago', 'bolsa', 'ninguna'],
+  activo: true, control_imputacion: 'avisar', tolerancia_minutos: 15, compensaciones: ['pago', 'bolsa', 'ninguna'],
   compensacion_por_defecto: 'bolsa', workflow_id: null, tipo_bolsa_id: null, pedir_en_nombre: true, exigir_motivo: true,
   updated_at: null, updated_by: null, puede_editar: false, flujos: [], tipos_de_bolsa: [],
 }

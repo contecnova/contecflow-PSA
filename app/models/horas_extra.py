@@ -44,7 +44,7 @@ class ConfigDeHorasExtra(Base):
 
     id = _id()
     organization_id = _org()
-    activo = Column(Boolean, nullable=False, default=False)
+    activo = Column(Boolean, nullable=False, default=True)  # activado por defecto (18-11-2026)
     control_imputacion = Column(String(12), nullable=False, default="avisar")   # ninguno|avisar|regularizar|bloquear
     tolerancia_minutos = Column(Integer, nullable=False, default=15)
     compensaciones = Column(Text, nullable=True)                                 # JSON ["pago","bolsa","ninguna"]

@@ -1514,6 +1514,10 @@ reglas, solicitudes, control, consultas, ejemplos),
 (`/api/v1/overtime`); pantalla `/overtime` (`frontend/src/pages/HorasExtraPage.tsx`,
 `components/horas-extra/`, `services/api/horas-extra.ts`), en «Mi trabajo» tras Ausencias.
 
+**Activado por defecto** (18-11-2026): sin fila de configuración, toda empresa tiene
+el módulo activo con control «avisar» al imputar (avisa, no bloquea); se cambia en
+Configuración de horas extra. Las políticas de ejemplo siguen entrando como borrador.
+
 **Peticiones.** Previa (autorización antes: fecha, franja u horas, motivo, proyecto
 y ticket opcionales, sustituto, tipo `laborable` | `fuera_de_franja` | `festivo` |
 `no_laborable` | `guardia`) o posterior (exceso imputado sin autorizar). Registro
