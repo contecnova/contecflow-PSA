@@ -48,7 +48,10 @@ def test_EL_HALLAZGO_la_tentativa_no_ocupa_y_el_festivo_resta(db):
     db.commit()
     hw = get_user_week_hours(db, "dev-test-id", LUNES)
     assert hw["committed_hours"] == 4
-    assert hw["tentative_hours"] == 40
+    # Rev. 180 (horario efectivo): una reserva solo ocupa los dias en que la
+    # persona trabaja; el festivo del miercoles no cuenta (4 dias x 8 h). Antes
+    # daba 40 y el festivo se restaba dos veces en `capacidad_de_semana`.
+    assert hw["tentative_hours"] == 32
     assert hw["holiday_hours"] > 0
 
 

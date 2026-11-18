@@ -214,23 +214,12 @@ def mi_horario(desde: Optional[date] = None, hasta: Optional[date] = None, db: S
 
 # ── Rev. 180: horario efectivo, jornadas, ficha laboral ──────────────────────
 
-def _personas_que_ve(db: Session, viewer: User, user_ids: Optional[list[str]]) -> Optional[list[str]]:
-    """Un empleado (ni responsable ni RRHH) ve su equipo (o a sí mismo); el resto, lo que diga la visibilidad."""
-    rol = str(getattr(viewer.role, "value", viewer.role))
-    if rol in ("admin", "hr", "pm", "team_lead", "subcontractor") or getattr(viewer, "is_superadmin", False):
-        return user_ids
-    q = db.query(User.id).filter(User.is_active.is_(True))
-    q = q.filter(User.team == viewer.team) if viewer.team else q.filter(User.id == viewer.id)
-    propios = {u for (u,) in q.all()}
-    return [u for u in (user_ids or propios) if u in propios] or [viewer.id]
-
-
 @router.get("/effective-schedule", summary="Horario efectivo persona×día (turno o jornada, festivos de su sede, ausencias)")
 def horario_efectivo(desde: Optional[date] = None, hasta: Optional[date] = None, equipo: Optional[str] = None,
                      departamento: Optional[str] = None, user_ids: Optional[list[str]] = Query(None),
                      db: Session = Depends(get_db), current_user: User = Depends(require_worker)):
     d0, d1 = _rango(desde, hasta)
-    ids = _personas_que_ve(db, current_user, user_ids)
+    ids = jornadas.personas_que_ve(db, current_user, user_ids)
     return APIResponse.ok(data=jornadas.rejilla(db, current_user, d0, d1, equipo=equipo, departamento=departamento,
                                                 user_ids=ids))
 
@@ -322,12 +311,8 @@ def recalcular_bolsa(payload: RecalcularBolsaIn, db: Session = Depends(get_db),
                      current_user: User = Depends(require_admin_or_hr)):
     if payload.hasta < payload.desde or (payload.hasta - payload.desde).days > 400:
         raise error_con_codigo(422, "rango_de_1_a_400_dias")
-    from app.services.audit import audit_log
-    r = bolsa.recalcular(db, payload.desde, payload.hasta, payload.user_ids, current_user.id)
-    audit_log(db, current_user, "RECALCULATE", "hour_bank", None, None,
-              new_values={**r, "desde": str(payload.desde), "hasta": str(payload.hasta)})
-    db.commit()
-    return APIResponse.ok(data=r)
+    return APIResponse.ok(data=bolsa.recalcular_y_auditar(db, current_user, payload.desde, payload.hasta,
+                                                          payload.user_ids))
 
 
 @router.get("/inbox", summary="Ausencias que me toca decidir, con explicación e impacto en la cobertura")

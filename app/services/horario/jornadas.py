@@ -232,6 +232,18 @@ def guardar_ficha(db: Session, usuario, user_id: str, datos: dict) -> dict:
 
 # ── Rejilla persona × día ────────────────────────────────────────────────────
 
+def personas_que_ve(db: Session, viewer: User, user_ids: Optional[list[str]]) -> Optional[list[str]]:
+    """Un empleado (ni responsable ni RRHH) ve su equipo (o a sí mismo); el resto, lo que diga la visibilidad."""
+    rol = str(getattr(viewer.role, "value", viewer.role))
+    if rol in ("admin", "hr", "pm", "team_lead", "subcontractor") or getattr(viewer, "is_superadmin", False):
+        return user_ids
+    from app.models.user import User
+    q = db.query(User.id).filter(User.is_active.is_(True))
+    q = q.filter(User.team == viewer.team) if viewer.team else q.filter(User.id == viewer.id)
+    propios = {u for (u,) in q.all()}
+    return [u for u in (user_ids or propios) if u in propios] or [viewer.id]
+
+
 def rejilla(db: Session, viewer, desde: date, hasta: date, *, equipo: Optional[str] = None,
             departamento: Optional[str] = None, user_ids: Optional[list[str]] = None,
             con_pendientes: bool = True) -> dict:

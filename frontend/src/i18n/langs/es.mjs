@@ -10340,6 +10340,7 @@ la_contrasena_se_gestiona_desde_tu_proveedor: '). La contraseña se gestiona des
       v16: "Módulos de IA (causa raíz, base de conocimiento, previsiones)",
       lessons_learned: "Lecciones aprendidas: borrador desde los hechos",
       translation: "Traducción en tiempo real (operador ↔ cliente)",
+      portal_assistant: "Asistente del portal de clientes",
     },
   },
   financedashboard: {

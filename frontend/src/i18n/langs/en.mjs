@@ -10833,6 +10833,7 @@ const en = {
       v16: "AI modules (root cause, knowledge base, forecasts)",
       lessons_learned: "Lessons learned: draft from the facts",
       translation: "Real-time translation (operator ↔ customer)",
+      portal_assistant: "Customer portal assistant",
     },
   },
   financedashboard: {

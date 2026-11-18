@@ -342,6 +342,16 @@ def enviar_adjunto(db: Session, conv_id: str, agente, document_id: str,
     return m
 
 
+def detalle_para_agente(db: Session, conv_id: str, org_id, desde: Optional[str] = None) -> dict:
+    """Una conversacion de la empresa con sus mensajes y lo que se puede enviar
+    por el canal (los adjuntos de su ticket, 17-11-2026)."""
+    from app.services.service_desk.adjuntos_de_canal import listar as adjuntos_del_ticket
+    conv = _de_la_empresa(db, conv_id, org_id)
+    ticket = db.get(Ticket, conv.ticket_id) if conv.ticket_id else None
+    return {"conversation": serializar(db, conv), "messages": mensajes(db, conv, desde),
+            "attachments": adjuntos_del_ticket(db, ticket)}
+
+
 def del_ticket_para_adjuntos(db: Session, ticket_id: str, org_id) -> dict:
     """Conversaciones abiertas de WhatsApp/Slack de un ticket de la empresa y sus
     documentos: lo que la ficha del ticket puede enviar por el canal (17-11-2026).

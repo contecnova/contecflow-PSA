@@ -106,7 +106,7 @@ def puede_revisar(db: Session, usuario) -> bool:
         AgentGroupMember.group_id == grupo, AgentGroupMember.user_id == usuario.id).first() is not None
 
 
-def _exigir_editor(db: Session, usuario) -> None:
+def exigir_editor(db: Session, usuario) -> None:
     if not (_es_admin(usuario) or puede_revisar(db, usuario)):
         raise ErrorDeDominio(403, "trad_sin_permiso")
 
@@ -190,7 +190,7 @@ def _versiones(db: Session, tipo: Tipo, content_id: str) -> list[PortalContentTr
 
 def listar(db: Session, usuario, clave: str, content_id: str) -> dict:
     tipo = tipo_de(clave)
-    _exigir_editor(db, usuario)
+    exigir_editor(db, usuario)
     obj = _contenido(db, usuario, tipo, content_id)
     actual = huella(tipo, obj)
     return {"content_type": tipo.clave, "content_id": obj.id, "label": _etiqueta(tipo, obj),
@@ -206,7 +206,7 @@ def listar(db: Session, usuario, clave: str, content_id: str) -> dict:
 def generar(db: Session, usuario, clave: str, content_id: str, idiomas: Optional[list[str]] = None) -> dict:
     from app.services.audit import audit_log
     tipo = tipo_de(clave)
-    _exigir_editor(db, usuario)
+    exigir_editor(db, usuario)
     obj = _contenido(db, usuario, tipo, content_id)
     origen = _idioma_del_original(db, tipo, obj)
     posibles = ajustes.idiomas_de_la_kb(db, obj.organization_id)
@@ -263,7 +263,7 @@ def _version(db: Session, usuario, tipo: Tipo, content_id: str, idioma: str):
 def editar(db: Session, usuario, clave: str, content_id: str, idioma: str, campos: dict) -> dict:
     from app.services.audit import audit_log
     tipo = tipo_de(clave)
-    _exigir_editor(db, usuario)
+    exigir_editor(db, usuario)
     obj, v = _version(db, usuario, tipo, content_id, idioma)
     antes = v.status
     datos = _campos(v)
@@ -309,7 +309,7 @@ def revisar(db: Session, usuario, clave: str, content_id: str, idioma: str, publ
 def borrar(db: Session, usuario, clave: str, content_id: str, idioma: str) -> None:
     from app.services.audit import audit_log
     tipo = tipo_de(clave)
-    _exigir_editor(db, usuario)
+    exigir_editor(db, usuario)
     obj, v = _version(db, usuario, tipo, content_id, idioma)
     audit_log(db, usuario, "DELETE", RECURSO, v.id, f"{tipo.clave} {_etiqueta(tipo, obj)} {v.language}")
     db.delete(v)
@@ -320,7 +320,7 @@ def resumen(db: Session, usuario) -> dict:
     """La pantalla de revision: cada aviso activo y cada categoria y servicio
     activos de la empresa, con cuantas versiones tiene en cada estado y cuantas
     estan desactualizadas. Primero lo que pide atencion."""
-    _exigir_editor(db, usuario)
+    exigir_editor(db, usuario)
     org = usuario.organization_id
     versiones = db.query(PortalContentTranslation)
     if org:

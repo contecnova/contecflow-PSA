@@ -28,7 +28,10 @@ Nunca se devuelve el valor enviado ni el texto libre de un validador propio
 """
 from __future__ import annotations
 
+import logging
 from typing import Any, Iterable
+
+logger = logging.getLogger(__name__)
 
 CODIGO = "validacion"
 
@@ -156,6 +159,7 @@ def _escalar(v: Any) -> Any:
         # Decimal, date…: su forma de texto.
         texto = str(v)
     except Exception:  # pragma: no cover - defensivo
+        logger.debug("_escalar: valor sin forma de texto", exc_info=True)
         return None
     return texto[:60]
 
@@ -218,6 +222,7 @@ def _texto(error: dict) -> str:
     try:
         texto = plantilla.format(min=error.get("min", ""), max=error.get("max", ""))
     except Exception:  # pragma: no cover - defensivo
+        logger.debug("_texto: plantilla sin formatear", exc_info=True)
         texto = plantilla
     return f"{error['campo']} ({texto})" if error["campo"] else texto
 

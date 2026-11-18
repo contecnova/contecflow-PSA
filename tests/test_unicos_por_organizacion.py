@@ -24,6 +24,9 @@ GLOBALES_A_PROPOSITO = {
     # pertenece a una sola organizacion: (origen_id, mes) no puede chocar entre empresas.
     ("budget_closes", ("origen_id", "mes")): "origen_id es un UUID de presupuesto, ya es de una sola organizacion",
     ("budget_variance_notes", ("origen_id", "mes", "tipo")): "origen_id es un UUID de presupuesto, ya es de una sola organizacion",
+    # Rev. 180-181 (17-11-2026): la clave empieza por el UUID de una fila que ya es de una sola organizacion.
+    ("movimientos_de_saldo", ("user_id", "saldo_clave", "origen", "referencia")): "user_id es una persona, que es de una sola organizacion",
+    ("portal_content_translations", ("content_type", "content_id", "language")): "content_id es el UUID de un aviso o elemento del catalogo, ya de una sola organizacion",
     ("users", ("email",)): "el correo identifica al usuario en el login, sea de la empresa que sea",
     ("users", ("username",)): _IDENTIDAD,
     ("client_users", ("email",)): "el correo identifica al cliente en el login del portal",

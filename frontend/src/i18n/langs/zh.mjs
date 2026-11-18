@@ -10844,6 +10844,7 @@ const zh = {
       v16: "AI 模块（根因、知识库、预测）",
       lessons_learned: "经验教训：根据事实起草",
       translation: "实时翻译（客服 ↔ 客户）",
+      portal_assistant: "客户门户助手",
     },
   },
   financedashboard: {

@@ -89,6 +89,7 @@ PUBLIC_ROUTES: dict[tuple[str, str], str] = {
     # canal_whatsapp, 403 si no cuadra).
     ("POST", "/api/v1/sd/channels/slack/interactions"): "firma de Slack (X-Slack-Signature, secreto de la empresa del workspace)",
     ("POST", "/api/v1/sd/channels/whatsapp/webhook"): "firma de Meta (X-Hub-Signature-256, app_secret de la empresa del número)",
+    ("POST", "/api/v1/sd/channels/slack/events"): "firma de Slack (X-Slack-Signature, signing secret de la empresa del workspace; canal_slack.leer_evento, 403 si no cuadra)",
     ("GET", "/api/v1/sd/channels/whatsapp/webhook"): "alta del webhook de Meta: verify_token de la empresa (compare_digest)",
     ("POST", "/api/v1/sd/voice/webhook/twilio"): "firma de Twilio",
     ("POST", "/api/v1/sd/voice/webhook/twilio/gather"): "firma de Twilio",

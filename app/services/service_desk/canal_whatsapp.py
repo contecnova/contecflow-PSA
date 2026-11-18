@@ -49,6 +49,7 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.core.errores import ErrorDeDominio
+from app.services.formato_regional import IDIOMA_DE_RESPALDO
 
 logger = logging.getLogger(__name__)
 
@@ -230,7 +231,7 @@ def plantilla(db: Session, org_id: str) -> Optional[tuple[str, str]]:
     nombre = (get_credential(db, PROVEEDOR, "template_name", org_id) or "").strip()
     if not nombre:
         return None
-    return nombre, (get_credential(db, PROVEEDOR, "template_language", org_id) or "es").strip()
+    return nombre, (get_credential(db, PROVEEDOR, "template_language", org_id) or IDIOMA_DE_RESPALDO).strip()
 
 
 def ventana_abierta(conv, ahora: Optional[datetime] = None) -> bool:

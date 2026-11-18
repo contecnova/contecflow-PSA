@@ -141,6 +141,17 @@ def recalcular(db: Session, desde: date, hasta: date, user_ids: Optional[Iterabl
     return hechos
 
 
+def recalcular_y_auditar(db: Session, actor, desde: date, hasta: date,
+                         user_ids: Optional[Iterable[str]] = None) -> dict:
+    """`recalcular` pedido a mano: deja rastro en la auditoria y confirma."""
+    from app.services.audit import audit_log
+    r = recalcular(db, desde, hasta, user_ids, actor.id)
+    audit_log(db, actor, "RECALCULATE", "hour_bank", None, None,
+              new_values={**r, "desde": str(desde), "hasta": str(hasta)})
+    db.commit()
+    return r
+
+
 def pasada(db: Session) -> dict:
     """La pasada diaria: recalcula los últimos HOUR_BANK_RECALC_DAYS días."""
     from app.services.settings_service import get_runtime_int

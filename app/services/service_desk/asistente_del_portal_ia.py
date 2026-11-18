@@ -38,6 +38,8 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from app.services.formato_regional import IDIOMA_DE_RESPALDO
+
 logger = logging.getLogger(__name__)
 
 MODULO = "portal_assistant"
@@ -179,7 +181,7 @@ def entender(db: Session, cliente, mensaje: str, idioma: str, historial: Optiona
     servicios = base._servicios_visibles(db, org)
     reset_id = base._ajuste(db, "SD_PASSWORD_RESET_SERVICE_ID", org)
     sistema = _SISTEMA.format(
-        idioma=nombre, codigo=idioma, empresa=IDIOMAS.get(idioma_por_defecto(db, org) or "es", "Spanish"),
+        idioma=nombre, codigo=idioma, empresa=IDIOMAS.get(idioma_por_defecto(db, org) or IDIOMA_DE_RESPALDO, "Spanish"),
         catalogo=_catalogo(servicios),
         reset="" if reset_id else " (not offered by this company: say so and suggest live chat)")
     mensajes = _historial(historial) + [{"role": "user", "content": mensaje[:2000]}]

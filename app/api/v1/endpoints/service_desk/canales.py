@@ -156,14 +156,7 @@ def list_conversations(status: Optional[str] = Query(None, pattern="^(bot|waitin
 @router.get("/conversations/{conv_id}", summary="Una conversación con sus mensajes")
 def get_conversation(conv_id: str, after: Optional[str] = Query(None, max_length=36), db: Session = Depends(get_db),
                      current_user: User = Depends(require_internal_user)):
-    from app.models.service_desk import Ticket
-    from app.services.service_desk.adjuntos_de_canal import listar as adjuntos_del_ticket
-    conv = conversaciones._de_la_empresa(db, conv_id, current_user.organization_id)
-    ticket = db.get(Ticket, conv.ticket_id) if conv.ticket_id else None
-    return APIResponse.ok(data={"conversation": conversaciones.serializar(db, conv),
-                                "messages": conversaciones.mensajes(db, conv, after),
-                                # Lo que se puede enviar por el canal (17-11-2026).
-                                "attachments": adjuntos_del_ticket(db, ticket)})
+    return APIResponse.ok(data=conversaciones.detalle_para_agente(db, conv_id, current_user.organization_id, after))
 
 
 @router.post("/conversations/{conv_id}/take", summary="Tomar la conversación (traspaso a agente)")
