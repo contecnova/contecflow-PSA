@@ -31,7 +31,8 @@ PERIODOS = ("anual", "semestral", "trimestral", "mensual", "sin_periodo")
 #: Reglas de la bolsa de horas (todas números ≥ 0; ver `ausencias/bolsa.py`).
 BOLSA_CLAVES = ("factor", "factor_festivo", "factor_no_laborable", "umbral_minutos", "tope_diario", "tope_periodo")
 BOLSA_DEFECTO = {"factor": 1.0, "factor_festivo": 1.0, "factor_no_laborable": 1.0, "umbral_minutos": 0,
-                 "tope_diario": None, "tope_periodo": None, "solo_aprobadas": False}
+                 "tope_diario": None, "tope_periodo": None, "solo_aprobadas": False,
+                 "solo_horas_extra": False}
 PLAZO_DESDE = ("solicitud", "inicio", "fin")
 #: Iconos que la pantalla sabe pintar (nombres de lucide en `IconoDeAusencia`).
 ICONOS = ("umbrella", "sun", "stethoscope", "user", "graduation", "baby", "circle", "plane", "heart", "home",
@@ -217,7 +218,7 @@ def _validar_tipo(db: Session, datos: dict, actual: Optional[TipoDeAusencia]) ->
             errores.append("la tabla del derecho tiene que existir y ser de números")
     if saldo == "bolsa":
         for k, v in (datos.get("bolsa") or {}).items():
-            if k == "solo_aprobadas":
+            if k in ("solo_aprobadas", "solo_horas_extra"):
                 continue
             if k not in BOLSA_CLAVES:
                 errores.append(f"regla de bolsa desconocida: {k}")
@@ -273,7 +274,7 @@ def guardar_tipo(db: Session, usuario, datos: dict, tipo_id: Optional[str] = Non
     t.caduca_meses = _num("caduca_meses", True)
     t.prorratear_alta = bool(datos.get("prorratear_alta"))
     t.derecho_tabla_id = datos.get("derecho_tabla_id") or None
-    t.bolsa = json.dumps({k: datos["bolsa"][k] for k in (*BOLSA_CLAVES, "solo_aprobadas") if k in (datos.get("bolsa") or {})}) \
+    t.bolsa = json.dumps({k: datos["bolsa"][k] for k in (*BOLSA_CLAVES, "solo_aprobadas", "solo_horas_extra") if k in (datos.get("bolsa") or {})}) \
         if v["saldo"] == "bolsa" else None
     t.unidad = v["unidad"]
     t.visibilidad = datos.get("visibilidad") or "equipo"

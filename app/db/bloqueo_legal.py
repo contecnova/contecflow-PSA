@@ -81,6 +81,11 @@ def _contacto_de_cliente():
     return ClientContact
 
 
+def _horas_extra():
+    from app.models.horas_extra import PeticionDeHorasExtra
+    return PeticionDeHorasExtra
+
+
 TIPOS: dict[str, Tipo] = {
     # Sólo tickets cerrados, contando desde el cierre.
     "tickets": Tipo(_ticket, lambda M: M.closed_at, lambda M: M.closed_at.isnot(None),
@@ -106,6 +111,12 @@ TIPOS: dict[str, Tipo] = {
     # desactivadas, desde que se desactivaron; las activas son el cliente vivo.
     "client_contacts": Tipo(_contacto_de_cliente, lambda M: func.coalesce(M.deactivated_at, M.created_at),
                             lambda M: M.is_active.is_(False), ("id", "client_id", "email")),
+    # 18-11-2026: peticiones de horas extra (registro de jornada y nómina). Sólo
+    # las cerradas (decididas o canceladas), desde su último cambio; con su
+    # línea de tiempo (se borra en cascada).
+    "overtime_requests": Tipo(_horas_extra, lambda M: func.coalesce(M.updated_at, M.created_at),
+                              lambda M: M.estado.in_(("aprobada", "rechazada", "cancelada")),
+                              ("id", "user_id", "project_id")),
 }
 
 

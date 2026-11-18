@@ -94,6 +94,9 @@ MODULO_GRC_DE_ENTIDAD: dict[str, str] = {
     "contract": "contracts",
     "mcp_action": "mcp",
     "license_reclaim": "alm",    # 16-11-2026: recuperación de licencias (fase 2)
+    # 18-11-2026: horas extra. Son horas de trabajo: la regla «el empleado no
+    # aprueba sus propios timesheets» (módulo timesheets) es la que aplica.
+    "overtime": "timesheets",
 }
 
 

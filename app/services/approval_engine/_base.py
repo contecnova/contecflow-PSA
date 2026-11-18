@@ -21,6 +21,7 @@ _FINANCIAL_ENTITY_TYPES = {
     "timesheet", "expense", "milestone", "purchase", "invoice",
     "contract", "budget", "leave", "deliverable", "proposal",
     "subcontractor", "scope_change", "hire", "price_change",
+    "overtime",   # horas extra (18-11-2026): se pagan o van a la bolsa; escalados incluidos
 }
 
 _WORKFLOW_TEMPLATES = [

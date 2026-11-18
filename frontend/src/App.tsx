@@ -39,6 +39,7 @@ const ContractsPage          = lazy(() => import('./pages/ContractsPage'))
 const RisksPage              = lazy(() => import('./pages/RisksPage'))
 const SkillsPage             = lazy(() => import('./pages/SkillsPage'))
 const AbsencesPage           = lazy(() => import('./pages/AbsencesPage'))
+const HorasExtraPage         = lazy(() => import('./pages/HorasExtraPage'))
 const ChangesPage            = lazy(() => import('./pages/ChangesPage'))
 const DeliverablesPage       = lazy(() => import('./pages/DeliverablesPage'))
 const ClientPortalPage       = lazy(() => import('./pages/ClientPortalPage'))
@@ -176,7 +177,7 @@ const SafeEpicGantt           = withRouteBoundary(EpicGanttPage, 'Gantt')
 
 // ── Fallback de carga para lazy pages — skeleton por tipo de módulo ───────────
 const TABLE_ROUTES = new Set([
-  '/tasks','/timesheets','/resources','/resources/planning','/absences','/risks','/changes',
+  '/tasks','/timesheets','/resources','/resources/planning','/absences','/overtime','/risks','/changes',
   '/deliverables','/contracts','/expenses','/approvals','/invoices',
   '/clients','/alerts','/exports','/import','/skills','/documents',
   '/subcontractors','/rate-cards','/sprint-charts','/cumulative-flow',
@@ -476,6 +477,12 @@ function AppRoutes() {
       <Route path="/absences" element={
         <ProtectedRoute>
           <Layout><AbsencesPage /></Layout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/overtime" element={
+        <ProtectedRoute>
+          <Layout><HorasExtraPage /></Layout>
         </ProtectedRoute>
       } />
 

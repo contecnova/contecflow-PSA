@@ -14,6 +14,7 @@ from app.api.v1.endpoints import (
     expenses, automations, enterprise, bpmn_processes, user_costs, mcp,
 )
 from app.api.v1.endpoints import ausencias
+from app.api.v1.endpoints import horas_extra
 from app.api.v1.endpoints import collaboration as collaboration_pkg
 from app.api.v1.endpoints import collaboration_portal
 from app.api.v1.endpoints import periodo as periodo_ep
@@ -39,6 +40,7 @@ router.include_router(risks.router,           prefix="/risks",           tags=["
 router.include_router(skills.router,          prefix="/skills",          tags=["Skills"])
 router.include_router(ausencias.router,       prefix="/absences",        tags=["Ausencias"])  # tarea #25 (tipos, turnos, cupos, documentos)
 router.include_router(absences.router,        prefix="/absences",        tags=["Ausencias"])
+router.include_router(horas_extra.router,     prefix="/overtime",        tags=["Horas extra"])  # rev. 184 (18-11-2026)
 router.include_router(changes.router,         prefix="/changes",         tags=["Control de Cambios"])
 router.include_router(deliverables.router,    prefix="/deliverables",    tags=["Entregables"])
 router.include_router(advanced_config.router, prefix="/advanced-config", tags=["Configuración Avanzada"])

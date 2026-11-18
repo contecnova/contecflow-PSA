@@ -192,6 +192,24 @@ def generar(db, org: str) -> dict:
         controles.append(_control("ai_spend_cap", "info", {"daily_budget_usd": tope,
                                                           "spent_today_usd": round(ai_provider_service.gasto_de_hoy(db, org), 4)},
                                   "AI_DAILY_BUDGET_USD + ai_usage_logs de hoy", ()))
+        # 18-11-2026: horas extra. Límites = los de las reglas publicadas del
+        # dominio `horas_extra` (p. ej. el máximo legal de 80 h/año pagadas).
+        from app.services.horas_extra.consultas import cumplimiento as horas_extra
+        he = horas_extra(db, org, [u.id for u in activos.all()])
+        controles.append(_control(
+            "overtime_limits",
+            "info" if not he["limites_publicados"] else ("pass" if he["personas_por_encima"] == 0 else "attention"),
+            {k: he[k] for k in ("activo", "limites_publicados", "personas_por_encima", "personas_cerca")},
+            "peticiones_de_horas_extra vivas del año frente a las reglas publicadas del dominio horas_extra",
+            ("ET art. 35", "ISO27001 A.5.36")))
+        controles.append(_control(
+            "overtime_unauthorized",
+            "pass" if he["dias_sin_autorizar_30d"] == 0 and he["declaraciones_pendientes_de_mas_de_30d"] == 0
+            else "attention",
+            {k: he[k] for k in ("control", "dias_sin_autorizar_30d", "horas_sin_autorizar_30d",
+                                "personas_sin_autorizar_30d", "declaraciones_pendientes_de_mas_de_30d")},
+            "imputations de los últimos 30 días frente al horario efectivo y las horas extra aprobadas",
+            ("ET art. 34.9 (registro de jornada)", "ET art. 35.5")))
         # Revisión GRC 2026-11b: la retención y el bloqueo legal existen desde la
         # revisión 2026-11 y el informe no los mencionaba.
         from app.models.governance import LegalHold, RetentionPolicy

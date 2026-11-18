@@ -22,7 +22,7 @@ import OfflineIndicator from '../OfflineIndicator'
 import { useSwipeGesture } from '../../hooks/useSwipeGesture'
 import { useAppLang, EVENTO_IDIOMA_ELEGIDO } from '../../i18n/AppLangContext'
 import {
-  LayoutDashboard, CheckSquare, Clock, Calendar, Umbrella,
+  LayoutDashboard, CheckSquare, Clock, Calendar, Umbrella, AlarmClockPlus,
   FileText, Receipt, CheckCircle, Folder, RefreshCw, Sparkles,
   BarChart2, Target, Package, ArrowLeftRight, AlertTriangle, Link,
   GitBranch, BookOpen, Mic, Users, TrendingUp, Award, Network,
@@ -46,7 +46,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/support-dashboard': 'Dashboard',
   '/tasks': 'Tasks',
   '/time': 'Tiempo', '/imputar': 'Log hours', '/timer': 'Timer', '/timesheets': 'Timesheets',
-  '/calendar': 'Calendar', '/absences': 'Absences', '/documents': 'Documents',
+  '/calendar': 'Calendar', '/absences': 'Absences', '/overtime': 'Overtime', '/documents': 'Documents',
   '/expenses': 'Expenses', '/approvals': 'Approvals', '/projects': 'Projects',
   '/sprints': 'Sprints', '/sprint-planning': 'Sprint Planning AI', '/gantt': 'Gantt', '/epic-gantt': 'Epic Gantt',
   '/epics': 'Epics & Roadmap', '/deliverables': 'Deliverables', '/changes': 'Changes',
@@ -98,7 +98,7 @@ const ROUTE_SECTION: Record<string, string> = {
   '/support-dashboard': 'Support',
   '/tasks': 'My Work', '/time': 'My Work', '/imputar': 'My Work', '/chat': 'My Work', '/settings/chat-admin': 'Settings',
   '/timer': 'My Work', '/timesheets': 'My Work', '/calendar': 'My Work',
-  '/absences': 'My Work', '/documents': 'My Work', '/expenses': 'My Work',
+  '/absences': 'My Work', '/overtime': 'My Work', '/documents': 'My Work', '/expenses': 'My Work',
   '/approvals': 'My Work',
   '/projects': 'Projects', '/projects/:id': 'Detalle de proyecto', '/sprints': 'Projects', '/sprint-planning': 'Projects',
   '/raci': 'Projects', '/changelog': 'Projects', '/uat': 'Projects',
@@ -194,6 +194,7 @@ const NAV_GROUPS: NavGroupConfig[] = [
     { to: '/time',            icon: <Clock size={SZ} />,        label: 'Tiempo',          roles: ['admin','pm','team_lead','employee','hr','subcontractor'] },
     { to: '/calendar',        icon: <Calendar size={SZ} />,     label: 'Calendar',        roles: ['admin','pm','team_lead','employee','hr'] },
     { to: '/absences',        icon: <Umbrella size={SZ} />,     label: 'Absences',        roles: ['admin','pm','hr','team_lead','employee','subcontractor'] },
+    { to: '/overtime',        icon: <AlarmClockPlus size={SZ} />,label: 'Overtime',        roles: ['admin','pm','hr','team_lead','employee','subcontractor'] },
     { to: '/documents',       icon: <FileText size={SZ} />,     label: 'Documents',       roles: ['admin','pm','hr','team_lead','employee'] },
     { to: '/expenses',        icon: <Receipt size={SZ} />,      label: 'Expenses',        roles: ['admin','pm','hr','employee'] },
     { to: '/approvals',       icon: <CheckCircle size={SZ} />,  label: 'Approval Inbox',       roles: ['admin','pm','team_lead','hr','employee'] },

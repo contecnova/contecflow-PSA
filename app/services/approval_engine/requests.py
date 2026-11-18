@@ -343,7 +343,7 @@ def decide_approval_request(
     step = _pasos.rama_para(req, _pasos.etapa(steps, req.current_step), current_user, db) or step
     _validate_decision_authorization(req, step, decision, attachment_url, current_user, db)
     from app.services.approval_engine import fuentes
-    fuentes.comprobar_antes(req, decision, db)
+    fuentes.comprobar_antes(req, decision, db, current_user)
     _record_decision_row(req, decision, note, delegate_to, attachment_url, current_user, db, step_ref=step.id)
 
     if decision == "rejected":

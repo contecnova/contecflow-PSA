@@ -16,7 +16,10 @@ y, con las reglas del tipo (`TipoDeAusencia.bolsa`, editables en la pantalla):
   de bolsa da cada hora de exceso;
 - `tope_diario`: como mucho tantas horas de bolsa por día;
 - `tope_periodo`: como mucho tantas horas en el año natural;
-- `solo_aprobadas`: solo cuentan las imputaciones aprobadas.
+- `solo_aprobadas`: solo cuentan las imputaciones aprobadas;
+- `solo_horas_extra` (18-11-2026): solo genera bolsa el exceso cubierto por
+  horas extra APROBADAS con compensación «bolsa» ese día (las autorizadas;
+  `app/services/horas_extra/`). Lo trabajado de más sin autorizar no da bolsa.
 
 Cada día deja (o corrige, o borra) UN movimiento `origen = bolsa` con
 referencia «tipo:fecha»: recalcular es idempotente. Caduca a los
@@ -99,6 +102,7 @@ def recalcular(db: Session, desde: date, hasta: date, user_ids: Optional[Iterabl
         hechos["personas"] = max(hechos["personas"], len(personas))
         planes = hor.horarios(db, personas, desde, hasta) if personas else {}
         tope_anual = _num(reglas.get("tope_periodo"), None)
+        autorizado = _autorizado_en_bolsa(db, personas, desde, hasta) if reglas.get("solo_horas_extra") else None
         for uid in sorted(personas):
             acumulado: dict = defaultdict(float)
             if tope_anual is not None:
@@ -116,7 +120,11 @@ def recalcular(db: Session, desde: date, hasta: date, user_ids: Optional[Iterabl
                     clase = "festivo"
                 elif x is None or x.horas_teoricas <= 0:
                     clase = "no_laborable"
-                h = horas_de_bolsa(imputado.get(uid, {}).get(d, 0.0), horario, clase, reglas)
+                imp = imputado.get(uid, {}).get(d, 0.0)
+                if autorizado is not None:
+                    # Solo el exceso que cubren horas extra aprobadas en bolsa.
+                    imp = min(imp, horario + autorizado.get((uid, d), 0.0))
+                h = horas_de_bolsa(imp, horario, clase, reglas)
                 if tope_anual is not None:
                     h = round(max(0.0, min(h, tope_anual - acumulado[d.year])), 4)
                     acumulado[d.year] += h
@@ -139,6 +147,22 @@ def recalcular(db: Session, desde: date, hasta: date, user_ids: Optional[Iterabl
                     hechos["cambiados"] += 1
     db.commit()
     return hechos
+
+
+def _autorizado_en_bolsa(db: Session, personas, desde: date, hasta: date) -> dict:
+    """{(user_id, fecha): horas} de horas extra aprobadas que se compensan con bolsa."""
+    from app.models.horas_extra import PeticionDeHorasExtra
+    from app.services.horas_extra.calculo import horas_vivas
+    salida: dict = defaultdict(float)
+    if not personas:
+        return salida
+    for p in db.query(PeticionDeHorasExtra).filter(PeticionDeHorasExtra.user_id.in_(list(personas)),
+                                                   PeticionDeHorasExtra.estado == "aprobada",
+                                                   PeticionDeHorasExtra.compensacion == "bolsa",
+                                                   PeticionDeHorasExtra.fecha >= desde,
+                                                   PeticionDeHorasExtra.fecha <= hasta).all():
+        salida[(p.user_id, p.fecha)] += horas_vivas(p)
+    return salida
 
 
 def recalcular_y_auditar(db: Session, actor, desde: date, hasta: date,

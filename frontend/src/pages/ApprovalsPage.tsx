@@ -25,7 +25,7 @@ import {
   CheckCircle, CheckCircle2, Info, Trash2,
   Clock as ClockIcon, Users, BarChart3, Sparkles, Layers, Workflow,
   FileText, Receipt, RefreshCw, Flag, ShoppingCart, FileSignature, PiggyBank, ArrowLeftRight, LayoutGrid,
-  Palmtree, Package, ClipboardList, Handshake, GitBranch, UserPlus, Tag, Plug, Laptop, Undo2, Circle,
+  Palmtree, Package, ClipboardList, Handshake, GitBranch, UserPlus, Tag, Plug, Laptop, Undo2, Circle, AlarmClockPlus,
   ArrowLeft, FolderOpen, Pencil, Check, Plus, X, AlertTriangle, Download,
 } from 'lucide-react'
 import { Button, Modal, EmptyState, Tabs, Page, Table, KpiCard, IconButton, StatusBadge, SelectorDePeriodo, Pulsable, Select, TablaSimple, Checkbox, useErroresDeCampo } from '../components/ui'
@@ -69,6 +69,8 @@ const ENTIDADES: Record<string, { icon: ReactNode; color: string }> = {
   alm_assignment: { icon: <Laptop size={14} />, color: 'var(--accent)' },
   // Licencias fase 2: liberar una licencia sin uso (recuperación).
   license_reclaim: { icon: <Undo2 size={14} />, color: 'var(--warning)' },
+  // 18-11-2026: peticiones de horas extra (/overtime).
+  overtime: { icon: <AlarmClockPlus size={14} />, color: 'var(--warning)' },
 }
 const ICONO_ENTIDAD_DESCONOCIDA = <Circle size={14} />
 /** Nombre de cada tipo de entidad: `approvals.entity_<tipo>`. */

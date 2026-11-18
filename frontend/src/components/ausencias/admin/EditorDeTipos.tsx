@@ -35,6 +35,7 @@ const tipoNuevo = (): TipoDeAusenciaIn => ({
 /** Reglas neutras de una bolsa nueva: cada hora de más cuenta una hora, sin umbral ni topes. */
 const bolsaNueva = (): ReglasDeBolsa => ({
   factor: 1, factor_festivo: 1, factor_no_laborable: 1, umbral_minutos: 0, tope_diario: null, tope_periodo: null, solo_aprobadas: true,
+  solo_horas_extra: false,
 })
 const MODOS: ModoDePeticion[] = ['dias', 'medio_dia', 'horas']
 const SALDOS: Saldo[] = ['vacaciones', 'propio', 'bolsa']
@@ -340,6 +341,8 @@ function ReglasDeLaBolsa({ valor, onChange }: { valor: ReglasDeBolsa; onChange: 
       </div>
       <Casilla etiqueta={ta('bolsa_solo_aprobadas')} ayuda={ta('bolsa_solo_aprobadas_ayuda')} valor={valor.solo_aprobadas}
         onChange={v => poner({ solo_aprobadas: v })} />
+      <Casilla etiqueta={ta('bolsa_solo_horas_extra')} ayuda={ta('bolsa_solo_horas_extra_ayuda')} valor={valor.solo_horas_extra ?? false}
+        onChange={v => poner({ solo_horas_extra: v })} />
     </div>
   )
 }

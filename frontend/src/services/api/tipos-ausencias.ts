@@ -12,6 +12,8 @@ export type PeriodoDeSaldo = 'anual' | 'semestral' | 'trimestral' | 'mensual' | 
 export interface ReglasDeBolsa {
   factor: number; factor_festivo: number; factor_no_laborable: number; umbral_minutos: number
   tope_diario: number | null; tope_periodo: number | null; solo_aprobadas: boolean
+  /** 18-11-2026: solo genera bolsa el exceso cubierto por horas extra aprobadas con compensación en bolsa. */
+  solo_horas_extra?: boolean
 }
 /** Franja horaria 'HH:MM'–'HH:MM' (fin menor que inicio = cruza la medianoche). */
 export type Tramo = [string, string]

@@ -1481,7 +1481,8 @@ arrastre `arrastre_max`/`arrastre_caduca_meses` hasta `ABSENCE_BALANCE_CARRY_PER
 periodos atrás, movimientos con caducidad `caduca_meses`), consumo por orden de
 caducidad (`repartir`, puro), prorrateo por alta. `movimientos.py`: ajustes de RRHH
 (auditados). `bolsa.py`: exceso imputado − horario con factores, umbral y topes;
-un movimiento idempotente por persona/tipo/día; pasada diaria `HOUR_BANK_RECALC_DAYS`.
+un movimiento idempotente por persona/tipo/día; pasada diaria `HOUR_BANK_RECALC_DAYS`;
+`solo_horas_extra` (rev. 184): solo el exceso cubierto por horas extra aprobadas en bolsa.
 Tipos: `modos`, `retribuido`, `saldo` = vacaciones|propio|bolsa.
 
 ### Motor de políticas
@@ -1501,6 +1502,76 @@ condiciones de hora, grupos y excepciones.
 Migración `180_turnos_y_ausencias_por_horas`. Tests:
 `tests/test_turnos_y_ausencias_por_horas.py`,
 `frontend/src/__tests__/FormularioDeAusenciaHoras.test.tsx`.
+
+## Horas extra y trabajo fuera de horario (18-11-2026, revisión 184)
+
+Peticiones de horas extra aprobadas por flujos, sin motor paralelo: horario
+efectivo (`app/services/horario/`), motor de políticas (dominio `horas_extra`),
+motor de aprobaciones (tipo `overtime`) y bolsa de horas (`ausencias/bolsa.py`).
+Código: `app/models/horas_extra.py`, `app/services/horas_extra/` (config, calculo,
+reglas, solicitudes, control, consultas, ejemplos),
+`app/services/politicas/dominios/horas_extra.py`, `app/api/v1/endpoints/horas_extra.py`
+(`/api/v1/overtime`); pantalla `/overtime` (`frontend/src/pages/HorasExtraPage.tsx`,
+`components/horas-extra/`, `services/api/horas-extra.ts`), en «Mi trabajo» tras Ausencias.
+
+**Peticiones.** Previa (autorización antes: fecha, franja u horas, motivo, proyecto
+y ticket opcionales, sustituto, tipo `laborable` | `fuera_de_franja` | `festivo` |
+`no_laborable` | `guardia`) o posterior (exceso imputado sin autorizar). Registro
+coherente: el tipo tiene que cuadrar con el día según su horario y la franja no
+puede caer dentro de él. Compensación `pago` | `bolsa` | `ninguna` entre las que
+permite la empresa; una regla puede fijarla (`set_field compensacion`) y fijar el
+factor de pago (`set_field factor`). Un responsable puede pedir para su equipo.
+
+**Configuración** (`config_horas_extra`, por empresa, auditada; sin fila = desactivado
+y la imputación como antes): control al imputar `ninguno` | `avisar` | `regularizar` |
+`bloquear`, tolerancia en minutos, compensaciones, flujo, tipo de bolsa, pedir en
+nombre de otro, motivo obligatorio. Presupuestos de horas por empresa,
+departamento, equipo o proyecto, al mes o al año (`presupuestos_de_horas_extra`).
+
+**Límites sin código.** Campos del dominio: horas, horas fuera de horario, clase de
+día, acumulados del día/semana/mes/año y del año solo pagadas, antelación, descanso
+entre jornadas, días seguidos, presupuesto restante, quién pide, rol, equipo,
+departamento, sede, grupos, contrato, proyecto, motivo, sustituto. «Cargar ejemplos»
+(`POST /policies/examples/horas_extra`) crea BORRADORES con el máximo legal español
+de 80 h/año pagadas (editable), 4 h/día, 10 h/semana, 12 h de descanso, 6 días
+seguidos, antelación de 24 h, presupuesto agotado (+1 nivel), factores por tipo de
+día, guardia pagada con sustituto y motivo a partir de 2 h.
+
+**Aprobación.** `fuentes.abrir(…, "overtime")`: flujo de la configuración (niveles,
+grupos, paralelos, escalado por timeout, aprobación por correo) más los niveles y
+pasos de las políticas; sin flujo decide su responsable (cadena), RRHH o
+administración. Quien aprueba puede autorizar menos horas de las pedidas.
+
+**Control al imputar** (`horas_extra/control.py`, desde el alta, la edición y el
+borrado de imputaciones): `bloquear` → 422 `horas_extra_sin_autorizar` si el día
+queda con exceso no cubierto por lo aprobado (el tope semanal se amplía con lo
+aprobado); `regularizar` → una declaración posterior pendiente por persona y día
+(se recalcula y se anula sola); `avisar` → aviso a la persona y su responsable y
+`audit_log OVERTIME_UNAUTHORIZED`. `POST /overtime/regularize` lo pasa por un periodo.
+
+**Bolsa.** Regla nueva del tipo de bolsa `solo_horas_extra`: solo genera bolsa el
+exceso cubierto por horas extra aprobadas con compensación en bolsa. El pago se
+liquida con referencia de nómina (`/overtime/{id}/settle`, `/overtime/payroll`).
+
+**Ciclo visible.** `GET /overtime/{id}`: línea de tiempo (`eventos_de_horas_extra`),
+evaluaciones de reglas con su explicación, pasos y decisiones con quién/cuándo/nota,
+escalados, día (horario, imputado, exceso real frente a lo autorizado),
+imputaciones, compensación y liquidación. Resumen por persona/equipo/departamento/
+proyecto frente a los umbrales de las reglas publicadas y a los presupuestos, y
+lista de horas fuera de horario sin autorizar.
+
+**GRC.** Auditoría de cada cambio de estado, configuración y presupuesto (las reglas,
+en Políticas); segregación (nadie decide lo suyo ni lo que pidió para otro, también
+en la bandeja: `fuentes.comprobar_antes`; módulo SoD `timesheets`); retención y
+bloqueo legal `overtime_requests` (solo cerradas); RGPD acceso/portabilidad con
+sus horas extra (y se conservan en la supresión: registro de jornada); informe de
+cumplimiento `overtime_limits` y `overtime_unauthorized`; visibilidad mínima
+(persona, su cadena de responsables, PM de sus proyectos, quien aprueba, RRHH y
+administración). `overtime` cuenta como entidad financiera en el registro de
+aprobaciones (escalados incluidos).
+
+Migración `184_horas_extra` (idempotente). Tests: `tests/test_horas_extra.py`,
+`frontend/src/components/horas-extra/__tests__/logica.test.ts`.
 
 ## Licencias y hardware — fases 1 y 3 (16-11-2026)
 

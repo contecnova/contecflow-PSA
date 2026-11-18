@@ -1,0 +1,62 @@
+/* Horas extra (18-11-2026). Solo tokens del tema. */
+
+.hext-panel { margin-top: 14px; display: flex; flex-direction: column; gap: 16px; }
+.hext-fila { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.hext-fila--ancha { display: flex; }
+.hext-acciones { display: flex; gap: 4px; justify-content: flex-end; flex-wrap: wrap; }
+.hext-ayuda { font-size: var(--text-xs); color: var(--text-3); margin: 0; }
+.hext-subtitulo { font-size: var(--text-sm); font-weight: 700; color: var(--text-1); margin: 12px 0 6px; }
+.hext-rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px 12px; align-items: start; }
+.hext-rejilla--ancho { grid-column: 1 / -1; }
+
+/* Formulario con vista previa */
+.hext-formulario { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 900px) { .hext-formulario { grid-template-columns: 1fr; } }
+.hext-formulario-datos { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.hext-previa { background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: var(--radius-md, 10px); padding: 12px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.hext-decision { display: flex; gap: 6px; align-items: center; font-weight: 700; margin: 0; color: var(--text-1); }
+.hext-decision--block { color: var(--danger); }
+.hext-decision--review { color: var(--warning); }
+.hext-decision--allow, .hext-decision--auto_approve { color: var(--success); }
+
+/* Avisos */
+.hext-aviso { display: flex; gap: 6px; align-items: flex-start; font-size: var(--text-sm); margin: 0; }
+.hext-aviso--aviso { color: var(--warning); }
+.hext-aviso--bloqueo { color: var(--danger); }
+.hext-aviso--info { color: var(--text-2); }
+.hext-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: var(--text-sm); color: var(--text-1); }
+
+/* Pares etiqueta / valor */
+.hext-datos { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 6px 12px; margin: 0; font-size: var(--text-sm); }
+.hext-dato dt { color: var(--text-3); font-size: var(--text-xs); }
+.hext-dato dd { margin: 0; color: var(--text-1); font-variant-numeric: tabular-nums; }
+
+/* Bandeja */
+.hext-bandeja { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.hext-tarjeta { background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: var(--radius-md, 10px); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.hext-tarjeta-cabecera { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-weight: 600; color: var(--text-1); }
+.hext-decidir { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+.hext-decidir-nota { flex: 1 1 220px; }
+.hext-decidir-horas { width: 140px; }
+
+/* Ciclo completo (panel lateral) */
+.hext-ciclo { display: flex; flex-direction: column; gap: 14px; padding: 16px; overflow-y: auto; max-height: 100%; }
+.hext-ciclo-cabecera { display: flex; gap: 8px; align-items: flex-start; justify-content: space-between; }
+.hext-ciclo-titulo { margin: 0; font-size: var(--text-md, 15px); font-weight: 700; color: var(--text-1); }
+.hext-linea { list-style: none; margin: 0; padding: 0 0 0 12px; border-left: 2px solid var(--surface-4); display: flex; flex-direction: column; gap: 8px; }
+.hext-linea-dia { font-size: var(--text-xs); color: var(--text-3); font-weight: 600; margin: 4px 0 0 -12px; padding-left: 12px; }
+.hext-evento { font-size: var(--text-sm); color: var(--text-1); display: flex; flex-direction: column; gap: 2px; }
+.hext-evento-meta { font-size: var(--text-xs); color: var(--text-3); }
+.hext-regla { display: flex; gap: 6px; align-items: flex-start; font-size: var(--text-sm); color: var(--text-1); }
+.hext-regla--cumple { color: var(--success); }
+.hext-regla--no { color: var(--text-3); }
+.hext-paso--actual { font-weight: 700; color: var(--accent); }
+.hext-pasos { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: var(--text-sm); color: var(--text-1); }
+.hext-negativo { color: var(--danger); font-weight: 700; }
+
+/* Resumen */
+.hext-consumo { display: flex; flex-direction: column; gap: 4px; min-width: 140px; }
+.hext-limites { display: flex; flex-direction: column; gap: 6px; }
+.hext-enlace { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; cursor: pointer; text-align: left; display: inline-flex; gap: 4px; align-items: center; text-decoration: none; }
+.hext-enlace:hover { text-decoration: underline; }
+.hext-enlace:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }

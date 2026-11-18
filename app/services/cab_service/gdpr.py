@@ -108,7 +108,7 @@ def _gdpr_erase_user(db: Session, user) -> dict:
     from app.services.supresion_service import suprimir_persona
     detalle = suprimir_persona(db, user)
     return {"anonymised": True, "tablas": detalle["tablas"], "credenciales": detalle["credenciales"],
-            "almacen": detalle["almacen"], "records_kept": ["imputations", "timesheets", "expenses"]}
+            "almacen": detalle["almacen"], "records_kept": ["imputations", "timesheets", "expenses", "overtime_requests"]}
 
 
 def _gdpr_portability_export(db: Session, user) -> dict:
@@ -122,6 +122,9 @@ def _gdpr_portability_export(db: Session, user) -> dict:
     from app.models.service_desk.tickets import Ticket
     imputaciones = db.query(Imp).filter(Imp.user_id == user.id).order_by(Imp.date, Imp.id).all()
     tickets = db.query(Ticket).filter(Ticket.requester_user_id == user.id).order_by(Ticket.created_at).all()
+    # 18-11-2026: sus horas extra (pedidas, declaradas, decididas, compensadas) con su línea de tiempo.
+    from app.services.horas_extra.consultas import mis_datos as horas_extra_de
+    horas_extra = horas_extra_de(db, user.id)
     return {
         "user": {
             "email": user.email, "full_name": user.full_name,
@@ -133,7 +136,9 @@ def _gdpr_portability_export(db: Session, user) -> dict:
                          "task_id": i.task_id, "description": i.description} for i in imputaciones],
         "tickets": [{"number": t.number, "title": t.title, "status": str(getattr(t.status, "value", t.status)),
                      "created_at": str(t.created_at)[:19] if t.created_at else None} for t in tickets],
-        "data_summary": {"imputations": len(imputaciones), "tickets": len(tickets)},
+        "overtime_requests": horas_extra,
+        "data_summary": {"imputations": len(imputaciones), "tickets": len(tickets),
+                         "overtime_requests": len(horas_extra)},
         "export_date": str(timeutil.today()),
         "format": "JSON",
     }

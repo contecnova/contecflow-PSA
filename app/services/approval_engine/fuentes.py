@@ -34,7 +34,9 @@ TIPOS = ("expense", "timesheet", "leave", "change_request", "invoice", "budget",
          "alm_assignment", "license_reclaim", "portfolio_gate",
          # Service desk, mejoras de mercado 16-11-2026: peticiones del catalogo
          # con aprobacion multinivel (`catalog_approval_service`, modo `engine`).
-         "catalog_request")
+         "catalog_request",
+         # Horas extra (rev. 184, 18-11-2026): `app/services/horas_extra/solicitudes.py`.
+         "overtime")
 
 
 def abrir(db: Session, tipo: str, entidad_id: str, resumen: str, solicitante_id: str,
@@ -142,6 +144,9 @@ def aplicar(req, decision: str, actor, db: Session) -> None:
         elif req.entity_type == "catalog_request":
             from app.services.service_desk.catalog_approval_service import aplicar_decision_del_motor
             aplicar_decision_del_motor(db, req.entity_id, "approved" if aprobado else "rejected", actor, nota)
+        elif req.entity_type == "overtime":
+            from app.services.horas_extra.solicitudes import aplicar_desde_bandeja as aplicar_horas_extra
+            aplicar_horas_extra(req, decision, actor, db)
         elif req.entity_type == "invoice":
             from app.models.billing_reports import Invoice, InvoiceStatus
             inv = db.query(Invoice).filter(Invoice.id == req.entity_id).first()
@@ -153,12 +158,20 @@ def aplicar(req, decision: str, actor, db: Session) -> None:
         logger.info("aprobacion %s: %s %s no aplicada: %s", req.id, req.entity_type, req.entity_id, exc.detail)
 
 
-def comprobar_antes(req, decision: str, db: Session) -> None:
+def comprobar_antes(req, decision: str, db: Session, actor=None) -> None:
     """Antes de anotar una aprobación en la bandeja: lo que la impediría en su pantalla.
 
     El control presupuestario de un gasto con `BUDGET_CONTROL_POLICY = bloquear`
     responde 409 aquí, y no después de dar la solicitud por aprobada.
+
+    Horas extra (18-11-2026): nadie vota sobre las suyas ni sobre las que pidió
+    para otra persona (la solicitud lleva como solicitante a la persona, así que
+    el control general de la bandeja no ve a quien las pidió en su nombre).
     """
+    if req.entity_type == "overtime":
+        from app.services.horas_extra.solicitudes import comprobar_en_bandeja
+        comprobar_en_bandeja(req, actor, db)
+        return
     if decision != "approved" or req.entity_type != "expense":
         return
     from app.models.expenses import Expense, ExpenseStatus

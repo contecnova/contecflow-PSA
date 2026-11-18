@@ -16,6 +16,7 @@ import { NOTIFICATIONS_POLL_MS, STALE_5_MIN_MS, UI_FEEDBACK_SAVED_MS } from '../
 import { useAppT } from '../i18n/AppLangContext'
 import DateInput from '../components/ui/DateInput'
 import { useOrgSettings } from '../hooks/useOrgSettings'
+import AvisoDeHorasExtra from '../components/horas-extra/AvisoDeHorasExtra'
 import './ImputarPage.css'
 
 const HOUR_OPTIONS = [0.5, 1, 1.5, 2, 3, 4, 5, 6, 7, 8]
@@ -481,6 +482,8 @@ export default function ImputarPage(): JSX.Element {
               </span> / {fmtNumber(jornada, 2)}h
             </div>
           )}
+          {/* 18-11-2026: horas fuera de horario sin autorizar (control de horas extra). */}
+          <AvisoDeHorasExtra fecha={form.date} horas={form.hours} />
         </div>
 
         {/* Description */}

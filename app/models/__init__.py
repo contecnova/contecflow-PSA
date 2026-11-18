@@ -125,6 +125,9 @@ from app.models.ausencias import (  # noqa: F401
     AccesoEspecialAusencias,
 )
 from app.models.horario import JornadaLaboral, AsignacionDeJornada, MovimientoDeSaldo  # noqa: F401 — rev. 180
+from app.models.horas_extra import (  # noqa: F401 — rev. 184: horas extra
+    ConfigDeHorasExtra, PeticionDeHorasExtra, EventoDeHorasExtra, PresupuestoDeHorasExtra,
+)
 from app.models.alm_uso import (  # noqa: F401  — licencias y hardware, fase 2: uso real
     ALMUsoConexion, ALMUsoSincronizacion, ALMUsoEvidencia, ALMUsoMapeo, ALMUsoDerecho, ALMUsoNivel,
     ALMUsoAjusteDecision, ALMUsoRecuperacion, ALMSoftwareNoControlado,

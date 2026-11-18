@@ -85,11 +85,16 @@ def update_imputation_fields(imp, payload, db: Session, current_user: User = Non
         )
     ).scalar() or 0.0
     weekly_capacity = user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
+    # Horas extra (18-11-2026): el mismo control que al imputar (horas_extra/control.py).
+    from app.services.horas_extra import control as control_horas_extra
+    weekly_capacity += control_horas_extra.capacidad_semanal_extra(db, user.id, imputation_date)
     if weekly_hours + new_hours > weekly_capacity:
         raise ErrorDeDominio(
             status_code=400,
             detail=f"Excederías la capacidad semanal ({weekly_capacity}h). Semana actual: {weekly_hours}h, nueva imputación: {new_hours}h."
         )
+
+    control_horas_extra.antes_de_imputar(db, user.id, imputation_date, new_hours, excluir_imputacion=imp.id)
 
     # Aplicar cambios
     horas_antes, coste_antes = imp.hours, imp.cost_amount
@@ -104,6 +109,7 @@ def update_imputation_fields(imp, payload, db: Session, current_user: User = Non
     db.commit()
     db.refresh(imp)
     sync_imputation_week_timesheet(db, imp.user_id, imp.date)
+    control_horas_extra.despues_de_imputar(db, imp.user_id, imp.date, getattr(current_user, "id", None))
     return imp
 
 
@@ -282,3 +288,6 @@ def delete_imputation_record(db: Session, imp) -> None:
     imp.is_active = False
     db.commit()
     sync_imputation_week_timesheet(db, user_id, work_date)
+    # Horas extra (18-11-2026): si el exceso del día desaparece, su declaración pendiente se anula.
+    from app.services.horas_extra import control as control_horas_extra
+    control_horas_extra.despues_de_imputar(db, user_id, work_date, None)

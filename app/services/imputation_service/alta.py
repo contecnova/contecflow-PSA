@@ -198,6 +198,10 @@ def _validar_tope_semanal(payload, current_user: User, db: Session) -> None:
         )
     ).scalar() or 0.0
     weekly_capacity = current_user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
+    # Horas extra (18-11-2026): lo aprobado amplía el tope; con control «avisar» o
+    # «regularizar» el control es el de horas extra, día a día (ver horas_extra/control.py).
+    from app.services.horas_extra import control as control_horas_extra
+    weekly_capacity += control_horas_extra.capacidad_semanal_extra(db, current_user.id, payload.date)
     if weekly_hours + payload.hours > weekly_capacity:
         raise ErrorDeDominio(
             status_code=400,
@@ -259,6 +263,9 @@ def validate_and_create_imputation(payload, current_user: User, db: Session):
     _validar_estado_de_la_tarea(task)
     duplicate_imputation_id = _id_de_imputacion_duplicada(payload, current_user, task, db)
     _validar_tope_semanal(payload, current_user, db)
+    # Horas extra (18-11-2026): con control «bloquear», nada fuera de horario sin autorización.
+    from app.services.horas_extra import control as control_horas_extra
+    control_horas_extra.antes_de_imputar(db, current_user.id, payload.date, payload.hours)
 
     imputation = _crear_imputacion(payload, current_user, db)
 
@@ -275,6 +282,8 @@ def validate_and_create_imputation(payload, current_user: User, db: Session):
     db.commit()
     db.refresh(imputation)
     sync_imputation_week_timesheet(db, imputation.user_id, imputation.date)
+    # Horas extra: regularizar (declaración posterior) o avisar; nunca deshace la imputación.
+    control_horas_extra.despues_de_imputar(db, imputation.user_id, imputation.date, current_user.id)
     return imputation
 
 
