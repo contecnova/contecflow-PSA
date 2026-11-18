@@ -20,12 +20,12 @@ import {
 } from 'lucide-react'
 import { ausenciasApi } from '../../services/api/ausencias'
 import type { AusenciaServida, PeticionDeAusencia, SaldoDeAusencia, TipoDeAusencia, VistaPreviaDeAusencia } from '../../services/api/tipos-ausencias'
-import { Button, Modal, Spinner, Select, TablaSimple, GrupoDeOpciones, Checkbox, Segmentado, useErroresDeCampo } from '../ui'
+import { Button, Modal, Spinner, Select, SelectRico, TablaSimple, Checkbox, Segmentado, useErroresDeCampo } from '../ui'
 import { CampoFecha } from '../ui/SelectorDeFecha'
 import DateInput from '../ui/DateInput'
 import { UserSelect } from '../ui/EntitySelect'
 import IconoDeAusencia from './IconoDeAusencia'
-import { AvisoDeError, ErrorDeCampo, Muestra, hayDeCampo } from './admin/comun'
+import { AvisoDeError, ErrorDeCampo, hayDeCampo } from './admin/comun'
 import { fecha, modosDeTipo, nombreDeTipo, num, textoDeTramos, tramosDe, useTa, useTipos, useTiposDeDocumento, useTurnos } from './comun'
 
 interface Adjunto { tipoId: string; fichero: File }
@@ -112,11 +112,13 @@ export default function FormularioDeAusencia({ abierto, onCerrar, editar }: {
       <form className="aus-formulario" onSubmit={e => { e.preventDefault(); if (completa && !bloqueada) guardar.mutate() }}>
         <div className="aus-formulario-datos">
           {tipos.isLoading && <Spinner label={ta('cargando')} />}
-          <GrupoDeOpciones forma="fila" name="tipo" leyenda={ta('tipo')} valor={p.absence_type_id ?? ''}
+          <SelectRico label={ta('tipo')} valor={p.absence_type_id ? String(p.absence_type_id) : ''}
             onChange={v => { const t = (tipos.data ?? []).find(x => String(x.id) === v); if (t) poner({ absence_type_id: t.id, hours: null, modo: modoInicial(t) }) }}
             opciones={(tipos.data ?? []).map(t => ({
               valor: String(t.id),
-              titulo: <Muestra color={t.color} className="aus-tipo"><IconoDeAusencia icono={t.icono} size={14} />{nombreDeTipo(t, lang)}</Muestra>,
+              etiqueta: nombreDeTipo(t, lang),
+              icono: <IconoDeAusencia icono={t.icono} size={14} />,
+              color: t.color,
             }))} />
           {porDias && porHoras && (
             <div className="aus-campo-con-etiqueta">

@@ -25,6 +25,8 @@ export type { StatusBadgeKind, StatusBadgeProps } from './StatusBadge'
 // Migración al kit, fase 1 (16-11-2026): tabla común, casillas y controles.
 export { Tabla, TablaSimple, CeldaEditable, EditorTexto, EditorLista, EditorFecha } from './Tabla'
 export type { TablaProps, TablaSimpleProps, ColumnaTabla, EdicionDeCelda, OrdenDeTabla, ClaveDeFila, DensidadDeTabla, VacioDeTabla, CerrarEditor } from './Tabla'
+export { SelectRico } from './SelectRico'
+export type { SelectRicoProps, OpcionRica } from './SelectRico'
 export { Checkbox, Radio, Switch, GrupoDeOpciones } from './Opciones'
 export type { CheckboxProps, GrupoDeOpcionesProps, OpcionDeGrupo } from './Opciones'
 export { BarraDeFiltros, Chip, Segmentado, Pulsable } from './Controles'

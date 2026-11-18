@@ -1,0 +1,84 @@
+/* SelectRico: mismo aspecto cerrado que `Select` (superficie, borde, radio,
+   alto 38px); la lista flota debajo con la sombra de los menús. */
+.sr { position: relative; }
+
+.sr-control {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 38px;
+  padding: 6px 10px 6px 12px;
+  background: var(--surface-3);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  color: var(--text-1);
+  font: inherit;
+  font-size: var(--text-base);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.sr-control:hover:not(:disabled) { border-color: var(--border-strong, var(--text-3)); }
+.sr-control:focus-visible,
+.sr-control[aria-expanded='true'] {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.sr-control:disabled { opacity: 0.55; cursor: not-allowed; }
+.sr-control--error { border-color: var(--danger-border); }
+
+.sr-placeholder { color: var(--text-3); flex: 1; }
+.sr-flecha { margin-left: auto; flex: none; color: var(--text-3); transition: transform 0.15s ease; }
+.sr-flecha--abierta { transform: rotate(180deg); }
+
+/* Marca: icono en su color dentro de una pastilla suave + etiqueta. */
+.sr-marca { display: inline-flex; align-items: center; gap: 9px; min-width: 0; }
+.sr-icono {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm, 6px);
+  color: var(--sr-color, var(--text-2));
+  background: color-mix(in srgb, var(--sr-color, var(--text-2)) 16%, transparent);
+}
+.sr-etiqueta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.sr-lista {
+  position: absolute;
+  z-index: var(--z-dropdown, 50);
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 300px;
+  overflow-y: auto;
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg, 0 12px 32px rgb(0 0 0 / 0.35));
+}
+/* Con etiqueta, la lista arranca bajo el control, no bajo la etiqueta. */
+.sr:has(> label) .sr-lista { top: auto; margin-top: 4px; }
+
+.sr-opcion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: var(--radius-sm, 6px);
+  color: var(--text-1);
+  cursor: pointer;
+}
+.sr-opcion--activa { background: var(--surface-3); }
+.sr-opcion--elegida .sr-etiqueta { font-weight: 600; }
+.sr-opcion[aria-disabled='true'] { opacity: 0.5; cursor: not-allowed; }
+.sr-opcion-texto { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.sr-descripcion { padding-left: 33px; font-size: var(--text-sm); color: var(--text-3); }
+.sr-check { margin-left: auto; flex: none; color: var(--accent); }
