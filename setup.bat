@@ -8,7 +8,7 @@ setlocal EnableDelayedExpansion
 ::   setup.bat start    - solo arranca
 ::   setup.bat start demo^|clean - solo arranca con modo de datos
 ::   setup.bat stop     - para los servicios
-::   setup.bat update   - actualiza dependencias
+::   setup.bat update   - actualiza dependencias y esquema (migraciones)
 ::   setup.bat docker-stop / docker-clean - para Docker (clean borra volumenes)
 ::   SETUP_INIT_MODE=demo^|clean setup.bat start  - modo no interactivo (CI/CD)
 
@@ -78,7 +78,7 @@ echo   setup.bat install            -^> instala y pregunta el modo de datos
 echo   setup.bat start              -^> solo arranca ^(BD existente^)
 echo   setup.bat start demo^|clean   -^> arranca re-sembrando con ese modo
 echo   setup.bat stop               -^> para la app ^(Docker sigue activo^)
-echo   setup.bat update             -^> actualiza dependencias
+echo   setup.bat update             -^> actualiza dependencias y esquema (migraciones)
 echo   setup.bat docker-stop        -^> para la infraestructura Docker
 echo   setup.bat docker-clean       -^> para Docker y borra todos los datos
 echo.
@@ -176,7 +176,7 @@ call :start_services
 goto :end
 
 :update_mode
-echo [INFO] Modo: actualizar dependencias
+echo [INFO] Modo: actualizar dependencias y esquema
 call :setup_backend
 if errorlevel 1 goto :error
 call :setup_frontend
@@ -248,6 +248,10 @@ if errorlevel 1 (
     echo [ERROR] este script: Alembic la reconstruye entera desde cero.
     exit /b 1
 )
+:: alembic_version puede decir head sin haber ejecutado las revisiones (stamp a
+:: mano, base copiada de otra maquina): se comprueba el esquema real.
+.venv\Scripts\python scripts\comprobar_esquema.py
+if errorlevel 1 exit /b 1
 echo [OK] Esquema al dia
 exit /b 0
 
@@ -541,6 +545,8 @@ if "!DB_STATUS!"=="ok" (
         echo [ERROR] Revisa tu archivo .env ^(especialmente SECRET_KEY^) y vuelve a ejecutar setup.bat
         exit /b 1
     )
+    .venv\Scripts\python scripts\comprobar_esquema.py
+    if errorlevel 1 exit /b 1
 ) else (
     echo [INFO] Base de datos nueva o sin usuarios - creando esquema desde los modelos...
     del /f "!DB_FILE!" "!DB_FILE!-wal" "!DB_FILE!-shm" "!DB_FILE!-journal" >nul 2>&1

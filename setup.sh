@@ -8,7 +8,7 @@
 #    ./setup.sh clean    → instala/actualiza y arranca con BD vacía salvo admin
 #    ./setup.sh start    → solo arranca, preservando la BD existente
 #    ./setup.sh stop     → para servicios
-#    ./setup.sh update   → actualiza dependencias y BD
+#    ./setup.sh update   → actualiza dependencias y esquema (migraciones + comprobación)
 # ============================================================
 
 set -e
@@ -930,6 +930,9 @@ PY
     error "Revisa el error de arriba; si la base está corrupta, restaura una copia antes de reintentar."
     exit 1
   fi
+  # alembic_version puede decir head sin haber ejecutado las revisiones (stamp a
+  # mano, base copiada de otra máquina): se comprueba el esquema real.
+  "$PY_BIN" scripts/comprobar_esquema.py || exit 1
   log "Esquema al día ✓"
   preparar_rol_de_aplicacion
 
@@ -1151,6 +1154,9 @@ start_services() {
     error "Las migraciones han fallado. La aplicación NO se arranca con un esquema a medias."
     exit 1
   fi
+  # alembic_version puede decir head sin haber ejecutado las revisiones (stamp a
+  # mano, base copiada de otra máquina): se comprueba el esquema real.
+  "$PY_BIN" scripts/comprobar_esquema.py || exit 1
 
   # Always sync demo passwords before starting — ensures hash matches .env even on 'start'
   sync_demo_passwords
@@ -1411,7 +1417,7 @@ case "${1:-}" in
     echo "  ./setup.sh clean         → instala y arranca con BD vacía (solo admin)"
     echo "  ./setup.sh start         → solo arranca (BD existente)"
     echo "  ./setup.sh stop          → para la app (Docker sigue activo)"
-    echo "  ./setup.sh update        → actualiza dependencias"
+    echo "  ./setup.sh update        → actualiza dependencias y esquema (migraciones)"
     echo "  ./setup.sh docker-stop   → para la infraestructura Docker"
     echo "  ./setup.sh docker-clean  → para Docker y borra todos los datos"
     exit 1
