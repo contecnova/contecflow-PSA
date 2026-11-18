@@ -57,7 +57,7 @@ def listar_tipos(incluir_inactivos: bool = False, db: Session = Depends(get_db),
                  current_user: User = Depends(require_worker)):
     # Externos como internos (16-11-2026): el catalogo hace falta para pedir la
     # ausencia propia (POST /absences/my); no lleva datos de nadie.
-    return APIResponse.ok(data=[catalogo.tipo_dict(t) for t in catalogo.tipos(db, incluir_inactivos=incluir_inactivos)])
+    return APIResponse.ok(data=[catalogo.tipo_dict(t) for t in catalogo.tipos(db, incluir_inactivos=incluir_inactivos, usuario=current_user)])
 
 
 @router.post("/types", summary="Crear tipo de ausencia")
@@ -81,7 +81,7 @@ def borrar_tipo(tipo_id: str, db: Session = Depends(get_db), current_user: User 
 def listar_documentos(incluir_inactivos: bool = False, db: Session = Depends(get_db),
                       current_user: User = Depends(require_worker)):
     # Externos como internos (16-11-2026): que documentos pide cada tipo, para la propia.
-    return APIResponse.ok(data=[catalogo.documento_dict(d) for d in catalogo.documentos(db, incluir_inactivos=incluir_inactivos)])
+    return APIResponse.ok(data=[catalogo.documento_dict(d) for d in catalogo.documentos(db, incluir_inactivos=incluir_inactivos, usuario=current_user)])
 
 
 @router.post("/document-types", summary="Crear tipo de documento")

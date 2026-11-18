@@ -280,15 +280,18 @@ def smart_schedule(db: Session, payload, current_user) -> dict:
     import re as _re
     import json as _json
 
-    is_super = bool(getattr(current_user, "is_superadmin", False))
-    user_org = None if is_super else getattr(current_user, "organization_id", None)
+    # 18-11-2026: también el superadministrador planifica con SU empresa (la
+    # activa de la sesión o la de su ficha). Antes, sin filtro, mandaba al
+    # proveedor de IA los nombres de los usuarios de todas las empresas y
+    # planificaba tareas de todas: fuga de datos personales entre empresas.
+    user_org = (db.info or {}).get("organization_id") or getattr(current_user, "organization_id", None)
 
     # Multi-tenant: filtrar tasks por org del current_user a través de Project,
     # excepto si es superadmin. Antes leía tasks globalmente.
     q = db.query(Task).filter(Task.start_date == None, Task.due_date == None)
     if payload.project_id:
         q = q.filter(Task.project_id == payload.project_id)
-    elif user_org:
+    if user_org:
         # Filtrar via join con Project.organization_id
         q = q.join(Project, Task.project_id == Project.id).filter(
             Project.organization_id == user_org

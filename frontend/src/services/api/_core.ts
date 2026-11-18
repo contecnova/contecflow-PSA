@@ -33,6 +33,10 @@ const api = axios.create({
   timeout: 30000,
 })
 
+/** Rutas que esperan a un modelo de IA y su límite de espera. */
+const RUTAS_DE_IA = /^\/?(ai-modules|ai|ai-providers|contecintelligence)\//
+const TIMEOUT_DE_IA_MS = 150000
+
 // Helper: read a non-httpOnly cookie by name (used for CSRF double-submit token).
 function _readCookie(name: string): string | null {
   const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/[.$?*|{}()[\]\\/+^]/g, '\\$&') + '=([^;]*)'))
@@ -48,6 +52,13 @@ function _readCookie(name: string): string | null {
 api.interceptors.request.use((config) => {
   if (config.data instanceof FormData) {
     delete config.headers['Content-Type']
+  }
+  // 18-11-2026: las llamadas que esperan a un modelo de IA (auto-planificar,
+  // resúmenes, sugerencias…) tardan más de 30 s; el backend espera al
+  // proveedor hasta OUTBOUND_AI_TIMEOUT_SECONDS (60 s) y puede reintentar con
+  // otro. Con el límite general salía «timeout of 30000ms exceeded».
+  if (RUTAS_DE_IA.test(config.url || '') && (config.timeout ?? 0) < TIMEOUT_DE_IA_MS) {
+    config.timeout = TIMEOUT_DE_IA_MS
   }
   const method = (config.method || 'get').toUpperCase()
   if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {

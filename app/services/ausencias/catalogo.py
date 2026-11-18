@@ -90,9 +90,15 @@ def asegurar(db: Session, org: Optional[str]) -> None:
 
 # ── Tipos de ausencia ────────────────────────────────────────────────────────
 
-def tipos(db: Session, *, incluir_inactivos: bool = False) -> list[TipoDeAusencia]:
-    asegurar(db, _org(db))
+def tipos(db: Session, *, incluir_inactivos: bool = False, usuario=None) -> list[TipoDeAusencia]:
+    # 18-11-2026: un superadministrador no lleva empresa en la sesión (ve todas),
+    # así que la empresa sale de su ficha: sin esto no se creaban los tipos de
+    # sistema y la lista salía vacía (el formulario «Pedir ausencia» sin tipo).
+    org = _org(db, usuario) if usuario is not None and not (db.info or {}).get("organization_id") else _org(db)
+    asegurar(db, org)
     q = db.query(TipoDeAusencia)
+    if org:
+        q = q.filter(TipoDeAusencia.organization_id == org)
     if not incluir_inactivos:
         q = q.filter(TipoDeAusencia.activo.is_(True))
     return q.order_by(TipoDeAusencia.orden, TipoDeAusencia.nombre).all()
@@ -311,9 +317,12 @@ def borrar_tipo(db: Session, usuario, tipo_id: str) -> dict:
 
 # ── Tipos de documento ───────────────────────────────────────────────────────
 
-def documentos(db: Session, *, incluir_inactivos: bool = False) -> list[TipoDeDocumentoDeAusencia]:
-    asegurar(db, _org(db))
+def documentos(db: Session, *, incluir_inactivos: bool = False, usuario=None) -> list[TipoDeDocumentoDeAusencia]:
+    org = _org(db, usuario) if usuario is not None and not (db.info or {}).get("organization_id") else _org(db)
+    asegurar(db, org)
     q = db.query(TipoDeDocumentoDeAusencia)
+    if org:
+        q = q.filter(TipoDeDocumentoDeAusencia.organization_id == org)
     if not incluir_inactivos:
         q = q.filter(TipoDeDocumentoDeAusencia.activo.is_(True))
     return q.order_by(TipoDeDocumentoDeAusencia.orden, TipoDeDocumentoDeAusencia.nombre).all()
