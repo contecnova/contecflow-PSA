@@ -10,7 +10,7 @@ import type { ComentarioEnHilo, Mencion } from '../services/api/tipos-personas'
 import { Button, Checkbox, Pulsable, Select, Spinner, EmptyState } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { AtSign } from 'lucide-react'
+import { AtSign, Bell } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import './MentionsPage.css'
 import { px } from '../utils/estilos'
@@ -224,7 +224,7 @@ export default function MentionsPage() {
           </div>
 
           {isLoading?<Spinner/>:mentions.length===0
-            ?<EmptyState icon="🔔" title={onlyUnread?t('mentions.no_new_mentions'):t('mentions.no_mentions')} description={onlyUnread?t('mentions.no_unread_mentions_desc'):t('mentions.no_mentions_desc')}/>
+            ?<EmptyState icon={<Bell size={28} strokeWidth={1.5} aria-hidden />} title={onlyUnread?t('mentions.no_new_mentions'):t('mentions.no_mentions')} description={onlyUnread?t('mentions.no_unread_mentions_desc'):t('mentions.no_mentions_desc')}/>
             :mentions.map((m) => <MentionCard key={m.id} mention={m} onRead={(id)=>markRead(id)}/>)
           }
         </div>
