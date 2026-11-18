@@ -3,6 +3,8 @@ import { es, enUS, zhCN, fr, de, pt, it, pl } from 'date-fns/locale'
 import type { Locale } from 'date-fns'
 import { resumenDeValidacionSinHook } from './erroresDeValidacion'
 import { textoDeErrorDelOperador } from './errorDelOperador'
+import { traducirSinHook } from '../i18n/traducirSinHook'
+import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 
 export type DateInput = Date | string | number | null | undefined
 export type Maybe<T> = T | null | undefined
@@ -210,7 +212,12 @@ interface PydanticIssue {
   msg?: unknown
 }
 
-export function extractErr(e: unknown, fallback = 'Error inesperado'): string {
+export function extractErr(e: unknown, fallbackPasado?: string): string {
+  // 18-11-2026: sin fallback, o con el genérico de siempre (GENERIC_ERROR_FALLBACK), el texto sale
+  // de `errors.generic` en el idioma del operador; un fallback propio se respeta tal cual.
+  const fallback = fallbackPasado === undefined || fallbackPasado === GENERIC_ERROR_FALLBACK
+    ? traducirSinHook('errors.generic')
+    : fallbackPasado
   // 17-11-2026: un 422 de validacion trae codigo y errores por campo: el aviso sale traducido.
   const validacion = resumenDeValidacionSinHook(e)
   if (validacion) return validacion

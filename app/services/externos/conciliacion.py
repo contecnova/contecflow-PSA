@@ -51,8 +51,10 @@ def conciliar(db: Session, sub_id: str) -> list[dict]:
         SubcontractorInvoice.subcontractor_id == sub_id, SubcontractorInvoice.status != "rejected",
     ).order_by(SubcontractorInvoice.issue_date).all()
     todas = db.query(SubcontractorAssignment).filter(SubcontractorAssignment.subcontractor_id == sub_id).all()
-    from app.core.config import settings
-    moneda = settings.DEFAULT_CURRENCY.upper()
+    # 18-11-2026: moneda de la empresa del externo, no la global del entorno.
+    from app.models.enterprise import Subcontractor
+    from app.services.settings_service.por_empresa import moneda_de_empresa
+    moneda = moneda_de_empresa(db, registro=db.get(Subcontractor, sub_id))
     ultima: dict = {}
     salida = []
     for f in facturas:

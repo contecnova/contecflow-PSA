@@ -4,9 +4,9 @@ from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.services.settings_service.por_empresa import capacidad_semanal
 from app.models.imputation import Imputation
 from app.models.user import User
-from app.core.config import settings
 from ._registro import register_metric
 
 
@@ -23,7 +23,7 @@ def metric_load_by_week(
 ) -> tuple[list[dict], dict]:
     """Carga media del equipo por semana (%) = horas imputadas / capacidad total."""
     users_all = db.query(User).filter(User.is_active == True).all()
-    total_capacity = sum(u.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS for u in users_all)
+    total_capacity = sum(capacidad_semanal(db, u) for u in users_all)
 
     imps = db.query(
         Imputation.date,
@@ -89,7 +89,7 @@ def metric_productivity_by_person(
 
     rows = []
     for r in q.group_by(User.id, User.full_name, User.weekly_capacity_hours).all():
-        capacity = (r.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS) / 5 * working_days
+        capacity = (capacidad_semanal(db, r)) / 5 * working_days
         actual = float(r.actual or 0)
         if actual > 0 or capacity > 0:
             parts = (r.full_name or "").split()

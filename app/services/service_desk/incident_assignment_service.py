@@ -22,7 +22,8 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 from sqlalchemy.orm import Session
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, object_session
+from app.services.settings_service.por_empresa import capacidad_semanal
 
 from app.models.settings import AppSetting
 from app.core.errores import ErrorDeDominio
@@ -39,18 +40,20 @@ def _iso_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _capacity_to_slots(raw_capacity: Any) -> int:
+def _capacity_to_slots(raw_capacity: Any, por_defecto: float = 40.0) -> int:
     """Convert weekly capacity value into coarse ticket slots.
 
     Some environments may carry unexpected values (None/empty/non-numeric)
     from legacy imports; keep endpoint resilient and return a sensible default.
+    18-11-2026: `por_defecto` es la capacidad semanal de la empresa (quien llama
+    la pasa); 40 solo queda para llamadas sin contexto.
     """
     try:
         hours = float(raw_capacity)
     except (TypeError, ValueError):
-        hours = 40.0
+        hours = por_defecto
     if hours <= 0:
-        hours = 40.0
+        hours = por_defecto
     return max(1, int(hours // 4) or 10)
 
 
@@ -302,7 +305,7 @@ def _agregar_agentes(miembros: list, carga: dict) -> list:
                 "name": nombre,
                 "open_tickets": abiertos,
                 "active_tickets": abiertos,
-                "capacity": _capacity_to_slots(getattr(m.user, "weekly_capacity_hours", 40)),
+                "capacity": _capacity_to_slots(capacidad_semanal(object_session(m.user) if m.user is not None else None, m.user)),
                 "specializations": [],
                 "is_on_call": False,
                 "groups": [],

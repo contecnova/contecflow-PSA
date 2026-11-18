@@ -132,3 +132,9 @@
   padding-left: 0;
 }
 /* <<< estilos-en-linea */
+
+/* 18-11-2026: cabecera de una pantalla montada en Configuración (incrustacion.ts):
+   mismo tamaño que el título de SeccionDeAjustes. */
+.pagehead--incrustada .pagehead-box-2 {
+  font-size: var(--text-lg);
+}

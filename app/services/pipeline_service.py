@@ -2,11 +2,11 @@ import uuid as _uuid
 
 from sqlalchemy.orm import Session, joinedload
 
+from app.services.settings_service import por_empresa as _pe
 from app.models.pipeline import Opportunity, OpportunityActivity, OpportunityStage, PipelineStageConfig
 from app.models.project import Project, ProjectStatus, ProjectType
 from app.models.user import User
 from app.services.numbering import next_numbered_code
-from app.core.config import settings
 import logging
 from app.core.errores import ErrorDeDominio
 
@@ -255,7 +255,7 @@ def convert_opportunity_to_project(db: Session, current_user: User, opp_id: str)
             client_id=opp.client_id,
             name=f"Contrato: {opp.name}",
             contract_value=opp.expected_revenue or 0.0,
-            currency=settings.DEFAULT_CURRENCY,
+            currency=getattr(project, "currency", None) or _pe.moneda_de_empresa(db, registro=project),  # 18-11-2026
             method=asc_method,
             start_date=opp.expected_start_date,
             end_date=opp.expected_close_date,

@@ -1,19 +1,20 @@
 import React, { useState } from 'react'
 import type { CSSProperties, SetStateAction, ChangeEvent, FormEvent } from 'react'
 import { z } from 'zod'
+import { Link } from 'react-router-dom'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { settingsApi, advancedConfigApi, type SettingOut, type DepartmentOut, type CustomRole, type ModuleOption } from '../services/settingsApi'
+import { settingsApi, advancedConfigApi, type DepartmentOut, type CustomRole, type ModuleOption } from '../services/settingsApi'
 import { useAuth } from '../context/AuthContext'
 import { presupuestosApi } from '../services/api'
 import { usersApi, organizationsApi, biSmartAlertsApi, esignApi, apiUrl, esFichaCompleta, type UserPublic, type UserCreatePayload, type UserUpdatePayload } from '../services/api'
 import type { ClaveDeFirma, ConfigDeFirma } from '../services/api/tipos-finanzas'
 import type { Organizacion } from '../services/api/tipos-plataforma'
 import type { MetricasDeAlertaBi } from '../services/api/tipos-bi'
-import { Button, Checkbox, GrupoDeOpciones, IconButton, Modal, Pulsable, Select, Spinner, EmptyState, MarcaExterno, Switch, useErroresDeCampo } from '../components/ui'
+import { Button, Checkbox, GrupoDeOpciones, IconButton, Input, Modal, Pulsable, Select, Spinner, EmptyState, MarcaExterno, Switch, useErroresDeCampo } from '../components/ui'
 import type { ErroresDeCampo } from '../components/ui'
-import { Search, Layers, Sparkles, Building2, Pencil, Trash2, Check, X, Plus, Pause, Play, Settings, KeyRound, Bell, Euro, Palmtree, Hash, Puzzle, LayoutTemplate, Tag, Compass, BarChart3, PenLine, Lock, Type, Calendar, List, CheckSquare, Link2, ClipboardList, FileSignature, CheckCircle2 } from 'lucide-react'
+import { Search, Layers, Building2, Pencil, Trash2, Check, X, Plus, Pause, Play, Settings, KeyRound, Bell, Palmtree, Hash, Puzzle, Compass, BarChart3, PenLine, Lock, Type, Calendar, List, CheckSquare, Link2, FileSignature, CheckCircle2 } from 'lucide-react'
 /*
  * 16-11-2026: pasada de diseño de /settings. Iconos lucide en lugar de emojis
  * (cabeceras de sección, botones de editar, borrar, guardar, cancelar, añadir,
@@ -25,7 +26,7 @@ import { useFormValidation } from '../hooks/useFormValidation'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import SeccionDeAjustes from './settings-sections/SeccionDeAjustes'
 import ConfirmarBajaModal from '../components/alm/ConfirmarBajaModal'
-import { IdiomasSection, EmailInboundSection, LogLevelSection, SystemStateSection, RuntimeFlagsSection, IntegrationCredentialsSection } from './settings-sections/SettingsAdvancedSections'
+import { IdiomasSection, LogLevelSection, SystemStateSection, RuntimeFlagsSection, IntegrationCredentialsSection } from './settings-sections/SettingsAdvancedSections'
 
 import { ROLE_LABELS, ROLE_COLORS } from '../constants/api'
 import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
@@ -98,13 +99,7 @@ type AlertConfig = {
 
 type RuleForm = { name: string; metric_key: string; condition: string; threshold: string | number; severity: string; cooldown_minutes: string | number }
 
-type RateEntry = { id: string; label: string; cost_rate: number | null; billing_rate: number | null }
-type RateTable = { id: string; name: string; applies_to: string; is_default: boolean; entries?: RateEntry[] }
-type EntryForm = { label: string; cost_rate: string | number; billing_rate: string | number }
-type NewRateTable = { name: string; applies_to: string; is_default: boolean }
 
-type VacationPolicy = { id: string; name: string; days_per_year: number; carries_over: boolean; max_carryover_days: number | null; is_default: boolean }
-type NewVacationPolicy = { name: string; days_per_year: number; carries_over: boolean; max_carryover_days: number; is_default: boolean }
 type VacationBalance = { user_id: string; user_name: string; department?: string | null; days_entitled: number; days_taken: number; days_pending: number; days_remaining: number }
 
 type NumberingSeq = { entity: string; prefix: string; separator: string; padding: number; include_year: boolean; current_value: number; next_preview: string }
@@ -113,45 +108,10 @@ type CustomField = { id: string; entity: string; name: string; field_key: string
 type CustomFieldEdit = { name: string; is_required: boolean; placeholder: string }
 type CustomFieldForm = { entity: string; name: string; field_key: string; field_type: string; is_required: boolean; placeholder: string }
 
-type TemplateTask = { id?: string; title: string; estimated_hours?: number | null }
-type TemplatePhase = { id?: string; name: string; tasks?: TemplateTask[] }
-type ProjectTemplate = {
-  id: string
-  name: string
-  description?: string | null
-  phase_count: number
-  task_count: number
-  risk_count: number
-  deliverable_count: number
-  estimated_weeks?: number | null
-  phases?: TemplatePhase[]
-}
-type DraftTask = { title: string; estimated_hours: number | null; skill_required: string | null }
-type DraftPhase = { name: string; description: string | null; estimated_weeks: number | null; estimated_hours: number | null; tasks: DraftTask[] }
-type DraftRisk = { title: string; category: string | null; probability: string; impact: string; mitigation_plan: string | null }
-type DraftDeliverable = { name: string; format: string | null; week_offset: number | null; billing_pct: number | null; acceptance_criteria: string | null }
-type TemplateForm = {
-  name: string
-  description: string
-  project_type: string
-  estimated_weeks: string
-  estimated_hours: string
-  phases: DraftPhase[]
-  risks: DraftRisk[]
-  deliverables: DraftDeliverable[]
-}
-type TemplatePayload = Omit<TemplateForm, 'estimated_weeks' | 'estimated_hours'> & { estimated_weeks: number | null; estimated_hours: number | null }
-type PhaseInput = { name: string; description: string; estimated_weeks: string; estimated_hours: string; tasks: DraftTask[] }
-type TaskInput = { title: string; estimated_hours: string; skill_required: string }
-type RiskInput = { title: string; category: string; probability: string; impact: string; mitigation_plan: string }
-type DeliverableInput = { name: string; format: string; week_offset: string; billing_pct: string; acceptance_criteria: string }
 
 type Office = { id: string; name: string; country?: string | null; city?: string | null; timezone?: string | null }
 type OfficeForm = { name: string; country: string; city: string; timezone: string }
 
-type TaskType = { id: string; name: string; value: string; icon: string; color: string; is_billable_default: boolean }
-type TaskTypeForm = { name: string; value: string; icon: string; color: string; is_billable_default: boolean }
-type TaskTypeEdit = Omit<TaskTypeForm, 'value'>
 
 type DepartmentForm = { name: string; description: string; area_id: string }
 
@@ -159,77 +119,58 @@ type MetricForm = { label: string; description: string; operand_a: string; opera
 
 type InputChange = ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
 
-// ── General settings ──────────────────────────────────────────────────────────
-
-const LABEL_KEYS: Record<string, string> = {
-  company_name: 'settings.company_name',
-  currency: 'settings.currency',
-  timezone: 'settings.timezone',
-  language: 'settings_sections.idioma',
-  work_hours_per_day: 'settings.work_hours',
-}
-
-// Settings cuya key empieza por estos prefijos son estado interno de servicios BI/ITSM
-// (no deben aparecer en la página de Configuración general porque son JSON serializado).
-const INTERNAL_KEY_PREFIXES = [
-  'bi.', 'sd.', 'olap.', 'ml_', '_', 'cache_', 'feedback_', 'lineage_', 'embed_', 'idle_timeout_',
-]
-const isUserFacingSetting = (key: string) => {
-  if (!key) return false
-  if (key in LABEL_KEYS) return true
-  const lower = String(key).toLowerCase()
-  if (INTERNAL_KEY_PREFIXES.some(p => lower.startsWith(p))) return false
-  // Permitir keys "limpias" (sin punto y sin parecer JSON): nombres simples como
-  // company_name, currency, etc.
-  return !lower.includes('.')
-}
+// ── General: moneda, zona horaria, idioma y jornada de la empresa ───────────────
+/**
+ * 18-11-2026 (reorganización de Configuración): una sola fuente. Estos cuatro
+ * valores son las claves de ejecución `DEFAULT_CURRENCY`, `DEFAULT_TIMEZONE`,
+ * `DEFAULT_LANGUAGE` y `DEFAULT_WORKING_HOURS_PER_DAY` (las que lee
+ * `/settings/org-defaults`); `PATCH /settings/general/{alias}` las escribe
+ * (ALIAS_DE_EJECUCION en app/services/settings_service/generales.py). Antes se
+ * guardaban en filas propias que no leía nadie, y Config. dinámica → Locale
+ * editaba las de verdad: ahora Config. dinámica las oculta.
+ * El nombre visible de la empresa y del producto se edita en Marca.
+ * Guardado como el resto de secciones: borrador + «Guardar»; el refresco tras
+ * escritura (services/api/refrescoTrasEscritura.ts) actualiza las pantallas.
+ */
+const CAMPOS_GENERALES = ['currency', 'timezone', 'language', 'work_hours_per_day'] as const
+type CampoGeneral = typeof CAMPOS_GENERALES[number]
+const IDIOMAS_OPERADOR = ['es', 'en', 'zh'] as const
 
 function GeneralSection() {
   const { t } = useAppLang()
-  const qc = useQueryClient()
   const toast = useToast()
-  const { data: settings = [] } = useQuery({ queryKey: ['settings-general'], queryFn: () => settingsApi.getGeneral().then(r => r.data) })
-  const { mutate: update } = useMutation({ mutationFn: ({ key, value }: { key: string; value: string }) => settingsApi.updateSetting(key, value), onSuccess: () => qc.invalidateQueries({ queryKey: ['settings-general'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
+  const { currencies } = useOrgSettings()
+  const { data: settings = [], isLoading } = useQuery({ queryKey: ['settings-general'], queryFn: () => settingsApi.getGeneral().then(r => r.data) })
+  const guardados = Object.fromEntries(CAMPOS_GENERALES.map(k => [k, settings.find(s => s.key === k)?.value ?? ''])) as Record<CampoGeneral, string>
+  const [borrador, setBorrador] = useState<Partial<Record<CampoGeneral, string>>>({})
+  const valor = (k: CampoGeneral) => borrador[k] ?? guardados[k]
+  const cambiados = CAMPOS_GENERALES.filter(k => borrador[k] !== undefined && borrador[k] !== guardados[k])
+  const { mutate: guardar, isPending } = useMutation({
+    mutationFn: async () => { for (const k of cambiados) await settingsApi.updateSetting(k, String(borrador[k])) },
+    onSuccess: () => { setBorrador({}); toast.success(t('i18n.saved')) },
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+  })
+  const poner = (k: CampoGeneral) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setBorrador(b => ({ ...b, [k]: e.target.value }))
+  const monedas = Array.from(new Set([...(currencies || []), guardados.currency].filter(Boolean)))
 
-  const visible = (settings || []).filter(s => isUserFacingSetting(s.key))
-
+  if (isLoading) return <Spinner />
   return (
-    <SeccionDeAjustes icon={<Settings size={18} />} title={t('settings.configuracion_general')} description={t('settings_sections.general_desc')}>
+    <SeccionDeAjustes icon={<Settings size={18} />} title={t('settings.configuracion_general')} description={t('ajustes.general_desc')}>
       <div className="set-grid-fields">
-        {visible.map(s => <SettingField key={s.key} setting={s} label={LABEL_KEYS[s.key] ? t(LABEL_KEYS[s.key]) : s.key} onSave={(v) => update({ key: s.key, value: v })} />)}
+        <Select label={t('settings.currency')} value={valor('currency')} onChange={poner('currency')}
+          options={monedas.map(m => ({ value: m, label: m }))} />
+        <Select label={t('settings.timezone')} value={valor('timezone')} onChange={poner('timezone')}
+          options={timezoneOptions(valor('timezone')).map(tz => ({ value: tz, label: tz }))} />
+        <Select label={t('settings_sections.idioma')} value={valor('language')} onChange={poner('language')}
+          options={IDIOMAS_OPERADOR.map(l => ({ value: l, label: t(`ajustes.idioma_${l}`) }))} />
+        <Input label={t('settings.work_hours')} type="number" min={1} max={24} step={0.5}
+          value={valor('work_hours_per_day')} onChange={poner('work_hours_per_day')} />
       </div>
-      {visible.length === 0 && (
-        <div className="set-muted-center">
-          {t('settings.sin_parametros_generales_configurados')}
-        </div>
-      )}
+      <div className="set-acciones">
+        <span className="u-text2-sm">{t('ajustes.general_nombre_en_marca')} <Link to="/settings/branding" className="set-enlace">{t('settings_page.tab_branding')}</Link></span>
+        <Button icon={<Check size={14} />} disabled={cambiados.length === 0} loading={isPending} onClick={() => guardar()}>{t('common.save')}</Button>
+      </div>
     </SeccionDeAjustes>
-  )
-}
-
-function SettingField({ setting, label, onSave }: { setting: SettingOut; label: string; onSave: (v: string) => void }) {
-  const { t } = useAppLang()
-  const idCampo = React.useId()
-  const [state, setState] = useState<{ editing: boolean; val: string }>({ editing: false, val: setting.value || '' })
-  const { editing, val } = state
-  const setEditing = (v: SetStateAction<boolean>) => setState(s => ({ ...s, editing: typeof v === 'function' ? v(s.editing) : v }))
-  const setVal = (v: SetStateAction<string>) => setState(s => ({ ...s, val: typeof v === 'function' ? v(s.val) : v }))
-  return (
-    <div className="set-field-card">
-      <label className="set-label" htmlFor={idCampo}>{label}</label>
-      {editing ? (
-        <div className="u-row-8">
-          <input aria-label={label} id={idCampo} value={val} onChange={e => setVal(e.target.value)} className="set-input set-input--flex" autoFocus onKeyDown={e => { if (e.key === 'Enter') { onSave(val); setEditing(false) } if (e.key === 'Escape') { setVal(setting.value); setEditing(false) } }} />
-          <Pulsable onClick={() => { onSave(val); setEditing(false) }} className="set-btn-confirm" aria-label={t('common.save')} title={t('common.save')}><Check size={14} aria-hidden /></Pulsable>
-          <Pulsable onClick={() => { setVal(setting.value); setEditing(false) }} className="set-btn-dismiss" aria-label={t('common.cancel')} title={t('common.cancel')}><X size={14} aria-hidden /></Pulsable>
-        </div>
-      ) : (
-        <div className="set-field-value-row">
-          <span className={`set-field-value${setting.value ? '' : ' set-field-value--empty'}`}>{setting.value || '—'}</span>
-          <Pulsable onClick={() => setEditing(true)} className="set-btn-icon" aria-label={t('settings_sections.editar_campo', { campo: label })} title={t('common.edit')}><Pencil size={14} aria-hidden /></Pulsable>
-        </div>
-      )}
-    </div>
   )
 }
 
@@ -258,7 +199,11 @@ function UsersSection() {
   const { data: departments = [] } = useQuery({ queryKey: ['departments-select'], queryFn: () => settingsApi.getDepartments().then(r => r.data) })
   // La lista de empresas y asignar a otras es del superadmin (la API la sirve
   // sólo a él); un admin de empresa da de alta en la suya (revisión 2026-11).
-  const esSuperadmin = !!useAuth().user?.is_superadmin
+  const { user: yo, hasRole } = useAuth()
+  const esSuperadmin = !!yo?.is_superadmin
+  // 18-11-2026: alta, baja y borrado son `require_admin` (app/api/v1/endpoints/users.py);
+  // RRHH veía los botones y recibía 403. RRHH sigue editando fichas.
+  const esAdmin = hasRole('admin')
   const { data: organizations = [] } = useQuery<Organizacion[]>({ queryKey: ['orgs-for-users'], queryFn: () => organizationsApi.list().then(r => r.data), enabled: esSuperadmin })
   const roleMap = Object.fromEntries(roles.map(r => [r.name, r]))
   // El formulario envía los campos tal como los tiene (la tarifa y las horas como
@@ -317,7 +262,7 @@ function UsersSection() {
             {t('settings_sections.limpiar_filtros')}
           </Button>
         )}
-        <Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('settings.nuevo_usuario')}</Button>
+        {esAdmin && <Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('settings.nuevo_usuario')}</Button>}
       </div>
       {isLoading ? <Spinner /> : (
         <div className="u-stack-8">
@@ -360,9 +305,9 @@ function UsersSection() {
               {u.department && <span className="u-text2-xs">{u.department}</span>}
               {!u.is_active && <span className="set-inactive">{t('settings_sections.inactivo')}</span>}
               <Pulsable onClick={() => setEditUser(u)} className="set-btn-edit"><Pencil size={13} aria-hidden /> {t('common.edit')}</Pulsable>
-              {u.is_active ? <Pulsable onClick={() => setBajaDe({ id: u.id, nombre: u.full_name })} className="set-btn-warn"><Pause size={13} aria-hidden /> {t('settings_sections.desactivar')}</Pulsable>
-                : <Pulsable onClick={() => deactivate(u.id)} className="set-btn-ok"><Play size={13} aria-hidden /> {t('settings_sections.activar')}</Pulsable>}
-              <Pulsable onClick={() => openConfirmGlobal({ title: t('settings_sections.eliminar_permanentemente'), message: t('settings_sections.confirmar_eliminar_usuario', { nombre: u.full_name }), onConfirm: () => deletePermanent(u.id), danger: true })} className="set-btn-delete"><Trash2 size={13} aria-hidden /> {t('common.delete')}</Pulsable>
+              {esAdmin && (u.is_active ? <Pulsable onClick={() => setBajaDe({ id: u.id, nombre: u.full_name })} className="set-btn-warn"><Pause size={13} aria-hidden /> {t('settings_sections.desactivar')}</Pulsable>
+                : <Pulsable onClick={() => deactivate(u.id)} className="set-btn-ok"><Play size={13} aria-hidden /> {t('settings_sections.activar')}</Pulsable>)}
+              {esAdmin && <Pulsable onClick={() => openConfirmGlobal({ title: t('settings_sections.eliminar_permanentemente'), message: t('settings_sections.confirmar_eliminar_usuario', { nombre: u.full_name }), onConfirm: () => deletePermanent(u.id), danger: true })} className="set-btn-delete"><Trash2 size={13} aria-hidden /> {t('common.delete')}</Pulsable>}
             </div>
           )})}
         </div>
@@ -783,184 +728,47 @@ function AlertConfigSection() {
   )
 }
 
-// ── Rate tables section ───────────────────────────────────────────────────────
-function RateTablesSection() {
-  const fmtMoneda = useFormatoMoneda()
-  const idCampo = React.useId()
-  const { t } = useAppLang()
-  const toast = useToast()
-  const qc = useQueryClient()
-  const { data: tables = [], isLoading } = useQuery<RateTable[]>({ queryKey: ['rate-tables'], queryFn: () => advancedConfigApi.getRateTables().then(r => r.data) })
-  const { mutate: createTable } = useMutation({ mutationFn: advancedConfigApi.createRateTable, onSuccess: () => qc.invalidateQueries({ queryKey: ['rate-tables'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
-  const { mutate: deleteTable } = useMutation({ mutationFn: advancedConfigApi.deleteRateTable, onSuccess: () => qc.invalidateQueries({ queryKey: ['rate-tables'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
-  const { mutate: addEntry } = useMutation({ mutationFn: ({ tableId, data }: { tableId: string; data: EntryForm }) => advancedConfigApi.addRateEntry(tableId, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['rate-tables'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
-  const { mutate: deleteEntry } = useMutation({ mutationFn: ({ tableId, entryId }: { tableId: string; entryId: string }) => advancedConfigApi.deleteRateEntry(tableId, entryId), onSuccess: () => qc.invalidateQueries({ queryKey: ['rate-tables'] }), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
-  const { mutate: updateEntry } = useMutation({ mutationFn: ({ tableId, entryId, data }: { tableId: string; entryId: string; data: EntryForm }) => advancedConfigApi.updateRateEntry(tableId, entryId, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['rate-tables'] }); setEditingEntryId(null) }, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
-  type RatesUi = { editingEntryId: string | null; editEntryForm: EntryForm; newTable: NewRateTable; addingEntry: string | null; entryForm: EntryForm }
-  const [ui, setUi] = React.useReducer(
-    (s: RatesUi, p: Partial<RatesUi> | ((s: RatesUi) => Partial<RatesUi>)): RatesUi => {
-      const next = typeof p === 'function' ? p(s) : p
-      return { ...s, ...next }
-    },
-    {
-      editingEntryId: null,
-      editEntryForm: { label: '', cost_rate: '', billing_rate: '' },
-      newTable: { name: '', applies_to: 'role', is_default: false },
-      addingEntry: null,
-      entryForm: { label: '', cost_rate: '', billing_rate: '' },
-    },
-  )
-  const { editingEntryId, editEntryForm, newTable, addingEntry, entryForm } = ui
-  const setEditingEntryId = (v: SetStateAction<string | null>) => setUi(typeof v === 'function' ? (s: RatesUi) => ({ editingEntryId: v(s.editingEntryId) }) : { editingEntryId: v })
-  const setEditEntryForm = (v: SetStateAction<EntryForm>) => setUi(typeof v === 'function' ? (s: RatesUi) => ({ editEntryForm: v(s.editEntryForm) }) : { editEntryForm: v })
-  const setNewTable = (v: SetStateAction<NewRateTable>) => setUi(typeof v === 'function' ? (s: RatesUi) => ({ newTable: v(s.newTable) }) : { newTable: v })
-  const setAddingEntry = (v: SetStateAction<string | null>) => setUi(typeof v === 'function' ? (s: RatesUi) => ({ addingEntry: v(s.addingEntry) }) : { addingEntry: v })
-  const setEntryForm = (v: SetStateAction<EntryForm>) => setUi(typeof v === 'function' ? (s: RatesUi) => ({ entryForm: v(s.entryForm) }) : { entryForm: v })
-
-  return (
-    <SeccionDeAjustes icon={<Euro size={18} />} title={t('settings_sections.tarifas_titulo')} description={t('settings_sections.tarifas_desc')}>
-      {isLoading ? <Spinner /> : (
-        <div className="u-stack-16">
-          {tables.map(tabla => (
-            <div key={tabla.id} className={`set-table-card${tabla.is_default ? ' set-table-card--default' : ''}`}>
-              <div className="u-row-between u-mb-12">
-                <div>
-                  <span className="u-md-600">{tabla.name}</span>
-                  {tabla.is_default && <span className="set-pill">{t('settings.por_defecto')}</span>}
-                  <span className="set-applies">{tabla.applies_to === 'role' ? t('settings.por_rol') : tabla.applies_to === 'department' ? t('settings_sections.por_departamento') : t('settings.por_cliente')}</span>
-                </div>
-                <div className="u-row-8">
-                  <Pulsable onClick={() => setAddingEntry(tabla.id)} className="set-btn-add"><Plus size={13} aria-hidden /> {t('settings_sections.tarifa')}</Pulsable>
-                  <Pulsable onClick={() => deleteTable(tabla.id)} className="set-btn-delete set-btn-delete--md" aria-label={t('settings_sections.eliminar_x', { nombre: tabla.name })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></Pulsable>
-                </div>
-              </div>
-              <div className="set-rates-grid">
-                <div className="set-col-head set-col-head--start">{t('settings_sections.etiqueta')}</div>
-                <div className="set-col-head">{t('settings_sections.coste_h', { simbolo: fmtMoneda.simbolo })}</div>
-                <div className="set-col-head">{t('settings_sections.factura_h', { simbolo: fmtMoneda.simbolo })}</div>
-                <div></div>
-                {(tabla.entries || []).map(e => (
-                  editingEntryId === e.id ? (
-                    <React.Fragment key={e.id}>
-                      <input aria-label={t('settings_sections.etiqueta')} value={editEntryForm.label} onChange={ev => setEditEntryForm(f=>({...f,label:ev.target.value}))} className="set-input set-input--tight" autoFocus />
-                      <input type="number" value={editEntryForm.cost_rate} onChange={ev => setEditEntryForm(f=>({...f,cost_rate:ev.target.value}))} className="set-input set-input--tight" placeholder={t('settings.coste_por_hora')} aria-label={t('settings.coste_por_hora')} />
-                      <input type="number" value={editEntryForm.billing_rate} onChange={ev => setEditEntryForm(f=>({...f,billing_rate:ev.target.value}))} className="set-input set-input--tight" placeholder={t('settings.tarifa_de_facturacion')} aria-label={t('settings.tarifa_de_facturacion')} />
-                      <div className="set-mini-actions">
-                        <Pulsable onClick={() => updateEntry({ tableId: tabla.id, entryId: e.id, data: editEntryForm })} disabled={!editEntryForm.label} className="set-btn-mini-ok" aria-label={t('common.save')} title={t('common.save')}><Check size={14} aria-hidden /></Pulsable>
-                        <Pulsable onClick={() => setEditingEntryId(null)} className="set-btn-mini-cancel" aria-label={t('common.cancel')} title={t('common.cancel')}><X size={14} aria-hidden /></Pulsable>
-                      </div>
-                    </React.Fragment>
-                  ) : (
-                    <React.Fragment key={e.id}>
-                      <div className="set-cell">{e.label}</div>
-                      <div className="set-cell set-cell--num set-cell--cost">{e.cost_rate ? fmtMoneda(e.cost_rate) : '—'}</div>
-                      <div className="set-cell set-cell--num set-cell--bill">{e.billing_rate ? fmtMoneda(e.billing_rate) : '—'}</div>
-                      <div className="set-mini-actions set-mini-actions--tight">
-                        <Pulsable onClick={() => { setEditingEntryId(e.id); setEditEntryForm({ label: e.label, cost_rate: e.cost_rate||'', billing_rate: e.billing_rate||'' }) }} className="set-btn-ghost-icon" aria-label={t('settings_sections.editar_x', { nombre: e.label })} title={t('common.edit')}><Pencil size={14} aria-hidden /></Pulsable>
-                        <Pulsable onClick={() => deleteEntry({ tableId: tabla.id, entryId: e.id })} className="set-btn-ghost-icon set-btn-ghost-icon--danger" aria-label={t('settings_sections.eliminar_x', { nombre: e.label })} title={t('common.delete')}><X size={14} aria-hidden /></Pulsable>
-                      </div>
-                    </React.Fragment>
-                  )
-                ))}
-              </div>
-              {addingEntry === tabla.id && (
-                <div className="set-rates-add">
-                  <input value={entryForm.label} onChange={e => setEntryForm(f => ({ ...f, label: e.target.value }))} className="set-input" placeholder={t('settings.etiqueta_de_la_tarifa')} aria-label={t('settings.etiqueta_de_la_tarifa')} />
-                  <input type="number" value={entryForm.cost_rate} onChange={e => setEntryForm(f => ({ ...f, cost_rate: e.target.value }))} className="set-input" placeholder={t('settings.coste_por_hora')} aria-label={t('settings.coste_por_hora')} />
-                  <input type="number" value={entryForm.billing_rate} onChange={e => setEntryForm(f => ({ ...f, billing_rate: e.target.value }))} className="set-input" placeholder={t('settings.tarifa_de_facturacion')} aria-label={t('settings.tarifa_de_facturacion')} />
-                  <div className="u-row-6">
-                    <Button size="sm" onClick={() => { addEntry({ tableId: tabla.id, data: entryForm }); setEntryForm({ label: '', cost_rate: '', billing_rate: '' }); setAddingEntry(null) }} disabled={!entryForm.label}>{t('settings.anadir')}</Button>
-                    <Button size="sm" variant="secondary" title={t('common.cancel')} onClick={() => setAddingEntry(null)}>×</Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-          <div className="set-add-panel set-add-panel--lg">
-            <div className="set-flex2"><label htmlFor={`${idCampo}-c928`} className="set-label">{t('settings_sections.nombre_tabla')}</label><input aria-label={t('settings_sections.nombre_tabla')} id={`${idCampo}-c928`} value={newTable.name} onChange={e => setNewTable(f => ({ ...f, name: e.target.value }))} className="set-input" placeholder={t('settings.nombre_de_la_tabla')} /></div>
-            <div className="u-flex1"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('settings_sections.aplica_a')}</label><Select suelto placeholder={false} id={`${idCampo}-1`} value={newTable.applies_to} onChange={e => setNewTable(f => ({ ...f, applies_to: e.target.value }))} className="set-input"><option value="role">{t('settings.por_rol')}</option><option value="department">{t('settings.por_depto')}</option><option value="client">{t('settings.por_cliente')}</option></Select></div>
-            <Button onClick={() => { createTable(newTable); setNewTable({ name: '', applies_to: 'role', is_default: false }) }} disabled={!newTable.name}>{t('settings_sections.crear_tabla')}</Button>
-          </div>
-        </div>
-      )}
-    </SeccionDeAjustes>
-  )
-}
-
-// ── Vacation policies section ─────────────────────────────────────────────────
+// ── Vacaciones: derecho anual por persona ──────────────────────────────────────
+/**
+ * 18-11-2026 (reorganización de Configuración): solo el derecho anual
+ * (`user_vacation_balances.days_entitled`, PATCH /advanced-config/vacation-balances),
+ * que es lo que el motor de Ausencias lee como ficha. Se quitan:
+ * - las «políticas de vacaciones» (`vacation_policies`): ningún servicio las lee;
+ * - las columnas tomados/pendientes/disponibles: el saldo se calculaba aquí con
+ *   otra fórmula que en Ausencias (sin arrastre, ajustes ni prorrateo). El saldo
+ *   bueno está en Configuración → Ausencias → Personas y saldos.
+ */
 function VacationSection() {
-  const idCampo = React.useId()
   const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
   const currentYear = new Date().getFullYear()
-  const [ui, setUi] = useState({
-    year: currentYear,
-    newPolicy: { name: '', days_per_year: 23, carries_over: true, max_carryover_days: 5, is_default: false },
-  })
-  const { year, newPolicy } = ui
-  const setYear = (v: SetStateAction<number>) => setUi(s => ({ ...s, year: typeof v === 'function' ? v(s.year) : v }))
-  const setNewPolicy = (v: SetStateAction<NewVacationPolicy>) => setUi(s => ({ ...s, newPolicy: typeof v === 'function' ? v(s.newPolicy) : v }))
-  const { data: policies = [] } = useQuery<VacationPolicy[]>({ queryKey: ['vacation-policies'], queryFn: () => advancedConfigApi.getVacationPolicies().then(r => r.data) })
+  const [year, setYear] = useState(currentYear)
   const { data: balances = [] } = useQuery<VacationBalance[]>({ queryKey: ['vacation-balances', year], queryFn: () => advancedConfigApi.getVacationBalances(year).then(r => r.data) })
-  const { mutate: createPolicy } = useMutation({ mutationFn: advancedConfigApi.createVacationPolicy, onSuccess: () => qc.invalidateQueries({ queryKey: ['vacation-policies'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
-  const { mutate: deletePolicy } = useMutation({ mutationFn: advancedConfigApi.deleteVacationPolicy, onSuccess: () => qc.invalidateQueries({ queryKey: ['vacation-policies'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
   const { mutate: updateBalance } = useMutation({ mutationFn: ({ userId, days }: { userId: string; days: number }) => advancedConfigApi.updateVacationBalance(userId, year, days), onSuccess: () => { qc.invalidateQueries({ queryKey: ['vacation-balances', year] }); qc.invalidateQueries({ queryKey: ['vacation-balance-my'] }); } , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
 
   return (
-    <SeccionDeAjustes icon={<Palmtree size={18} />} title={t('settings_sections.vacaciones_titulo')} description={t('settings_sections.vacaciones_desc')}>
-      <div className="u-mb-20">
-        <div className="set-subtitle">{t('settings.politicas_configuradas')}</div>
-        <div className="u-stack-8">
-          {policies.map(p => (
-            <div key={p.id} className={`set-item set-item--sm-radius${p.is_default ? ' set-item--accent' : ''}`}>
-              <div className="u-flex1">
-                <span className="u-sm u-600">{p.name}</span>
-                {p.is_default && <span className="set-pill">{t('settings.por_defecto')}</span>}
-                <div className="u-text2-sm-mt2">
-                  {p.days_per_year} {t('settings.dias_ano')} {p.carries_over ? `· ${t('settings_sections.acumula_hasta', { dias: p.max_carryover_days || '∞' })}` : `· ${t('settings_sections.no_acumula')}`}
-                </div>
-              </div>
-              <Pulsable onClick={() => deletePolicy(p.id)} className="set-btn-delete" aria-label={t('settings_sections.eliminar_x', { nombre: p.name })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></Pulsable>
-            </div>
-          ))}
-        </div>
-        <div className="set-add-panel set-add-panel--mt">
-          <div className="set-flex2"><label htmlFor={`${idCampo}-c977`} className="set-label">{t('common.name')}</label><input aria-label={t('common.name')} id={`${idCampo}-c977`} value={newPolicy.name} onChange={e => setNewPolicy(f => ({ ...f, name: e.target.value }))} className="set-input" placeholder={t('settings.nombre_de_la_politica')} /></div>
-          <div className="u-flex1"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('settings.dias_ano_2')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="number" value={newPolicy.days_per_year} onChange={e => setNewPolicy(f => ({ ...f, days_per_year: +e.target.value }))} className="set-input" /></div>
-          <div className="u-flex1"><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings.max_acumulacion')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={newPolicy.max_carryover_days} onChange={e => setNewPolicy(f => ({ ...f, max_carryover_days: +e.target.value }))} className="set-input" /></div>
-          <Checkbox className="set-check-label" label={t('settings.por_defecto')} checked={newPolicy.is_default} onChange={m => setNewPolicy(f => ({ ...f, is_default: m }))} />
-          <Button onClick={() => { createPolicy(newPolicy); setNewPolicy({ name: '', days_per_year: 23, carries_over: true, max_carryover_days: 5, is_default: false }) }} disabled={!newPolicy.name}>{t('settings_sections.crear')}</Button>
-        </div>
+    <SeccionDeAjustes icon={<Palmtree size={18} />} title={t('settings_sections.vacaciones_titulo')} description={t('ajustes.vacaciones_desc')}>
+      <div className="u-row-between u-mb-12">
+        <Link to="/settings/ausencias?sub=personas" className="set-enlace">{t('ajustes.ver_saldos')}</Link>
+        <Select suelto placeholder={false} value={year} onChange={e => setYear(+e.target.value)} className="set-select-sm" aria-label={t('settings_sections.anio')}>
+          {[currentYear - 1, currentYear, currentYear + 1].map(y => <option key={y} value={y}>{y}</option>)}
+        </Select>
       </div>
-
-      {/* Balances */}
-      <div>
-        <div className="u-row-between u-mb-12">
-          <div className="u-base-700">{t('settings.saldos_del_equipo')}</div>
-          <Select suelto placeholder={false} value={year} onChange={e => setYear(+e.target.value)} className="set-select-sm" aria-label={t('settings_sections.anio')}>
-            {[currentYear - 1, currentYear, currentYear + 1].map(y => <option key={y} value={y}>{y}</option>)}
-          </Select>
+      <div className="ds-card ds-card--plano">
+        <div className="set-bal-row set-bal-row--2 set-bal-head">
+          <span>{t('settings_sections.persona')}</span><span>{t('settings_sections.asignados')}</span>
         </div>
-        <div className="ds-card ds-card--plano">
-          <div className="set-bal-row set-bal-head">
-            <span>{t('settings_sections.persona')}</span><span>{t('settings_sections.asignados')}</span><span>{t('settings_sections.tomados')}</span><span>{t('settings_sections.pendientes')}</span><span>{t('settings_sections.disponibles')}</span><span>{t('common.edit')}</span>
-          </div>
-          {balances.map(b => (
-            <div key={b.user_id} className="set-bal-row">
-              <div>
-                <div className="u-base-600">{b.user_name}</div>
-                {b.department && <div className="u-text2-xs">{b.department}</div>}
-              </div>
-              <span className="set-num">{b.days_entitled}d</span>
-              <span className="set-num set-num--accent">{b.days_taken}d</span>
-              <span className="set-num set-num--warning">{b.days_pending}d</span>
-              <span className={`set-num ${b.days_remaining <= 0 ? 'set-num--bad' : 'set-num--ok'}`}>{b.days_remaining}d</span>
-              <input type="number" aria-label={t('settings_sections.dias_asignados_de', { nombre: b.user_name })} defaultValue={b.days_entitled} min="0" max="60" onBlur={e => updateBalance({ userId: b.user_id, days: +e.target.value })}
-                className="set-threshold set-threshold--full" />
+        {balances.map(b => (
+          <div key={b.user_id} className="set-bal-row set-bal-row--2">
+            <div>
+              <div className="u-base-600">{b.user_name}</div>
+              {b.department && <div className="u-text2-xs">{b.department}</div>}
             </div>
-          ))}
-        </div>
+            <input type="number" aria-label={t('settings_sections.dias_asignados_de', { nombre: b.user_name })} defaultValue={b.days_entitled} min="0" max="60" onBlur={e => updateBalance({ userId: b.user_id, days: +e.target.value })}
+              className="set-threshold set-threshold--full" />
+          </div>
+        ))}
       </div>
     </SeccionDeAjustes>
   )
@@ -1113,277 +921,6 @@ function CustomFieldsSection() {
   )
 }
 
-// ── Templates section ─────────────────────────────────────────────────────────
-function TemplatesSection() {
-  const { t } = useAppLang()
-  const toast = useToast()
-  const qc = useQueryClient()
-  const { data: templates = [], isLoading } = useQuery<ProjectTemplate[]>({ queryKey: ['project-templates'], queryFn: () => advancedConfigApi.getTemplates().then(r => r.data) })
-  const { mutate: deleteTemplate } = useMutation({ mutationFn: advancedConfigApi.deleteTemplate, onSuccess: () => qc.invalidateQueries({ queryKey: ['project-templates'] }) , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
-  const { mutate: createTemplate, isPending: creatingTemplate } = useMutation({
-    mutationFn: advancedConfigApi.createTemplate,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['project-templates'] })
-      setShowCreate(false)
-      toast.success(t('settings_sections.plantilla_creada'))
-    },
-    onError: e => toast.error(extractErr(e, t('settings_sections.err_crear_plantilla'))),
-  })
-  const [ui, setUi] = useState<{ showCreate: boolean; selected: ProjectTemplate | null }>({ showCreate: false, selected: null })
-  const { showCreate, selected } = ui
-  const setShowCreate = (v: SetStateAction<boolean>) => setUi(s => ({ ...s, showCreate: typeof v === 'function' ? v(s.showCreate) : v }))
-  const setSelected = (v: SetStateAction<ProjectTemplate | null>) => setUi(s => ({ ...s, selected: typeof v === 'function' ? v(s.selected) : v }))
-
-  return (
-    <SeccionDeAjustes icon={<LayoutTemplate size={18} />} title={t('settings_sections.plantillas_titulo')} description={t('settings_sections.plantillas_desc')}>
-      {isLoading ? <Spinner /> : templates.length === 0 ? (
-        <EmptyState svgIcon={<Sparkles size={36} />} title={t('settings.empty_templates_title')} description={t('settings.empty_templates_desc')} />
-      ) : (
-        <div className="set-tpl-grid">
-          {templates.map(tpl => (
-              <div key={tpl.id} role="button" tabIndex={0} className="set-tpl-card"
-                onClick={() => setSelected(tpl)}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(tpl) } }}>
-              <div className="set-tpl-name">{tpl.name}</div>
-              {tpl.description && <div className="set-tpl-desc">{tpl.description}</div>}
-              <div className="set-tpl-tags">
-                {[
-                  t('settings_sections.n_fases', { n: tpl.phase_count }),
-                  t('settings_sections.n_tareas', { n: tpl.task_count }),
-                  t('settings_sections.n_riesgos', { n: tpl.risk_count }),
-                  t('settings_sections.n_entregables', { n: tpl.deliverable_count }),
-                ].map(l => (
-                  <span key={l} className="set-tpl-tag">{l}</span>
-                ))}
-                {tpl.estimated_weeks && <span className="set-tpl-weeks">{t('settings_sections.aprox_semanas', { n: tpl.estimated_weeks })}</span>}
-              </div>
-              <div className="u-row-8">
-                <Button size="sm" onClick={e => { e.stopPropagation(); setSelected(tpl) }}>{t('settings_sections.ver_detalle')}</Button>
-                <Pulsable onClick={e => { e.stopPropagation(); deleteTemplate(tpl.id) }} className="set-btn-delete set-btn-delete--md" aria-label={t('settings_sections.eliminar_x', { nombre: tpl.name })} title={t('common.delete')}><Trash2 size={14} aria-hidden /></Pulsable>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      <Pulsable onClick={() => setShowCreate(true)} className="set-btn-dashed set-btn-dashed--full"><Plus size={13} aria-hidden /> {t('settings_sections.crear_plantilla')}</Pulsable>
-      {showCreate && <CreateTemplateModal isSaving={creatingTemplate} onClose={() => setShowCreate(false)} onSave={createTemplate} />}
-      {selected && <TemplateDetailModal template={selected} onClose={() => setSelected(null)} />}
-    </SeccionDeAjustes>
-  )
-}
-type CreateTemplateUi = { form: TemplateForm; phase: PhaseInput; task: TaskInput; risk: RiskInput; deliverable: DeliverableInput }
-
-function CreateTemplateModal({ onClose, onSave, isSaving = false }: { onClose: () => void; onSave: (data: TemplatePayload) => void; isSaving?: boolean }) {
-  const idCampo = React.useId()
-  const { t } = useAppLang()
-  const [ui, setUi] = React.useReducer(
-    (s: CreateTemplateUi, p: Partial<CreateTemplateUi> | ((s: CreateTemplateUi) => Partial<CreateTemplateUi>)): CreateTemplateUi => {
-      const next = typeof p === 'function' ? p(s) : p
-      return { ...s, ...next }
-    },
-    {
-      form: { name: '', description: '', project_type: 'consulting', estimated_weeks: '', estimated_hours: '', phases: [], risks: [], deliverables: [] },
-      phase: { name: '', description: '', estimated_weeks: '', estimated_hours: '', tasks: [] },
-      task: { title: '', estimated_hours: '', skill_required: '' },
-      risk: { title: '', category: '', probability: 'medium', impact: 'moderate', mitigation_plan: '' },
-      deliverable: { name: '', format: '', week_offset: '', billing_pct: '', acceptance_criteria: '' },
-    },
-  )
-  const { form, phase, task, risk, deliverable } = ui
-  const setForm = (v: SetStateAction<TemplateForm>) => setUi(typeof v === 'function' ? (s: CreateTemplateUi) => ({ form: v(s.form) }) : { form: v })
-  const setPhase = (v: SetStateAction<PhaseInput>) => setUi(typeof v === 'function' ? (s: CreateTemplateUi) => ({ phase: v(s.phase) }) : { phase: v })
-  const setTask = (v: SetStateAction<TaskInput>) => setUi(typeof v === 'function' ? (s: CreateTemplateUi) => ({ task: v(s.task) }) : { task: v })
-  const setRisk = (v: SetStateAction<RiskInput>) => setUi(typeof v === 'function' ? (s: CreateTemplateUi) => ({ risk: v(s.risk) }) : { risk: v })
-  const setDeliverable = (v: SetStateAction<DeliverableInput>) => setUi(typeof v === 'function' ? (s: CreateTemplateUi) => ({ deliverable: v(s.deliverable) }) : { deliverable: v })
-  const set = (k: keyof TemplateForm) => (e: InputChange) => setForm(f => ({ ...f, [k]: e.target.value }))
-
-  const addTaskToPhase = () => {
-    if (!task.title?.trim()) return
-    setPhase(p => ({
-      ...p,
-      tasks: [
-        ...p.tasks,
-        {
-          title: task.title.trim(),
-          estimated_hours: task.estimated_hours ? Number(task.estimated_hours) : null,
-          skill_required: task.skill_required || null,
-        },
-      ],
-    }))
-    setTask({ title: '', estimated_hours: '', skill_required: '' })
-  }
-
-  const addPhase = () => {
-    if (!phase.name?.trim()) return
-    setForm(f => ({
-      ...f,
-      phases: [
-        ...f.phases,
-        {
-          name: phase.name.trim(),
-          description: phase.description || null,
-          estimated_weeks: phase.estimated_weeks ? Number(phase.estimated_weeks) : null,
-          estimated_hours: phase.estimated_hours ? Number(phase.estimated_hours) : null,
-          tasks: phase.tasks,
-        },
-      ],
-    }))
-    setPhase({ name: '', description: '', estimated_weeks: '', estimated_hours: '', tasks: [] })
-    setTask({ title: '', estimated_hours: '', skill_required: '' })
-  }
-
-  const addRisk = () => {
-    if (!risk.title?.trim()) return
-    setForm(f => ({
-      ...f,
-      risks: [
-        ...f.risks,
-        {
-          title: risk.title.trim(),
-          category: risk.category || null,
-          probability: risk.probability,
-          impact: risk.impact,
-          mitigation_plan: risk.mitigation_plan || null,
-        },
-      ],
-    }))
-    setRisk({ title: '', category: '', probability: 'medium', impact: 'moderate', mitigation_plan: '' })
-  }
-
-  const addDeliverable = () => {
-    if (!deliverable.name?.trim()) return
-    setForm(f => ({
-      ...f,
-      deliverables: [
-        ...f.deliverables,
-        {
-          name: deliverable.name.trim(),
-          format: deliverable.format || null,
-          week_offset: deliverable.week_offset ? Number(deliverable.week_offset) : null,
-          billing_pct: deliverable.billing_pct ? Number(deliverable.billing_pct) : null,
-          acceptance_criteria: deliverable.acceptance_criteria || null,
-        },
-      ],
-    }))
-    setDeliverable({ name: '', format: '', week_offset: '', billing_pct: '', acceptance_criteria: '' })
-  }
-
-  const submit = () => {
-    onSave({
-      ...form,
-      estimated_weeks: form.estimated_weeks ? Number(form.estimated_weeks) : null,
-      estimated_hours: form.estimated_hours ? Number(form.estimated_hours) : null,
-    })
-  }
-
-  return (
-    <Modal open title={t('settings.nueva_plantilla')} onClose={onClose} width={760}>
-      <div className="u-stack-16">
-        <div className="set-grid-tpl-head">
-          <div><label htmlFor={`${idCampo}-c1325`} className="set-label">{t('common.name')} *</label><input aria-label={t('common.name')} id={`${idCampo}-c1325`} value={form.name} onChange={set('name')} className="set-input" placeholder={t('settings.nombre_de_la_plantilla')} /></div>
-          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('settings_sections.tipo_proyecto')}</label><Select suelto placeholder={false} id={`${idCampo}-1`} value={form.project_type} onChange={set('project_type')} className="set-input"><option value="consulting">{t('settings_sections.pt_consulting')}</option><option value="development">{t('settings_sections.pt_development')}</option><option value="maintenance">{t('settings_sections.pt_maintenance')}</option><option value="internal">{t('settings_sections.pt_internal')}</option><option value="rd">{t('settings_sections.pt_rd')}</option></Select></div>
-          <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings_sections.semanas_estimadas')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={form.estimated_weeks} onChange={set('estimated_weeks')} className="set-input" /></div>
-          <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="set-label">{t('settings_sections.horas_estimadas')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.estimated_hours} onChange={set('estimated_hours')} className="set-input" /></div>
-        </div>
-        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="set-label">{t('settings.descripcion')}</label><textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.description} onChange={set('description')} rows={2} className="set-input set-input--area" /></div>
-
-        {/* Phases */}
-        <div>
-          <div className="set-block-title">{t('settings_sections.fases_n', { n: form.phases.length })}</div>
-          {form.phases.map((p, i) => (
-            <div key={i} className="set-phase">
-              <div className="u-row-between">
-                <span className="u-base-600">{p.name}</span>
-                <div className="u-row-8">
-                  <span className="u-text2-xs">{t('settings_sections.n_tareas', { n: p.tasks.length })}</span>
-                  <Pulsable onClick={() => setForm(f => ({ ...f, phases: f.phases.filter((_, j) => j !== i) }))} className="set-btn-x" aria-label={t('settings_sections.eliminar_x', { nombre: p.name })} title={t('common.delete')}><X size={14} aria-hidden /></Pulsable>
-                </div>
-              </div>
-            </div>
-          ))}
-          <div className="set-draft set-draft--phase">
-            <input value={phase.name} onChange={e => setPhase(f => ({ ...f, name: e.target.value }))} className="set-input" placeholder={t('settings.nombre_de_la_fase')} aria-label={t('settings.nombre_de_la_fase')} />
-            <input value={phase.description} onChange={e => setPhase(f => ({ ...f, description: e.target.value }))} className="set-input" placeholder={t('settings.descripcion_de_fase')} aria-label={t('settings.descripcion_de_fase')} />
-            <input type="number" value={phase.estimated_weeks} onChange={e => setPhase(f => ({ ...f, estimated_weeks: e.target.value }))} className="set-input" placeholder={t('settings_sections.semanas')} aria-label={t('settings_sections.semanas_estimadas')} />
-            <input type="number" value={phase.estimated_hours} onChange={e => setPhase(f => ({ ...f, estimated_hours: e.target.value }))} className="set-input" placeholder={t('settings_sections.horas')} aria-label={t('settings_sections.horas_estimadas')} />
-          </div>
-          <div className="set-draft set-draft--task">
-            <input value={task.title} onChange={e => setTask(f => ({ ...f, title: e.target.value }))} className="set-input" placeholder={t('settings.titulo_tarea')} aria-label={t('settings.titulo_tarea')} />
-            <input type="number" value={task.estimated_hours} onChange={e => setTask(f => ({ ...f, estimated_hours: e.target.value }))} className="set-input" placeholder={t('settings_sections.horas')} aria-label={t('settings_sections.horas_tarea')} />
-            <input value={task.skill_required} onChange={e => setTask(f => ({ ...f, skill_required: e.target.value }))} className="set-input" placeholder={t('settings_sections.skill_requerida')} aria-label={t('settings_sections.skill_requerida')} />
-            <Button size="sm" onClick={addTaskToPhase} disabled={!task.title}><Plus size={13} aria-hidden /> {t('settings_sections.ent_tarea')}</Button>
-          </div>
-          {phase.tasks.length > 0 && (
-            <div className="set-task-chips">
-              {phase.tasks.map((tk, i) => (
-                <span key={`${tk.title}-${i}`} className="set-task-chip">{tk.title}{tk.estimated_hours ? ` (${tk.estimated_hours}h)` : ''}</span>
-              ))}
-            </div>
-          )}
-          <div className="set-end-mt8">
-            <Button size="sm" onClick={addPhase} disabled={!phase.name}><Plus size={13} aria-hidden /> {t('settings_sections.fase')}</Button>
-          </div>
-        </div>
-
-        {/* Risks */}
-        <div>
-          <div className="set-block-title">{t('settings_sections.riesgos_n', { n: form.risks.length })}</div>
-          <div className="set-draft set-draft--five">
-            <input value={risk.title} onChange={e => setRisk(f => ({ ...f, title: e.target.value }))} className="set-input" placeholder={t('settings.titulo_riesgo')} aria-label={t('settings.titulo_riesgo')} />
-            <input value={risk.category} onChange={e => setRisk(f => ({ ...f, category: e.target.value }))} className="set-input" placeholder={t('settings.categoria')} aria-label={t('settings.categoria_riesgo')} />
-            <Select suelto placeholder={false} value={risk.probability} onChange={e => setRisk(f => ({ ...f, probability: e.target.value }))} className="set-input" aria-label={t('settings_sections.probabilidad')}><option value="low">{t('settings_sections.prob_low')}</option><option value="medium">{t('settings_sections.prob_medium')}</option><option value="high">{t('settings_sections.prob_high')}</option></Select>
-            <Select suelto placeholder={false} value={risk.impact} onChange={e => setRisk(f => ({ ...f, impact: e.target.value }))} className="set-input" aria-label={t('settings_sections.impacto')}><option value="minor">{t('settings_sections.imp_minor')}</option><option value="moderate">{t('settings_sections.imp_moderate')}</option><option value="major">{t('settings_sections.imp_major')}</option><option value="critical">{t('settings_sections.imp_critical')}</option></Select>
-            <Button size="sm" onClick={addRisk} disabled={!risk.title}><Plus size={13} aria-hidden /> {t('settings_sections.ent_riesgo')}</Button>
-          </div>
-          <textarea aria-label={t('settings.plan_de_mitigacion_opcional')} value={risk.mitigation_plan} onChange={e => setRisk(f => ({ ...f, mitigation_plan: e.target.value }))} rows={2} className="set-input set-input--area set-input--mt8" placeholder={t('settings.plan_de_mitigacion_opcional')} />
-        </div>
-
-        {/* Deliverables */}
-        <div>
-          <div className="set-block-title">{t('settings_sections.entregables_n', { n: form.deliverables.length })}</div>
-          <div className="set-draft set-draft--five">
-            <input value={deliverable.name} onChange={e => setDeliverable(f => ({ ...f, name: e.target.value }))} className="set-input" placeholder={t('settings_sections.nombre_entregable')} aria-label={t('settings_sections.nombre_entregable')} />
-            <input value={deliverable.format} onChange={e => setDeliverable(f => ({ ...f, format: e.target.value }))} className="set-input" placeholder={t('settings_sections.formato')} aria-label={t('settings_sections.formato_entregable')} />
-            <input type="number" value={deliverable.week_offset} onChange={e => setDeliverable(f => ({ ...f, week_offset: e.target.value }))} className="set-input" placeholder={t('settings_sections.semana')} aria-label={t('settings_sections.semana_entregable')} />
-            <input type="number" value={deliverable.billing_pct} onChange={e => setDeliverable(f => ({ ...f, billing_pct: e.target.value }))} className="set-input" placeholder={t('settings.facturacion')} aria-label={t('settings.porcentaje_facturacion')} />
-            <Button size="sm" onClick={addDeliverable} disabled={!deliverable.name}><Plus size={13} aria-hidden /> {t('settings_sections.ent_entregable')}</Button>
-          </div>
-          <textarea aria-label={t('settings.criterio_de_aceptacion_opcional')} value={deliverable.acceptance_criteria} onChange={e => setDeliverable(f => ({ ...f, acceptance_criteria: e.target.value }))} rows={2} className="set-input set-input--area set-input--mt8" placeholder={t('settings.criterio_de_aceptacion_opcional')} />
-        </div>
-
-        <div className="u-actions-10">
-          <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
-          <Button onClick={submit} disabled={!form.name || isSaving}>{isSaving ? t('settings_sections.creando') : t('settings_sections.crear_plantilla')}</Button>
-        </div>
-      </div>
-    </Modal>
-  )
-}
-
-function TemplateDetailModal({ template, onClose }: { template: ProjectTemplate; onClose: () => void }) {
-  const { t } = useAppLang()
-  return (
-    <Modal open title={template.name} onClose={onClose} width={600}>
-      {template.description && <p className="set-detail-desc">{template.description}</p>}
-      <div className="u-stack-12">
-        {template.phases?.map(p => (
-          <div key={p.id} className="set-detail-phase">
-            <div className="set-detail-phase-title set-con-icono"><ClipboardList size={14} aria-hidden /> {p.name}</div>
-            {p.tasks?.map(tk => (
-              <div key={tk.id} className="set-detail-task">
-                {tk.title} {tk.estimated_hours ? `(${tk.estimated_hours}h)` : ''}
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-      <div className="set-end-mt16">
-        <Button variant="secondary" onClick={onClose}>{t('common.close')}</Button>
-      </div>
-    </Modal>
-  )
-}
-
 // ── Offices section ───────────────────────────────────────────────────────────
 function OfficesSection() {
   const idCampo = React.useId()
@@ -1448,65 +985,6 @@ function OfficesSection() {
         <div className="u-flex1"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('settings_sections.ciudad')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} className="set-input" /></div>
         <div className="u-flex1"><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings.timezone')}</label><Select suelto placeholder={false} id={`${idCampo}-2`} value={form.timezone} onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))} className="set-input">{timezoneOptions(form.timezone).map(tz => <option key={tz} value={tz}>{tz}</option>)}</Select></div>
         <Button onClick={() => { create(form); setForm({ name: '', country: '', city: '', timezone: defaultTimezone }) }} disabled={!form.name}>{t('settings.anadir')}</Button>
-      </div>
-    </SeccionDeAjustes>
-  )
-}
-
-// ── Task types section ────────────────────────────────────────────────────────
-function TaskTypesSection() {
-  const idCampo = React.useId()
-  const { t } = useAppLang()
-  const toast = useToast()
-  const qc = useQueryClient()
-  const { data: types = [], isLoading } = useQuery<TaskType[]>({ queryKey: ['task-types-config'], queryFn: () => advancedConfigApi.getTaskTypes().then(r => r.data) })
-  const { mutate: create } = useMutation({ mutationFn: advancedConfigApi.createTaskType, onSuccess: () => qc.invalidateQueries({ queryKey: ['task-types-config'] }), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
-  const { mutate: update } = useMutation({ mutationFn: ({ id, data }: { id: string; data: TaskTypeEdit }) => advancedConfigApi.updateTaskType(id, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ['task-types-config'] }); setEditingId(null) }, onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
-  const { mutate: del } = useMutation({ mutationFn: advancedConfigApi.deleteTaskType, onSuccess: () => qc.invalidateQueries({ queryKey: ['task-types-config'] }), onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) })
-  const [ui, setUi] = useState<{ form: TaskTypeForm; editingId: string | null; editForm: TaskTypeEdit }>({
-    form: { name: '', value: '', icon: '', color: COLOR_DATO_POR_DEFECTO, is_billable_default: true },
-    editingId: null,
-    editForm: { name: '', icon: '', color: COLOR_DATO_POR_DEFECTO, is_billable_default: true },
-  })
-  const { form, editingId, editForm } = ui
-  const setForm = (v: SetStateAction<TaskTypeForm>) => setUi(s => ({ ...s, form: typeof v === 'function' ? v(s.form) : v }))
-  const setEditingId = (v: SetStateAction<string | null>) => setUi(s => ({ ...s, editingId: typeof v === 'function' ? v(s.editingId) : v }))
-  const setEditForm = (v: SetStateAction<TaskTypeEdit>) => setUi(s => ({ ...s, editForm: typeof v === 'function' ? v(s.editForm) : v }))
-
-  return (
-    <SeccionDeAjustes icon={<Tag size={18} />} title={t('settings.tipos_de_tarea')} description={t('settings_sections.tipos_tarea_desc')}>
-      {isLoading ? <Spinner /> : (
-        <div className="set-chips">
-          {types.map(tt => (
-            <div key={tt.id} className="set-type-chip" style={{ '--set-color': tt.color } as CSSProperties}>
-              <span className="set-icon-lg-em" aria-hidden="true">{tt.icon}</span>
-              <div>
-                <div className="set-type-name">{tt.name}</div>
-                <div className="u-text2-2xs">{tt.is_billable_default ? t('settings_sections.facturable') : t('settings_sections.no_facturable')}</div>
-              </div>
-              <Pulsable onClick={() => { setEditingId(tt.id); setEditForm({ name: tt.name, icon: tt.icon, color: tt.color, is_billable_default: tt.is_billable_default }) }} className="set-btn-ghost-icon set-ml2" aria-label={t('settings_sections.editar_x', { nombre: tt.name })} title={t('common.edit')}><Pencil size={14} aria-hidden /></Pulsable>
-              <Pulsable onClick={() => del(tt.id)} className="set-btn-ghost-icon set-btn-ghost-icon--danger set-ml2" aria-label={t('settings_sections.eliminar_x', { nombre: tt.name })} title={t('common.delete')}><X size={14} aria-hidden /></Pulsable>
-            </div>
-          ))}
-        </div>
-      )}
-      {editingId && (
-        <div className="set-edit-panel set-edit-panel--wide">
-          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('common.name')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={editForm.name} onChange={e => setEditForm(f=>({...f,name:e.target.value}))} className="set-input set-input--w130" autoFocus /></div>
-          <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings_sections.icono')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={editForm.icon} onChange={e => setEditForm(f=>({...f,icon:e.target.value}))} className="set-input set-input--w55" /></div>
-          <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="set-label">{t('settings_sections.color')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="color" value={/^#[0-9a-fA-F]{6}$/.test(editForm.color)?editForm.color:COLOR_DATO_POR_DEFECTO} onChange={e=>setEditForm(f=>({...f,color:e.target.value}))} className="set-color-input set-color-input--sm" /></div>
-          <Checkbox className="set-check-label set-check-pb" label={t('settings_sections.facturable')} checked={editForm.is_billable_default} onChange={m=>setEditForm(f=>({...f,is_billable_default:m}))} />
-          <Pulsable onClick={() => update({ id: editingId, data: editForm })} disabled={!editForm.name} className="set-btn-save"><Check size={13} aria-hidden /> {t('common.save')}</Pulsable>
-          <Pulsable onClick={() => setEditingId(null)} className="set-btn-cancel">{t('common.cancel')}</Pulsable>
-        </div>
-      )}
-      <div className="set-add-panel">
-        <div><label htmlFor={`${idCampo}-c1551`} className="set-label">{t('common.name')} *</label><input aria-label={t('common.name')} id={`${idCampo}-c1551`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value, value: e.target.value.toLowerCase().replace(/\s+/g, '_') }))} className="set-input set-input--w140" placeholder={t('common.name')} /></div>
-        <div><label htmlFor={`${idCampo}-c1552`} className="set-label">{t('settings_sections.clave')}</label><input aria-label={t('settings_sections.clave')} id={`${idCampo}-c1552`} value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} className="set-input set-input--w110" placeholder={t('settings_sections.clave')} /></div>
-        <div><label htmlFor={`${idCampo}-c1553`} className="set-label">{t('settings_sections.icono')}</label><input aria-label={t('settings_sections.icono')} id={`${idCampo}-c1553`} value={form.icon} onChange={e => setForm(f => ({ ...f, icon: e.target.value }))} className="set-input set-input--w60" placeholder={t('settings_sections.icono')} /></div>
-        <div><label id={`${idCampo}-etc1554`} htmlFor={`${idCampo}-c1554`} className="set-label">{t('settings_sections.color')}</label><div className="u-row-6"><input id={`${idCampo}-c1554`} aria-labelledby={`${idCampo}-etc1554`} type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} className="set-color-input set-color-input--sq" /><input aria-labelledby={`${idCampo}-etc1554`} value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} className="set-input set-input--w90" /></div></div>
-        <Checkbox className="set-check-label set-check-pb6" label={t('settings_sections.facturable')} checked={form.is_billable_default} onChange={m => setForm(f => ({ ...f, is_billable_default: m }))} />
-        <Button onClick={() => { create(form); setForm({ name: '', value: '', icon: '', color: COLOR_DATO_POR_DEFECTO, is_billable_default: true }) }} disabled={!form.name || !form.value}>{t('settings.anadir')}</Button>
       </div>
     </SeccionDeAjustes>
   )
@@ -2033,16 +1511,12 @@ export {
   RolesSection,
   AlertConfigSection,
   MetricsSection,
-  TaskTypesSection,
-  TemplatesSection,
-  RateTablesSection,
   VacationSection,
   DepartmentsSection,
   OfficesSection,
   NumberingSection,
   CustomFieldsSection,
   IdiomasSection,
-  EmailInboundSection,
   LogLevelSection,
   SystemStateSection,
   ESignSettingsSection,

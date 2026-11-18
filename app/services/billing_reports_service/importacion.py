@@ -11,6 +11,7 @@ import json
 import secrets
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
+from app.services.settings_service import por_empresa as _pe
 from app.core.config import settings
 from app.models.user import User
 from app.models.project import Project
@@ -241,7 +242,7 @@ def _crear_usuario(db: Session, row: dict, i: int, current_user: User, ctx: dict
         job_title=row.get("job_title"),
         weekly_capacity_hours=(
             float(row["weekly_capacity_hours"]) if row.get("weekly_capacity_hours")
-            else settings.DEFAULT_WEEKLY_CAPACITY_HOURS
+            else _pe.capacidad_semanal_de_empresa(db)  # 18-11-2026: la de la empresa
         ),
         hourly_rate=float(row["hourly_rate"]) if row.get("hourly_rate") else None,
         # Seguridad: cada usuario importado recibe una contraseña ALEATORIA y única

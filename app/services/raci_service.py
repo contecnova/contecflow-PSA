@@ -11,9 +11,9 @@ from typing import TYPE_CHECKING, Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.services.settings_service.por_empresa import capacidad_semanal
 from app.models.user import User
 from app.models.task import Task, TaskStatus
-from app.core.config import settings
 from app.models.sprints import Sprint, SprintTask
 from app.models.imputation import Imputation
 from app.models.raci import (
@@ -265,7 +265,7 @@ def _semanas_de_carga(user: User, db: Session, today: date) -> list[dict]:
             Imputation.date >= inicio,
             Imputation.date < fin,
         ).scalar() or 0.0
-        capacidad = user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
+        capacidad = capacidad_semanal(db, user)
         semanas.append({
             "week_start": inicio,
             "hours": horas,
@@ -796,7 +796,15 @@ def delete_uat_case(project_id: str, case_id: str, db: Session) -> None:
     db.commit()
 
 
-def export_uat_report(project_id: str, db: Session) -> dict:
+def export_uat_report(project_id: str, db: Session, idioma: Optional[str] = None) -> dict:
+    """El plan de pruebas UAT en Markdown.
+
+    18-11-2026 (auditoria de textos fijos): en `idioma` (por defecto, el de la
+    empresa del proyecto) y con la hora en la zona de la empresa y su etiqueta
+    (antes «UTC» fijo y castellano).
+    """
+    from app.services.formato_regional import idioma_de_salida, sello_de_hora
+    from app.services.textos_de_salida import texto
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise ValueError("Proyecto no encontrado")
@@ -807,14 +815,19 @@ def export_uat_report(project_id: str, db: Session) -> dict:
     STATUS_EMOJI = {"pending": "⏳", "passed": "✅", "failed": "❌", "blocked": "🔒", "skipped": "⏭"}
     PRIORITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
     sorted_cases = sorted(cases, key=lambda c: PRIORITY_ORDER.get(c.priority, 2))
+    org_id = getattr(project, "organization_id", None)
+    idioma = idioma_de_salida(db, org_id=org_id, preferido=idioma)
+
+    def t(clave, **datos):
+        return texto(clave, idioma, **datos)
     lines = [
-        f"# Plan de Pruebas UAT — {project.name}",
-        f"Generado: {datetime.now(timezone.utc).strftime('%d/%m/%Y %H:%M')} UTC",
+        f"# {t('uat.titulo', proyecto=project.name)}",
+        t("raci.generado", cuando=sello_de_hora(db, org_id, idioma)),
         "",
-        f"Total: {len(cases)} casos | "
-        f"Pendientes: {sum(1 for c in cases if c.status == UATStatus.pending)} | "
-        f"Pasados: {sum(1 for c in cases if c.status == UATStatus.passed)} | "
-        f"Fallidos: {sum(1 for c in cases if c.status == UATStatus.failed)}",
+        t("uat.totales", total=len(cases),
+          pendientes=sum(1 for c in cases if c.status == UATStatus.pending),
+          pasados=sum(1 for c in cases if c.status == UATStatus.passed),
+          fallidos=sum(1 for c in cases if c.status == UATStatus.failed)),
         "",
         "---",
     ]
@@ -823,18 +836,18 @@ def export_uat_report(project_id: str, db: Session) -> dict:
         lines += [
             "",
             f"## {i}. {c.title}  {st}",
-            f"**Prioridad:** {c.priority.upper()}  |  **Estado:** {c.status.value}",
+            f"**{t('uat.prioridad')}:** {c.priority.upper()}  |  **{t('informe.col.estado')}:** {c.status.value}",
         ]
         # Segunda auditoria 2026-11: `UATCase` no tiene `task_title` (es una
         # clave del serializador); leerlo daba AttributeError y el export, 500.
         if c.task:
-            lines.append(f"**Tarea vinculada:** {c.task.title}")
+            lines.append(f"**{t('uat.tarea')}:** {c.task.title}")
         if c.description:
-            lines += ["", "**Pasos a ejecutar:**", c.description]
+            lines += ["", f"**{t('uat.pasos')}:**", c.description]
         if c.expected_result:
-            lines += ["", "**Resultado esperado:**", c.expected_result]
+            lines += ["", f"**{t('uat.esperado')}:**", c.expected_result]
         if c.actual_result:
-            lines += ["", "**Resultado obtenido:**", c.actual_result]
+            lines += ["", f"**{t('uat.obtenido')}:**", c.actual_result]
         if c.notes:
-            lines += ["", "**Notas:**", c.notes]
+            lines += ["", f"**{t('uat.notas')}:**", c.notes]
     return {"project_name": project.name, "text": "\n".join(lines), "cases_count": len(cases)}

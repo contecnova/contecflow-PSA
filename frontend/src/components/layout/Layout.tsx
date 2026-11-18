@@ -28,16 +28,15 @@ import {
   GitBranch, BookOpen, Mic, Users, TrendingUp, Award, Network,
   Trophy, Star, UserCheck, Megaphone, CreditCard, DollarSign,
   Briefcase, HardHat, Calculator, ThumbsUp, MessageSquare, Monitor,
-  Key, Bell, Download, Zap, Eye, Brain, Bot, Settings, Tag, Sliders,
-  Lock, Plug, PenLine, Upload, ShieldCheck, Scale, Building2, Globe,
-  Search, LogOut, ChevronRight, ChevronLeft, Menu, X, Activity,
+  Key, Bell, Download, Zap, Eye, Brain, Bot, Settings, Search, LogOut, ChevronRight, ChevronLeft, Menu, X, Activity,
   Timer, Flag, Layers, Shield, Keyboard, BarChart, LayoutGrid,
-  Wrench, GitMerge, FolderOpen, ScrollText, ClipboardCheck,
-  CalendarRange, Plus, Inbox, Database, Wallet, MessageSquareText, Lightbulb,
+  Wrench, FolderOpen, ScrollText, ClipboardCheck,
+  CalendarRange, Plus, Inbox, Database, MessageSquareText, Lightbulb,
   Laptop, UserMinus,
 } from 'lucide-react'
 import { ANIMATION_FAST_MS, CLOCK_TICK_MS, DROPDOWN_DELAY_MS, POLL_FAST_MS, STALE_5_MIN_MS, STALE_LIVE_MS } from '../../constants/timings'
 import './Layout.css'
+import { ROLES_CON_AJUSTES } from '../../pages/settings/catalogoDeAjustes'
 import { px } from '../../utils/estilos'
 
 const ROUTE_LABELS: Record<string, string> = {
@@ -245,8 +244,6 @@ const NAV_GROUPS: NavGroupConfig[] = [
     { to: '/profitability',     icon: <TrendingUp size={SZ} />,  label: 'Profitability',        roles: ['admin','pm'] },
     { to: '/revenue',           icon: <DollarSign size={SZ} />,  label: 'Revenue Recognition',  roles: ['admin','pm'] },
     { to: '/budgets',           icon: <Briefcase size={SZ} />,   label: 'Budgets',              roles: ['admin','pm'] },
-    { to: '/rate-cards',        icon: <Tag size={SZ} />,         label: 'Rate Cards',           roles: ['admin','pm'] },
-    { to: '/user-costs',        icon: <Wallet size={SZ} />,      label: 'Estructura de coste',  roles: ['admin','hr'] },
     { to: '/subcontractors',    icon: <HardHat size={SZ} />,     label: 'Subcontractors',       roles: ['admin','pm'] },
     { to: '/scenarios',         icon: <Calculator size={SZ} />,  label: 'What-If Scenarios',    roles: ['admin','pm'] },
     { to: '/nps',               icon: <ThumbsUp size={SZ} />,    label: 'NPS & Health',         roles: ['admin','pm'] },
@@ -255,10 +252,8 @@ const NAV_GROUPS: NavGroupConfig[] = [
     { to: '/support-dashboard', icon: <LayoutGrid size={SZ} />,  label: 'Estado del soporte',  roles: ['admin','pm','employee','hr','team_lead'] },
     { to: '/service-desk',    icon: <MessageSquare size={SZ} />, label: 'Service Desk',     roles: ['admin','pm','employee','hr','team_lead','subcontractor'] },
     { to: '/cmdb',            icon: <Monitor size={SZ} />,       label: 'CMDB',             roles: ['admin','pm'] },
-    { to: '/sd/workflow-designer', icon: <GitBranch size={SZ} />,  label: 'Workflow Designer', roles: ['admin','pm'] },
     { to: '/alm',             icon: <Key size={SZ} />,           label: 'Licenses & Assets', roles: ['admin','pm'] },
     { to: '/alm/altas-y-bajas', icon: <UserMinus size={SZ} />,   label: 'Onboarding & offboarding', roles: ['admin','pm','hr','team_lead'] },
-    { to: '/sla-calendars',   icon: <Calendar size={SZ} />,      label: 'SLA Calendars',    roles: ['admin','pm'] },
     { to: '/agent-dashboard', icon: <LayoutGrid size={SZ} />,    label: 'Agent Dashboard',  roles: ['admin','pm'] },
   ]},
   { id: 'analisis', label: 'Analytics & BI', groupKey: 'group_analytics', icon: <BarChart2 size={12} />, roles: ['admin','pm','team_lead','hr','employee'], items: [
@@ -287,30 +282,12 @@ const NAV_GROUPS: NavGroupConfig[] = [
     { to: '/automations',     icon: <Bot size={SZ} />,           label: 'Automations',      roles: ['admin','pm'] },
     { to: '/bpm',             icon: <Network size={SZ} />,       label: 'BPM Procesos',     roles: ['admin','pm','team_lead'] },
   ]},
-  { id: 'configuracion', label: 'Settings', groupKey: 'group_settings', icon: <Settings size={12} />, roles: ['admin','pm','hr','employee','team_lead'], items: [
-    { to: '/settings',            icon: <Settings size={SZ} />,    label: 'Settings',               roles: ['admin'] },
-      { to: '/project-templates',   icon: <Layers size={SZ} />,      label: 'Project Templates',      roles: ['admin','pm'] },
-    { to: '/settings/approval-workflows', icon: <CheckCircle size={SZ} />, label: 'Approval Flows (Config)', roles: ['admin','pm','team_lead'] },
-    { to: '/settings/policies',           icon: <Scale size={SZ} />,       label: 'Policies & Rules',        roles: ['admin'] },
-    { to: '/settings/project-workflows',  icon: <GitMerge size={SZ} />,    label: 'Project Issue Flows',     roles: ['admin','pm'] },
-    { to: '/issue-types',         icon: <Tag size={SZ} />,         label: 'Issue Types',            roles: ['admin','pm'] },
-    { to: '/custom-fields',       icon: <Sliders size={SZ} />,     label: 'Custom Fields',          roles: ['admin','pm'] },
-    { to: '/project-permissions', icon: <Lock size={SZ} />,        label: 'Project Permissions',    roles: ['admin','pm'] },
-    { to: '/ai-hub',              icon: <Plug size={SZ} />,        label: 'AI Hub / Connectors',    roles: ['admin','pm'] },
-    { to: '/esign',               icon: <PenLine size={SZ} />,     label: 'E-Signature',            roles: ['admin','pm'] },
-    { to: '/m365',                icon: <Globe size={SZ} />,       label: 'Microsoft 365',          roles: ['admin'] },
-    { to: '/import',              icon: <Upload size={SZ} />,      label: 'Importar datos',         roles: ['admin','pm'] },
-    { to: '/mfa',                 icon: <ShieldCheck size={SZ} />, label: 'Seguridad MFA',          roles: ['admin','pm','hr','employee','team_lead'] },
-    { divider: true },
-    { to: '/governance',          icon: <Building2 size={SZ} />,   label: 'AI Governance',          roles: ['admin'] },
-    { to: '/grc',                 icon: <Scale size={SZ} />,       label: 'GRC / SoD',              roles: ['admin'] },
-    { to: '/organizations',       icon: <Building2 size={SZ} />,   label: 'Organizaciones',         roles: ['admin'] },
-    { to: '/enterprise',          icon: <Globe size={SZ} />,       label: 'Enterprise',             roles: ['admin'] },
-    { to: '/webhook-log',         icon: <Activity size={SZ} />,    label: 'Log Webhooks',           roles: ['admin'] },
-    { to: '/jira-integration',     icon: <Link size={SZ} />,        label: 'Jira Integration',       roles: ['admin','pm'] },
-    { divider: true },
-    { to: '/public-forms',        icon: <Globe size={SZ} />,       label: 'Public Forms',           roles: ['admin','pm'] },
-    { to: '/developer',           icon: <Wrench size={SZ} />,      label: 'Developer Portal',       roles: ['admin','pm'] },
+  // 18-11-2026: una sola entrada. Toda la configuración (antes 20 entradas aquí,
+  // más /rate-cards, /user-costs, /sla-calendars y el diseñador de flujos del
+  // service desk en otros grupos) vive en /settings/:seccion, con su propia
+  // navegación agrupada y buscador (pages/settings/catalogoDeAjustes.tsx).
+  { id: 'configuracion', label: 'Settings', groupKey: 'group_settings', icon: <Settings size={12} />, roles: ROLES_CON_AJUSTES, items: [
+    { to: '/settings',            icon: <Settings size={SZ} />,    label: 'Settings',               roles: ROLES_CON_AJUSTES },
   ]},
 ]
 
@@ -740,6 +717,8 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
           const isIdLike = /^\d+$/.test(seg) || /^[0-9a-fA-F-]{8,}$/.test(seg)
           let label = isIdLike ? 'Detalle' : decodeURIComponent(seg).replace(/-/g, ' ')
           // Use real project name when on /projects/:id
+          // 18-11-2026: /settings/<seccion> → nombre de la sección del catálogo de Configuración.
+          if (currentNavItem?.to === '/settings' && idx === 0) label = t('ajustes', `s_${seg.replace(/-/g, '_')}`)
           if (isIdLike && currentNavItem?.to === '/projects' && breadcrumbProject?.name) {
             label = breadcrumbProject.name
           }

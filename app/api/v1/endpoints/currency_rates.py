@@ -19,7 +19,6 @@ from app.services import currency_rates_service
 from app.schemas.currency_rates import ExchangeRateCreate
 from app.core.responses import APIListResponse, APIResponse
 from app.core import timeutil
-from app.core.config import settings
 
 router = APIRouter()
 
@@ -199,13 +198,15 @@ def convert_currency_post(
 
 @router.get("/currency/report", summary="Multi-currency consolidated report")
 def multicurrency_report(
-    report_currency: str = Query(default=settings.DEFAULT_CURRENCY, description="Target currency for consolidation"),
+    report_currency: Optional[str] = Query(default=None, description="Target currency for consolidation (default: the company's)"),
     as_of_date: Optional[date] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
     ref_date = as_of_date or timeutil.today()
-    target = report_currency.upper()
+    # 18-11-2026: sin moneda pedida, la de la empresa (antes la global del entorno).
+    from app.services.settings_service.por_empresa import moneda_de_empresa
+    target = (report_currency or moneda_de_empresa(db)).upper()
 
     def _get_rate(from_c: str) -> float:
         return currency_rates_service.resolve_rate(db, from_c, target, ref_date)

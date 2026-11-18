@@ -36,7 +36,6 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.core.codigos_de_error import error
-from app.core.config import settings
 from app.core.periodo import FORMATO_CLAVE, Periodo
 
 POR = ("proyecto", "cliente")
@@ -86,7 +85,9 @@ def _por_proyecto_y_tramo(db: Session, p: Periodo, proyectos: list) -> tuple[dic
         _hay_tarifas, coste_de_imputacion_en_moneda, partidas_de_ingreso,
     )
 
-    moneda = settings.DEFAULT_CURRENCY
+    # 18-11-2026: moneda de la empresa (sesión o, para el superadmin, la de los proyectos).
+    from app.services.settings_service.por_empresa import moneda_de_empresa
+    moneda = moneda_de_empresa(db, registro=proyectos[0] if proyectos else None)
     datos: dict = defaultdict(lambda: defaultdict(lambda: dict.fromkeys(_CAMPOS, 0.0)))
     activos: dict = defaultdict(set)
     if not proyectos:

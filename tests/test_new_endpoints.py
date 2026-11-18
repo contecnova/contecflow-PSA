@@ -46,37 +46,11 @@ def test_health_composite_customers(client, admin_token, db):
         assert res.json()["data"]["score"] >= 0
 
 
-def test_ui_accessibility(client, admin_token, db):
+def test_ui_de_relleno_retirado(client, admin_token, db):
+    """18-11-2026: `/ui/*` era un relleno con textos fijos que no usaba nadie."""
     headers = {"Authorization": f"Bearer {admin_token}"}
-    res = client.get("/api/v1/ui/accessibility", headers=headers)
-    assert res.status_code == 200
-    data = res.json()["data"]
-    assert "elements" in data
-    assert len(data["elements"]) > 0
-    assert all("aria-label" in e for e in data["elements"])
-
-
-def test_ui_keyboard_nav(client, admin_token, db):
-    headers = {"Authorization": f"Bearer {admin_token}"}
-    res = client.get("/api/v1/ui/keyboard-nav", headers=headers)
-    assert res.status_code == 200
-    assert res.json()["data"]["tabindex"] == 0
-
-
-def test_ui_labels_default(client, admin_token, db):
-    headers = {"Authorization": f"Bearer {admin_token}"}
-    res = client.get("/api/v1/ui/labels", headers=headers)
-    assert res.status_code == 200
-    data = res.json()["data"]
-    assert "projects" in data
-    assert "dashboard" in data
-
-
-def test_ui_labels_french(client, admin_token, db):
-    headers = {"Authorization": f"Bearer {admin_token}"}
-    res = client.get("/api/v1/ui/labels?lang=fr", headers=headers)
-    assert res.status_code == 200
-    assert res.json()["data"]["projects"] == "Projet"
+    for ruta in ("/api/v1/ui/accessibility", "/api/v1/ui/keyboard-nav", "/api/v1/ui/labels"):
+        assert client.get(ruta, headers=headers).status_code == 404
 
 
 def _create_template(client, headers) -> str:
@@ -158,7 +132,6 @@ def test_endpoints_require_auth(client, db):
         ("GET", "/api/v1/ai/suggestions/timesheets/usr-1"),
         ("GET", "/api/v1/resource-demand/pipeline"),
         ("GET", "/api/v1/customers/c-1/health-composite"),
-        ("GET", "/api/v1/ui/accessibility"),
     ]
     for method, url in endpoints:
         res = getattr(client, method.lower())(url)

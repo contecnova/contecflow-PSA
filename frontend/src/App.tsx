@@ -31,6 +31,7 @@ const AlertsPage             = lazy(() => import('./pages/AlertsPage'))
 const ExportsPage            = lazy(() => import('./pages/ExportsPage'))
 const ReportsPage            = lazy(() => import('./pages/ReportsPage'))
 const SettingsPage           = lazy(() => import('./pages/SettingsPage'))
+import { ROLES_CON_AJUSTES, SECCIONES_DE_AJUSTES } from './pages/settings/catalogoDeAjustes'
 const TimesheetsPage         = lazy(() => import('./pages/TimesheetsPage'))
 const CapacityPage           = lazy(() => import('./pages/CapacityPage'))
 const ProfitabilityPage      = lazy(() => import('./pages/ProfitabilityPage'))
@@ -47,18 +48,13 @@ const CalendarPage           = lazy(() => import('./pages/CalendarPage'))
 const PortalClientePage      = lazy(() => import('./pages/PortalClientePage'))
 const PortalPublicViewPage   = lazy(() => import('./pages/PortalPublicViewPage'))
 const ServiceDeskPage        = lazy(() => import('./pages/ServiceDeskPage'))
-const EnterprisePage         = lazy(() => import('./pages/EnterprisePage'))
 const InvoicesPage           = lazy(() => import('./pages/InvoicesPage'))
-const ImportPage             = lazy(() => import('./pages/ImportPage'))
 const SprintsPage            = lazy(() => import('./pages/SprintsPage'))
 const ExpensesPage           = lazy(() => import('./pages/ExpensesPage'))
 const AutomationsPage        = lazy(() => import('./pages/AutomationsPage'))
 const RevenuePage            = lazy(() => import('./pages/RevenuePage'))
-const MFAPage                = lazy(() => import('./pages/MFAPage'))
-const OrganizationsPage      = lazy(() => import('./pages/OrganizationsPage'))
 const ScenariosPage          = lazy(() => import('./pages/ScenariosPage'))
 const BudgetsPage            = lazy(() => import('./pages/BudgetsPage'))
-const AIHubPage              = lazy(() => import('./pages/AIHubPage'))
 const ContecflowAgentPage    = lazy(() => import('./pages/NexusAgentPage'))
 const OraclePage             = lazy(() => import('./pages/OraclePage'))
 const MeetingsAIPage         = lazy(() => import('./pages/MeetingsAIPage'))
@@ -66,29 +62,22 @@ const ContractsAIPage        = lazy(() => import('./pages/ContractsAIPage'))
 const SemanticEnginePage     = lazy(() => import('./pages/SemanticEnginePage'))
 const ResourceForecastPage   = lazy(() => import('./pages/ResourceForecastPage'))
 const ResourceSchedulerPage  = lazy(() => import('./pages/ResourceSchedulerPage'))
-const RateCardsPage          = lazy(() => import('./pages/RateCardsPage'))
 const MilestoneBillingPage   = lazy(() => import('./pages/MilestoneBillingPage'))
 const ApprovalsPage          = lazy(() => import('./pages/ApprovalsPage'))
 const DocumentsPage          = lazy(() => import('./pages/DocumentsPage'))
 const TimerPage              = lazy(() => import('./pages/TimerPage'))
 const GanttPage              = lazy(() => import('./pages/GanttPage'))
 const SubcontractorsPage     = lazy(() => import('./pages/SubcontractorsPage'))
-const GovernancePage         = lazy(() => import('./pages/GovernancePage'))
-const CustomFieldsPage       = lazy(() => import('./pages/CustomFieldsPage'))
-const WorkflowsPage          = lazy(() => import('./pages/WorkflowsPage'))
 const WorkflowDesignerPage   = lazy(() => import('./pages/service-desk/WorkflowDesignerPage'))
-const ProjectPermissionsPage = lazy(() => import('./pages/ProjectPermissionsPage'))
 const WikiPage               = lazy(() => import('./pages/WikiPage'))
 const EpicsPage              = lazy(() => import('./pages/EpicsPage'))
 const SearchPage             = lazy(() => import('./pages/SearchPage'))
 const CumulativeFlowPage     = lazy(() => import('./pages/CumulativeFlowPage'))
-const IssueTypesPage         = lazy(() => import('./pages/IssueTypesPage'))
 const DependenciesPage       = lazy(() => import('./pages/DependenciesPage'))
 const EpicGanttPage          = lazy(() => import('./pages/EpicGanttPage'))
 const CMDBPage               = lazy(() => import('./pages/CMDBPage'))
 const AgentDashboardPage     = lazy(() => import('./pages/AgentDashboardPage'))
 const SprintPlanningPage     = lazy(() => import('./pages/SprintPlanningPage'))
-const SLACalendarsPage       = lazy(() => import('./pages/SLACalendarsPage'))
 const ALMPage                = lazy(() => import('./pages/ALMPage'))
 // Licencias y hardware, fase 4: autoservicio para todos y altas y bajas.
 const MisEquiposPage         = lazy(() => import('./pages/MisEquiposPage'))
@@ -105,31 +94,23 @@ const SprintChartsPage       = lazy(() => import('./pages/SprintChartsPage'))
 const ESignPage              = lazy(() => import('./pages/ESignPage'))
 const ReportBuilderPage      = lazy(() => import('./pages/ReportBuilderPage'))
 const NPSPage                = lazy(() => import('./pages/NPSPage'))
-const M365Page               = lazy(() => import('./pages/M365Page'))
 const OrgChartPage           = lazy(() => import('./pages/OrgChartPage'))
-const GrcPage                = lazy(() => import('./pages/GrcPage'))
 const OKRsPage               = lazy(() => import('./pages/OKRsPage'))
 const PerformanceReviewsPage = lazy(() => import('./pages/PerformanceReviewsPage'))
 const TrainingPage           = lazy(() => import('./pages/TrainingPage'))
-const WebhookLogPage         = lazy(() => import('./pages/WebhookLogPage'))
 const InboxPage              = lazy(() => import('./pages/InboxPage'))
 const RACIPage               = lazy(() => import('./pages/RACIPage'))
 const ChangelogPage          = lazy(() => import('./pages/ChangelogPage'))
 const UATPage                = lazy(() => import('./pages/UATPage'))
-const PublicFormsPage        = lazy(() => import('./pages/PublicFormsPage'))
 const IntakeFormPage         = lazy(() => import('./pages/IntakeFormPage'))
-const DeveloperPortalPage    = lazy(() => import('./pages/DeveloperPortalPage'))
 const BIPage                 = lazy(() => import('./pages/BIPage'))
 const BIProjectDetailPage    = lazy(() => import('./pages/BIProjectDetailPage'))
 const DataExplorerPage       = lazy(() => import('./pages/DataExplorerPage'))
 const PreguntarALaEmpresaPage = lazy(() => import('./pages/PreguntarALaEmpresaPage'))
 const LeccionesPage = lazy(() => import('./pages/LeccionesPage'))
-const PoliticasPage = lazy(() => import('./pages/PoliticasPage'))
 const PredictionsPage        = lazy(() => import('./pages/PredictionsPage'))
 const DataPlatformPage       = lazy(() => import('./pages/DataPlatformPage'))
 const DataGovernancePage     = lazy(() => import('./pages/DataGovernancePage'))
-const JiraIntegrationPage    = lazy(() => import('./pages/JiraIntegrationPage'))
-const ProjectTemplatesPage   = lazy(() => import('./pages/ProjectTemplatesPage'))
 const ForbiddenPage          = lazy(() => import('./pages/ForbiddenPage'))
 const NotFoundPage           = lazy(() => import('./pages/NotFoundPage'))
 const WorkDashboardPage      = lazy(() => import('./pages/WorkDashboardPage'))
@@ -140,10 +121,8 @@ const TeamDashboardPage      = lazy(() => import('./pages/TeamDashboardPage'))
 const FinanceDashboardPage   = lazy(() => import('./pages/FinanceDashboardPage'))
 const SupportDashboardPage   = lazy(() => import('./pages/SupportDashboardPage'))
 const BPMPage                = lazy(() => import('./pages/BPMPage'))
-const UserCostsPage          = lazy(() => import('./pages/UserCostsPage'))
 const ChatPage               = lazy(() => import('./pages/ChatPage'))
 const CallPage               = lazy(() => import('./pages/CallPage'))
-const ChatAdminPage          = lazy(() => import('./pages/ChatAdminPage'))
 
 // ── Per-section Error Boundaries (audit #84) ─────────────────────────────────
 // Pages especially prone to render-time failures (heavy dashboards, AI views,
@@ -156,7 +135,6 @@ const SafePreguntarALaEmpresa = withRouteBoundary(PreguntarALaEmpresaPage, 'BI')
 const SafePredictions         = withRouteBoundary(PredictionsPage, 'BI')
 const SafeDataPlatform        = withRouteBoundary(DataPlatformPage, 'BI')
 const SafeDataGovernance      = withRouteBoundary(DataGovernancePage, 'BI')
-const SafeAIHub               = withRouteBoundary(AIHubPage, 'AI')
 const SafeContecflowAgent     = withRouteBoundary(ContecflowAgentPage, 'AI')
 const SafeOracle              = withRouteBoundary(OraclePage, 'AI')
 const SafeMeetingsAI          = withRouteBoundary(MeetingsAIPage, 'AI')
@@ -327,6 +305,17 @@ const BI_LEGACY_TARGETS: Record<string, string> = {
   dashboard:      '/executive',
   hub:            '/executive',
 }
+/**
+ * 18-11-2026: una pantalla de configuración que tenía ruta propia (`/rate-cards`,
+ * `/issue-types`, `/mfa`…) vive ahora en `/settings/<seccion>`. Se conserva la
+ * query (`/enterprise?tab=sso` → `/settings/enterprise?tab=sso`) para no romper
+ * enlaces ni marcadores.
+ */
+function RedirigirAAjustes({ seccion }: { seccion: string }) {
+  const { search, hash } = useLocation()
+  return <Navigate to={`/settings/${seccion}${search}${hash}`} replace />
+}
+
 function BiLegacyRedirect() {
   const { section } = useParams<{ section: string }>()
   return <Navigate to={(section && BI_LEGACY_TARGETS[section]) || '/executive'} replace />
@@ -426,11 +415,21 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
 
+      {/* 18-11-2026: toda la configuración en /settings/:seccion (pages/settings/catalogoDeAjustes.tsx).
+          La página decide qué secciones ve cada rol; las rutas sueltas de antes redirigen aquí. */}
       <Route path="/settings" element={
-        <ProtectedRoute roles={['admin', 'hr', 'pm']}>
+        <ProtectedRoute roles={ROLES_CON_AJUSTES}>
           <Layout><SettingsPage /></Layout>
         </ProtectedRoute>
       } />
+      <Route path="/settings/:seccion" element={
+        <ProtectedRoute roles={ROLES_CON_AJUSTES}>
+          <Layout><SettingsPage /></Layout>
+        </ProtectedRoute>
+      } />
+      {SECCIONES_DE_AJUSTES.filter(s => s.rutaAntigua).map(s => (
+        <Route key={s.id} path={s.rutaAntigua} element={<RedirigirAAjustes seccion={s.id} />} />
+      ))}
 
       <Route path="/timesheets" element={
         <ProtectedRoute>
@@ -524,9 +523,7 @@ function AppRoutes() {
       } />
 
       {/* External client portal – no Layout, standalone app */}
-      <Route path="/enterprise" element={<ProtectedRoute roles={['admin']}><Layout><EnterprisePage /></Layout></ProtectedRoute>} />
       <Route path="/invoices" element={<ProtectedRoute roles={['admin','pm']}><Layout><InvoicesPage /></Layout></ProtectedRoute>} />
-      <Route path="/import" element={<ProtectedRoute roles={['admin','pm']}><Layout><ImportPage /></Layout></ProtectedRoute>} />
       <Route path="/portal" element={<PortalClientePage />} />
       <Route path="/portal/view/:token" element={<PortalPublicViewPage />} />
 
@@ -543,28 +540,14 @@ function AppRoutes() {
       <Route path="/esign" element={<ProtectedRoute roles={['admin','pm']}><Layout><ESignPage /></Layout></ProtectedRoute>} />
       <Route path="/report-builder" element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeReportBuilder /></Layout></ProtectedRoute>} />
       <Route path="/nps" element={<ProtectedRoute roles={['admin','pm']}><Layout><NPSPage /></Layout></ProtectedRoute>} />
-      <Route path="/m365" element={<ProtectedRoute roles={['admin']}><Layout><M365Page /></Layout></ProtectedRoute>} />
       <Route path="/automations" element={<ProtectedRoute roles={['admin','pm']}><Layout><AutomationsPage /></Layout></ProtectedRoute>} />
 
-      <Route path="/mfa" element={<ProtectedRoute><Layout><MFAPage /></Layout></ProtectedRoute>} />
-      <Route path="/organizations" element={<ProtectedRoute roles={['admin']}><Layout><OrganizationsPage /></Layout></ProtectedRoute>} />
       <Route path="/scenarios" element={<ProtectedRoute roles={['admin','pm']}><Layout><ScenariosPage /></Layout></ProtectedRoute>} />
       <Route path="/budgets" element={<ProtectedRoute roles={['admin','pm']}><Layout><BudgetsPage /></Layout></ProtectedRoute>} />
-      <Route path="/ai-hub" element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeAIHub /></Layout></ProtectedRoute>} />
       <Route path="/nexus-agent" element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeContecflowAgent /></Layout></ProtectedRoute>} />
       <Route path="/oracle" element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeOracle /></Layout></ProtectedRoute>} />
       <Route path="/meetings-ai" element={<ProtectedRoute><Layout><SafeMeetingsAI /></Layout></ProtectedRoute>} />
       <Route path="/contracts-ai" element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeContractsAI /></Layout></ProtectedRoute>} />
-      <Route path="/custom-fields" element={
-        <ProtectedRoute roles={['admin','pm']}>
-          <Layout><CustomFieldsPage /></Layout>
-        </ProtectedRoute>
-      } />
-      <Route path="/settings/project-workflows" element={
-        <ProtectedRoute roles={['admin','pm']}>
-          <Layout><WorkflowsPage /></Layout>
-        </ProtectedRoute>
-      } />
       <Route path="/settings/workflows" element={<Navigate to="/settings/project-workflows" replace />} />
       <Route path="/workflows" element={<Navigate to="/settings/project-workflows" replace />} />
       <Route path="/calendar" element={<ProtectedRoute><Layout><CalendarPage /></Layout></ProtectedRoute>} />
@@ -572,7 +555,6 @@ function AppRoutes() {
       <Route path="/epics" element={<ProtectedRoute><Layout><EpicsPage/></Layout></ProtectedRoute>}/>
       <Route path="/search" element={<ProtectedRoute><Layout><SearchPage/></Layout></ProtectedRoute>}/>
       <Route path="/cumulative-flow" element={<ProtectedRoute><Layout><CumulativeFlowPage/></Layout></ProtectedRoute>}/>
-      <Route path="/issue-types"    element={<ProtectedRoute roles={['admin','pm']}><Layout><IssueTypesPage/></Layout></ProtectedRoute>}/>
       <Route path="/dependencies"   element={<ProtectedRoute><Layout><DependenciesPage/></Layout></ProtectedRoute>}/>
       {/* Auditoria 2026-11 (#45): rutas huerfanas. La busqueda de texto completo
           se fusiono en /search (SearchPage) y las etiquetas de la wiki viven en
@@ -584,24 +566,15 @@ function AppRoutes() {
       {/* Revisión 2026-11: «Kanban» era la misma pregunta que Tareas → vista Kanban; ahora es una sola pantalla. */}
       <Route path="/kanban-advanced"   element={<Navigate to="/tasks?view=kanban" replace />}/>
       <Route path="/sprint-planning"   element={<ProtectedRoute><Layout><SprintPlanningPage/></Layout></ProtectedRoute>}/>
-      <Route path="/sla-calendars"     element={<ProtectedRoute roles={['admin','pm']}><Layout><SLACalendarsPage/></Layout></ProtectedRoute>}/>
       <Route path="/epic-gantt"     element={<ProtectedRoute><Layout><SafeEpicGantt/></Layout></ProtectedRoute>}/>
       {/* Menciones y notificaciones viven en la bandeja (InboxPage, pestanas). */}
       <Route path="/mentions" element={<Navigate to="/inbox?tab=mentions" replace />}/>
-      <Route path="/project-permissions" element={
-        <ProtectedRoute roles={['admin','pm']}>
-          <Layout><ProjectPermissionsPage /></Layout>
-        </ProtectedRoute>
-      } />
       <Route path="/semantic-engine"  element={<ProtectedRoute roles={['admin','pm','hr']}><Layout><SafeSemanticEngine /></Layout></ProtectedRoute>} />
       <Route path="/resource-forecast" element={<ProtectedRoute roles={['admin','pm','team_lead']}><Layout><ResourceForecastPage /></Layout></ProtectedRoute>} />
       <Route path="/resource-scheduler" element={<ProtectedRoute roles={['admin','pm','team_lead']}><Layout><ResourceSchedulerPage /></Layout></ProtectedRoute>} />
-      <Route path="/rate-cards"        element={<ProtectedRoute roles={['admin','pm']}><Layout><RateCardsPage /></Layout></ProtectedRoute>} />
       <Route path="/milestone-billing" element={<ProtectedRoute roles={['admin','pm']}><Layout><MilestoneBillingPage /></Layout></ProtectedRoute>} />
       {/* Revisión 2026-11: cualquier usuario interno puede ser aprobador (rol, grupo, departamento, responsable, delegado). */}
       <Route path="/approvals" element={<ProtectedRoute roles={['admin','pm','team_lead','hr','employee']}><Layout><ApprovalsPage mode="inbox" /></Layout></ProtectedRoute>} />
-      <Route path="/settings/approval-workflows" element={<ProtectedRoute roles={['admin','pm','team_lead']}><Layout><ApprovalsPage mode="config" /></Layout></ProtectedRoute>} />
-      <Route path="/settings/policies" element={<ProtectedRoute roles={['admin']}><Layout><PoliticasPage /></Layout></ProtectedRoute>} />
       <Route path="/documents" element={<ProtectedRoute><Layout><DocumentsPage /></Layout></ProtectedRoute>} />
       <Route path="/timer" element={<ProtectedRoute><Layout><TimerPage /></Layout></ProtectedRoute>} />
       <Route path="/gantt" element={<ProtectedRoute roles={['admin','pm','team_lead','employee']}><Layout><SafeGantt /></Layout></ProtectedRoute>} />
@@ -618,7 +591,6 @@ function AppRoutes() {
       <Route path="/bi/:section" element={<BiLegacyRedirect />} />
       <Route path="/bi/project/:projectId" element={<BiProjectLegacyRedirect />} />
       <Route path="/subcontractors" element={<ProtectedRoute roles={['admin','pm']}><Layout><SubcontractorsPage /></Layout></ProtectedRoute>} />
-      <Route path="/governance" element={<ProtectedRoute roles={['admin']}><Layout><GovernancePage /></Layout></ProtectedRoute>} />
       <Route path="/finance-dashboard"   element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeFinanceDashboard /></Layout></ProtectedRoute>} />
       <Route path="/team-dashboard"     element={<ProtectedRoute roles={['admin','pm','hr','team_lead']}><Layout><SafeTeamDashboard /></Layout></ProtectedRoute>} />
       <Route path="/clients"             element={<ProtectedRoute roles={['admin','pm']}><Layout><ClientsPage /></Layout></ProtectedRoute>} />
@@ -626,26 +598,18 @@ function AppRoutes() {
       <Route path="/alm/altas-y-bajas" element={<ProtectedRoute roles={['admin','pm','hr','team_lead']}><Layout><ALMAltasBajasPage /></Layout></ProtectedRoute>} />
       <Route path="/my-equipment" element={<ProtectedRoute><Layout><MisEquiposPage /></Layout></ProtectedRoute>} />
       <Route path="/org-chart" element={<ProtectedRoute roles={['admin','pm','hr']}><Layout><OrgChartPage /></Layout></ProtectedRoute>} />
-      <Route path="/grc" element={<ProtectedRoute roles={['admin']}><Layout><GrcPage /></Layout></ProtectedRoute>} />
       <Route path="/okrs"                element={<ProtectedRoute roles={['admin','pm','hr']}><Layout><OKRsPage /></Layout></ProtectedRoute>} />
       <Route path="/performance-reviews" element={<ProtectedRoute roles={['admin','pm','hr']}><Layout><PerformanceReviewsPage /></Layout></ProtectedRoute>} />
       <Route path="/training"            element={<ProtectedRoute><Layout><TrainingPage /></Layout></ProtectedRoute>} />
       <Route path="/executive"           element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeBIPage /></Layout></ProtectedRoute>} />
-      <Route path="/webhook-log"         element={<ProtectedRoute roles={['admin']}><Layout><WebhookLogPage /></Layout></ProtectedRoute>} />
       <Route path="/inbox"               element={<ProtectedRoute><Layout><InboxPage /></Layout></ProtectedRoute>} />
       <Route path="/notifications"       element={<Navigate to="/inbox?tab=notifications" replace />} />
       <Route path="/raci"                element={<ProtectedRoute><Layout><RACIPage /></Layout></ProtectedRoute>} />
       <Route path="/changelog"           element={<ProtectedRoute><Layout><ChangelogPage /></Layout></ProtectedRoute>} />
       <Route path="/uat"                element={<ProtectedRoute><Layout><UATPage /></Layout></ProtectedRoute>} />
-      <Route path="/public-forms"       element={<ProtectedRoute roles={['admin','pm']}><Layout><PublicFormsPage /></Layout></ProtectedRoute>} />
       <Route path="/intake/:token"      element={<IntakeFormPage />} />
-      <Route path="/developer"          element={<ProtectedRoute roles={['admin','pm']}><Layout><DeveloperPortalPage /></Layout></ProtectedRoute>} />
-      <Route path="/jira-integration"   element={<ProtectedRoute roles={['admin','pm']}><Layout><JiraIntegrationPage /></Layout></ProtectedRoute>} />
-        <Route path="/project-templates"   element={<ProtectedRoute roles={['admin','pm']}><Layout><ProjectTemplatesPage /></Layout></ProtectedRoute>} />
       <Route path="/bpm" element={<ProtectedRoute roles={['admin','pm','team_lead']}><Layout><BPMPage /></Layout></ProtectedRoute>} />
-      <Route path="/user-costs" element={<ProtectedRoute roles={['admin','hr']}><Layout><UserCostsPage /></Layout></ProtectedRoute>} />
       <Route path="/chat" element={<ProtectedRoute><Layout><ChatPage /></Layout></ProtectedRoute>} />
-      <Route path="/settings/chat-admin" element={<ProtectedRoute roles={['admin']}><Layout><ChatAdminPage /></Layout></ProtectedRoute>} />
       <Route path="/chat/admin" element={<ProtectedRoute roles={['admin']}><Navigate to="/settings/chat-admin" replace /></ProtectedRoute>} />
       <Route path="/chat/call/:callId" element={<ProtectedRoute><CallPage /></ProtectedRoute>} />
       <Route path="*" element={<NotFoundPage />} />

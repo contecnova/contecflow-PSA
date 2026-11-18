@@ -10,6 +10,7 @@ submodulos por responsabilidad, sin cambiar el codigo:
 - `runtime`: Ajustes de ejecucion: lectura con cache y respaldo de entorno, escritura por ambito, timeouts y monedas.
 - `generales`: Ajustes generales de la empresa: valores por defecto, enmascarado de los sensibles y actualizacion.
 - `catalogos`: Catalogos editables: tipos y estados de proyecto, estados de tarea, areas, departamentos y festivos.
+- `por_empresa` (18-11-2026): `ajuste_de_empresa` y atajos (moneda, IVA, jornada, capacidad, zona, idioma) con la empresa del registro, la sesion o el usuario.
 """
 
 from app.services.settings_service._catalogo import (  # noqa: F401
@@ -83,4 +84,16 @@ from app.services.settings_service.catalogos import (  # noqa: F401
     update_holiday,
     delete_holiday,
     _check_department_dependencies,
+)
+
+from app.services.settings_service.por_empresa import (  # noqa: F401
+    empresa_de,
+    ajuste_de_empresa,
+    moneda_de_empresa,
+    iva_de_empresa,
+    jornada_de_empresa,
+    capacidad_semanal_de_empresa,
+    capacidad_semanal,
+    zona_de_empresa,
+    idioma_de_empresa,
 )

@@ -69,7 +69,7 @@ export default function AlertsDrawer({ onClose }: Props) {
 
   return (
     // Fondo, Esc, trampa de foco y devolucion del foco: los pone <Drawer>.
-    <Drawer onClose={onClose} ariaLabel="Alertas activas" variant="borde" width={400} zIndex={200}>
+    <Drawer onClose={onClose} ariaLabel={t('layoutshell.alertas_activas')} variant="borde" width={400} zIndex={200}>
         {/* Header */}
         <div className="alerdraw-row-1">
           <div className="u-row-center-10">

@@ -93,7 +93,6 @@ class _Partida:
 
 def coste_real(db: Session, project_id: str) -> float:
     """AC: personal (imputaciones) + gastos + subcontrata + licencias y equipos (ALM), en la moneda de la empresa."""
-    from app.core.config import settings
     from app.models.imputation import Imputation
     from app.services.costes_de_proyecto import costes_externos
 
@@ -103,7 +102,10 @@ def coste_real(db: Session, project_id: str) -> float:
         filas = db.query(Imputation.hours, Imputation.hourly_rate_snapshot).filter(
             Imputation.project_id == project_id).all()
         personal = sum(h * r for h, r in filas if r) or 0.0
-    externos = costes_externos(db, project_id, settings.DEFAULT_CURRENCY)
+    # 18-11-2026: en la moneda de la empresa del proyecto, no la global del entorno.
+    from app.models.project import Project
+    from app.services.settings_service.por_empresa import moneda_de_empresa
+    externos = costes_externos(db, project_id, moneda_de_empresa(db, registro=db.get(Project, project_id)))
     return personal + externos["gastos"] + externos["subcontrata"] + externos.get("alm", 0.0)  # + ALM (fase 3)
 
 

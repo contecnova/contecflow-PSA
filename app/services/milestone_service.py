@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from app.services.numbering import next_numbered_code
 
-from app.core.config import settings
+from app.services.settings_service.por_empresa import iva_de_empresa, moneda_de_empresa
 from app.db.transactions import atomic
 from app.models.user import User
 from app.models.billing_reports import Invoice, InvoiceLine
@@ -268,6 +268,10 @@ def generate_milestone_invoice(milestone_id: str, current_user: User, db: Sessio
         raise ErrorDeDominio(400, "El milestone no tiene importe de facturación definido")
 
     invoice_num = _next_invoice_number(db)
+    # 18-11-2026: IVA y moneda de la empresa del proyecto (antes `settings.DEFAULT_TAX_RATE`
+    # global: una empresa con otro IVA facturaba sus hitos al del entorno).
+    iva = iva_de_empresa(db, registro=proj)
+    moneda = (getattr(proj, "currency", None) or moneda_de_empresa(db, registro=proj))
 
     # Atomic: invoice header + line + milestone status flip must all land or none
     # do — a partial write would leave a milestone marked invoiced with no/empty
@@ -275,15 +279,17 @@ def generate_milestone_invoice(milestone_id: str, current_user: User, db: Sessio
     with atomic(db):
         inv = Invoice(
             id=str(uuid.uuid4()),
+            organization_id=getattr(proj, "organization_id", None),
             project_id=proj.id,
             client_id=getattr(proj, "client_id", None),
             client_name=getattr(proj, "client_name", ""),
             number=invoice_num,
             issue_date=timeutil.today(),
             subtotal=amount,
-            tax_rate=settings.DEFAULT_TAX_RATE,
-            tax_amount=round(amount * settings.DEFAULT_TAX_RATE / 100, 2),
-            total=round(amount * (1 + settings.DEFAULT_TAX_RATE / 100), 2),
+            tax_rate=iva,
+            tax_amount=round(amount * iva / 100, 2),
+            total=round(amount * (1 + iva / 100), 2),
+            currency=moneda,
             status="draft",
             notes=f"Factura por milestone: {m.name}",
             created_by=current_user.id,

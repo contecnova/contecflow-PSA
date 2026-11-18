@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy.exc import OperationalError
 from typing import Optional
 from app.core.config import settings
+from app.services.settings_service.por_empresa import iva_de_empresa, moneda_de_empresa
 from app.models.user import User
 from app.models.imputation import Imputation
 from app.models.billing_reports import Invoice, InvoiceLine
@@ -64,7 +65,7 @@ def crear_enlace_de_pago(db: Session, invoice_id: str) -> dict:
             invoice_id=invoice.id,
             invoice_number=invoice.number,
             amount=invoice.total or 0,
-            currency=invoice.currency or settings.DEFAULT_CURRENCY,
+            currency=invoice.currency or moneda_de_empresa(db, registro=invoice),  # 18-11-2026: la de su empresa
             success_url=f"{settings.FRONTEND_URL}/invoices/{invoice.id}?paid=1",
             cancel_url=f"{settings.FRONTEND_URL}/invoices/{invoice.id}?canceled=1",
             customer_email=invoice.client_email,
@@ -164,12 +165,17 @@ def create_invoice(payload, current_user: User, db: Session) -> dict:
     for l in payload.lines:
         l["amount"] = importe_de_linea(l)
     subtotal = sum(l.get("amount", 0) for l in payload.lines)
-    tax_amount = round(subtotal * payload.tax_rate / 100, 2)
+    org_id = (getattr(current_user, "organization_id", None) if not getattr(current_user, "is_superadmin", False) else getattr(project, "organization_id", None))
+    # 18-11-2026: sin IVA ni moneda en la petición, los de la empresa de la factura
+    # (antes el esquema ponía `settings.DEFAULT_TAX_RATE`/`DEFAULT_CURRENCY` globales).
+    tax_rate = payload.tax_rate if payload.tax_rate is not None else iva_de_empresa(db, org_id)
+    currency = payload.currency or getattr(project, "currency", None) or moneda_de_empresa(db, org_id)
+    tax_amount = round(subtotal * tax_rate / 100, 2)
     total = round(subtotal + tax_amount, 2)
 
     inv = Invoice(
         number=next_invoice_number(db),
-        organization_id=(getattr(current_user, "organization_id", None) if not getattr(current_user, "is_superadmin", False) else getattr(project, "organization_id", None)),
+        organization_id=org_id,
         project_id=payload.project_id,
         contract_id=payload.contract_id,
         client_name=client_name,
@@ -178,11 +184,11 @@ def create_invoice(payload, current_user: User, db: Session) -> dict:
         client_email=payload.client_email,
         issue_date=payload.issue_date,
         due_date=payload.due_date,
-        tax_rate=payload.tax_rate,
+        tax_rate=tax_rate,
         tax_amount=tax_amount,
         subtotal=round(subtotal, 2),
         total=total,
-        currency=payload.currency,
+        currency=currency,
         notes=payload.notes,
         po_reference=payload.po_reference,
         period_from=payload.period_from,
@@ -443,9 +449,8 @@ def get_invoice_summary(db: Session) -> dict:
     cada factura. Ahora cada una se convierte con el tipo de su fecha de emisión;
     la que no tiene tipo de cambio no se suma y se dice aparte, por moneda.
     """
-    from app.services.settings_service import get_runtime_str
     org_id = _tenant_org_id(db)
-    base = (get_runtime_str(db, "DEFAULT_CURRENCY", org_id) or settings.DEFAULT_CURRENCY).upper()
+    base = moneda_de_empresa(db, org_id)
     invoices = _scope_invoice_query(db).all()
     hoy = timeutil.today()
     by_status: dict = {}

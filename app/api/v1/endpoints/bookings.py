@@ -177,7 +177,9 @@ def list_api_keys(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    is_superadmin = getattr(current_user, "role", "") in ("superadmin", "admin")
+    # 18-11-2026: solo el superadmin real (flag) ve las claves de todos; antes el
+    # rol `admin` contaba como superadmin y un admin de empresa veía las ajenas.
+    is_superadmin = bool(getattr(current_user, "is_superadmin", False))
     items = svc.list_api_keys_records(current_user.id, is_superadmin, db)
     return APIListResponse.ok(items=items, page=page, page_size=page_size)
 

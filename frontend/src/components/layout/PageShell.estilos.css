@@ -8,3 +8,8 @@
   padding-bottom: calc(var(--page-pad-y) / 2);
 }
 /* <<< estilos-en-linea */
+
+/* 18-11-2026: página montada dentro de Configuración (ver incrustacion.ts). */
+.page-shell--incrustada {
+  min-width: 0;
+}

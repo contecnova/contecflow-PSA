@@ -87,8 +87,8 @@ def _usuario_unico(db: Session, nombre: str, codigo: str) -> str:
 
 def crear_usuario(db: Session, sub, datos: dict, actor, con_acceso: bool):
     """Crea el `User` del externo. Devuelve (user, contrasena temporal o None)."""
-    from app.core.config import settings
     from app.core.security import get_password_hash
+    from app.services.settings_service import por_empresa as _pe
     from app.models.user import User, UserRole, UserStatus
     username = _usuario_unico(db, datos["name"], sub.code)
     email = datos.get("email")
@@ -100,7 +100,8 @@ def crear_usuario(db: Session, sub, datos: dict, actor, con_acceso: bool):
         username=username, email=email, full_name=datos["name"], first_name=partes[0],
         last_name=partes[1] if len(partes) > 1 else None, job_title=datos.get("role"),
         department=sub.name, role=UserRole.subcontractor, status=UserStatus.active,
-        weekly_capacity_hours=datos.get("weekly_capacity_hours") or settings.DEFAULT_WEEKLY_CAPACITY_HOURS,
+        # 18-11-2026: sin horas, la capacidad semanal de la empresa del externo.
+        weekly_capacity_hours=datos.get("weekly_capacity_hours") or _pe.capacidad_semanal_de_empresa(db, registro=sub),
         hourly_rate=datos.get("cost_rate"), currency=datos.get("currency") or sub.currency,
         phone=datos.get("phone"), is_active=True, organization_id=actor.organization_id,
         manager_id=datos.get("internal_owner_id"),

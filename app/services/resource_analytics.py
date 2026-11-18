@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, func
 import logging
 
+from app.services.settings_service.por_empresa import capacidad_semanal, jornada_de_empresa
 from app.models.user import User
 from app.models.project import Project, ProjectMember
 from app.models.financial import CapacityPlan
@@ -17,7 +18,6 @@ from app.models.resources import (
 from app.models.bookings import ResourceBooking
 from datetime import timezone
 from sqlalchemy import func as sqlfunc
-from app.core.config import settings
 from sqlalchemy import case as sa_case
 from app.core import timeutil
 from app.core.errores import ErrorDeDominio
@@ -87,7 +87,7 @@ class ResourceAnalyticsService:
         if not user:
             return None
 
-        capacity_hours = user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
+        capacity_hours = capacidad_semanal(db, user)
 
         # Get from snapshot if available
         snapshot = db.query(ResourceUtilizationSnapshot).filter(
@@ -475,7 +475,7 @@ def get_user_week_hours(db: Session, user_id: str, week_start: date) -> dict:
         overlap_end = min(b.end_date, week_end)
         days = max(0, (overlap_end - overlap_start).days + 1)
         work_days = sum(1 for i in range(days) if (overlap_start + timedelta(days=i)) in trabaja)
-        h = work_days * (b.hours_per_day or settings.DEFAULT_WORKING_HOURS_PER_DAY)
+        h = work_days * (b.hours_per_day or jornada_de_empresa(db, registro=b))  # 18-11-2026: por empresa
         # Revisión 2026-11: una reserva `soft` (tentativa) se enseña aparte y no
         # ocupa capacidad; antes contaba igual que una firme.
         if str(getattr(b.booking_type, "value", b.booking_type)) == "soft":

@@ -10,6 +10,7 @@ from datetime import date, datetime
 from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
+from app.services.settings_service import por_empresa as _pe
 from app.core.config import settings
 from app.models.advanced_config import UserVacationBalance
 from app.models.advanced_config import RateTable
@@ -99,7 +100,7 @@ def list_rate_tables(db: Session) -> list:
                 {
                     "id": e.id, "label": e.label, "cost_rate": e.cost_rate,
                     "billing_rate": e.billing_rate,
-                    "currency": getattr(e, "currency", settings.DEFAULT_CURRENCY),
+                    "currency": getattr(e, "currency", None) or _pe.moneda_de_empresa(db, registro=t),  # 18-11-2026
                 }
                 for e in (t.entries or []) if getattr(e, "is_active", True)
             ],
@@ -119,6 +120,8 @@ def create_rate_table(data: dict, db: Session) -> dict:
 
 
 def add_rate_entry(table_id: str, data: dict, db: Session) -> dict:
+    # 18-11-2026: sin moneda, la de la empresa (antes el esquema ponía la global).
+    data = {**data, "currency": data.get("currency") or _pe.moneda_de_empresa(db)}
     e = RateEntry(table_id=table_id, **data)
     db.add(e)
     db.commit()
@@ -134,6 +137,8 @@ def update_rate_entry(table_id: str, entry_id: str, data: dict, db: Session) -> 
     ).first()
     if not e:
         raise NotFoundError("No encontrado")
+    if not data.get("currency"):
+        data = {**data, "currency": e.currency or _pe.moneda_de_empresa(db, registro=e)}
     for k, v in data.items():
         setattr(e, k, v)
     db.commit()
@@ -222,6 +227,8 @@ def list_offices(db: Session) -> list:
 
 
 def create_office(data: dict, db: Session) -> dict:
+    # 18-11-2026: sin zona, la de la empresa (antes el esquema ponía la global).
+    data = {**data, "timezone": data.get("timezone") or _pe.zona_de_empresa(db)}
     o = Office(**data)
     db.add(o)
     db.commit()
@@ -233,6 +240,8 @@ def update_office(office_id: str, data: dict, db: Session) -> dict:
     o = db.query(Office).filter(Office.id == office_id).first()
     if not o:
         raise NotFoundError("No encontrado")
+    if not data.get("timezone"):
+        data = {**data, "timezone": o.timezone or _pe.zona_de_empresa(db, registro=o)}
     for k, v in data.items():
         setattr(o, k, v)
     db.commit()

@@ -363,8 +363,9 @@ class InvoiceCreate(BaseModel):
     client_email: Optional[str] = Field(default=None, description="Email de contacto del cliente")
     issue_date: date = Field(..., description="Fecha de emisión de la factura")
     due_date: Optional[date] = Field(default=None, description="Fecha de vencimiento de la factura")
-    tax_rate: float = Field(default=settings.DEFAULT_TAX_RATE, description="Tipo impositivo aplicado")
-    currency: str = Field(default=settings.DEFAULT_CURRENCY, description="Moneda de la factura")
+    # 18-11-2026: sin valor, el servicio pone el IVA y la moneda de la empresa (antes, los globales del entorno).
+    tax_rate: Optional[float] = Field(default=None, description="Tipo impositivo aplicado; sin él, el de la empresa")
+    currency: Optional[str] = Field(default=None, description="Moneda de la factura; sin ella, la del proyecto o la de la empresa")
     notes: Optional[str] = Field(default=None, description="Notas internas de la factura")
     po_reference: Optional[str] = Field(default=None, description="Referencia de la orden de compra del cliente")
     period_from: Optional[date] = Field(default=None, description="Inicio del periodo facturado")

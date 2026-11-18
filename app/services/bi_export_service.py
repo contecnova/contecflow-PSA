@@ -29,11 +29,16 @@ def _utcnow() -> str:
     return datetime.now(tz=timezone.utc).isoformat()
 
 
-def _texto_del_periodo(periodo=None, period_days: int | None = None) -> str:
-    """«dd/mm/aaaa – dd/mm/aaaa» del periodo pedido (o «últimos N días», legado)."""
+def _texto_del_periodo(periodo=None, period_days: int | None = None, idioma: str | None = None) -> str:
+    """«desde – hasta» del periodo pedido (o «últimos N días», legado).
+
+    18-11-2026: fechas en el formato de `idioma` (antes `%d/%m/%Y` fijo).
+    """
+    from app.services.formato_regional import formatear_fecha
+    from app.services.textos_de_salida import texto
     if periodo is not None:
-        return f"{periodo.fecha_desde:%d/%m/%Y} – {periodo.fecha_hasta:%d/%m/%Y}"
-    return f"últimos {period_days or 180} días"
+        return f"{formatear_fecha(periodo.fecha_desde, idioma)} – {formatear_fecha(periodo.fecha_hasta, idioma)}"
+    return texto("bi.ultimos_dias", idioma, n=period_days or 180)
 
 
 def _periodo_de_dias(period_days: int):
@@ -261,7 +266,8 @@ def export_dashboard_excel(
 
     if periodo is not None:
         period_days = periodo.dias_enteros
-    texto_periodo = _texto_del_periodo(periodo, period_days)
+    from app.services.formato_regional import idioma_de_salida
+    texto_periodo = _texto_del_periodo(periodo, period_days, idioma_de_salida(db, org_id=org_id))
     data = _get_kpi_data(db, org_id, period_days, periodo=periodo)
     labels = data.get("labels", [])
     revenue = data.get("revenue", [])
@@ -313,7 +319,8 @@ def export_dashboard_pptx(
 
     if periodo is not None:
         period_days = periodo.dias_enteros
-    texto_periodo = _texto_del_periodo(periodo, period_days)
+    from app.services.formato_regional import idioma_de_salida
+    texto_periodo = _texto_del_periodo(periodo, period_days, idioma_de_salida(db, org_id=org_id))
     data = _get_kpi_data(db, org_id, period_days, periodo=periodo)
     labels = data.get("labels", [])
     revenue = data.get("revenue", [])

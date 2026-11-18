@@ -3,6 +3,10 @@
 Toma el resultado de `aggregate_campaign(...)` y produce un PDF formateado
 con resumen, comparativa por pregunta y comentarios cualitativos respetando
 el umbral de anonimización.
+
+18-11-2026 (auditoria de textos fijos): en `idioma` (el de quien lo exporta;
+castellano por defecto) con textos de `textos_de_salida` (`camp.*`), fecha en
+el formato del idioma y hora en la zona de la empresa (`generado_el`).
 """
 from __future__ import annotations
 import io
@@ -12,6 +16,7 @@ from datetime import datetime
 from reportlab.lib import colors
 
 from app.services._pdf_marca import PALETA_POR_DEFECTO
+from app.services.textos_de_salida import texto
 
 logger = logging.getLogger(__name__)
 from reportlab.lib.pagesizes import A4
@@ -57,10 +62,10 @@ def _colores(paleta):
 #: Los cuatro grupos de evaluadores de una 360, con su etiqueta. El orden es el
 #: del informe y no es alfabético: va de dentro afuera.
 _GRUPOS_360 = (
-    ("self", "Self"),
-    ("manager", "Manager"),
-    ("peer", "Pares"),
-    ("upward", "Upward"),
+    ("self", "camp.grupo.self"),
+    ("manager", "camp.grupo.manager"),
+    ("peer", "camp.grupo.peer"),
+    ("upward", "camp.grupo.upward"),
 )
 
 
@@ -81,7 +86,7 @@ def _estilo_de_tabla(HEADER_BG, ROW_ALT, TEXT_GREY, tamano: int) -> TableStyle:
     ])
 
 
-def _lectura_de_la_brecha(propia, ajenas: list) -> str:
+def _lectura_de_la_brecha(propia, ajenas: list, idioma=None) -> str:
     """Qué dice la diferencia entre la autoevaluación y la del resto.
 
     Un punto de diferencia es el corte, y tiene sentido en una escala de 1 a 5:
@@ -95,20 +100,21 @@ def _lectura_de_la_brecha(propia, ajenas: list) -> str:
         return "—"
     diferencia = propia - sum(ajenas) / len(ajenas)
     if diferencia >= 1:
-        return "Punto ciego"
+        return texto("camp.punto_ciego", idioma)
     if diferencia <= -1:
-        return "Fortaleza no percibida"
-    return "Alineado"
+        return texto("camp.fortaleza_oculta", idioma)
+    return texto("camp.alineado", idioma)
 
 
-def _tabla_de_grupos(groups: dict, colores_) -> Table:
+def _tabla_de_grupos(groups: dict, colores_, idioma=None) -> Table:
     """Cuántas respuestas ha dado cada grupo y si va anonimizado."""
     HEADER_BG, ROW_ALT, TEXT_GREY = colores_
-    filas = [["Grupo", "Respuestas", "Anonimizado"]]
+    filas = [[texto("camp.grupo", idioma), texto("camp.respuestas", idioma), texto("camp.anonimizado", idioma)]]
     for clave, etiqueta in _GRUPOS_360:
         g = groups.get(clave) or {}
         filas.append([
-            etiqueta, str(g.get("count", 0)), "Sí" if g.get("anonymized") else "No",
+            texto(etiqueta, idioma), str(g.get("count", 0)),
+            texto("camp.si" if g.get("anonymized") else "camp.no", idioma),
         ])
     t = Table(filas, colWidths=[6 * cm, 4 * cm, 4 * cm])
     estilo = _estilo_de_tabla(HEADER_BG, ROW_ALT, TEXT_GREY, 9)
@@ -119,10 +125,11 @@ def _tabla_de_grupos(groups: dict, colores_) -> Table:
     return t
 
 
-def _tabla_de_comparativa(rating_qs, comparacion: dict, style_body, colores_) -> Table:
+def _tabla_de_comparativa(rating_qs, comparacion: dict, style_body, colores_, idioma=None) -> Table:
     """Puntuación por pregunta y grupo, con la lectura de la brecha."""
     HEADER_BG, ROW_ALT, TEXT_GREY = colores_
-    filas = [["Pregunta", "Self", "Manager", "Pares", "Upward", "Insight"]]
+    filas = [[texto("camp.pregunta", idioma), *[texto(e, idioma) for _, e in _GRUPOS_360],
+              texto("camp.lectura", idioma)]]
     for q in rating_qs:
         c = comparacion.get(q["key"], {})
         propia = c.get("self")
@@ -131,7 +138,7 @@ def _tabla_de_comparativa(rating_qs, comparacion: dict, style_body, colores_) ->
             Paragraph(q["label"], style_body),
             f"{propia:.1f}" if propia is not None else "—",
             *[f"{v:.1f}" if v is not None else "—" for v in ajenas],
-            _lectura_de_la_brecha(propia, [v for v in ajenas if v is not None]),
+            _lectura_de_la_brecha(propia, [v for v in ajenas if v is not None], idioma),
         ])
     t = Table(filas, colWidths=[6 * cm, 1.5 * cm, 1.8 * cm, 1.5 * cm, 1.8 * cm, 4.5 * cm])
     estilo = _estilo_de_tabla(HEADER_BG, ROW_ALT, TEXT_GREY, 8)
@@ -141,18 +148,19 @@ def _tabla_de_comparativa(rating_qs, comparacion: dict, style_body, colores_) ->
 
 
 def _bloque_de_comentarios(text_qs, groups: dict, threshold: int,
-                           style_h2, style_body, style_meta, style_quote) -> list:
+                           style_h2, style_body, style_meta, style_quote, idioma=None) -> list:
     """Los comentarios abiertos, respetando la anonimización.
 
     Un grupo anonimizado **se nombra igual**, con su motivo: esconder que
     existe haría pensar que nadie de ese grupo respondió, que es una conclusión
     distinta y falsa.
     """
-    elementos = [PageBreak(), Paragraph("Comentarios cualitativos", style_h2)]
+    elementos = [PageBreak(), Paragraph(texto("camp.comentarios", idioma), style_h2)]
     for q in text_qs:
         elementos.append(Paragraph(f"<b>{q['label']}</b>", style_body))
         elementos.append(Spacer(1, 4))
-        for clave, etiqueta in _GRUPOS_360:
+        for clave, clave_etiqueta in _GRUPOS_360:
+            etiqueta = texto(clave_etiqueta, idioma)
             g = groups.get(clave) or {}
             anonimizado = g.get("anonymized", False)
             textos = (g.get("text_by_question", {}) or {}).get(q["key"], [])
@@ -160,8 +168,7 @@ def _bloque_de_comentarios(text_qs, groups: dict, threshold: int,
                 continue
             if anonimizado:
                 elementos.append(Paragraph(
-                    f"<i>{etiqueta}: oculto por anonimización "
-                    f"(n={g.get('count', 0)} &lt; {threshold})</i>",
+                    f"<i>{texto('camp.oculto', idioma, grupo=etiqueta, n=g.get('count', 0), umbral=threshold)}</i>",
                     style_meta,
                 ))
                 continue
@@ -173,8 +180,14 @@ def _bloque_de_comentarios(text_qs, groups: dict, threshold: int,
     return elementos
 
 
-def generate_campaign_pdf(dashboard: dict, paleta=None) -> bytes:
-    """Recibe el dict producido por `aggregate_campaign` y genera el PDF."""
+def generate_campaign_pdf(dashboard: dict, paleta=None, idioma=None, generado_el=None) -> bytes:
+    """Recibe el dict producido por `aggregate_campaign` y genera el PDF.
+
+    `idioma` y `generado_el` (hora ya en la zona de la empresa) los resuelve
+    quien llama; sin ellos, castellano y la hora del servidor.
+    """
+    from app.services.formato_regional import formatear_fecha
+    generado_el = generado_el or formatear_fecha(datetime.now(), idioma, con_hora=True)
     ACCENT, TEXT_MAIN, TEXT_GREY, HEADER_BG, ROW_ALT = _colores(paleta)
     colores_ = (HEADER_BG, ROW_ALT, TEXT_GREY)
 
@@ -184,7 +197,7 @@ def generate_campaign_pdf(dashboard: dict, paleta=None) -> bytes:
         buffer, pagesize=A4,
         leftMargin=2 * cm, rightMargin=2 * cm,
         topMargin=2 * cm, bottomMargin=2 * cm,
-        title=f"Evaluación 360° — {camp.get('subject_name', '')}",
+        title=texto("camp.titulo", idioma, persona=camp.get('subject_name', '')),
     )
 
     styles = getSampleStyleSheet()
@@ -207,39 +220,37 @@ def generate_campaign_pdf(dashboard: dict, paleta=None) -> bytes:
     threshold = dashboard.get("anonymity_threshold", 3)
 
     elements = [
-        Paragraph(f"Evaluación 360° — {camp.get('subject_name', '')}", style_title),
+        Paragraph(texto("camp.titulo", idioma, persona=camp.get('subject_name', '')), style_title),
         Paragraph(
-            f"Generado el {datetime.now().strftime('%Y-%m-%d %H:%M')}<br/>"
-            f"Estado: <b>{camp.get('status')}</b> · "
-            f"Respuestas: <b>{dashboard['total_submitted']}/{dashboard['total_assigned']}</b> · "
-            f"Umbral de anonimización: <b>{threshold}</b>",
+            f"{texto('pdf.generado_el', idioma, cuando=generado_el)}<br/>"
+            f"{texto('informe.col.estado', idioma)}: <b>{camp.get('status')}</b> · "
+            f"{texto('camp.respuestas', idioma)}: "
+            f"<b>{dashboard['total_submitted']}/{dashboard['total_assigned']}</b> · "
+            f"{texto('camp.umbral', idioma)}: <b>{threshold}</b>",
             style_meta,
         ),
         HRFlowable(width="100%", color=ACCENT, thickness=1.5, spaceBefore=8, spaceAfter=12),
-        Paragraph("Resumen por grupo de evaluadores", style_h2),
-        _tabla_de_grupos(groups, colores_),
+        Paragraph(texto("camp.resumen_grupos", idioma), style_h2),
+        _tabla_de_grupos(groups, colores_, idioma),
     ]
 
     rating_qs = [q for q in questions if _is_rating(q["kind"])]
     if rating_qs:
-        elements.append(Paragraph("Comparativa por pregunta", style_h2))
+        elements.append(Paragraph(texto("camp.comparativa", idioma), style_h2))
         elements.append(_tabla_de_comparativa(
-            rating_qs, dashboard.get("comparison", {}), style_body, colores_,
+            rating_qs, dashboard.get("comparison", {}), style_body, colores_, idioma,
         ))
 
     text_qs = [q for q in questions if not _is_rating(q["kind"])]
     if text_qs:
         elements += _bloque_de_comentarios(
-            text_qs, groups, threshold, style_h2, style_body, style_meta, style_quote,
+            text_qs, groups, threshold, style_h2, style_body, style_meta, style_quote, idioma,
         )
 
     elements += [
         Spacer(1, 12),
         HRFlowable(width="100%", color=TEXT_GREY, thickness=0.5),
-        Paragraph(
-            "Documento confidencial — solo para el subject, su manager y RR.HH.",
-            style_meta,
-        ),
+        Paragraph(texto("camp.confidencial", idioma), style_meta),
     ]
 
     doc.build(elements)

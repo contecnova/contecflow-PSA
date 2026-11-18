@@ -23,7 +23,16 @@ from app.core.deps import get_current_user, require_admin
 from app.core.ratelimit import limiter
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
-from app.models.user import User
+from app.models.user import User, UserRole
+
+
+def _es_admin(usuario) -> bool:
+    """Admin de la empresa o superadmin (flag `is_superadmin`).
+
+    18-11-2026: antes se comparaba `role` con `"superadmin"`, que no es un rol
+    (`UserRole` no lo tiene): el superadmin con otro rol quedaba fuera.
+    """
+    return bool(getattr(usuario, "is_superadmin", False)) or getattr(usuario, "role", None) == UserRole.admin
 from app.services import bi_gdpr_service as svc
 
 import logging
@@ -220,7 +229,7 @@ def resolve_dsr_compat(
     # Completing a DSR here triggers the same irreversible erasure pipeline as
     # the dedicated /erasure-execute endpoint, so it must carry the same admin
     # gate — otherwise any authenticated user could force a physical anonymise.
-    if body.status == "completed" and getattr(current_user, "role", None) not in ("admin", "superadmin"):
+    if body.status == "completed" and not _es_admin(current_user):
         raise HTTPException(status_code=403, detail="Admin role required to execute GDPR erasure")
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -249,7 +258,7 @@ def execute_erasure(
     DSR must exist and be of type 'erasure'. Automatically resolves the DSR after execution.
     Requires admin role.
     """
-    if getattr(current_user, "role", None) not in ("admin", "superadmin"):
+    if not _es_admin(current_user):
         raise HTTPException(status_code=403, detail="Admin role required for erasure execution")
     org_id = getattr(current_user, "organization_id", None)
     try:
@@ -298,7 +307,7 @@ def portability_export(
     if dsr["request_type"] != "portability":
         raise HTTPException(status_code=422, detail="DSR is not a portability request")
     # Allow admin or the subject themselves
-    is_admin = getattr(current_user, "role", None) in ("admin", "superadmin")
+    is_admin = _es_admin(current_user)
     is_subject = str(current_user.id) == dsr["subject_id"]
     if not is_admin and not is_subject:
         raise HTTPException(status_code=403, detail="Access denied")

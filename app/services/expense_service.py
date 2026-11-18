@@ -15,14 +15,13 @@ from typing import Optional
 from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
+from app.services.settings_service import por_empresa as _pe
 from app.models.user import User
 from app.models.expenses import Expense, ExpenseStatus
 from app.services.gastos_avanzados import CATEGORY_LABELS, del_proyecto
 from app.models.project import Project
 from app.models.project import ProjectStatus
 from app.models.user import User as UserModel
-from app.models.user import UserRole
 from app.services.audit import audit_log
 from app.core.errores import ErrorDeDominio
 from app.core.paginacion import Pagina, Paginacion, paginar
@@ -182,7 +181,7 @@ def export_expenses_excel(
             _CATEGORY_LABELS.get(e.category, e.category or ""),
             e.description or "",
             e.amount or 0,
-            e.currency or settings.DEFAULT_CURRENCY,
+            e.currency or _pe.moneda_de_empresa(db, registro=e),
             e.project.name if hasattr(e, "project") and e.project else "",
             _STATUS_LABELS.get(str(e.status).replace("ExpenseStatus.", ""), str(e.status)),
             "Sí" if e.is_billable else "No",
@@ -222,12 +221,16 @@ def ocr_receipt(db: Session, usuario, image_bytes: bytes, content_type: str) -> 
     from app.services.ai_provider_service import call_ai, es_aviso_de_ia
 
     categorias = "|".join(c.value for c in ExpenseCategory)
+    # 18-11-2026: la descripción en el idioma del usuario (antes, castellano fijo).
+    from app.services.formato_regional import idioma_de_salida, nombre_del_idioma
+    _nombre_idioma = nombre_del_idioma(idioma_de_salida(
+        db, user_id=getattr(usuario, "id", None), org_id=getattr(usuario, "organization_id", None)))
     sistema = (
         "Eres un asistente experto en contabilidad. Analiza la imagen de un recibo o factura y extrae "
         "los datos estructurados. Responde SOLO con un JSON válido sin markdown, con las claves: "
         "amount (número), currency (ISO 4217 de 3 letras), merchant (nombre del comercio o emisor), "
         f"date (YYYY-MM-DD), category (una de: {categorias}), "
-        "description (descripción breve en español de máximo 80 caracteres). "
+        f"description (descripción breve en {_nombre_idioma} de máximo 80 caracteres). "
         "Si no puedes leer un campo devuelve null para ese campo."
     )
     mensaje = {"role": "user", "content": "Por favor extrae los datos de este recibo.",
@@ -253,7 +256,7 @@ def ocr_receipt(db: Session, usuario, image_bytes: bytes, content_type: str) -> 
     categoria = extraido.get("category")
     return {
         "amount": extraido.get("amount"),
-        "currency": extraido.get("currency") or settings.DEFAULT_CURRENCY,
+        "currency": extraido.get("currency") or _pe.moneda_de_empresa(db, registro=usuario),
         "merchant": extraido.get("merchant"),
         "date": extraido.get("date"),
         "category": categoria if categoria in {c.value for c in ExpenseCategory} else ExpenseCategory.other.value,
@@ -367,7 +370,12 @@ def list_all_expenses(
 ):
 
     q = db.query(Expense).filter(Expense.is_active == True)  # audit #36 soft-delete
-    if current_user.role not in (UserRole.admin, UserRole.pm, UserRole.hr):
+    # 18-11-2026: quién ve los gastos de todos es el mismo criterio que en la ficha y
+    # los justificantes (`gastos_avanzados.es_gestor`: ajuste por empresa
+    # `EXPENSE_MANAGER_ROLES`). Antes aquí era admin/pm/hr fijo: RR. HH. veía la
+    # lista de todos pero no podía abrir ninguno.
+    from app.services.gastos_avanzados import es_gestor
+    if not (getattr(current_user, "is_superadmin", False) or es_gestor(db, current_user)):
         q = q.filter(Expense.user_id == current_user.id)
     elif not current_user.is_superadmin and current_user.organization_id:
         org_user_ids = db.query(UserModel.id).filter(

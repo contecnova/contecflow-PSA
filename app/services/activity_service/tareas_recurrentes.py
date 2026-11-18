@@ -160,12 +160,19 @@ def _siguiente_codigo_de_tarea(session) -> str:
     return f"TSK-{n:05d}"
 
 
+def _fecha_de_titulo(db: Session, rt, dia, current_user: User) -> str:
+    from app.services.formato_regional import formatear_fecha, idioma_de_salida
+    org = getattr(rt, "organization_id", None) or getattr(current_user, "organization_id", None)
+    return formatear_fecha(dia, idioma_de_salida(db, org_id=org))
+
+
 def _tarea_de_la_recurrencia(db: Session, rt, dia, current_user: User) -> None:
     """Crea la tarea de una ocurrencia y apunta la fecha en la recurrencia."""
     tarea = TaskModel(
         code=_siguiente_codigo_de_tarea(db),
         project_id=rt.project_id,
-        title=f"{rt.title} [{dia.strftime('%d/%m/%Y')}]",
+        # 18-11-2026: la fecha en el formato del idioma de la empresa (antes `%d/%m/%Y` fijo).
+        title=f"{rt.title} [{_fecha_de_titulo(db, rt, dia, current_user)}]",
         description=rt.description,
         priority=rt.priority,
         assignee_id=rt.assignee_id,

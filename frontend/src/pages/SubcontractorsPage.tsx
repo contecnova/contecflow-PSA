@@ -9,7 +9,7 @@
  * tarjetas y botones (📧👥✏🗑🏆🎉) cambiados por iconos lucide; estados con
  * StatusBadge y botones del kit.
  */
-import { useState, useId } from 'react'
+import { useState, useId, useEffect } from 'react'
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { extractErr, fmtDate, fmtHours, fmtNumber } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
@@ -29,6 +29,7 @@ import StatusBadge from '../components/ui/StatusBadge'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import { useAppT } from '../i18n/AppLangContext'
 import { useOrgSettings } from '../hooks/useOrgSettings'
+import { redondear2 } from '../utils/redondeo'
 import { STALE_5_MIN_MS } from '../constants/timings'
 import DateInput from '../components/ui/DateInput'
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
@@ -61,9 +62,9 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
   const idCampo = useId()
   const toast = useToast()
   const qc = useQueryClient()
-  const { currency: defaultCurrency } = useOrgSettings()
+  const { currency: defaultCurrency, weekly_capacity_hours: capacidadEmpresa } = useOrgSettings()
   const isEdit = !!worker
-  const [form, setForm] = useState<FormDeExterno>(() => formularioDeExternoInicial(worker, defaultCurrency))
+  const [form, setForm] = useState<FormDeExterno>(() => formularioDeExternoInicial(worker, defaultCurrency, capacidadEmpresa))
   const [skillForm, setSkillForm] = useState({ skill_id: '', level: 'intermediate', years_experience: '', certified: false, cert_name: '' })
   const [showSkillForm, setShowSkillForm] = useState(false)
 
@@ -321,6 +322,7 @@ function WorkersPanel({ subId }: { subId: string }) {
 }
 function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
   const fmtMoneda = useFormatoMoneda()
+  const { tax_rate: ivaEmpresa } = useOrgSettings()
   const idCampo = useId()
   const toast = useToast()
   const qc = useQueryClient()
@@ -330,7 +332,9 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
   const [showInvoice, setShowInvoice] = useState(false)
   const [showAssign, setShowAssign] = useState(false)
   const [tlForm, setTlForm] = useState({ worker_id: '', assignment_id: '', log_date: new Date().toISOString().slice(0,10), hours: 8, description: '', task_reference: '' })
-  const [invForm, setInvForm] = useState({ invoice_number: '', issue_date: new Date().toISOString().slice(0,10), due_date: '', amount: '', tax_pct: 21, description: '' })
+  const [invForm, setInvForm] = useState({ invoice_number: '', issue_date: new Date().toISOString().slice(0,10), due_date: '', amount: '', tax_pct: ivaEmpresa, description: '' }) // 18-11-2026: IVA por defecto de la empresa; total = round(amount*(1+iva/100), 2) como el backend
+  const [ivaSubTocado, setIvaSubTocado] = useState(false)
+  useEffect(() => { if (!ivaSubTocado) setInvForm(f => ({ ...f, tax_pct: ivaEmpresa })) }, [ivaEmpresa, ivaSubTocado])
   const [asgForm, setAsgForm] = useState({ project_id: '', worker_id: '', rate_id: '', member_role: '', allocation_pct: '', po_number: '', po_amount: '', hours_contracted: '', start_date: '', end_date: '', notes: '' })
 
   const { data: assignments = [] } = useQuery<SubAsignacion[]>({
@@ -720,11 +724,11 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
             </div>
             <div>
               <label id={`${idCampo}-6-et`} htmlFor={`${idCampo}-6`} className="sub-label">{t('subcontractors.iva_pct')}</label>
-              <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-6-et`} type="number" value={invForm.tax_pct} onChange={e => setInvForm(f=>({...f,tax_pct:+e.target.value}))} className="sub-input" min="0" max="30" />
+              <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-6-et`} type="number" value={invForm.tax_pct} onChange={e => { setIvaSubTocado(true); setInvForm(f=>({...f,tax_pct:+e.target.value})) }} className="sub-input" min="0" max="30" />
             </div>
             {invForm.amount && (
               <div className="sub-total-box">
-                {t('subcontractors.total_con_iva')} <strong>{fmtMoneda(+invForm.amount * (1 + invForm.tax_pct/100))}</strong>
+                {t('subcontractors.total_con_iva')} <strong>{fmtMoneda(redondear2(+invForm.amount * (1 + invForm.tax_pct/100)))}</strong>
               </div>
             )}
             <div className="u-col-full">

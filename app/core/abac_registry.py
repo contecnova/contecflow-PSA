@@ -67,6 +67,7 @@ ABAC_COVERED_PREFIXES: dict[str, tuple[str, str]] = {
     "/api/v1/resource-demand":       ("resource",         "read"),
     "/api/v1/capacity":              ("capacity",         "read"),
     "/api/v1/absences":              ("absence",          "read"),
+    "/api/v1/overtime":              ("overtime",         "read"),   # horas extra (rev. 184)
     "/api/v1/skills":                ("skill",            "read"),
     "/api/v1/training":              ("training",         "read"),
     "/api/v1/performance":           ("performance_review", "read"),
@@ -224,7 +225,6 @@ ABAC_EXEMPT_PREFIXES: dict[str, str] = {
     "/api/v1/ws":              "WebSocket, autenticado por ticket en el handshake",
 
     # Metadatos y stubs: no hay recurso de negocio que gobernar.
-    "/api/v1/ui":              "etiquetas de UI",
     "/api/v1/translations":    "catálogo i18n",
     "/api/v1/labels":          "stub 501",
     # /api/v1/docs, /api/v1/redoc y /api/v1/openapi.json se retiraron de esta

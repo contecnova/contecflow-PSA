@@ -14,8 +14,8 @@ from app.core import timeutil
 import json
 from datetime import date, datetime, timedelta, timezone
 from sqlalchemy.orm import Session
-from app.core.config import settings
-from app.services.settings_service import get_runtime_float, get_runtime_str
+from app.services.settings_service import get_runtime_str
+from app.services.settings_service.por_empresa import capacidad_semanal_de_empresa, jornada_de_empresa
 from app.models.user import User
 from app.models.mfa import (
     ScenarioModel, ScenarioProject,
@@ -40,7 +40,7 @@ def compute_scenario(scenario_id: str, db: Session) -> dict:
     # todos los activos —admin y RR. HH. incluidos— a la capacidad por defecto.
     org = scenario.organization_id
     roles = [r.strip() for r in (get_runtime_str(db, "SCENARIO_CAPACITY_ROLES", org) or "").split(",") if r.strip()]
-    por_defecto = get_runtime_float(db, "DEFAULT_WEEKLY_CAPACITY_HOURS", org) or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
+    por_defecto = capacidad_semanal_de_empresa(db, org)
     equipo = db.query(User).filter(User.is_active == True, User.role.in_(roles)).all() if roles else []
     active_users = len(equipo)
     weekly_capacity = round(sum((u.weekly_capacity_hours or por_defecto) for u in equipo), 1)
@@ -142,7 +142,7 @@ def _horas_reservadas_por_semana(db: Session, desde: date, hasta: date, excluir:
         ResourceBooking.start_date < hasta,
         ResourceBooking.end_date >= desde,
     ).all()
-    por_dia = settings.DEFAULT_WORKING_HOURS_PER_DAY
+    por_dia = jornada_de_empresa(db)  # 18-11-2026: la de la empresa, no la global
     semanas: dict = {}
     for r in reservas:
         if r.project_id and r.project_id in excluir:

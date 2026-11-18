@@ -11,7 +11,7 @@ from typing import Optional
 from sqlalchemy import func, case
 from sqlalchemy.orm import Session, joinedload
 
-from app.core.config import settings
+from app.services.settings_service import por_empresa as _pe
 from app.models.financial import ProjectMilestone
 from app.models.imputation import Imputation
 from app.models.bookings import ExchangeRate
@@ -312,10 +312,11 @@ def calc_project_profitability(
 ) -> dict:
     """Calculate full P&L for a project (en el rango `desde`–`hasta` si se da).
 
-    Costs are normalised to *settings.DEFAULT_CURRENCY* using the exchange rate
-    effective on the imputation date.
+    Costs are normalised to the company currency (`DEFAULT_CURRENCY` of the
+    project's organisation, 18-11-2026) using the exchange rate effective on the
+    imputation date.
     """
-    org_currency = settings.DEFAULT_CURRENCY
+    org_currency = _pe.moneda_de_empresa(db, registro=project)
     project_currency = getattr(project, "currency", org_currency) or org_currency
 
     total_hours, billable_hours, internal_cost = _totales_de_imputacion(

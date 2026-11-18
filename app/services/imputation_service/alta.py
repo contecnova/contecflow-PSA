@@ -10,7 +10,7 @@ from typing import Optional
 from sqlalchemy import func, and_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from app.core.config import settings
+from app.services.settings_service.por_empresa import capacidad_semanal
 from app.core.timeutil import today_for_user
 from app.models.user import User, UserRole
 from app.models.financial import Timesheet, TimesheetStatus
@@ -197,7 +197,7 @@ def _validar_tope_semanal(payload, current_user: User, db: Session) -> None:
             Imputation.date <= week_end,
         )
     ).scalar() or 0.0
-    weekly_capacity = current_user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
+    weekly_capacity = capacidad_semanal(db, current_user)
     # Horas extra (18-11-2026): lo aprobado amplía el tope; con control «avisar» o
     # «regularizar» el control es el de horas extra, día a día (ver horas_extra/control.py).
     from app.services.horas_extra import control as control_horas_extra

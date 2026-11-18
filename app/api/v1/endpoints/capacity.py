@@ -3,12 +3,12 @@ from sqlalchemy.orm import Session
 from typing import Optional, List
 from datetime import date, timedelta
 
+from app.services.settings_service.por_empresa import capacidad_semanal, jornada_de_empresa
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User
-from app.core.config import settings
 from app.services.psa_flows import create_capacity_plan_flow
 from app.services import capacity_service
 from app.core import timeutil
@@ -73,7 +73,7 @@ def get_capacity_overview(
             is_past = ws < today - timedelta(days=today.weekday())
             actual = actual_by_user_week.get(key, 0)
             planned = planned_by_user_week.get(key, 0)
-            capacity = user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
+            capacity = capacidad_semanal(db, user)
             hours = actual if is_past else planned
             load_pct = round((hours / capacity) * 100, 1) if capacity > 0 else 0
             weeks_data.append({
@@ -90,7 +90,7 @@ def get_capacity_overview(
             "user_name": user.full_name,
             "department": user.department,
             "role": user.role,
-            "capacity": user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS,
+            "capacity": capacidad_semanal(db, user),
             "weeks": weeks_data,
         })
 
@@ -146,7 +146,7 @@ def get_availability(
 
     result = []
     for user in users:
-        capacity = user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
+        capacity = capacidad_semanal(db, user)
         weekly_available = []
         for ws in week_list:
             planned = planned_by_user_week.get((user.id, str(ws)), 0)
@@ -220,7 +220,9 @@ def create_capacity_plan(
     week_start_val = payload.get("week_start")
     try:  # barrido final 2026-11: una fecha u horas malformadas eran 500
         week_start = date.fromisoformat(week_start_val) if week_start_val else None
-        new_hours = float(payload.get("planned_hours", 8))
+        # 18-11-2026: sin horas, la jornada de la empresa (antes 8 fijas).
+        new_hours = float(payload["planned_hours"]) if payload.get("planned_hours") is not None \
+            else jornada_de_empresa(db)
     except (TypeError, ValueError):
         raise HTTPException(status_code=400, detail="week_start (AAAA-MM-DD) o planned_hours no válidos")
 
@@ -363,7 +365,7 @@ def get_resource_leveling(
 
     for uid, usuario in usuarios.items():
         capacidad = float(
-            usuario.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS or 40
+            capacidad_semanal(db, usuario)
         )
         cargas = {w: totales.get((uid, w), 0.0) for w in semanas}
 

@@ -213,15 +213,17 @@ class SprintPlanIn(BaseModel):
     name: str
     project_id: str
     sprint_id: Optional[str] = None
-    team_capacity: int = 40
+    team_capacity: Optional[int] = None  # 18-11-2026: sin valor, la capacidad semanal de la empresa (antes 40)
     priorities: Optional[List[str]] = []
 
 
 @router.post("/sprint-plans/generate")
 def generate_sprint_plan(p: SprintPlanIn, db: Session = Depends(get_db),
                          cu: User = Depends(require_admin_or_pm)):
+    from app.services.settings_service.por_empresa import capacidad_semanal_de_empresa
+    capacidad = p.team_capacity if p.team_capacity is not None else int(capacidad_semanal_de_empresa(db))
     return APIResponse.ok(data=svc.generate_sprint_plan(
-        p.project_id, p.sprint_id, p.name, p.team_capacity, p.priorities or [], cu.id, db
+        p.project_id, p.sprint_id, p.name, capacidad, p.priorities or [], cu.id, db
     ))
 
 

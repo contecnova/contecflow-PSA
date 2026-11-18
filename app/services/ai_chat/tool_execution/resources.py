@@ -5,7 +5,7 @@ from datetime import timedelta
 
 from sqlalchemy import func
 
-from app.core.config import settings
+from app.services.settings_service.por_empresa import capacidad_semanal
 from app.models.financial import Timesheet
 from app.models.imputation import Imputation
 from app.models.project import Project
@@ -39,7 +39,7 @@ def _get_resource_availability(tool_input, db, user, now, is_financial_role):
             Imputation.user_id == u.id,
             Imputation.date >= week_start, Imputation.date <= week_end,
         ).scalar() or 0
-        cap = u.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
+        cap = capacidad_semanal(db, u)
         result.append({"id": u.id, "name": u.full_name, "role": u.role,
                        "hours_logged": round(hours, 1), "capacity": cap,
                        "utilization_pct": round(hours / cap * 100, 1) if cap else 0})

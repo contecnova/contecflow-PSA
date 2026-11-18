@@ -8,6 +8,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from sqlalchemy.orm import Session
 from app.core.config import settings
+from app.services.settings_service.por_empresa import capacidad_semanal_de_empresa
 from app.models.activity import ResourceDemandForecast
 from app.models.pipeline import Opportunity, OpportunityStage
 from app.models.project import Project
@@ -211,8 +212,10 @@ def simulate_project_payload(db: Session, project_id: str, payload) -> dict:
             f"from {remaining_days}d to {new_days}d"
         )
 
+    # 18-11-2026: un recurso añadido sin horas trabaja la semana de la empresa (antes 40 fijas).
+    semana = capacidad_semanal_de_empresa(db, registro=project)
     if payload.add_resources:
-        extra_hours_week = sum(r.get("hours_per_week", 40) for r in payload.add_resources)
+        extra_hours_week = sum(r.get("hours_per_week") or semana for r in payload.add_resources)
         remaining_hours = total_hours * effective_compression
         saved_weeks = (remaining_hours * 0.7) / max(extra_hours_week, 1)
         saved_days = int(saved_weeks * 5)
@@ -242,7 +245,7 @@ def simulate_project_payload(db: Session, project_id: str, payload) -> dict:
     cost_delta = -sum((t.estimated_hours or 0) * avg_rate for t in tasks if t.id in cut_ids)
     if payload.add_resources:
         cost_delta += sum(
-            r.get("hours_per_week", 40) * r.get("rate_per_hour", avg_rate)
+            (r.get("hours_per_week") or semana) * r.get("rate_per_hour", avg_rate)
             for r in payload.add_resources
         ) * ((sim_end - timeutil.today()).days / 5)
 

@@ -18,7 +18,7 @@ from cachetools import TTLCache
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
+from app.services.settings_service.por_empresa import capacidad_semanal
 from app.models.alert import Alert
 from app.models.imputation import Imputation
 from app.models.project import Project, ProjectStatus, ProjectRisk
@@ -326,7 +326,7 @@ def get_resource_load(
             ).scalar() or 0.0
             hours_week = round(hours_recent / 4, 1)
 
-        capacity = user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
+        capacity = capacidad_semanal(db, user)
         load_pct = round((hours_week / capacity) * 100, 1)
 
         active_projects = db.query(func.count(func.distinct(Imputation.project_id))).filter(

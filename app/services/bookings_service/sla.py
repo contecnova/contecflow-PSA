@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 from datetime import date, datetime, time, timedelta, timezone
+from app.services.settings_service.por_empresa import jornada_de_empresa
 from app.models.bookings import SLASchedule
 from app.models.bookings import SLAHoliday
 from sqlalchemy.orm import joinedload
@@ -59,7 +60,8 @@ def create_sla_schedule_record(payload, db) -> dict:
 def calculate_sla_deadline_record(payload: dict, db) -> dict:
     schedule_id = payload.get("schedule_id")
     start_dt = datetime.fromisoformat(payload.get("start", datetime.now(timezone.utc).isoformat()))
-    hours    = float(payload.get("hours", 8))
+    # 18-11-2026: sin horas, una jornada de la empresa (antes 8 fijas).
+    hours    = float(payload["hours"]) if payload.get("hours") is not None else jornada_de_empresa(db)
     schedule = None
     if schedule_id:
         schedule = db.query(SLASchedule).options(joinedload(SLASchedule.holidays)).filter(SLASchedule.id == schedule_id).first()

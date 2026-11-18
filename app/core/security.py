@@ -193,15 +193,20 @@ def verify_client_token(token: str, db):
 
 
 def verify_admin_or_governance_role(user) -> None:
-    """Verify that user has admin or governance role. Raises ErrorDeDominio(403) if not."""
-    from app.core.errores import ErrorDeDominio
+    """Exige superadmin (flag `is_superadmin`) o rol `admin`. Si no, ErrorDeDominio(403).
 
-    # Check if user is admin or governance
+    18-11-2026: el rol `governance` no existe en `UserRole`; se quita en vez de
+    dejar una puerta a un valor que nadie puede tener. El nombre se conserva
+    porque lo importan los endpoints de ABAC.
+    """
+    from app.core.errores import ErrorDeDominio
+    from app.models.user import UserRole
+
     if getattr(user, 'is_superadmin', False):
         return
-    if getattr(user, 'role', None) in ('admin', 'governance'):
+    if getattr(user, 'role', None) == UserRole.admin:
         return
     raise ErrorDeDominio(
         status_code=403,
-        detail="Admin or governance role required"
+        detail="Admin role required"
     )

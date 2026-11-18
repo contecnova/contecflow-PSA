@@ -23,6 +23,10 @@ Uso:
   python scripts/seed_full_data.py
 
 El script es IDEMPOTENTE: omite registros con code/number ya existente.
+
+18-11-2026: solo corre en local (`ENVIRONMENT` = development o test; en otro
+entorno sale al instante) y las contraseñas de los usuarios y contactos que crea
+son `DEFAULT_USER_PASSWORD` (la valida config.py), no literales del código.
 """
 
 import sys
@@ -34,6 +38,13 @@ from typing import Optional
 
 # ── Ajustar path para imports de la app ───────────────────────────────────────
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from app.core.config import settings as _settings
+
+#: Entornos donde se puede sembrar datos de demostración.
+ENTORNOS_LOCALES = ("development", "test")
+if _settings.ENVIRONMENT not in ENTORNOS_LOCALES:
+    sys.exit(f"seed_full_data: ENVIRONMENT={_settings.ENVIRONMENT!r}; solo se siembra en {ENTORNOS_LOCALES}.")
 
 from app.db.session import SessionLocal
 from app.core.security import get_password_hash
@@ -634,7 +645,7 @@ def main():
         for u in db.query(User).all():
             user_map[u.username] = u.id
 
-        hashed_pw = get_password_hash("Contec2026!")
+        hashed_pw = get_password_hash(_settings.DEFAULT_USER_PASSWORD)
         created_users = 0
         for (uname, email, fname, role, dept, title, rate, wh) in NEW_USERS:
             if uname not in user_map:
@@ -1586,7 +1597,7 @@ def main():
                     email=email,
                     job_title="UAT Coordinator",
                     company=sname,
-                    hashed_password=get_password_hash("ClientUAT2026!"),
+                    hashed_password=get_password_hash(_settings.DEFAULT_USER_PASSWORD),
                     is_active=True,
                     can_approve_deliverables=True,
                     can_request_changes=True,

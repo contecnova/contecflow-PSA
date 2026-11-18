@@ -65,10 +65,23 @@ def build_ai_ticket_suggestion(db: Session, ticket_id: str, payload: Optional[di
         [f"[{c['title']}] {c['body']}" for c in canned_matches]
     ) or "(sin respuestas rápidas relevantes)"
 
+    # 18-11-2026: la respuesta va en el idioma del cliente (contacto, portal o
+    # detectado), luego el del ticket y, si no, el de la empresa; antes, siempre
+    # en castellano.
+    from app.services.formato_regional import idioma_de_salida, instruccion_de_idioma
+    from app.services.traduccion.salida import idioma_del_cliente
+    try:
+        idioma_cliente = idioma_del_cliente(db, ticket=ticket)[0]
+    except Exception:
+        logging.getLogger(__name__).debug("idioma del cliente no legible", exc_info=True)
+        idioma_cliente = None
+    idioma = idioma_de_salida(db, org_id=getattr(ticket, "organization_id", None),
+                              preferido=idioma_cliente or getattr(ticket, "language", None))
     system = (
         "Eres un agente senior de Service Desk ITIL. "
-        "Redacta una respuesta al cliente en español, profesional, breve y accionable. "
-        "No inventes hechos. Si faltan datos, pide información concreta."
+        "Redacta una respuesta al cliente, profesional, breve y accionable. "
+        "No inventes hechos. Si faltan datos, pide información concreta. "
+        + instruccion_de_idioma(idioma)
     )
     messages = [
         {

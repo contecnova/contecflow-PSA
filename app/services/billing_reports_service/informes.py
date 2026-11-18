@@ -8,8 +8,8 @@ from __future__ import annotations
 import json
 from datetime import timedelta
 from sqlalchemy.orm import Session, joinedload
+from app.services.settings_service.por_empresa import capacidad_semanal
 from app.models.service_desk._enums import ESTADOS_DE_TICKET_RESUELTOS
-from app.core.config import settings
 from app.models.user import User
 from app.models.project import Project
 from app.models.imputation import Imputation
@@ -248,7 +248,7 @@ def run_capacity_report(db: Session, filters: dict, date_from, date_to, org_id=N
     for u in users:
         user_plans = [p for p in plans if p.user_id == u.id]
         total_assigned = sum(p.allocated_hours or 0 for p in user_plans)
-        capacity = (u.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS) * 12
+        capacity = (capacidad_semanal(db, u)) * 12
         util_pct = round(total_assigned / capacity * 100, 1) if capacity > 0 else 0
         by_user[u.id] = {
             "user_id": u.id, "user_name": u.full_name, "role": u.role,

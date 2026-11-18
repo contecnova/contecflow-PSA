@@ -6,7 +6,7 @@ sin cambiar el codigo. El paquete reexporta todos los nombres.
 from __future__ import annotations
 
 from datetime import timedelta
-from app.core.config import settings
+from app.services.settings_service.por_empresa import capacidad_semanal
 from app.models.bookings import ResourceBooking
 from app.models.bookings import BookingType
 from app.models.user import User
@@ -91,7 +91,7 @@ def get_bookings_heatmap(weeks: int, org_id, db, semanas=None) -> dict:
             from app.services.resource_analytics import get_user_week_hours
             hw = get_user_week_hours(db, user.id, week_start)
             from app.services.resource_analytics import capacidad_de_semana
-            capacity = capacidad_de_semana(hw, user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS)
+            capacity = capacidad_de_semana(hw, capacidad_semanal(db, user))
             hard_hours = 0
             soft_hours = 0
             for b in bookings:
@@ -122,7 +122,7 @@ def get_bookings_heatmap(weeks: int, org_id, db, semanas=None) -> dict:
             "user_name": user.full_name,
             "role": user.role,
             "department": user.department,
-            "capacity_per_week": user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS,
+            "capacity_per_week": capacidad_semanal(db, user),
             "weeks": weekly,
             "avg_utilization": round(sum(w["utilization_pct"] for w in weekly) / weeks, 1),
         })
@@ -170,7 +170,7 @@ def comprobar_capacidad(db, user_id, inicio, fin, horas_dia, tipo, excluir=None)
     if str(getattr(tipo, "value", tipo)) == "soft":
         return
     usuario = db.query(User).filter(User.id == user_id).first()
-    base = (getattr(usuario, "weekly_capacity_hours", None) or settings.DEFAULT_WEEKLY_CAPACITY_HOURS)
+    base = (capacidad_semanal(db, usuario))
     lunes = inicio - timedelta(days=inicio.weekday())
     while lunes <= fin:
         hw = get_user_week_hours(db, user_id, lunes)

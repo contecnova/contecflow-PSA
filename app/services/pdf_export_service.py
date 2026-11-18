@@ -63,19 +63,35 @@ def _pdf_de_factura(source_id: str, params: dict, db: Session) -> Optional[bytes
     invoice = db.query(Invoice).filter(Invoice.id == source_id).first()
     if not invoice:
         return None
+    from app.core.constantes import NOMBRE_DEL_PRODUCTO
     marca = marca_de_organizacion(
         db, getattr(invoice, "organization_id", None), base=PALETA_DE_FACTURA,
-        nombre_por_defecto=params.get("company_name") or "Contecflow",
+        nombre_por_defecto=params.get("company_name") or NOMBRE_DEL_PRODUCTO,
     )
     return invoice_pdf.pdf_de_factura(db, invoice, company_name=marca.nombre, paleta=marca.paleta)
 
 
 def generate_pdf(export_type: str, source_id: Optional[str], params: dict, db: Session) -> bytes:
-    """Generate PDF using reportlab, or a minimal fallback if not installed."""
+    """Generate PDF using reportlab, or a minimal fallback if not installed.
+
+    18-11-2026 (auditoria de textos fijos): en `params["idioma"]` (el de quien
+    lo pide; si no, el de la empresa), con el nombre de la empresa
+    (`company_name`, o su `OrgBranding`, o el producto; antes «Contecflow v15»
+    fijo) y la hora en la zona de la empresa con su etiqueta.
+    """
     if export_type == "invoice" and source_id:
         pdf = _pdf_de_factura(source_id, params, db)
         if pdf is not None:
             return pdf
+    from app.services.formato_regional import formatear_fecha, idioma_de_salida, sello_de_hora
+    from app.services.textos_de_salida import nombre_de_marca, texto
+    org_id = params.get("org_id") or (getattr(db, "info", None) or {}).get("organization_id")
+    idioma = idioma_de_salida(db, org_id=org_id, preferido=params.get("idioma"))
+    marca = params.get("company_name") or nombre_de_marca(db, org_id)
+    now_str = sello_de_hora(db, org_id, idioma)
+
+    def t(clave, **datos):
+        return texto(clave, idioma, **datos)
     try:
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4
@@ -105,35 +121,35 @@ def generate_pdf(export_type: str, source_id: Optional[str], params: dict, db: S
         elements = []
 
         logo_b64 = params.get("logo_b64")  # noqa: F841
-        company_name = params.get("company_name", "Contecflow")
+        company_name = marca
         primary_color = _color_seguro(params.get("primary_color"))
 
         elements.append(Paragraph(f"<b>{_texto(company_name)}</b>", title_style))
         elements.append(HRFlowable(width="100%", thickness=2,
                                    color=colors.HexColor(primary_color), spaceAfter=8))
 
-        now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
-        elements.append(Paragraph(f"Generado: {now_str}", subtitle_style))
+        elements.append(Paragraph(_texto(t("pdf.generado", cuando=now_str)), subtitle_style))
 
         if export_type == "project_summary" and source_id:
             project = db.query(Project).filter(Project.id == source_id).first()
             if project:
                 from app.services.formato_regional import formatear_importe, simbolo_de_moneda
-                elements.append(Paragraph(f"Resumen del proyecto: {_texto(project.name)}", section_style))
+                elements.append(Paragraph(_texto(t("pdfexp.resumen_proyecto", nombre=project.name)),
+                                          section_style))
                 data = [
-                    ["Campo", "Valor"],
-                    ["Código", project.code or "—"],
-                    ["Cliente", project.client_name or "—"],
-                    ["Estado", project.status or "—"],
-                    ["Presupuesto", formatear_importe(project.budget_amount, simbolo_de_moneda(
+                    [t("pdfexp.campo"), t("informe.valor")],
+                    [t("pdfexp.codigo"), project.code or "—"],
+                    [t("pdfexp.cliente"), project.client_name or "—"],
+                    [t("informe.col.estado"), project.status or "—"],
+                    [t("pdfexp.presupuesto"), formatear_importe(project.budget_amount, simbolo_de_moneda(
                         db, project.organization_id, moneda=getattr(project, "currency", None)))
                      if project.budget_amount else "—"],
-                    ["Inicio", str(project.start_date) if project.start_date else "—"],
-                    ["Fin previsto", str(project.end_date_planned) if project.end_date_planned else "—"],
+                    [t("pdfexp.inicio"), formatear_fecha(project.start_date, idioma)],
+                    [t("pdfexp.fin_previsto"), formatear_fecha(project.end_date_planned, idioma)],
                 ]
                 tasks = db.query(Task).filter(Task.project_id == source_id).all()
-                done = sum(1 for t in tasks if t.status == "done")
-                data.append(["Tareas", f"{done}/{len(tasks)} completadas"])
+                done = sum(1 for tarea in tasks if tarea.status == "done")
+                data.append([t("pdfexp.tareas"), t("pdfexp.tareas_hechas", hechas=done, total=len(tasks))])
                 t = Table(data, colWidths=[60 * mm, 110 * mm])
                 t.setStyle(TableStyle([
                     ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(primary_color)),
@@ -148,14 +164,14 @@ def generate_pdf(export_type: str, source_id: Optional[str], params: dict, db: S
                 elements.append(t)
 
         else:
-            elements.append(Paragraph(f"Tipo: {_texto(export_type)}", section_style))
-            elements.append(Paragraph("Exportación generada por Contecflow v15.", body_style))
+            elements.append(Paragraph(f"{t('programado.tipo')}: {_texto(export_type)}", section_style))
+            elements.append(Paragraph(_texto(t("pdfexp.generada_por", marca=marca)), body_style))
 
         elements.append(Spacer(1, 15 * mm))
         elements.append(HRFlowable(width="100%", thickness=0.5,
                                    color=colors.HexColor("#D0D7E0")))
         elements.append(Paragraph(
-            f"<font color='#95A5A6' size=8>Generado por Contecflow v15 · {now_str} · Documento confidencial</font>",
+            f"<font color='#95A5A6' size=8>{_texto(t('pdfexp.pie', marca=marca, cuando=now_str))}</font>",
             body_style
         ))
 
@@ -169,7 +185,7 @@ def generate_pdf(export_type: str, source_id: Optional[str], params: dict, db: S
 3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj
 4 0 obj<</Length 120>>
 stream
-BT /F1 14 Tf 50 780 Td (Contecflow v15 - {_nombre_seguro(export_type)}) Tj 0 -25 Td /F1 10 Tf (Generado: {datetime.now().strftime('%d/%m/%Y')}) Tj ET
+BT /F1 14 Tf 50 780 Td ({_nombre_seguro(marca)} - {_nombre_seguro(export_type)}) Tj 0 -25 Td /F1 10 Tf ({formatear_fecha(datetime.now().date(), "en")}) Tj ET
 endstream
 endobj
 5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj
@@ -208,7 +224,9 @@ def create_and_run_pdf_export(
         job.file_size = len(pdf_bytes)
         job.completed_at = datetime.now(timezone.utc)
         db.commit()
-        filename = (f"contecflow_{_nombre_seguro(export_type)}_{_nombre_seguro(source_id)}"
+        from app.core.constantes import NOMBRE_DEL_PRODUCTO
+        filename = (f"{_nombre_seguro(params.get('company_name') or NOMBRE_DEL_PRODUCTO).lower()}_"
+                    f"{_nombre_seguro(export_type)}_{_nombre_seguro(source_id)}"
                     f"_{datetime.now().strftime('%Y%m%d')}.pdf")
         return pdf_bytes, filename
     except Exception as e:

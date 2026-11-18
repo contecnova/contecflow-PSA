@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.services.settings_service.por_empresa import capacidad_semanal
 from app.models.service_desk._enums import ESTADOS_DE_TICKET_EN_CURSO
 from app.models.billing_reports import ApprovalRequest, Invoice
 from app.models.clients import Client
@@ -17,7 +18,6 @@ from app.models.resources import UserSkill, Skill
 from app.models.service_desk import Ticket
 from app.models.task import Task
 from app.models.user import User, UserRole
-from app.core.config import settings
 import logging
 
 logger = logging.getLogger(__name__)
@@ -327,7 +327,7 @@ def _seccion_ocupacion_y_skills(ctx: _Alcance, visible_users):
 
     occupancy_next_month = []
     for u in visible_users:
-        weekly_capacity = float(getattr(u, "weekly_capacity_hours", None) or settings.DEFAULT_WEEKLY_CAPACITY_HOURS)
+        weekly_capacity = float(capacidad_semanal(db, u))
         month_capacity = round(weekly_capacity * month_weeks, 1)
         planned = round(float(plans_by_user.get(u.id, 0.0)), 1)
         load_pct = round((planned / month_capacity) * 100, 1) if month_capacity > 0 else 0.0

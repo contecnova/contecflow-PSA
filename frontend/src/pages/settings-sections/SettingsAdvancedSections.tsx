@@ -9,7 +9,6 @@
  * internas de cada parámetro, rutas de API) en favor de lenguaje llano para
  * administradores; colores fijos (#c0392b, rgba) cambiados por tokens.
  */
-import ConfigCorreoEntrante from '../service-desk/ConfigCorreoEntrante'
 import EstadoDeConectores from '../../components/conectores/EstadoDeConectores'
 import type { CSSProperties, ChangeEvent } from 'react'
 import { Fragment, useState, useEffect, useMemo } from 'react'
@@ -27,7 +26,7 @@ import { settingsApi as ajustesGeneralesApi, type SettingOut } from '../../servi
 import type { PortalDictionary } from '../../i18n/portalTranslations'
 import { alpha } from '../../constants/theme'
 import { Button, Pulsable, Select, Tabs } from '../../components/ui'
-import { AlertTriangle, BarChart3, Bot, Check, CheckCircle2, Download, FileText, Globe, Languages, Lock, Mail, MonitorSmartphone, Package, Phone, Plug, Save, Server, Settings2, ShieldAlert, Wrench, XCircle, Zap } from 'lucide-react'
+import { AlertTriangle, BarChart3, Bot, Check, CheckCircle2, Download, FileText, Globe, Languages, Lock, MonitorSmartphone, Package, Phone, Plug, Save, Server, Settings2, ShieldAlert, Wrench, XCircle, Zap } from 'lucide-react'
 import './SettingsAdvancedSections.css'
 
 /** Textos por módulo y clave: `{módulo: {clave: texto}}`. */
@@ -525,16 +524,6 @@ export function LogLevelSection() {
   )
 }
 
-export function EmailInboundSection() {
-  const { t } = useAppLang()
-  // La misma pantalla que Service Desk → Configuración → Correo entrante.
-  return (
-    <SeccionDeAjustes icon={<Mail size={18} />} title={t('settingsadvanced.email_a_ticket')} description={t('settingsadvanced.correo_entrante_al_service_desk_buzon_pasarela')}>
-      <ConfigCorreoEntrante />
-    </SeccionDeAjustes>
-  )
-}
-
 // ── Estado del sistema (admin debug) ──────────────────────────────────────────
 
 // `label` es el identificador del grupo; el texto visible sale de `settingsadvanced.<label>`.
@@ -735,9 +724,16 @@ export function SystemStateSection() {
 // input per row and PUT back to /settings/runtime/{group}/{key}.
 
 // Los textos visibles salen de `settingsadvanced.rt_<id>` y `rt_<id>_desc`.
+// 18-11-2026 (reorganización de Configuración): cada ajuste en un solo sitio.
+// Los grupos `service_desk` (avisos del service desk) y `traduccion` tienen su
+// propia sección (Service desk → Escalado y avisos; IA e idiomas → Traducción)
+// y ya no salen aquí; las claves de `locale` que edita Empresa → General
+// (CLAVES_EN_GENERAL) se ocultan en este editor.
+export const CLAVES_EN_GENERAL = ['DEFAULT_CURRENCY', 'DEFAULT_TIMEZONE', 'DEFAULT_LANGUAGE', 'DEFAULT_WORKING_HOURS_PER_DAY']
+const OCULTAS_POR_GRUPO: Record<string, string[]> = { locale: CLAVES_EN_GENERAL }
+
 const RUNTIME_GROUPS = [
   { id: 'sla',             label: 'SLA',                description: 'Tiempos por prioridad, jornada sin política y umbral de riesgo.' },
-  { id: 'service_desk',    label: 'Service Desk',       description: 'A quién se avisa de cada cambio de ticket y cómo se entrega.' },
   { id: 'automations',     label: 'Automatizaciones',   description: 'Si las reglas saltan, cuánto puede encadenarse una con otra y los plazos del barrido.' },
   { id: 'tenants',         label: 'Empresas',           description: 'Cuarentena de la baja de una empresa y «entrar como» del soporte de plataforma.' },
   { id: 'risk',            label: 'Riesgo del proyecto', description: 'Pesos, umbrales de nivel y caché de la puntuación de riesgo por señales.' },
@@ -765,11 +761,10 @@ const RUNTIME_GROUPS = [
   { id: 'licencias_integracion', label: 'Licencias y equipos: altas y bajas', description: 'Cuándo se liberan las licencias de quien se va, qué pasa con el equipo sin devolver, colas de devolución, compras y averías, y el kit de alta.' },
   { id: 'conectores',      label: 'Conectores contecmind / contecintelligence', description: 'Tiempos de espera, roles que escriben o analizan, tamaño de subida y registro de llamadas.' },
   { id: 'informes',        label: 'Informes', description: 'Periodo libre: rango máximo que se puede pedir, puntos máximos de una serie por granularidad y objetivo de la granularidad automática.' },
-  { id: 'traduccion',      label: 'Traducción', description: 'Traducción en tiempo real entre operador y cliente: proveedor, canales, salida automática, coste y versiones de la base de conocimiento.' },
 ]
 
 
-export function RuntimeGroupEditor({ groupId, description }: { groupId: string; description?: string }) {
+export function RuntimeGroupEditor({ groupId, description, ocultar = [] }: { groupId: string; description?: string; ocultar?: string[] }) {
   const { t } = useAppLang()
   // Los ajustes de plataforma sólo los cambia el superadmin (revisión 2026-11).
   const esSuperadmin = !!useAuth().user?.is_superadmin
@@ -802,7 +797,7 @@ export function RuntimeGroupEditor({ groupId, description }: { groupId: string; 
   if (isLoading) return <div className="seadse-box-28">{t('chat.loading')}</div>
   if (isError) return <div className="seadse-box-29">{extractErr(error, GENERIC_ERROR_FALLBACK)}</div>
 
-  const items = data?.items || []
+  const items = (data?.items || []).filter(it => !ocultar.includes(it.key))
 
   return (
     <div className="u-stack-14">
@@ -1034,7 +1029,8 @@ export function RuntimeFlagsSection() {
         active={active}
         onChange={setActive}
       />
-      <RuntimeGroupEditor key={active} groupId={active} description={t(`settingsadvanced.rt_${current.id}_desc`, current.description)} />
+      <p className="u-text2-sm">{t('ajustes.runtime_en_otro_sitio')}</p>
+      <RuntimeGroupEditor key={active} groupId={active} ocultar={OCULTAS_POR_GRUPO[active]} description={t(`settingsadvanced.rt_${current.id}_desc`, current.description)} />
     </SeccionDeAjustes>
   )
 }

@@ -154,10 +154,14 @@ def analyze_contract(db: Session, payload, current_user) -> dict:
     db.add(contract); db.commit(); db.refresh(contract)
 
     try:
+        from app.services.formato_regional import instruccion_de_idioma_para
         MAP_SYSTEM = (
             "Eres un experto en análisis de contratos de servicios profesionales. "
             "Analiza el fragmento dado y extrae cláusulas relevantes, penalizaciones, "
-            "entregables, hitos de pago, SLAs, terminación y riesgos."
+            "entregables, hitos de pago, SLAs, terminación y riesgos. "
+            # 18-11-2026: el informe en el idioma del usuario; las citas, tal cual.
+            + instruccion_de_idioma_para(db, user_id=current_user.id)
+            + " Copia `original_text` tal cual, sin traducirlo."
         )
         REDUCE_SYSTEM = MAP_SYSTEM
         MAP_PREFIX = "Analiza este fragmento del contrato:"

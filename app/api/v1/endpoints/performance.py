@@ -395,7 +395,11 @@ def campaign_dashboard_pdf(campaign_id: str, db: Session = Depends(get_db),
     # La marca del tenant. Auditoria 2026-08, hallazgo 32.
     marca = marca_de_organizacion(
         db, getattr(cu, "organization_id", None), base=PALETA_POR_DEFECTO)
-    pdf_bytes = generate_campaign_pdf(dashboard, paleta=marca.paleta)
+    # 18-11-2026: en el idioma de quien lo exporta y con la hora de la empresa.
+    from app.services.formato_regional import idioma_de_salida, sello_de_hora
+    idioma = idioma_de_salida(db, user_id=cu.id, org_id=getattr(cu, "organization_id", None))
+    pdf_bytes = generate_campaign_pdf(dashboard, paleta=marca.paleta, idioma=idioma,
+                                      generado_el=sello_de_hora(db, getattr(cu, "organization_id", None), idioma))
     subject = (camp.subject.full_name if camp.subject else "subject").replace(" ", "_")
     filename = f"360_{subject}_{camp.id[:8]}.pdf"
     return StreamingResponse(

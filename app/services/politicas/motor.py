@@ -378,7 +378,10 @@ def ejecutar_avisos(db: Session, resultado: dict, solicitante_id: Optional[str],
             ids |= _destinatarios(db, d, solicitante_id, organization_id)
         for uid in sorted(i for i in ids if i):
             if "app" in aviso["canales"]:
-                notify_user(db, uid, "system", titulo, cuerpo, resource=recurso, resource_id=recurso_id)
+                # 18-11-2026: el titulo en su idioma (el cuerpo es el texto de la politica).
+                notify_user(db, uid, "system", titulo, cuerpo, resource=recurso, resource_id=recurso_id,
+                            aviso={"titulo": "aviso.politica.titulo",
+                                   "params": {"politica": aviso.get("politica") or ""}})
                 n += 1
             if "email" in aviso["canales"] and quiere(db, uid, "system", "email"):
                 fila = db.query(User.email).filter(User.id == uid).first()

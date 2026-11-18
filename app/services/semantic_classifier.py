@@ -861,6 +861,10 @@ class SemanticAssigner(ServiceBase):
                 kwargs["organization_id"] = getattr(cu, "organization_id", None)
                 kwargs["user_id"] = getattr(cu, "id", None)
             from app.services.ai_provider_service import es_aviso_de_ia
+            # 18-11-2026: el «reason» lo lee el operador: en su idioma (o el de la empresa).
+            from app.services.formato_regional import instruccion_de_idioma_para
+            system += " " + instruccion_de_idioma_para(self.db, user_id=kwargs.get("user_id"),
+                                                       org_id=kwargs.get("organization_id"))
             resp = call_ai(self.db, messages, system=system,
                            module="semantic_assign", max_tokens=200, **kwargs)
             if es_aviso_de_ia(resp):

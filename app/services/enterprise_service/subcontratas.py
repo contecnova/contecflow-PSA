@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from app.core.config import settings
+from app.services.settings_service.por_empresa import iva_de_empresa, moneda_de_empresa
 from app.models.enterprise import Subcontractor
 from app.models.enterprise import SubcontractorWorker
 from app.models.enterprise import SubcontractorRate
@@ -611,7 +611,8 @@ def create_sub_invoice(sub_id: str, payload: dict, current_user, db: Session) ->
     if not sub:
         raise ValueError("not_found")
     amount = float(payload.get("amount", 0))
-    tax_pct = float(payload.get("tax_pct", settings.DEFAULT_TAX_RATE))
+    # 18-11-2026: IVA y moneda por defecto de la empresa del externo, no los globales del entorno.
+    tax_pct = float(payload["tax_pct"]) if payload.get("tax_pct") is not None else iva_de_empresa(db, registro=sub)
     total = round(amount * (1 + tax_pct / 100), 2)
     inv = SubcontractorInvoice(
         id=str(_uuid.uuid4()), subcontractor_id=sub_id,
@@ -619,7 +620,7 @@ def create_sub_invoice(sub_id: str, payload: dict, current_user, db: Session) ->
         invoice_number=payload.get("invoice_number", f"SUB-INV-{_uuid.uuid4().hex[:6].upper()}"),
         issue_date=payload.get("issue_date"), due_date=payload.get("due_date"),
         amount=amount, tax_pct=tax_pct, total=total,
-        currency=payload.get("currency", sub.currency or settings.DEFAULT_CURRENCY),
+        currency=payload.get("currency") or sub.currency or moneda_de_empresa(db, registro=sub),
         description=payload.get("description"),
     )
     db.add(inv)

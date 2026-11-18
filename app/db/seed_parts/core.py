@@ -67,10 +67,10 @@ def _sembrar_ajustes(db):
     """Ajustes de aplicacion con sus valores por defecto."""
     from app.models.settings import AppSetting
 
+    # 18-11-2026: moneda, zona, idioma y jornada ya no se siembran aquí; son las
+    # claves de ejecución DEFAULT_* (ver ALIAS_DE_EJECUCION en settings_service/generales.py).
     for key, value in {
-        "company_name":"Consultora Contecflow SL","currency":settings.DEFAULT_CURRENCY,
-        "timezone":settings.DEFAULT_TIMEZONE,"language":settings.DEFAULT_LANGUAGE,
-        "work_hours_per_day":str(settings.DEFAULT_WORKING_HOURS_PER_DAY),
+        "company_name":"Consultora Contecflow SL",
     }.items():
         if not db.query(AppSetting).filter(AppSetting.key==key).first():
             db.add(AppSetting(key=key, value=value))

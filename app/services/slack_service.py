@@ -32,13 +32,16 @@ def send_slack_message(config: SlackConfig, text: str, channel: str = None) -> t
     por `entrega_saliente.enviar_a_webhook` (URL validada, `cliente_httpx`).
     """
     from app.services.entrega_saliente import enviar_a_webhook
+    from app.services.textos_de_salida import nombre_de_marca
 
     ch = channel or config.default_channel or "#general"
 
     if config.platform == "slack" and config.bot_token:
         r = enviar_a_webhook(
             f"{settings.SLACK_API_BASE}/chat.postMessage",
-            {"channel": ch, "text": text, "username": "Contecflow", "icon_emoji": ":rocket:"},
+            # 18-11-2026: firma con el nombre de la empresa (o el del producto), no «Contecflow» fijo.
+            {"channel": ch, "text": text, "username": nombre_de_marca(None, getattr(config, "organization_id", None)),
+             "icon_emoji": ":rocket:"},
             headers={"Authorization": f"Bearer {config.bot_token}"},
             timeout=5, campo="SLACK_API_BASE",
         )

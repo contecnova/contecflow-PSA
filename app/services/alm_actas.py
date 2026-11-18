@@ -93,13 +93,13 @@ _FUENTE_CJK = "STSong-Light"
 
 
 def _idioma_del_acta(db: Session, asignacion: ALMAsignacion) -> str:
-    from app.core.config import settings
     from app.models.user import UserPreference
+    from app.services.settings_service import por_empresa as _pe
     idioma = None
     if asignacion.holder_type == "user" and asignacion.holder_user_id:
         pref = db.query(UserPreference).filter(UserPreference.user_id == asignacion.holder_user_id).first()
         idioma = getattr(pref, "language", None)
-    idioma = (idioma or settings.DEFAULT_LANGUAGE or IDIOMA_DE_RESPALDO)[:2].lower()
+    idioma = (idioma or _pe.idioma_de_empresa(db, registro=asignacion) or IDIOMA_DE_RESPALDO)[:2].lower()  # 18-11-2026
     return idioma if idioma in _TEXTOS else "en"
 
 

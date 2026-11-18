@@ -18,6 +18,7 @@ from typing import Optional
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload
 
+from app.services.settings_service import por_empresa as _pe
 from app.models.service_desk._enums import ESTADOS_DE_TICKET_RESUELTOS
 from app.core.config import settings
 from app.models.user import User
@@ -661,7 +662,7 @@ def dar_acceso_al_portal(cid: str, contact_id: str, datos: dict, current_user: U
         raise ErrorDeDominio(409, "Este contacto ya tiene acceso al portal")
     if not _texto(ct.email):
         raise ErrorDeDominio(400, "El contacto necesita un email para acceder al portal")
-    from app.api.v1.endpoints.client_portal import ClientCreateIn
+    from app.schemas.client_portal import ClientCreateIn
     from app.services.client_portal_service import create_client as crear_usuario_del_portal
     payload = ClientCreateIn(
         client_org_id=cliente.id, full_name=ct.full_name, email=_texto(ct.email),
@@ -1009,7 +1010,7 @@ def get_portal_config(cid: str, db: Session) -> dict:
         "max_open_tickets": cfg.max_open_tickets,
         "logo_url": cfg.logo_url,
         "accent_color": cfg.accent_color,
-        "default_language": cfg.default_language or settings.DEFAULT_LANGUAGE,
+        "default_language": cfg.default_language or _pe.idioma_de_empresa(db, registro=cfg),  # 18-11-2026
         "allow_profile_edit": cfg.allow_profile_edit if cfg.allow_profile_edit is not None else True,
         "allow_pwd_change": cfg.allow_pwd_change if cfg.allow_pwd_change is not None else True,
     }

@@ -36,6 +36,13 @@ def get_ai_gantt_suggestions(project_id: str, db: Session, current_user=None) ->
     tasks = db.query(Task).filter(Task.project_id == project_id).all()
     today = timeutil.today()
     suggestions = []
+    # 18-11-2026: textos en el idioma de quien pregunta (antes, castellano fijo).
+    # Cada sugerencia lleva tambien `message_code`/`message_params` y
+    # `suggestion_codes` para que el cliente pueda traducirlos el mismo.
+    from app.services.formato_regional import idioma_de_salida
+    from app.services.textos_de_salida import texto
+    idioma = idioma_de_salida(db, user_id=getattr(current_user, "id", None),
+                              org_id=getattr(proj, "organization_id", None))
 
     for t in tasks:
         status_val = str(getattr(t.status, "value", t.status))
@@ -44,17 +51,15 @@ def get_ai_gantt_suggestions(project_id: str, db: Session, current_user=None) ->
 
         if t.due_date and t.due_date < today:
             overdue_days = (today - t.due_date).days
-            # Item #66: outputs en español (sistema mayoritariamente ES).
+            codigos = ["copilot.reasignar", "copilot.dividir", "copilot.revisar_alcance"]
             suggestions.append({
                 "task_id": t.id, "task_title": t.title,
                 "type": "overdue",
                 "severity": "high" if overdue_days > 7 else "medium",
-                "message": f"La tarea lleva {overdue_days} día(s) de retraso.",
-                "suggestions": [
-                    "Reasignar a un recurso disponible",
-                    "Dividir en sub-tareas para desbloquear el progreso",
-                    "Revisar alcance — diferir ítems no críticos",
-                ],
+                "message": texto("copilot.retraso", idioma, dias=overdue_days),
+                "message_code": "copilot.retraso", "message_params": {"dias": overdue_days},
+                "suggestions": [texto(c, idioma) for c in codigos],
+                "suggestion_codes": codigos,
             })
         elif (hasattr(t, "start_date") and t.start_date and t.due_date
               and t.start_date < today < t.due_date):
@@ -62,16 +67,16 @@ def get_ai_gantt_suggestions(project_id: str, db: Session, current_user=None) ->
             elapsed_pct = (today - t.start_date).days / total_days
             progress = getattr(t, "progress", None) or 0
             if elapsed_pct >= 0.5 and progress < 20:
+                codigos = ["copilot.revisar_bloqueos", "copilot.sincronizar", "copilot.paralelo"]
+                params = {"consumido": int(elapsed_pct * 100), "progreso": progress}
                 suggestions.append({
                     "task_id": t.id, "task_title": t.title,
                     "type": "stalled",
                     "severity": "medium",
-                    "message": f"{int(elapsed_pct*100)}% de la duración consumida pero solo {progress}% completada.",
-                    "suggestions": [
-                        "Revisar bloqueos en los comentarios",
-                        "Agendar sincronización rápida con el responsable",
-                        "Considerar ejecución paralela si las dependencias lo permiten",
-                    ],
+                    "message": texto("copilot.estancada", idioma, **params),
+                    "message_code": "copilot.estancada", "message_params": params,
+                    "suggestions": [texto(c, idioma) for c in codigos],
+                    "suggestion_codes": codigos,
                 })
 
     return {

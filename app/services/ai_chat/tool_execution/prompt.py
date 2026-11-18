@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.models.user import User
 from app.services.ai_chat.context_service import build_tenant_context
+from app.services.formato_regional import instruccion_de_idioma_para  # 18-11-2026: idioma de salida
 
 
 def build_agent_system_prompt(db: Session, current_user: User) -> str:
@@ -60,6 +61,6 @@ ESTRATEGIA DE EJECUCIÓN:
 - Si el usuario pide un informe, genera SIEMPRE el informe completo con los datos reales del sistema, no un esquema.
 - Usa tantas herramientas como sean necesarias para dar una respuesta completa y verificada con datos reales.
 
-Responde siempre en español. Hoy es {datetime.now(timezone.utc).strftime('%Y-%m-%d')}.
+{instruccion_de_idioma_para(db, user_id=current_user.id, conversacional=True)} Hoy es {datetime.now(timezone.utc).strftime('%Y-%m-%d')}.
 Contexto inicial del sistema: {json.dumps(build_tenant_context(db, current_user))}"""
 

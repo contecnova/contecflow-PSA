@@ -326,13 +326,16 @@ def _afinar_con_claude(ticket, categoria: str, prioridad: str, razonamiento: str
         return categoria, prioridad, 60, razonamiento
 
     try:
+        # 18-11-2026: el razonamiento lo leen los operadores: idioma de la empresa.
+        from app.services.formato_regional import idioma_de_salida, nombre_del_idioma
+        _idioma = nombre_del_idioma(idioma_de_salida(db, org_id=getattr(ticket, "organization_id", None)))
         prompt = f"""Analiza este ticket de soporte y clasifícalo.
 
 Título: {ticket.title}
 Descripción: {(ticket.description or "Sin descripción")[:300]}
 
 Responde SOLO con JSON:
-{{"category": "<categoría>", "priority": "critical|high|medium|low", "confidence": <0-100>, "reasoning": "<explicación breve en español>"}}"""
+{{"category": "<categoría>", "priority": "critical|high|medium|low", "confidence": <0-100>, "reasoning": "<explicación breve en {_idioma}>"}}"""
         parsed = _preguntar_json_a_la_ia(db, prompt, 300, getattr(ticket, "organization_id", None))
         if not parsed:
             return categoria, prioridad, 60, razonamiento

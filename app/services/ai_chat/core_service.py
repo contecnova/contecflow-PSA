@@ -62,6 +62,16 @@ def _pagina_del_usuario(db: Session, context_type, context_id) -> str:
             f"si pregunta por «este», se refiere a el: {json.dumps(datos, ensure_ascii=False)}")
 
 
+def _instruccion_de_idioma(db: Session, user_id: str) -> str:
+    """Idioma de la respuesta (18-11-2026): el del usuario, con su idioma/empresa de respaldo.
+
+    Va detras de la plantilla (que puede venir personalizada de la base) para
+    que ninguna plantilla antigua con «Responde siempre en español» mande.
+    """
+    from app.services.formato_regional import instruccion_de_idioma_para
+    return instruccion_de_idioma_para(db, user_id=user_id, conversacional=True)
+
+
 def prepare_chat(db: Session, conversation_id, user_id: str, context_type=None, context_id=None,
                   effective_message: str = "", system_template: str = "", commit: bool = False):
     """Create/get conversation, persist user message, build history + system prompt.
@@ -84,7 +94,7 @@ def prepare_chat(db: Session, conversation_id, user_id: str, context_type=None, 
     conv.fuentes_kb = {"sources": kb["sources"], "correction": kb["correction"]}
     system = get_prompt(db, "contecflowassist", system_template).format(
         context=json.dumps(ctx, ensure_ascii=False)
-    ) + kb["prompt"] + _pagina_del_usuario(  # la pagina de ahora; si no llega, la de la conversacion
+    ) + kb["prompt"] + "\n\n" +_instruccion_de_idioma(db, user_id) + _pagina_del_usuario(  # la pagina de ahora; si no llega, la de la conversacion
         db, context_type or conv.context_type, context_id if context_type else conv.context_id)
 
     if conv.context_type == "inline_editor":

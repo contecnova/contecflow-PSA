@@ -3,6 +3,11 @@
  * /overtime/config, presupuestos (/overtime/budgets), regularizar un periodo
  * (POST /overtime/regularize), enlace a Políticas del dominio `horas_extra` y
  * «Cargar reglas de ejemplo» (POST /policies/examples/horas_extra, borradores).
+ *
+ * 18-11-2026: es la sección «Horas extra» de Configuración
+ * (`/settings/horas-extra`). El enlace a Políticas y «Cargar reglas de
+ * ejemplo» solo se ofrecen a administración (el POST es solo admin; RRHH
+ * recibía 403); RRHH ve el aviso `ajustes.reglas_solo_admin`.
  */
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -18,6 +23,7 @@ import {
   Tabla, type ColumnaTabla,
 } from '../ui'
 import { confirmar } from '../../context/ConfirmContext'
+import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr, fmtNumber } from '../../utils/helpers'
 import { nivelDeConsumo, pctDePresupuesto } from './logica'
@@ -218,7 +224,8 @@ function Regularizar() {
 }
 
 function Reglas() {
-  const { th } = useTh()
+  const { th, t } = useTh()
+  const esAdmin = useAuth().hasRole('admin')
   const qc = useQueryClient()
   const toast = useToast()
   const m = useMutation({
@@ -233,11 +240,15 @@ function Reglas() {
   })
   return (
     <Section title={th('reglas')} subtitle={th('reglas_ayuda')}>
-      <div className="hext-fila">
-        <Link className="hext-enlace" to="/settings/policies?dominio=horas_extra"><Scale size={14} aria-hidden /> {th('ir_a_politicas')}</Link>
-        <Button variant="secondary" icon={<Sparkles size={14} />} loading={m.isPending} onClick={() => m.mutate()}>{th('cargar_ejemplos')}</Button>
-      </div>
-      <p className="hext-ayuda">{th('cargar_ejemplos_ayuda')}</p>
+      {esAdmin ? (
+        <>
+          <div className="hext-fila">
+            <Link className="hext-enlace" to="/settings/policies?dominio=horas_extra"><Scale size={14} aria-hidden /> {th('ir_a_politicas')}</Link>
+            <Button variant="secondary" icon={<Sparkles size={14} />} loading={m.isPending} onClick={() => m.mutate()}>{th('cargar_ejemplos')}</Button>
+          </div>
+          <p className="hext-ayuda">{th('cargar_ejemplos_ayuda')}</p>
+        </>
+      ) : <p className="hext-ayuda">{t('ajustes.reglas_solo_admin')}</p>}
     </Section>
   )
 }

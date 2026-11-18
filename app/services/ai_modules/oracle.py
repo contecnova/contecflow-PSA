@@ -25,6 +25,16 @@ from app.services.ai_modules._base import (
     _project_internal_cost, _severity_from_probability, burnout_score, _scope_query_by_org, log_action,
 )
 
+
+def _idioma_de(db: Session, org_id) -> str:
+    """Idioma de las predicciones de una empresa (18-11-2026; antes, castellano fijo).
+
+    Las predicciones las ven todos los de la empresa: van en su idioma, con los
+    textos de `textos_de_salida` (clave + datos).
+    """
+    from app.services.formato_regional import idioma_de_salida
+    return idioma_de_salida(db, org_id=org_id)
+
 def _oracle_project_delay(db: Session, projects: list, now: datetime) -> list:
     """Sección 1 de Oracle: detección de riesgo de retraso por proyecto.
 
@@ -69,15 +79,14 @@ def _oracle_project_delay(db: Session, projects: list, now: datetime) -> list:
             continue
 
         severity = _severity_from_probability(probability, db, getattr(p, "organization_id", None))
-        title = f"Riesgo de retraso — {p.name}"
-        explanation = (
-            f"El proyecto tiene {overdue} tareas vencidas de {len(tasks)} totales "
-            f"({round(pct_done*100)}% completado). "
-            f"Consumo facturable: {round(revenue_consumed_pct*100)}%, "
-            f"coste interno: {round(cost_consumed_pct*100)}% "
-            f"(método={cost_info_d['method']}, cobertura={cost_info_d['coverage_pct']}%)."
-        )
-        action = "Revisar tareas bloqueadas con el PM. Considerar reasignación de recursos."
+        from app.services.textos_de_salida import texto
+        idioma = _idioma_de(db, getattr(p, "organization_id", None))
+        title = texto("oracle.retraso.titulo", idioma, proyecto=p.name)
+        explanation = texto(
+            "oracle.retraso.explicacion", idioma, vencidas=overdue, total=len(tasks), hecho=round(pct_done * 100),
+            facturable=round(revenue_consumed_pct * 100), coste=round(cost_consumed_pct * 100),
+            metodo=cost_info_d['method'], cobertura=cost_info_d['coverage_pct'])
+        action = texto("oracle.retraso.accion", idioma)
 
         existing = db.query(AIPrediction).filter(
             AIPrediction.entity_id == p.id,
@@ -159,13 +168,16 @@ def _oracle_sla_breach(db: Session, open_tickets: list, now: datetime) -> list:
             AIPrediction.is_acknowledged == False,
         ).first()
         if not existing:
+            from app.services.textos_de_salida import texto
+            idioma = _idioma_de(db, getattr(t, "organization_id", None))
             db.add(AIPrediction(
                 organization_id=getattr(t, "organization_id", None),
                 prediction_type="sla_breach", entity_type="ticket", entity_id=t.id,
                 probability=probability, severity=severity,
-                title=f"Riesgo de incumplimiento SLA — Ticket {t.number}",
-                explanation=f"Llevas {round(age_hours,1)}h abierto. Límite SLA para prioridad «{nivel}»: {sla_limit}h. Quedan {round(remaining,1)}h.",
-                recommended_action="Asignar o escalar el ticket inmediatamente.",
+                title=texto("oracle.sla.titulo", idioma, numero=t.number),
+                explanation=texto("oracle.sla.explicacion", idioma, horas=round(age_hours, 1), nivel=nivel,
+                                  limite=sla_limit, quedan=round(remaining, 1)),
+                recommended_action=texto("oracle.sla.accion", idioma),
             ))
             generated.append({"type": "sla_breach", "entity": t.number, "probability": probability})
     return generated
@@ -190,7 +202,10 @@ def _oracle_burnout(db: Session, active_users: list, now: datetime) -> list:
         avg   = sum(weekly) / max(len(weekly), 1)
         max_w = max(weekly)
         trend = weekly[0] - weekly[-1] if len(weekly) > 1 else 0
-        trend_txt = f" Tendencia: {'↑ creciente' if trend > 3 else '→ estable'}." if len(weekly) > 1 else ""
+        from app.services.textos_de_salida import texto
+        idioma = _idioma_de(db, getattr(u, "organization_id", None))
+        trend_txt = (texto("oracle.burnout.creciente" if trend > 3 else "oracle.burnout.estable", idioma)
+                     if len(weekly) > 1 else "")
         severity = _severity_from_probability(probability, db, getattr(u, "organization_id", None))
         existing = db.query(AIPrediction).filter(
             AIPrediction.entity_id == u.id,
@@ -206,13 +221,10 @@ def _oracle_burnout(db: Session, active_users: list, now: datetime) -> list:
                 prediction_type="burnout", entity_type="user", entity_id=u.id,
                 probability=probability,
                 severity=severity,
-                title=f"Riesgo de burnout — {u.full_name}",
-                explanation=(
-                    f"Media ponderada (semanas recientes 2×): {round(avg,1)}h/sem. "
-                    f"Pico: {round(max_w,1)}h.{trend_txt} "
-                    f"Semanas con >42h: {sum(1 for h in weekly if h > 42)}."
-                ),
-                recommended_action="Revisar asignaciones. Redistribuir carga de trabajo.",
+                title=texto("oracle.burnout.titulo", idioma, persona=u.full_name),
+                explanation=texto("oracle.burnout.explicacion", idioma, media=round(avg, 1), pico=round(max_w, 1),
+                                  tendencia=trend_txt, semanas=sum(1 for h in weekly if h > 42)),
+                recommended_action=texto("oracle.burnout.accion", idioma),
             ))
             generated.append({"type": "burnout", "entity": u.full_name, "probability": probability})
     return generated
@@ -256,29 +268,26 @@ def _oracle_budget_overrun(db: Session, projects: list) -> list:
             from app.services.formato_regional import simbolo_de_moneda
             simbolo = simbolo_de_moneda(db, getattr(p, "organization_id", None),
                                         moneda=getattr(p, "currency", None))
+            from app.services.textos_de_salida import texto
+            idioma = _idioma_de(db, getattr(p, "organization_id", None))
             margin_note = ""
             if margin_eroded:
-                margin_note = (
-                    f" ⚠ Margen erosionado: coste interno {round(cost_ratio*100)}% > "
-                    f"facturación {round(revenue_ratio*100)}% → posibles pérdidas reales."
-                )
+                margin_note = texto("oracle.presupuesto.margen", idioma, coste=round(cost_ratio * 100),
+                                    facturable=round(revenue_ratio * 100))
             db.add(AIPrediction(
                 organization_id=getattr(p, "organization_id", None),
                 prediction_type="budget_overrun", entity_type="project", entity_id=p.id,
                 probability=min(worst_ratio - 0.5, 0.99),
                 severity="critical" if worst_ratio > 1 else "high",
-                title=f"Desviación presupuestaria — {p.name}",
-                explanation=(
-                    f"Consumo facturable: {round(revenue_ratio*100)}% "
-                    f"({round(revenue_spent/1000,1)}k{simbolo} de {round(p.budget_amount/1000,1)}k{simbolo}). "
-                    f"Coste interno: {round(cost_ratio*100)}% "
-                    f"({round(cost_spent/1000,1)}k{simbolo}, método={cost_info['method']}, "
-                    f"cobertura datos reales={cost_info['coverage_pct']}%)."
-                    f"{margin_note}"
-                ),
+                title=texto("oracle.presupuesto.titulo", idioma, proyecto=p.name),
+                explanation=texto(
+                    "oracle.presupuesto.explicacion", idioma, facturable=round(revenue_ratio * 100),
+                    gastado=round(revenue_spent / 1000, 1), presupuesto=round(p.budget_amount / 1000, 1),
+                    simbolo=simbolo, coste=round(cost_ratio * 100), coste_k=round(cost_spent / 1000, 1),
+                    metodo=cost_info['method'], cobertura=cost_info['coverage_pct']) + margin_note,
                 recommended_action=(
-                    "Revisar alcance con el cliente. Preparar change order si hay trabajo extra."
-                    + (" Auditar costes internos y replantear pricing del proyecto." if margin_eroded else "")
+                    texto("oracle.presupuesto.accion", idioma)
+                    + (texto("oracle.presupuesto.accion_margen", idioma) if margin_eroded else "")
                 ),
                 features_used=json.dumps({
                     "revenue_ratio": round(revenue_ratio, 3),

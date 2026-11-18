@@ -63,7 +63,7 @@ export default function ConfigCorreoEntrante() {
           <span className="cocoen-ls">{t('sd_cfg.mail_mailbox')}</span>
           <div className="u-text2-sm">{t('sd_cfg.mail_mailbox_help')}</div>
           <div className="u-wrap-8">
-            <Button variant="secondary" icon={<KeyRound size={14} />} onClick={() => { window.location.href = '/settings?tab=integrations' }}>{t('sd_cfg.mail_credentials')}</Button>
+            <Button variant="secondary" icon={<KeyRound size={14} />} onClick={() => { window.location.href = '/settings/integrations' }}>{t('sd_cfg.mail_credentials')}</Button>
             <Button variant="secondary" onClick={() => probar.mutate()} loading={probar.isPending}>{t('sd_cfg.mail_test')}</Button>
             <Button onClick={() => leer.mutate()} loading={leer.isPending}>{t('sd_cfg.mail_run')}</Button>
           </div>

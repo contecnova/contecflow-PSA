@@ -24,6 +24,7 @@ from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.services.settings_service import por_empresa as _pe
 from app.models.task import ESTADOS_DE_TAREA_TERMINADOS
 from app.models.imputation import Imputation
 from app.models.project import Project, ProjectStatus
@@ -195,7 +196,7 @@ def carga_del_equipo(db: Session, project_id: str, hasta: Optional[date] = None,
         Imputation.user_id.in_(equipo), Imputation.date > desde, Imputation.date <= hasta,
     ).group_by(Imputation.user_id).all())
     capacidad = dict(db.query(User.id, User.weekly_capacity_hours).filter(User.id.in_(equipo)).all())
-    por_defecto = settings.DEFAULT_WEEKLY_CAPACITY_HOURS
+    por_defecto = _pe.capacidad_semanal_de_empresa(db, registro=db.get(Project, project_id))  # 18-11-2026
     total_h, total_cap, sobrecargados = 0.0, 0.0, 0
     for uid in equipo:
         cap = float(capacidad.get(uid) or por_defecto) * semanas

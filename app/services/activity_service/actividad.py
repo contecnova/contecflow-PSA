@@ -117,9 +117,14 @@ def parse_and_store_mentions(
         db.add(mention)
 
         snippet = content[:120] + ("…" if len(content) > 120 else "")
+        # 18-11-2026: en el idioma de quien recibe la mencion.
+        from app.services.notifications import texto_de_aviso
+        titulo, _ = texto_de_aviso(db, user.id, {"titulo": "aviso.mencion.titulo",
+                                                 "params": {"autor": actor.full_name or actor.email}},
+                                   f"{actor.full_name or actor.email} te ha mencionado", None)
         create_notification(
             db, user.id, NotificationType.mention,
-            title=f"{actor.full_name or actor.email} te ha mencionado",
+            title=titulo,
             body=snippet,
             resource=entity_type,
             resource_id=entity_id,

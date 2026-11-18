@@ -261,8 +261,8 @@ export default function MentionsPage() {
             <div className="mentions-page-e6">
               <div className="u-text2-sm">
                 {demoType === 'task'
-                  ? t('mentions.invalid_entity_id_format_task', 'Introduce un UUID o codigo de tarea valido (ej: TSK-0011).')
-                  : t('mentions.invalid_entity_id_format_ticket', 'Introduce un UUID o numero de ticket valido (ej: INC-0001).')}
+                  ? t('mentions.invalid_entity_id_format_task')
+                  : t('mentions.invalid_entity_id_format_ticket')}
               </div>
             </div>
           ):(

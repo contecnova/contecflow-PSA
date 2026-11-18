@@ -4,6 +4,12 @@
  * formularios con `ds-input`; insignias con StatusBadge/PBadge; los avisos y
  * etiquetas que reutilizaban textos de otra cosa (un aviso que decía «Nueva
  * categoría», «Nombre de la regla» como categoría) pasan a claves `sd_cfg.cfg_*`.
+ *
+ * 18-11-2026: esta pantalla es la sección «Service desk» de Configuración
+ * (`/settings/sd?sub=…`); ya no es una pestaña del módulo. La revisión de
+ * traducciones del portal pasa a Configuración → Portal de clientes. Las
+ * subpestañas se filtran por rol como el backend: todo es require_admin salvo
+ * las respuestas rápidas (require_any_manager: admin, pm, team_lead, hr).
  */
 import { useState, useId } from 'react'
 import type { ChangeEvent } from 'react'
@@ -16,7 +22,7 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { CalendarDays, Eye, FileText, Folder, Languages, Lock, Megaphone, MessageSquareText, Pencil, Plus, Star, Timer, Trash2, Users, X } from 'lucide-react'
 import { Button, Spinner, EmptyState, Modal, StatusBadge, Tabs, Pulsable, Select, TablaSimple, Checkbox, Input, FormField, useErroresDeCampo } from '../../components/ui'
 import { DialogoDeVersionesDeContenido } from '../../components/traduccion/VersionesDeContenidoPanel'
-import RevisionDeContenidoDelPortal from '../../components/traduccion/RevisionDeContenidoDelPortal'
+import { useAuth } from '../../context/AuthContext'
 import type { TipoDeContenidoDelPortal } from '../../services/api/traduccion'
 import type { StatusBadgeKind } from '../../components/ui/StatusBadge'
 import { COLOR_DATO_POR_DEFECTO } from '../../constants/theme'
@@ -1111,10 +1117,14 @@ export function AnnouncementsConfig() {
 }
 
 // ── Config wrapper (tab nav) ──────────────────────────────────────────────────
-export default function Config() {
+/** Subpestañas que no son de administración: el backend deja escribir
+ *  respuestas rápidas a cualquier responsable (require_any_manager). */
+const SUB_DE_RESPONSABLES = new Set(['canned'])
+
+export default function Config({ subInicial }: { subInicial?: string }) {
   const t = useAppT()
-  const [sub, setSub] = useState('catalog')
-  const tabs = [
+  const esAdmin = useAuth().hasRole('admin')
+  const todas = [
     {id:'catalog',  label:t('sd_cfg.cfg_tab_catalog')},
     {id:'sla',      label:t('sd_cfg.cfg_tab_sla')},
     {id:'sla_rules', label:t('sd_mercado.tab_sla_reglas')},
@@ -1131,28 +1141,29 @@ export default function Config() {
     {id:'templates',label:t('sd_cfg.cfg_tab_templates')},
     {id:'canned',   label:t('sd_cfg.cfg_tab_canned')},
     {id:'announcements', label:t('service_desk.tab_announcements')},
-    {id:'portal_translations', label:t('traduccion_admin.portal_revision_tab')},
   ]
+  const tabs = esAdmin ? todas : todas.filter(x => SUB_DE_RESPONSABLES.has(x.id))
+  const [sub, setSub] = useState(() => (subInicial && tabs.some(x => x.id === subInicial) ? subInicial : tabs[0]?.id ?? 'canned'))
+  const visible = tabs.some(x => x.id === sub) ? sub : tabs[0]?.id
   return (
     <div>
-      <Tabs items={tabs} active={sub} onChange={setSub} ariaLabel={t('sd_cfg.cfg_nav')} />
-      {sub === 'catalog'       && <CatalogConfig />}
-      {sub === 'sla'           && <SLAConfig />}
-      {sub === 'sla_rules'     && <ReglasSlaYOla />}
-      {sub === 'lifecycles'    && <CiclosDeVida />}
-      {sub === 'channels'      && <ConfigCanales />}
-      {sub === 'groups'        && <GroupsConfig />}
-      {sub === 'routing'       && <RoutingRules />}
-      {sub === 'escalation'    && <EscalationConfig />}
-      {sub === 'notifications' && <NotificationsConfig />}
-      {sub === 'mail'          && <ConfigCorreoEntrante />}
-      {sub === 'monitoring'    && <MonitorizacionConfig />}
-      {sub === 'oncall'        && <GuardiasConfig />}
-      {sub === 'status_page'   && <ConfigPaginaDeEstado />}
-      {sub === 'templates'     && <TemplatesConfig />}
-      {sub === 'canned'        && <CannedResponsesManager />}
-      {sub === 'announcements' && <AnnouncementsConfig />}
-      {sub === 'portal_translations' && <RevisionDeContenidoDelPortal />}
+      <Tabs items={tabs} active={visible ?? ''} onChange={setSub} ariaLabel={t('sd_cfg.cfg_nav')} />
+      {visible === 'catalog'       && <CatalogConfig />}
+      {visible === 'sla'           && <SLAConfig />}
+      {visible === 'sla_rules'     && <ReglasSlaYOla />}
+      {visible === 'lifecycles'    && <CiclosDeVida />}
+      {visible === 'channels'      && <ConfigCanales />}
+      {visible === 'groups'        && <GroupsConfig />}
+      {visible === 'routing'       && <RoutingRules />}
+      {visible === 'escalation'    && <EscalationConfig />}
+      {visible === 'notifications' && <NotificationsConfig />}
+      {visible === 'mail'          && <ConfigCorreoEntrante />}
+      {visible === 'monitoring'    && <MonitorizacionConfig />}
+      {visible === 'oncall'        && <GuardiasConfig />}
+      {visible === 'status_page'   && <ConfigPaginaDeEstado />}
+      {visible === 'templates'     && <TemplatesConfig />}
+      {visible === 'canned'        && <CannedResponsesManager />}
+      {visible === 'announcements' && <AnnouncementsConfig />}
     </div>
   )
 }

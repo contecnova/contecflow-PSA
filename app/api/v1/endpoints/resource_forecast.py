@@ -27,11 +27,11 @@ from sqlalchemy.orm import Session
 from typing import Optional, List
 from datetime import date, timedelta
 
+from app.services.settings_service.por_empresa import capacidad_semanal
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.responses import APIResponse
 from app.models.user import User
-from app.core.config import settings
 from app.services.resource_analytics import (
     get_user_week_hours as _svc_user_week_hours,
     get_forecast_active_users,
@@ -120,7 +120,7 @@ def forecast_heatmap(
 
     result_users = []
     for u in users:
-        capacity = u.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
+        capacity = capacidad_semanal(db, u)
         weeks_data = []
         total_load = 0.0
 
@@ -198,7 +198,7 @@ def forecast_user_detail(
         raise HTTPException(404)
 
     week_dates = _semanas(p, weeks, 13, from_date)
-    capacity   = u.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
+    capacity   = capacidad_semanal(db, u)
 
     # Nombres de proyectos
     project_names = get_forecast_project_names(db)
@@ -264,7 +264,7 @@ def find_available(
 
     result = []
     for u in users:
-        capacity = u.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
+        capacity = capacidad_semanal(db, u)
         availabilities = []
         for w in week_dates:
             hw        = _compute_user_week_hours(u.id, w, db)
@@ -335,7 +335,7 @@ def forecast_summary(
         week_capacity  = 0.0
         for u in users:
             hw  = _compute_user_week_hours(u.id, w, db)
-            cap = _capacidad(u.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS, hw)
+            cap = _capacidad(capacidad_semanal(db, u), hw)
             committed = hw["committed_hours"]
             week_committed += committed
             week_capacity  += cap
@@ -443,7 +443,7 @@ def utilization_trend(
     team_by_week: dict = {w: {"actual_h": 0.0, "planned_h": 0.0, "cap_h": 0.0} for w in all_weeks}
 
     for user in users:
-        cap_h = float(user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS)
+        cap_h = float(capacidad_semanal(db, user))
         series = []
         for wk in all_weeks:
             is_future = wk >= _monday(today)

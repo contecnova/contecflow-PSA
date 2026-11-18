@@ -13,7 +13,7 @@ from app.api.v1.endpoints import (
     currency_sync, currency_rates,
     scim, governance, abac, abac_admin, security_observability,
     public_forms, developer_portal,
-    labels, translations, ui,
+    labels, translations,
     resource_demand, jira_integration,
 )
 # Auditoría 2026-08 (hallazgo 22): antes venía de `endpoints/v239/`.
@@ -51,7 +51,9 @@ router.include_router(developer_portal.router,                                  
 router.include_router(branding.router,                                      tags=["Branding"])
 router.include_router(labels.router,               prefix="/labels",                tags=["Labels"])
 router.include_router(translations.router,         prefix="/translations",          tags=["Translations"])
-router.include_router(ui.router,                   prefix="/ui",                    tags=["UI"])
+# 18-11-2026: `/ui` (accessibility, keyboard-nav, labels) era un endpoint de
+# relleno con textos fijos que no usaba nadie (ni el frontend ni otro servicio):
+# retirado. Las etiquetas de la interfaz viven en `frontend/src/i18n`.
 router.include_router(resource_demand.router,      prefix="/resource-demand",       tags=["Resource Demand"])
 router.include_router(conectores.router,           prefix="/conectores",            tags=["Conectores contecmind y contecintelligence"])
 router.include_router(lecciones.router,            prefix="/lessons",               tags=["Lecciones aprendidas"])

@@ -137,3 +137,151 @@ def a_bcp47(codigo: Optional[str], preferido: Optional[str] = None) -> Optional[
     if preferido and _corto(preferido) == codigo.lower():
         return preferido
     return _REGION_POR_DEFECTO.get(codigo.lower(), codigo)
+
+
+# ── Idioma de salida (IA, PDF, correos) ──────────────────────────────────────
+#
+# 18-11-2026 (auditoria de textos fijos). Los prompts de IA decian «Responde
+# siempre en español» y los PDF / correos salian en castellano aunque el
+# usuario, la empresa o el cliente tuvieran otro idioma. Un solo sitio para
+# decidir en que idioma sale lo que genera el servidor:
+#
+#   idioma explicito (el del cliente, el del ticket...) → preferencia del
+#   usuario → `Organization.locale` → `DEFAULT_LANGUAGE` de la empresa →
+#   `settings.DEFAULT_LANGUAGE` → `"es"`.
+#
+# Los prompts pueden seguir escritos en castellano: lo que cambia es la
+# instruccion del idioma de la respuesta (`instruccion_de_idioma`).
+
+def idioma_de_salida(db=None, *, user_id: Optional[str] = None, org_id: Optional[str] = None,
+                     preferido: Optional[str] = None) -> str:
+    """Codigo del idioma en que sale un texto generado (18-11-2026).
+
+    `preferido` (el idioma del cliente, del ticket, del documento...) gana si
+    es un idioma admitido; si no, `idioma(db, user_id, org_id)`. Si se pasa
+    `user_id` sin `org_id`, la empresa se toma del usuario.
+    """
+    from app.services.traduccion.idiomas import normalizar
+    if normalizar(preferido):
+        return normalizar(preferido)
+    if db is not None and user_id and not org_id:
+        try:
+            from app.models.user import User
+            org_id = db.query(User.organization_id).filter(User.id == user_id).scalar()
+        except Exception:
+            logger.debug("idioma_de_salida: empresa del usuario no legible", exc_info=True)
+    return idioma(db, user_id=user_id, org_id=org_id)
+
+
+def nombre_del_idioma(codigo: Optional[str]) -> str:
+    """Nombre (en ingles, lo lee el modelo) del idioma `codigo`: `"zh"` → `"Chinese (Simplified)"`."""
+    from app.services.traduccion.idiomas import IDIOMAS, normalizar
+    cod = normalizar(codigo) or _corto(codigo) or IDIOMA_DE_RESPALDO
+    return IDIOMAS.get(cod, cod)
+
+
+def instruccion_de_idioma(codigo: Optional[str], *, conversacional: bool = False) -> str:
+    """Frase para el prompt de sistema: en que idioma debe responder la IA (18-11-2026).
+
+    `conversacional` (chats): manda el idioma en que escribe el usuario y
+    `codigo` queda de respaldo. Si no, la salida va siempre en `codigo`.
+    """
+    from app.services.traduccion.idiomas import normalizar
+    cod = normalizar(codigo) or _corto(codigo) or IDIOMA_DE_RESPALDO
+    nombre = nombre_del_idioma(cod)
+    if conversacional:
+        return (f"Responde en el idioma en que te escriba el usuario; si no se puede saber, "
+                f"en {nombre} (idioma «{cod}»).")
+    return (f"Responde siempre en {nombre} (idioma «{cod}»), "
+            f"aunque estas instrucciones esten en castellano.")
+
+
+def instruccion_de_idioma_para(db=None, *, user_id: Optional[str] = None, org_id: Optional[str] = None,
+                               preferido: Optional[str] = None, conversacional: bool = False) -> str:
+    """`instruccion_de_idioma(idioma_de_salida(...))` en una llamada."""
+    return instruccion_de_idioma(idioma_de_salida(db, user_id=user_id, org_id=org_id, preferido=preferido),
+                                 conversacional=conversacional)
+
+
+# ── Fechas y zona horaria ────────────────────────────────────────────────────
+#
+# 18-11-2026 (auditoria de textos fijos). 17 sitios escribian `%d/%m/%Y` fijo
+# y varios ponian «UTC» al lado de `datetime.now()` (hora local del servidor,
+# no UTC). Ahora la fecha va con el formato del idioma y la hora en la zona de
+# la empresa (`DEFAULT_TIMEZONE`) con su etiqueta real (CET, CEST, EST...).
+
+#: Formato de fecha por idioma (sin caracteres no ASCII: `strftime` en Windows
+#: falla con ellos). Lo que no esta aqui usa el de `IDIOMA_DE_RESPALDO`.
+_FORMATO_DE_FECHA = {
+    "es": "%d/%m/%Y", "ca": "%d/%m/%Y", "gl": "%d/%m/%Y", "eu": "%Y/%m/%d", "fr": "%d/%m/%Y",
+    "it": "%d/%m/%Y", "pt": "%d/%m/%Y", "de": "%d.%m.%Y", "pl": "%d.%m.%Y", "nl": "%d-%m-%Y",
+    "en": "%Y-%m-%d", "zh": "%Y-%m-%d", "zh-hant": "%Y-%m-%d", "ja": "%Y/%m/%d", "ko": "%Y.%m.%d",
+}
+
+
+def formato_de_fecha(codigo_idioma: Optional[str], *, con_hora: bool = False) -> str:
+    """Patron `strftime` de la fecha (y hora, 24 h) para un idioma."""
+    from app.services.traduccion.idiomas import normalizar
+    cod = normalizar(codigo_idioma) or _corto(codigo_idioma) or IDIOMA_DE_RESPALDO
+    fmt = _FORMATO_DE_FECHA.get(cod) or _FORMATO_DE_FECHA[IDIOMA_DE_RESPALDO]
+    return f"{fmt} %H:%M" if con_hora else fmt
+
+
+def zona_horaria(db=None, org_id: Optional[str] = None):
+    """`ZoneInfo` de la empresa (`DEFAULT_TIMEZONE`); UTC si no se puede leer."""
+    from zoneinfo import ZoneInfo
+    nombre = None
+    if db is not None:
+        try:
+            from app.services.settings_service import get_runtime_str
+            nombre = get_runtime_str(db, "DEFAULT_TIMEZONE", org_id)
+        except Exception:
+            logger.debug("zona_horaria: ajuste no legible", exc_info=True)
+    for candidato in (nombre, settings.DEFAULT_TIMEZONE, "UTC"):
+        if not candidato:
+            continue
+        try:
+            return ZoneInfo(str(candidato))
+        except Exception:
+            logger.debug("zona_horaria: zona %r no valida", candidato)
+    from datetime import timezone as _tz
+    return _tz.utc
+
+
+def ahora_local(db=None, org_id: Optional[str] = None, zona=None):
+    """La hora actual en la zona de la empresa (con `tzinfo`)."""
+    from datetime import datetime, timezone as _tz
+    return datetime.now(_tz.utc).astimezone(zona or zona_horaria(db, org_id))
+
+
+def formatear_fecha(valor: Any, codigo_idioma: Optional[str] = None, *, con_hora: bool = False,
+                    con_zona: bool = False, zona=None) -> str:
+    """Fecha (o fecha y hora) en el formato del idioma. `None` → `"—"`.
+
+    Un `datetime` con zona se pasa a `zona` (si se da); uno sin zona se toma
+    como UTC si se pide `zona`. `con_zona` añade la etiqueta de la zona
+    (`CET`, `EST`...) detras de la hora.
+    """
+    from datetime import date, datetime, timezone as _tz
+    if valor is None or valor == "":
+        return "—"
+    if isinstance(valor, str):
+        try:
+            valor = datetime.fromisoformat(valor.replace("Z", "+00:00"))
+        except ValueError:
+            return valor
+    if isinstance(valor, datetime) and zona is not None:
+        valor = (valor if valor.tzinfo else valor.replace(tzinfo=_tz.utc)).astimezone(zona)
+    if not isinstance(valor, (date, datetime)):
+        return str(valor)
+    hora = con_hora and isinstance(valor, datetime)
+    texto = valor.strftime(formato_de_fecha(codigo_idioma, con_hora=hora))
+    if hora and con_zona and isinstance(valor, datetime) and valor.tzinfo is not None:
+        texto += f" {valor.tzname() or valor.tzinfo}"
+    return texto
+
+
+def sello_de_hora(db=None, org_id: Optional[str] = None, codigo_idioma: Optional[str] = None) -> str:
+    """«Ahora» en la zona de la empresa, con hora y etiqueta de zona: `18/11/2026 15:30 CET`."""
+    zona = zona_horaria(db, org_id)
+    return formatear_fecha(ahora_local(zona=zona), codigo_idioma, con_hora=True, con_zona=True, zona=zona)

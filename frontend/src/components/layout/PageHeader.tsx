@@ -5,6 +5,7 @@ import { FileSpreadsheet } from 'lucide-react'
 import './PageHeader.css'
 import { useTextoUi } from '../ui/useTextoUi'
 import { Pulsable } from '../ui'
+import { useIncrustadaEnAjustes } from './incrustacion'
 
 interface ExtractedTable {
   headers: string[]
@@ -228,8 +229,11 @@ export default function PageHeader({
   exportTargetSelector,
   exportFilePrefix,
 }: PageHeaderProps) {
+  // 18-11-2026: dentro de Configuración el título es de sección (h2), no de página.
+  const incrustada = useIncrustadaEnAjustes()
+  const Titulo = incrustada ? 'h2' : 'h1'
   return (
-    <div className={`${sticky ? 'sticky-top sticky-top--shadow' : undefined} pagehead-sx1 ${sticky ? 'page-header-m1' : 'page-header-m2'}`}>
+    <div className={`${sticky && !incrustada ? 'sticky-top sticky-top--shadow' : ''} pagehead-sx1 ${sticky && !incrustada ? 'page-header-m1' : 'page-header-m2'}${incrustada ? ' pagehead--incrustada' : ''}`}>
       {/* Breadcrumb */}
       {breadcrumb && (
         <div className="pagehead-row-2">
@@ -257,9 +261,9 @@ export default function PageHeader({
                 {icon}
               </div>
             )}
-            <h1 className="pagehead-box-2">
+            <Titulo className="pagehead-box-2">
               {title}
-            </h1>
+            </Titulo>
           </div>
           {subtitle && (
             <p className={`pagehead-box-5 ${icon ? 'page-header-m5' : 'page-header-m6'}`}>

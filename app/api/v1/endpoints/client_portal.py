@@ -96,28 +96,8 @@ class ClientLoginIn(BaseModel):
     email: EmailStr = Field(..., max_length=120)
     password: str = Field(..., min_length=8, max_length=128)
 
-class ClientCreateIn(BaseModel):
-    project_id: Optional[str] = None        # Legacy single-project (also added to M2M)
-    project_ids: Optional[List[str]] = None # Multi-project access list
-    client_org_id: Optional[str] = None     # Empresa cliente (entidad Client)
-    full_name: str = Field(..., min_length=2, max_length=100)
-    email: EmailStr = Field(..., max_length=120)
-    job_title: Optional[str] = Field(None, max_length=80)
-    company: Optional[str] = Field(None, max_length=120)
-    phone: Optional[str] = Field(None, max_length=30)
-    password: str = Field(..., min_length=8, max_length=128)
-    can_approve_deliverables: bool = True
-    can_request_changes: bool = True
-    can_view_budget: bool = True
-    can_view_team: bool = False
-    language: str = Field(settings.DEFAULT_LANGUAGE, min_length=2, max_length=10)
-
-    @field_validator('full_name')
-    @classmethod
-    def name_must_have_alpha(cls, v: str) -> str:
-        if not any(c.isalpha() for c in v):
-            raise ValueError('El nombre debe contener letras')
-        return v
+# ClientCreateIn vive en app/schemas/client_portal.py (lo usa también client_service).
+from app.schemas.client_portal import ClientCreateIn  # noqa: E402
 
 class FeatureRequestIn(BaseModel):
     title: str = Field(..., min_length=4, max_length=120)

@@ -739,7 +739,7 @@ export function ConversationPoliciesPanel() {
               </div>
               <div>
                 <label className="goveconv-labelstyle">{t('governedconversations.rol_por_defecto')}</label>
-                <input aria-label="admin, manager, pm..." value={draft.default_role_key || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], default_role_key: event.target.value } }))} className="goveconv-inputstyle" placeholder="admin, manager, pm..." />
+                <input aria-label={t('governedconversations.rol_por_defecto')} value={draft.default_role_key || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], default_role_key: event.target.value } }))} className="goveconv-inputstyle" placeholder="admin, manager, pm..." />
               </div>
               <div>
                 <label id={`${idCampo}-${policy.id}-et-pool`} htmlFor={`${idCampo}-${policy.id}-pool`} className="goveconv-labelstyle">{t('governedconversations.pool_de_asignacion')}</label>

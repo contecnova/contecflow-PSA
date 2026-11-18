@@ -707,10 +707,14 @@ def ai_summary(
         )
     )
 
+    # 18-11-2026: el resumen en el idioma de quien lo pide (antes, castellano
+    # fijo en el visual y el idioma del documento en el de texto).
+    from app.services.formato_regional import instruccion_de_idioma_para
+    _idioma_salida = instruccion_de_idioma_para(db, user_id=current_user.id) + " "
     system_prompt = (
         (
             "Eres un asistente experto en descripcion visual de documentos empresariales. "
-            "Responde siempre en espanol claro. "
+            + _idioma_salida +
             "No inventes detalles no soportados por el analisis de entrada; expresa la incertidumbre cuando aplique. "
             "No incluyas datos sensibles ni suposiciones de personas concretas, importes exactos, fechas concretas, "
             "nombres reales de clientes/proveedores o identificadores privados."
@@ -718,7 +722,7 @@ def ai_summary(
         if is_visual_source else
         (
             "Eres un asistente experto en análisis de documentos empresariales. "
-            "Responde SIEMPRE en el idioma del documento. "
+            + _idioma_salida +
             "REGLA DE PRIVACIDAD ESTRICTA: NO incluyas en el resumen ningún dato sensible "
             "del contenido — específicamente: nombres propios de personas, importes o cifras "
             "concretas, fechas concretas, números de identificación (NIF/IBAN/IDs), nombres "

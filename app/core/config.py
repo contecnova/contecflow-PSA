@@ -298,6 +298,12 @@ class Settings(
 
     # ── Business rules ────────────────────────────────────────────────────────
     DEFAULT_TAX_RATE: float = Field(default=21.0, env="DEFAULT_TAX_RATE")
+    # 18-11-2026: nombre del impuesto en las facturas (IVA, VAT, GST, TVA...).
+    # Vacío = el nombre habitual en el idioma de la factura (IVA, VAT, TVA, MwSt...).
+    TAX_NAME: str = Field(default="", env="TAX_NAME")
+    # 18-11-2026: sector de la empresa para las narrativas de IA del BI
+    # (vacío = no se presupone ninguno; antes, «consultoría IT» fijo).
+    COMPANY_SECTOR: str = Field(default="", env="COMPANY_SECTOR")
     MIN_PASSWORD_LENGTH: int = Field(default=8, env="MIN_PASSWORD_LENGTH")
     # bcrypt cost factor: 12 = default razonable en dev; 14+ recomendado en prod.
     # Cada incremento duplica el coste de hashing.

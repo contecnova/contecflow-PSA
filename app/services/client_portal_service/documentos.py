@@ -84,7 +84,7 @@ def _resolve_doc_project_name(doc, db: Session) -> str:
 def _generate_and_store_signature_pdf(
     doc, doc_id: str, signer_name: str, signer_email: str, signer_job_title: Optional[str],
     ip: str, signature_pdf_path_root: str, project_name: str, now: datetime,
-    paleta=None,
+    paleta=None, **regional,
 ) -> Optional[str]:
     """Generate the signature PDF, persist it on disk, set doc.signed_pdf_path,
     and return the base64-encoded PDF bytes. Logs (and swallows) generation
@@ -105,6 +105,7 @@ def _generate_and_store_signature_pdf(
             signature_ip=ip,
             original_file_name=doc.file_name or "",
             paleta=paleta,
+            **regional,
         )
         pdf_dir = Path(signature_pdf_path_root)
         pdf_dir.mkdir(parents=True, exist_ok=True)
@@ -135,10 +136,20 @@ def sign_document(doc_id: str, signer_name: str, signer_email: str, signer_job_t
     marca = marca_de_organizacion(
         db, getattr(doc, "organization_id", None), base=PALETA_POR_DEFECTO,
     )
+    # 18-11-2026: el certificado en el idioma del cliente que firma, con el
+    # nombre de la empresa y la hora en su zona horaria.
+    from app.core.constantes import NOMBRE_DEL_PRODUCTO
+    from app.services.formato_regional import idioma_de_salida, zona_horaria
+    org_doc = getattr(doc, "organization_id", None)
+    regional = {
+        "idioma": idioma_de_salida(db, org_id=org_doc, preferido=getattr(current_client, "language", None)),
+        "marca": marca.nombre or NOMBRE_DEL_PRODUCTO,
+        "zona": zona_horaria(db, org_doc),
+    }
     pdf_b64 = _generate_and_store_signature_pdf(
         doc, doc_id, signer_name, signer_email, signer_job_title,
         ip, signature_pdf_path_root, project_name, now,
-        paleta=marca.paleta,
+        paleta=marca.paleta, **regional,
     )
     db.commit()
     return {"ok": True, "signed_at": str(now)[:16], "signer_name": doc.signed_by_name, "pdf_b64": pdf_b64}

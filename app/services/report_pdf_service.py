@@ -9,6 +9,12 @@ Tipos de informe:
 
 Punto de entrada:
   build_report_pdf(report, db) -> bytes
+
+18-11-2026 (auditoria de textos fijos): el informe sale en el idioma de la
+empresa (o el `idioma` que se pida), con textos de `textos_de_salida`, el
+nombre de la empresa (`OrgBranding`) y la hora en su zona horaria con su
+etiqueta (antes `datetime.now()` del servidor con «UTC» al lado). `styles`
+lleva `_idioma` y `_cuando` a todos los ayudantes.
 """
 from __future__ import annotations
 
@@ -16,7 +22,7 @@ import io
 import logging
 from datetime import datetime
 from typing import Optional
-from app.core.constantes import NOMBRE_DEL_PRODUCTO
+from app.services.textos_de_salida import texto
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +138,11 @@ def _make_doc(buffer) -> "SimpleDocTemplate":
     )
 
 
+def _t(styles: dict, clave: str, **params) -> str:
+    """`texto(clave)` en el idioma del informe (`styles["_idioma"]`)."""
+    return texto(clave, styles.get("_idioma"), **params)
+
+
 def _make_styles(paleta=None):
     """Los estilos del informe.
 
@@ -177,10 +188,14 @@ def _make_styles(paleta=None):
 
 
 def _header_block(title: str, subtitle: str, styles: dict) -> list:
-    now_str = datetime.now().strftime("%d/%m/%Y %H:%M")
+    if styles.get("_cuando"):
+        now_str = styles["_cuando"]
+    else:
+        from app.services.formato_regional import formatear_fecha
+        now_str = formatear_fecha(datetime.now(), styles.get("_idioma"), con_hora=True)
     return [
         Paragraph(title, styles["title"]),
-        Paragraph(f"{subtitle} · Generado: {now_str}", styles["subtitle"]),
+        Paragraph(f"{subtitle} · {_t(styles, 'pdf.generado', cuando=now_str)}", styles["subtitle"]),
         HRFlowable(width="100%", thickness=1.5, color=styles["_acento"],
                    spaceAfter=12),
     ]
@@ -197,17 +212,20 @@ def _kpi_table(kpis: dict, styles: dict, simbolo: Optional[str] = None) -> list:
             return f"{v:,.1f}{suffix}"
         return f"{v}{suffix}"
 
+    def k(clave):
+        return _t(styles, f"informe.kpi.{clave}")
+
     rows = [
-        ["KPI", "Valor"],
-        ["Proyectos activos", _fmt(kpis.get("active_projects"))],
-        ["Horas imputadas (mes)", _fmt(kpis.get("hours_mtd"), "h")],
-        ["Coste mes", formatear_importe(kpis.get('cost_mtd') or 0, simbolo)],
-        ["Facturabilidad", _fmt(kpis.get("billability_pct"), "%")],
-        ["Pipeline ponderado", formatear_importe(kpis.get('pipeline_weighted') or 0, simbolo)],
-        ["Oportunidades abiertas", _fmt(kpis.get("open_opps"))],
-        ["Revenue ganado (YTD)", formatear_importe(kpis.get('won_revenue') or 0, simbolo)],
-        ["Margen medio (%)", _fmt(kpis.get("avg_margin_pct"), "%")],
-        ["Proyectos riesgo alto", _fmt(kpis.get("high_risk_projects"))],
+        [_t(styles, "informe.kpi"), _t(styles, "informe.valor")],
+        [k("active_projects"), _fmt(kpis.get("active_projects"))],
+        [k("hours_mtd"), _fmt(kpis.get("hours_mtd"), "h")],
+        [k("cost_mtd"), formatear_importe(kpis.get('cost_mtd') or 0, simbolo)],
+        [k("billability_pct"), _fmt(kpis.get("billability_pct"), "%")],
+        [k("pipeline_weighted"), formatear_importe(kpis.get('pipeline_weighted') or 0, simbolo)],
+        [k("open_opps"), _fmt(kpis.get("open_opps"))],
+        [k("won_revenue"), formatear_importe(kpis.get('won_revenue') or 0, simbolo)],
+        [k("avg_margin_pct"), _fmt(kpis.get("avg_margin_pct"), "%")],
+        [k("high_risk_projects"), _fmt(kpis.get("high_risk_projects"))],
     ]
     tbl = Table(rows, colWidths=[9 * cm, 6 * cm])
     tbl.setStyle(TableStyle([
@@ -223,14 +241,15 @@ def _kpi_table(kpis: dict, styles: dict, simbolo: Optional[str] = None) -> list:
         ("GRID", (0, 0), (-1, -1), 0.4, _rl_colors.lightgrey),
         ("ROWPADDING", (0, 0), (-1, -1), 5),
     ]))
-    return [Paragraph("KPIs del período", styles["section"]), tbl]
+    return [Paragraph(_t(styles, "informe.kpis_del_periodo"), styles["section"]), tbl]
 
 
 def _utilization_table(rows_data: list, styles: dict) -> list:
     if not rows_data:
-        return [Paragraph("Sin datos de utilización en OLAP.", styles["body"])]
+        return [Paragraph(_t(styles, "informe.sin_utilizacion"), styles["body"])]
 
-    header = ["Usuario", "Departamento", "Horas", "Capacidad", "Utilización %"]
+    header = [_t(styles, f"informe.col.{c}") for c in ("usuario", "departamento", "horas", "capacidad",
+                                                        "utilizacion")]
     rows = [header]
     for r in rows_data[:30]:
         util = r.get("utilization_pct") or 0
@@ -254,16 +273,17 @@ def _utilization_table(rows_data: list, styles: dict) -> list:
         ("ROWPADDING", (0, 0), (-1, -1), 4),
         ("ALIGN", (2, 0), (-1, -1), "CENTER"),
     ]))
-    return [Paragraph("Utilización por usuario", styles["section"]), tbl]
+    return [Paragraph(_t(styles, "informe.utilizacion"), styles["section"]), tbl]
 
 
 def _pipeline_table(rows_data: list, styles: dict, simbolo: Optional[str] = None) -> list:
     from app.services.formato_regional import formatear_importe, simbolo_de_moneda
     simbolo = simbolo or simbolo_de_moneda()
     if not rows_data:
-        return [Paragraph("Sin datos de pipeline en OLAP.", styles["body"])]
+        return [Paragraph(_t(styles, "informe.sin_pipeline"), styles["body"])]
 
-    header = ["Etapa", "Oportunidades", "Revenue esperado", "Revenue ponderado", "Prob. media", "Días medios"]
+    header = [_t(styles, f"informe.col.{c}") for c in ("etapa", "oportunidades", "revenue_esperado",
+                                                        "revenue_ponderado", "prob_media", "dias_medios")]
     rows = [header]
     for r in rows_data:
         rows.append([
@@ -287,14 +307,14 @@ def _pipeline_table(rows_data: list, styles: dict, simbolo: Optional[str] = None
         ("ROWPADDING", (0, 0), (-1, -1), 4),
         ("ALIGN", (1, 0), (-1, -1), "CENTER"),
     ]))
-    return [Paragraph("Funnel de pipeline", styles["section"]), tbl]
+    return [Paragraph(_t(styles, "informe.pipeline"), styles["section"]), tbl]
 
 
 def _portfolio_table(rows_data: list, styles: dict) -> list:
     if not rows_data:
-        return [Paragraph("Sin datos de portfolio en OLAP.", styles["body"])]
+        return [Paragraph(_t(styles, "informe.sin_portfolio"), styles["body"])]
 
-    header = ["Proyecto", "Estado", "Margen %", "Completado %", "Riesgo"]
+    header = [_t(styles, f"informe.col.{c}") for c in ("proyecto", "estado", "margen", "completado", "riesgo")]
     rows = [header]
     for r in rows_data[:20]:
         rows.append([
@@ -326,7 +346,7 @@ def _portfolio_table(rows_data: list, styles: dict) -> list:
         style_cmds.append(("FONTNAME", (2, i), (2, i), "Helvetica-Bold"))
 
     tbl.setStyle(TableStyle(style_cmds))
-    return [Paragraph("Salud del portfolio", styles["section"]), tbl]
+    return [Paragraph(_t(styles, "informe.portfolio"), styles["section"]), tbl]
 
 
 def _narrative_block(narrative_text: str, styles: dict) -> list:
@@ -337,7 +357,7 @@ def _narrative_block(narrative_text: str, styles: dict) -> list:
     clean = re.sub(r"\*\*(.+?)\*\*", r"\1", narrative_text)
     clean = re.sub(r"\*(.+?)\*", r"\1", clean)
     paragraphs = [p.strip() for p in clean.split("\n\n") if p.strip()]
-    elements = [Paragraph("Resumen ejecutivo IA", styles["section"])]
+    elements = [Paragraph(_t(styles, "informe.resumen_ia"), styles["section"])]
     for p in paragraphs:
         elements.append(Paragraph(p.replace("\n", "<br/>"), styles["narrative"]))
         elements.append(Spacer(1, 4))
@@ -346,11 +366,12 @@ def _narrative_block(narrative_text: str, styles: dict) -> list:
 
 # ── Main entry point ──────────────────────────────────────────────────────────
 
-def datos_de_la_metrica(report, db, org_id) -> tuple:
+def datos_de_la_metrica(report, db, org_id, idioma: Optional[str] = None) -> tuple:
     """(filas, resumen, filtros) de la métrica del informe, como en /analytics/query.
 
     El periodo sale de `filters_json` (`date_from`, `date_to`) o, sin él, el
     mismo por defecto que la pantalla; `top_n`, el mismo también (20).
+    Las claves del resumen son sus etiquetas en `idioma` (castellano si no).
     """
     import json
     from app.services.analytics_service import parse_date_range
@@ -370,17 +391,18 @@ def datos_de_la_metrica(report, db, org_id) -> tuple:
     filas = resultado[0] if isinstance(resultado, tuple) else resultado
     filas = list(filas or [])
     valores = [f.get("value") for f in filas if isinstance(f.get("value"), (int, float))]
-    resumen = {"Periodo": f"{d_from} — {d_to}", "Filas": len(filas)}
+    resumen = {texto("pdf.periodo", idioma): f"{d_from} — {d_to}", texto("pdf.filas", idioma): len(filas)}
     if valores:
-        resumen["Total"] = round(sum(valores), 2)
+        resumen[texto("pdf.total", idioma)] = round(sum(valores), 2)
     return filas, resumen, {**filtros, "date_from": str(d_from), "date_to": str(d_to)}
 
 
-def build_report_pdf(report, db, org_id: Optional[str] = None) -> bytes:
+def build_report_pdf(report, db, org_id: Optional[str] = None, idioma: Optional[str] = None) -> bytes:
     """Generate a BI PDF for the given ScheduledReport row.
 
     Falls back to the legacy report_pdf.generate_report_pdf for 'custom' type
-    when OLAP is unavailable.
+    when OLAP is unavailable. 18-11-2026: `idioma` (por defecto, el de la
+    empresa), nombre de la empresa y hora en su zona.
     """
     if not _REPORTLAB:
         # Never hand back a corrupt 1-byte "PDF"; fail loudly so the caller
@@ -400,24 +422,24 @@ def build_report_pdf(report, db, org_id: Optional[str] = None) -> bytes:
     buffer = io.BytesIO()
     doc = _make_doc(buffer)
     styles = _make_styles(marca.paleta)
-    from app.services.formato_regional import simbolo_de_moneda
+    from app.services.formato_regional import idioma_de_salida, sello_de_hora, simbolo_de_moneda
+    from app.services.textos_de_salida import nombre_de_marca
     simbolo = simbolo_de_moneda(db, org_id)
+    idioma = idioma_de_salida(db, org_id=org_id, preferido=idioma)
+    cuando = sello_de_hora(db, org_id, idioma)
+    nombre_marca = nombre_de_marca(db, org_id)
+    styles["_idioma"], styles["_cuando"] = idioma, cuando
     story = []
 
     # ── Header ────────────────────────────────────────────────────────────────
-    type_labels = {
-        "executive_summary": "Resumen Ejecutivo",
-        "utilization": "Informe de Utilización",
-        "pipeline": "Informe de Pipeline Comercial",
-        "portfolio": "Informe de Portfolio de Proyectos",
-        "custom": "Informe Personalizado",
-    }
-    subtitle = type_labels.get(report_type, "Informe")
+    clave_tipo = (f"informe.tipo.{report_type}" if report_type in (
+        "executive_summary", "utilization", "pipeline", "portfolio", "custom") else "informe.tipo.otro")
+    subtitle = texto(clave_tipo, idioma)
     story += _header_block(report.name, subtitle, styles)
 
     # ── Narrative (optional, any report type) ─────────────────────────────────
     if include_narrative:
-        narrative = _fetch_narrative(org_id)
+        narrative = _fetch_narrative(org_id, idioma)
         story += _narrative_block(narrative, styles)
         story.append(Spacer(1, 8))
 
@@ -446,9 +468,12 @@ def build_report_pdf(report, db, org_id: Optional[str] = None) -> bytes:
         # al generador con `data=[]` y el PDF salía siempre vacío; ahora la
         # métrica se calcula con el mismo registro que usa la pantalla.
         from app.services.report_pdf import generate_report_pdf as _legacy_pdf
-        filas, resumen, filtros = datos_de_la_metrica(report, db, org_id)
+        filas, resumen, filtros = datos_de_la_metrica(report, db, org_id, idioma)
         return _legacy_pdf(
             paleta=marca.paleta,
+            idioma=idioma,
+            marca=nombre_marca,
+            generado_el=cuando,
             title=report.name,
             metric_label=(report.metric or "custom").replace("_", " ").title(),
             data=filas,
@@ -460,7 +485,7 @@ def build_report_pdf(report, db, org_id: Optional[str] = None) -> bytes:
     story.append(Spacer(1, 20))
     story.append(HRFlowable(width="100%", thickness=0.5, color=_rl(_rl_colors.lightgrey.hexval())))
     story.append(Paragraph(
-        f"Generado automáticamente por {NOMBRE_DEL_PRODUCTO} · {datetime.now().strftime('%d/%m/%Y %H:%M UTC')}",
+        texto("pdf.pie_automatico", idioma, marca=nombre_marca, cuando=cuando),
         styles["caption"],
     ))
 

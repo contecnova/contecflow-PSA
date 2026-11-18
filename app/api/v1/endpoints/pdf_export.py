@@ -39,8 +39,14 @@ def export_pdf(
 ):
     export_type = payload.export_type or "generic"
     source_id = payload.source_id
+    # 18-11-2026: sin nombre, el de la empresa (`OrgBranding`) o el del producto
+    # (antes «Contecflow» fijo), y el PDF en el idioma de quien lo pide.
+    from app.services.formato_regional import idioma_de_salida
     params = {
-        "company_name": payload.company_name or "Contecflow",
+        "company_name": payload.company_name or None,
+        "org_id": getattr(current_user, "organization_id", None),
+        "idioma": idioma_de_salida(db, user_id=current_user.id,
+                                   org_id=getattr(current_user, "organization_id", None)),
         "primary_color": payload.primary_color or "#1C2833",
         "logo_b64": payload.logo_b64,
     }

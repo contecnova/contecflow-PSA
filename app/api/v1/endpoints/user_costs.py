@@ -31,7 +31,6 @@ from app.core.deps import require_admin_or_hr
 from app.db.session import get_db
 from app.models.user import User
 from app.core.responses import APIListResponse, APIResponse
-from app.core.config import settings
 import app.services.cost_service as svc
 from app.services.presets_de_pais import actualizar_preset_de_pais
 
@@ -42,7 +41,7 @@ router = APIRouter(tags=["User Costs"])
 class CountryPresetIn(BaseModel):
     country_code: str
     country_name: str
-    currency: str = settings.DEFAULT_CURRENCY
+    currency: Optional[str] = None  # 18-11-2026: sin valor, la moneda de la empresa
     # Sin valor: los por defecto de la empresa (`costes_por_defecto`).
     employer_cost_pct: Optional[float] = None
     productive_hours_year: Optional[float] = None
@@ -64,7 +63,7 @@ class ProfileIn(BaseModel):
     extra_annual_costs: float = 0.0
     productive_hours_year: Optional[float] = None
     country_code: Optional[str] = None
-    currency: str = settings.DEFAULT_CURRENCY
+    currency: Optional[str] = None  # 18-11-2026: sin valor, la moneda de la empresa (create_profile)
     notes: Optional[str] = None
 
 
@@ -116,6 +115,9 @@ def create_country(
     current_user: User = Depends(require_admin_or_hr),
 ):
     datos = _con_costes_por_defecto(db, current_user, payload.model_dump())
+    if not datos.get("currency"):
+        from app.services.settings_service.por_empresa import moneda_de_empresa
+        datos["currency"] = moneda_de_empresa(db, registro=current_user)
     row = svc.guardar_preset_de_pais(db, current_user, datos)
     return APIResponse.ok(data=svc.serialize_country(row))
 

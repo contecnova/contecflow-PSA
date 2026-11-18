@@ -128,10 +128,13 @@ def summarize_text(text: str, db=None, organization_id=None) -> tuple[str, list[
 def _summarize_con_call_ai(text: str, db, organization_id) -> Optional[tuple[str, list[dict]]]:
     import json
     from app.services.ai_provider_service import PresupuestoDeIAAgotado, call_ai, es_aviso_de_ia
+    from app.services.formato_regional import instruccion_de_idioma_para
     try:
         crudo = call_ai(db, [{"role": "user", "content": f"Resume esta reunión y extrae las acciones:\n\n{text[:8000]}"}],
-                        system=("Resumes reuniones en español. Responde SOLO JSON con las claves 'summary' (texto) y "
-                                "'actions' (lista de {text, owner})."),
+                        system=("Resumes reuniones. Responde SOLO JSON con las claves 'summary' (texto) y "
+                                "'actions' (lista de {text, owner}). "
+                                # 18-11-2026: idioma de la empresa (antes, castellano fijo).
+                                + instruccion_de_idioma_para(db, org_id=organization_id)),
                         module="meeting_assistant", organization_id=organization_id, is_superadmin=False,
                         max_tokens=800)
     except PresupuestoDeIAAgotado:

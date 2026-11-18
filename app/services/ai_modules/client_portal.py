@@ -308,11 +308,13 @@ def smart_schedule(db: Session, payload, current_user) -> dict:
     if user_org:
         users_q = users_q.filter(User.organization_id == user_org)
     users = users_q.all()
+    # 18-11-2026: la capacidad de cada persona (o la de su empresa), antes 40 fijas.
+    from app.services.settings_service.por_empresa import capacidad_semanal, capacidad_semanal_de_empresa
     for u in users:
         hrs = db.query(func.sum(Imputation.hours)).filter(
             Imputation.user_id == u.id, Imputation.date >= w4ago
         ).scalar() or 0
-        available = max(0, 40 - round(hrs / 4, 1))
+        available = max(0, capacidad_semanal(db, u) - round(hrs / 4, 1))
         capacity.append({"name": u.full_name, "available_hours_per_week": available})
 
     # Auditoria 2026-11: el prompt pedia `"task_id": <int>` y los ids son UUID;
@@ -326,16 +328,18 @@ def smart_schedule(db: Session, payload, current_user) -> dict:
     capacity_str = "\n".join(f"  {c['name']}: ~{c['available_hours_per_week']}h/week free" for c in capacity[:10])
     today_str = now.strftime("%Y-%m-%d")
 
-    # Item #70: prompts en español (alineado con el resto del sistema).
-    from app.core.config import settings as _s_for_cap
-    _weekly_cap = float(getattr(_s_for_cap, "DEFAULT_WEEKLY_CAPACITY_HOURS", 40.0) or 40.0)
+    # Item #70: prompts en español; la respuesta, en el idioma del usuario (18-11-2026).
+    from app.services.formato_regional import instruccion_de_idioma_para
+    _weekly_cap = capacidad_semanal_de_empresa(db, user_org)
     system = (
         "Eres una IA experta en planificación de proyectos. Recibes una lista "
         "de tareas sin fechas y la capacidad disponible del equipo. Genera un "
         "plan realista empezando hoy. "
         "Responde SOLO con un array JSON, sin texto adicional:\n"
         '[{"task_id": <numero entre corchetes de la tarea>, "suggested_start": "YYYY-MM-DD", '
-        '"suggested_due": "YYYY-MM-DD", "rationale": "..."}]'
+        '"suggested_due": "YYYY-MM-DD", "rationale": "..."}]\n'
+        # 18-11-2026: el «rationale» lo lee el usuario: en su idioma.
+        + instruccion_de_idioma_para(db, user_id=getattr(current_user, "id", None), org_id=user_org)
     )
     user_msg = (
         f"Hoy: {today_str}\n\n"

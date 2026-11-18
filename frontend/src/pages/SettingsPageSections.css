@@ -490,6 +490,10 @@
   border-bottom: 1px solid color-mix(in srgb, var(--surface-4) 19%, transparent);
   align-items: center;
 }
+/* 18-11-2026: Vacaciones solo edita el derecho anual (persona · días). */
+.set-bal-row--2 { grid-template-columns: 1fr 120px; }
+.set-enlace { color: var(--accent); font-size: var(--text-sm); text-decoration: none; }
+.set-enlace:hover { text-decoration: underline; }
 .set-bal-head {
   padding: 8px 16px;
   border-bottom: 1px solid var(--surface-4);
@@ -912,3 +916,13 @@
 
 /* Minutos de inactividad (IconButton con texto): sin el line-height: 0 del botón de icono. */
 .icon-button.set-option { line-height: inherit; }
+
+/* 18-11-2026: pie de una sección con borrador (nota a la izquierda, Guardar a la derecha). */
+.set-acciones {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}

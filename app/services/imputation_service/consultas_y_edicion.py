@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 from sqlalchemy.orm import Session, joinedload, selectinload
-from app.core.config import settings
+from app.services.settings_service.por_empresa import capacidad_semanal
 from app.models.user import User, UserRole
 from app.models.imputation import Imputation
 from app.models.task import Task, TaskComment
@@ -84,7 +84,7 @@ def update_imputation_fields(imp, payload, db: Session, current_user: User = Non
             Imputation.id != imp.id
         )
     ).scalar() or 0.0
-    weekly_capacity = user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
+    weekly_capacity = capacidad_semanal(db, user)
     # Horas extra (18-11-2026): el mismo control que al imputar (horas_extra/control.py).
     from app.services.horas_extra import control as control_horas_extra
     weekly_capacity += control_horas_extra.capacidad_semanal_extra(db, user.id, imputation_date)
@@ -173,7 +173,7 @@ def get_week_summary(week_start: Optional[date], current_user: User, db: Session
     ).all()
 
     total_hours = sum(i.hours for i in imputations)
-    capacity = current_user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
+    capacity = capacidad_semanal(db, current_user)
     load_pct = round((total_hours / capacity) * 100, 1)
 
     by_project: dict = {}

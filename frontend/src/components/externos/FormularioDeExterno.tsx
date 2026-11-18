@@ -44,8 +44,12 @@ export interface FormDeExterno {
 
 const texto = (v: unknown) => (v == null ? '' : String(v))
 
-/** Estado inicial: vacío para un alta, o el del trabajador que se edita. */
-export function formularioDeExternoInicial(worker: Partial<SubTrabajador> | null | undefined, monedaPorDefecto: string): FormDeExterno {
+/**
+ * Estado inicial: vacío para un alta, o el del trabajador que se edita.
+ * 18-11-2026: `capacidadPorDefecto` es la capacidad semanal de la empresa (los llamadores pasan la del hook);
+ * el 40 solo queda como valor por omisión para llamadas sin contexto (tests).
+ */
+export function formularioDeExternoInicial(worker: Partial<SubTrabajador> | null | undefined, monedaPorDefecto: string, capacidadPorDefecto = 40): FormDeExterno {
   return {
     name: texto(worker?.name),
     role: texto(worker?.role),
@@ -56,7 +60,7 @@ export function formularioDeExternoInicial(worker: Partial<SubTrabajador> | null
     currency: worker?.currency || monedaPorDefecto,
     available_from: texto(worker?.available_from),
     available_until: texto(worker?.available_until),
-    weekly_capacity_hours: texto(worker?.weekly_capacity_hours ?? 40),
+    weekly_capacity_hours: texto(worker?.weekly_capacity_hours ?? capacidadPorDefecto),
     internal_owner_id: texto(worker?.internal_owner_id),
     // Un alta nueva entra con acceso: es el caso de «externo como interno».
     has_access: worker ? !!worker.has_access : true,

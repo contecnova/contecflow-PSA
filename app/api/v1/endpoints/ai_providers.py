@@ -59,6 +59,12 @@ def get_catalog(_=Depends(get_current_user)):
     return APIResponse.ok(data=PROVIDER_CATALOG)
 
 
+# 18-11-2026 (auditoria de textos fijos): la prueba de conexion no depende del
+# idioma de nadie; se pide en ingles y neutra para que la respuesta («OK») sea
+# la misma con cualquier modelo.
+_MENSAJE_DE_PRUEBA = "Reply with exactly: OK"
+_SISTEMA_DE_PRUEBA = "You are a connectivity test. Answer only what is asked."
+
 @router.get("")
 def list_providers(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     providers = svc_list_providers(
@@ -97,8 +103,8 @@ def test_env_provider(_=Depends(require_admin)):
         raise HTTPException(404, "No hay proveedor de IA en el .env")
     t0 = time.time()
     try:
-        resultado = _ia.call_provider(p, [{"role": "user", "content": "Di solo 'OK' sin nada más."}],
-                                      system="Eres un asistente de prueba.", max_tokens=settings.AI_TEST_MAX_TOKENS)
+        resultado = _ia.call_provider(p, [{"role": "user", "content": _MENSAJE_DE_PRUEBA}],
+                                      system=_SISTEMA_DE_PRUEBA, max_tokens=settings.AI_TEST_MAX_TOKENS)
     except Exception as e:
         raise _http_del_error_de_proveedor(str(e))
     return APIResponse.ok(data={"ok": True, "response": resultado.get("text", ""),
@@ -205,8 +211,8 @@ def test_unsaved(data: dict = Body(...), _=Depends(require_admin)):
         raise HTTPException(400, str(e))
     t0 = time.time()
     try:
-        resultado = _ia.call_provider(p, [{"role": "user", "content": "Di solo 'OK' sin nada más."}],
-                                      system="Eres un asistente de prueba.", max_tokens=settings.AI_TEST_MAX_TOKENS)
+        resultado = _ia.call_provider(p, [{"role": "user", "content": _MENSAJE_DE_PRUEBA}],
+                                      system=_SISTEMA_DE_PRUEBA, max_tokens=settings.AI_TEST_MAX_TOKENS)
     except Exception as e:
         raise _http_del_error_de_proveedor(str(e))
     return APIResponse.ok(data={"ok": True, "response": resultado.get("text", ""),
@@ -268,8 +274,8 @@ def test_provider(pid: str, db: Session = Depends(get_db), _=Depends(require_adm
     t0 = time.time()
     try:
         resultado = _call_provider(
-            p, [{"role": "user", "content": "Di solo 'OK' sin nada más."}],
-            system="Eres un asistente de prueba.", max_tokens=settings.AI_TEST_MAX_TOKENS,
+            p, [{"role": "user", "content": _MENSAJE_DE_PRUEBA}],
+            system=_SISTEMA_DE_PRUEBA, max_tokens=settings.AI_TEST_MAX_TOKENS,
         )
     except ValueError as e:
         _anotar_resultado_de_prueba(db, p, ok=False, error=str(e))

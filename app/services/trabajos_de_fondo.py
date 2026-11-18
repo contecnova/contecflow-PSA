@@ -112,7 +112,6 @@ def imputaciones_pendientes_de_hoy(db: Session, org_id: str) -> dict:
     from sqlalchemy import func
 
     from app.core import timeutil
-    from app.core.config import settings
     from app.core.timeutil import using_zone, zone_for_user
     from app.models.imputation import Imputation
     from app.models.mfa import Organization
@@ -123,6 +122,7 @@ def imputaciones_pendientes_de_hoy(db: Session, org_id: str) -> dict:
     # imputa como todos y recibe el mismo recordatorio; el que no tiene acceso
     # no (sus horas las registra el PM).
     from app.services.externos.ciclo import acceso_vigente
+    from app.services.settings_service.por_empresa import capacidad_semanal
     empleados = [u for u in db.query(User).filter(
         User.is_active.is_(True), User.status == UserStatus.active,
         User.role.in_((UserRole.employee, UserRole.subcontractor)),
@@ -133,7 +133,8 @@ def imputaciones_pendientes_de_hoy(db: Session, org_id: str) -> dict:
             hoy = timeutil.today()
             if hoy.weekday() >= 5:
                 continue
-            capacidad = (emp.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS) / 5
+            # 18-11-2026: la capacidad de la persona o la de su empresa, no la global.
+            capacidad = capacidad_semanal(db, emp) / 5
             horas = db.query(func.sum(Imputation.hours)).filter(
                 Imputation.user_id == emp.id, Imputation.date == hoy,
             ).scalar() or 0.0
@@ -160,13 +161,13 @@ def generar_facturas_de_retainer(db: Session, org_id: str) -> dict:
     from datetime import date
 
     from app.core import timeutil
-    from app.core.config import settings
     from app.core.timeutil import using_zone, zone_for_client
     from app.models.billing_reports import Invoice, InvoiceStatus
     from app.models.clients import Client
     from app.models.mfa import Organization
     from app.models.project import Project
     from app.services.numbering import next_numbered_code
+    from app.services.settings_service.por_empresa import iva_de_empresa, moneda_de_empresa
 
     org = db.get(Organization, org_id)
     proyectos = db.query(Project).filter(
@@ -208,7 +209,8 @@ def generar_facturas_de_retainer(db: Session, org_id: str) -> dict:
             db.add(Invoice(
                 id=str(uuid.uuid4()), number=numero, project_id=proj.id, client_id=proj.client_id,
                 client_name=nombre, client_email=correo, client_address=direccion,
-                total=proj.retainer_amount, currency=proj.currency or settings.DEFAULT_CURRENCY,
+                total=proj.retainer_amount, currency=proj.currency or moneda_de_empresa(db, org_id),
+                tax_rate=iva_de_empresa(db, org_id),  # 18-11-2026: el de la empresa, no el del entorno
                 issue_date=hoy, period_from=inicio_de_mes, period_to=hoy, status=InvoiceStatus.draft,
                 notes=f"Retainer mensual automático — {hoy.strftime('%B %Y')}",
             ))

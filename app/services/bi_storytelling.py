@@ -27,7 +27,7 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-STORYTELLING_PROMPT = """Eres el analista de negocio de una empresa de consultoría IT.
+STORYTELLING_PROMPT = """Eres el analista de negocio de la empresa{sector}.
 Tu trabajo es escribir un resumen ejecutivo conciso (máximo 5 párrafos) en {lang}
 basándote exclusivamente en los siguientes KPIs del período actual.
 
@@ -44,7 +44,25 @@ KPIs:
 {kpis_json}
 """
 
-_LANG_LABELS = {"es": "español", "en": "English", "ca": "català"}
+
+
+def _sector(org_id: Optional[str]) -> str:
+    """` (sector: X)` si la empresa lo configuro (`COMPANY_SECTOR`); vacio si no.
+
+    18-11-2026: el prompt decia «una empresa de consultoria IT» para todas.
+    """
+    try:
+        from app.db.session import SessionLocal
+        from app.services.settings_service import get_runtime_str
+        db = SessionLocal()
+        try:
+            valor = (get_runtime_str(db, "COMPANY_SECTOR", org_id) or "").strip()
+        finally:
+            db.close()
+    except Exception:
+        logger.debug("_sector: ajuste no legible", exc_info=True)
+        valor = ""
+    return f" (sector: {valor})" if valor else ""
 
 
 def _to_number(value, default: float = 0.0) -> float:
@@ -124,8 +142,10 @@ def generate_narrative(
     kpis = _get_kpi_context(org_id)
 
     # Build prompt
-    lang_label = _LANG_LABELS.get(lang, lang)
+    from app.services.formato_regional import nombre_del_idioma
+    lang_label = nombre_del_idioma(lang)
     prompt_text = STORYTELLING_PROMPT.format(
+        sector=_sector(org_id),
         lang=lang_label,
         moneda=moneda,
         simbolo=simbolo,
@@ -136,13 +156,14 @@ def generate_narrative(
     try:
         from app.db.session import SessionLocal
         from app.services.ai_provider_service import call_ai
+        from app.services.formato_regional import instruccion_de_idioma
 
         db = SessionLocal()
         try:
             narrative_text = call_ai(
                 db,
                 messages=[{"role": "user", "content": prompt_text}],
-                system="Eres un analista financiero ejecutivo. Responde en el idioma solicitado.",
+                system="Eres un analista financiero ejecutivo. " + instruccion_de_idioma(lang),
                 module="bi_storytelling",
                 user_id=None,
                 max_tokens=800,

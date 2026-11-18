@@ -162,7 +162,7 @@ export function MonitorizacionConfig() {
         </div>
         <div className="u-text2-sm">{t('sd_cfg.mon_url_help')}</div>
         <div className="u-text2-sm">
-          {t('sd_cfg.mon_token')} <a href="/settings?tab=integrations" className="u-accent">{t('sd_cfg.mail_credentials')}</a>
+          {t('sd_cfg.mon_token')} <a href="/settings/integrations" className="u-accent">{t('sd_cfg.mail_credentials')}</a>
         </div>
       </div>
       <div>

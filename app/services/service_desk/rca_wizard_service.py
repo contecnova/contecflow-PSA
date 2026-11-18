@@ -438,12 +438,17 @@ def ai_assist_step(db: Session, problem: Problem, step_num: int) -> dict[str, st
 
     provider_used = "unknown"
     hint = ""
+    # 18-11-2026: la pista se guarda en el problema: idioma de la empresa.
+    from app.services.formato_regional import idioma_de_salida, instruccion_de_idioma
+    from app.services.textos_de_salida import texto
+    _idioma = idioma_de_salida(db, org_id=getattr(problem, "organization_id", None))
+    _instruccion = instruccion_de_idioma(_idioma)
 
     try:
         result = call_ai(
             db=db,
             messages=[{"role": "user", "content": prompt}],
-            system="You are an ITIL problem manager. Provide concise, actionable RCA guidance.",
+            system="You are an ITIL problem manager. Provide concise, actionable RCA guidance. " + _instruccion,
             max_tokens=300,
             organization_id=getattr(problem, "organization_id", None),
         )
@@ -451,10 +456,7 @@ def ai_assist_step(db: Session, problem: Problem, step_num: int) -> dict[str, st
         hint = (_texto(result)).strip()
     except Exception as exc:
         logger.warning("ai_assist_step: AI call failed: %s", exc)
-        hint = (
-            "No se pudo obtener sugerencia de IA. "
-            "Analiza el contexto del problema manualmente."
-        )
+        hint = texto("rca.sin_ia", _idioma)
 
     # Persist hint
     for s in steps:

@@ -24,6 +24,11 @@ datos (xlsx/csv/json/pdf tabular), con «enviar solo si cambio» y diff entre
 envios, guardada en `app_settings`. Lo que si comparten es la entrega:
 `entrega_saliente` (Slack/Teams con URL validada y correo por
 `notification_service`, un mensaje por destinatario).
+
+18-11-2026 (auditoria de textos fijos): correo, asunto y resumen de Slack en el
+idioma de la empresa (`textos_de_salida`), con su nombre (`OrgBranding`, o el
+del producto) en vez de «ContecFlow» fijo, y la hora en su zona horaria con su
+etiqueta: antes se escribia `datetime.now()` (hora del servidor) con «UTC».
 """
 from __future__ import annotations
 
@@ -97,11 +102,17 @@ def _send_email(recipients: list[str], subject: str, html_body: str, pdf_bytes: 
 # ── Slack sender ──────────────────────────────────────────────────────────────
 
 def _send_slack(webhook_url: str, report_name: str, report_type: str, kpis: dict,
-                simbolo: Optional[str] = None) -> None:
-    """Resumen del informe a un Incoming Webhook de Slack (`entrega_saliente`). No lanza."""
+                simbolo: Optional[str] = None, idioma: Optional[str] = None,
+                cuando: Optional[str] = None) -> None:
+    """Resumen del informe a un Incoming Webhook de Slack (`entrega_saliente`). No lanza.
+
+    `cuando`: la hora ya formateada en la zona de la empresa (con su etiqueta).
+    """
     from app.services.entrega_saliente import enviar_a_webhook, mensaje_de_slack
-    from app.services.formato_regional import formatear_importe, simbolo_de_moneda
+    from app.services.formato_regional import formatear_importe, sello_de_hora, simbolo_de_moneda
+    from app.services.textos_de_salida import texto
     simbolo = simbolo or simbolo_de_moneda()
+    cuando = cuando or sello_de_hora(codigo_idioma=idioma)
 
     type_emoji = {
         "executive_summary": ":bar_chart:",
@@ -115,16 +126,17 @@ def _send_slack(webhook_url: str, report_name: str, report_type: str, kpis: dict
     lines = [f"{emoji} *{report_name}*"]
     if kpis:
         if kpis.get("active_projects") is not None:
-            lines.append(f"• Proyectos activos: *{kpis['active_projects']}*")
+            lines.append(f"• {texto('informe.kpi.active_projects', idioma)}: *{kpis['active_projects']}*")
         if kpis.get("avg_margin_pct") is not None:
-            lines.append(f"• Margen medio: *{kpis['avg_margin_pct']}%*")
+            lines.append(f"• {texto('programado.slack.margen', idioma)}: *{kpis['avg_margin_pct']}%*")
         if kpis.get("pipeline_weighted") is not None:
-            lines.append(f"• Pipeline ponderado: *{formatear_importe(kpis['pipeline_weighted'], simbolo)}*")
+            lines.append(f"• {texto('informe.kpi.pipeline_weighted', idioma)}: "
+                         f"*{formatear_importe(kpis['pipeline_weighted'], simbolo)}*")
         if kpis.get("hours_mtd") is not None:
-            lines.append(f"• Horas imputadas (mes): *{kpis['hours_mtd']}h*")
+            lines.append(f"• {texto('informe.kpi.hours_mtd', idioma)}: *{kpis['hours_mtd']}h*")
         if kpis.get("billability_pct") is not None:
-            lines.append(f"• Facturabilidad: *{kpis['billability_pct']}%*")
-    lines.append(f"_Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')} UTC_")
+            lines.append(f"• {texto('informe.kpi.billability_pct', idioma)}: *{kpis['billability_pct']}%*")
+    lines.append(f"_{texto('programado.slack.generado', idioma, cuando=cuando)}_")
 
     r = enviar_a_webhook(webhook_url, mensaje_de_slack("\n".join(lines)))
     if r.ok:
@@ -135,35 +147,38 @@ def _send_slack(webhook_url: str, report_name: str, report_type: str, kpis: dict
 
 # ── HTML email body ───────────────────────────────────────────────────────────
 
-def _build_html_body(report_name: str, report_type: str, frequency: str, next_run: datetime) -> str:
-    type_label = {
-        "executive_summary": "Resumen Ejecutivo",
-        "utilization": "Utilización del equipo",
-        "pipeline": "Pipeline comercial",
-        "portfolio": "Portfolio de proyectos",
-        "custom": "Informe personalizado",
-    }.get(report_type, report_type)
+def _build_html_body(report_name: str, report_type: str, frequency: str, next_run: datetime,
+                     idioma: Optional[str] = None, marca: Optional[str] = None,
+                     cuando: Optional[str] = None, zona=None) -> str:
+    """Cuerpo del correo en `idioma`, firmado por `marca`, con la hora `cuando` (zona de la empresa)."""
+    from app.core.constantes import NOMBRE_DEL_PRODUCTO
+    from app.services.formato_regional import formatear_fecha, sello_de_hora
+    from app.services.textos_de_salida import TEXTOS, texto
+    marca = marca or NOMBRE_DEL_PRODUCTO
+    cuando = cuando or sello_de_hora(codigo_idioma=idioma)
+    clave_tipo = f"informe.tipo.{report_type}"
+    type_label = texto(clave_tipo, idioma) if clave_tipo in TEXTOS else report_type
+    clave_frecuencia = f"programado.frecuencia.{frequency}"
+    frecuencia = texto(clave_frecuencia, idioma) if clave_frecuencia in TEXTOS else frequency
 
     return f"""
 <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
   <div style="background:#0f172a;padding:24px;border-radius:8px 8px 0 0;">
-    <h1 style="color:#4f8ef7;margin:0;font-size:18px;">ContecFlow — Informe Programado</h1>
+    <h1 style="color:#4f8ef7;margin:0;font-size:18px;">{texto("programado.cabecera", idioma, marca=marca)}</h1>
   </div>
   <div style="background:#f8fafc;padding:24px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;">
     <h2 style="color:#1e293b;margin:0 0 12px;">{report_name}</h2>
-    <p style="color:#64748b;margin:0 0 8px;">Tipo: <strong>{type_label}</strong></p>
+    <p style="color:#64748b;margin:0 0 8px;">{texto("programado.tipo", idioma)}: <strong>{type_label}</strong></p>
     <p style="color:#64748b;">
-      Generado el {datetime.now().strftime('%d/%m/%Y a las %H:%M')} UTC.
-      Se adjunta el informe en PDF.
+      {texto("programado.generado", idioma, cuando=cuando)}
     </p>
     <p style="color:#64748b;font-size:13px;">
-      Frecuencia: <strong>{frequency}</strong> ·
-      Próximo envío: <strong>{next_run.strftime('%d/%m/%Y')}</strong>
+      {texto("programado.frecuencia", idioma)}: <strong>{frecuencia}</strong> ·
+      {texto("programado.proximo", idioma)}: <strong>{formatear_fecha(next_run, idioma, zona=zona)}</strong>
     </p>
     <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0;">
     <p style="color:#94a3b8;font-size:11px;">
-      Informe generado automáticamente por ContecFlow.
-      Para modificar la configuración accede a Analytics &amp; BI → Reports.
+      {texto("programado.pie", idioma, marca=marca)}
     </p>
   </div>
 </div>
@@ -249,18 +264,32 @@ def _execute_report(report: ScheduledReport, db) -> None:
     with como_organizacion(db, org_id):
         pdf = _pdf_del_informe(report, db, org_id, report_type) if getattr(report, "include_pdf", True) else b""
 
+    # 18-11-2026: idioma, nombre y hora de la empresa (antes castellano,
+    # «ContecFlow» y la hora del servidor con «UTC»).
+    from app.services.formato_regional import (
+        ahora_local, formatear_fecha, idioma_de_salida, sello_de_hora, zona_horaria,
+    )
+    from app.services.textos_de_salida import nombre_de_marca, texto
+    idioma = idioma_de_salida(db, org_id=org_id)
+    marca = nombre_de_marca(db, org_id)
+    zona = zona_horaria(db, org_id)
+    ahora = ahora_local(zona=zona)
+    cuando = sello_de_hora(db, org_id, idioma)
+
     if destinatarios and (pdf or not getattr(report, "include_pdf", True)):
         nombre = report.name.replace(" ", "_")[:40]
+        marca_fichero = "".join(ch for ch in marca if ch.isalnum() or ch in "-_") or "report"
         try:
             _send_email(
                 destinatarios,
-                f"[ContecFlow] {report.name} — {datetime.now().strftime('%d/%m/%Y')}",
+                texto("programado.asunto", idioma, marca=marca, nombre=report.name,
+                      fecha=formatear_fecha(ahora.date(), idioma)),
                 _build_html_body(
                     report.name, report_type, report.frequency,
-                    proxima_ejecucion(report),
+                    proxima_ejecucion(report), idioma=idioma, marca=marca, cuando=cuando, zona=zona,
                 ),
                 pdf,
-                f"ContecFlow_{nombre}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                f"{marca_fichero}_{nombre}_{ahora.strftime('%Y%m%d')}.pdf",
             )
         except Exception as exc:
             # El correo sí propaga: es la entrega principal, y un informe que
@@ -271,7 +300,8 @@ def _execute_report(report: ScheduledReport, db) -> None:
     slack = getattr(report, "slack_webhook", None)
     if slack:
         from app.services.formato_regional import simbolo_de_moneda
-        _send_slack(slack, report.name, report_type, kpis, simbolo_de_moneda(db, org_id))
+        _send_slack(slack, report.name, report_type, kpis, simbolo_de_moneda(db, org_id),
+                    idioma=idioma, cuando=cuando)
 
 
 # ── Public API ────────────────────────────────────────────────────────────────

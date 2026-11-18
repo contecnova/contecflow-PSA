@@ -90,7 +90,11 @@ def update_setting(key: str, payload: SettingUpdate, db: Session = Depends(get_d
     # (claves con punto, secretos) lo escribe cada servicio, no esta pantalla.
     if not current_user.is_superadmin and not _svc.es_ajuste_general(key):
         raise HTTPException(403, "Solo se pueden cambiar los ajustes generales")
-    return APIResponse.ok(data=_svc.update_setting(key, payload.value, current_user.organization_id, db))
+    try:
+        return APIResponse.ok(data=_svc.update_setting(key, payload.value, current_user.organization_id, db))
+    except ValueError as e:
+        # 18-11-2026: moneda, zona, idioma y jornada se validan como su clave de ejecución.
+        raise HTTPException(422, str(e))
 
 
 # ── Runtime-flag groups (Phase 1 of env → UI migration) ──────────────────────

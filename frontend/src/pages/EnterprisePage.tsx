@@ -546,7 +546,7 @@ function IntegrationsTab() {
             </div>
             {configuring.fields?.map(field => (
               <div key={field.key}>
-                <label id={`${idCampo}-et-${field.key}`} htmlFor={`${idCampo}-${field.key}`} className="enterprise-page-e18">{field.label}</label>
+                <label id={`${idCampo}-et-${field.key}`} htmlFor={`${idCampo}-${field.key}`} className="enterprise-page-e18">{t(`pagina_ent.int_campo_${configuring.type}_${field.key}`, field.label)}</label>
                 {['date', 'datetime-local', 'time'].includes(field.type || '') ? (
                   // Fechas con el selector del kit (16-11-2026), nunca el input nativo.
                   <CampoFecha id={`${idCampo}-${field.key}`} aria-labelledby={`${idCampo}-et-${field.key}`}
@@ -561,7 +561,7 @@ function IntegrationsTab() {
                     value={form.config?.[field.key] || ''}
                     onChange={e => setForm(f => ({ ...f, config: { ...f.config, [field.key]: e.target.value } }))}
                     className="enterprise-page-e19"
-                    placeholder={field.placeholder || ''}
+                    placeholder={field.placeholder ? t(`pagina_ent.int_ph_${configuring.type}_${field.key}`, field.placeholder) : ''}
                   />
                 )}
               </div>

@@ -211,6 +211,8 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("SUPPORTED_CURRENCIES", "str", "Currencies offered in the screens (CSV of ISO 4217 codes)"),
         ("CURRENCY_SYMBOLS", "str", "Currency symbols on documents (CODE:symbol, CSV); a currency without one shows its code"),
         ("DEFAULT_TAX_RATE", "float", "Default tax rate (%)"),
+        ("TAX_NAME", "str", "Tax name on invoices (VAT, IVA, GST...); empty = the usual one for the invoice language"),
+        ("COMPANY_SECTOR", "str", "Company sector, for AI narratives (empty = none assumed)"),
         ("DEFAULT_WORKING_HOURS_PER_DAY", "float", "Working hours/day"),
         ("DEFAULT_WEEKLY_CAPACITY_HOURS", "float", "Weekly capacity (h)"),
         ("DEFAULT_PRODUCTIVE_HOURS_YEAR", "float", "Staff cost — productive hours per year when the cost profile and country preset say nothing"),

@@ -6,6 +6,7 @@ sin cambiar el codigo. El paquete reexporta todos los nombres.
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
+from app.services.settings_service import por_empresa as _pe
 from app.services.sla_service import ventana_de_riesgo_sla
 from app.models.service_desk._enums import ESTADOS_DE_TICKET_ABIERTOS, ESTADOS_DE_TICKET_RESUELTOS, PRIORIDADES_DE_TICKET
 from app.core.config import settings
@@ -41,7 +42,7 @@ def convert_opportunity_to_project_record(opportunity_id: str, payload: dict, cu
     from app.services.settings_service import get_runtime_str
     _proj_type = get_runtime_str(db, "DEFAULT_PROJECT_TYPE", db.info.get("organization_id")) or settings.DEFAULT_PROJECT_TYPE
     _bill_type = get_runtime_str(db, "DEFAULT_BILLING_TYPE", db.info.get("organization_id")) or settings.DEFAULT_BILLING_TYPE
-    _curr      = get_runtime_str(db, "DEFAULT_CURRENCY", db.info.get("organization_id")) or settings.DEFAULT_CURRENCY
+    _curr      = _pe.moneda_de_empresa(db)
     project = Project(
         code=code,
         name=payload.get("name") or opp.name,

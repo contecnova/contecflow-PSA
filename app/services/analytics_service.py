@@ -14,6 +14,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 
+from app.services.settings_service.por_empresa import capacidad_semanal
 from app.core.config import settings
 from app.models.bookings import ResourceBooking, BookingType
 from app.models.clients import Client
@@ -243,7 +244,7 @@ def _porcentaje(parte: float, total: float) -> float:
 def _fila_de_utilizacion(db: Session, usuario, *, period_start, period_end,
                          weeks_ahead: int, project_ids) -> dict:
     """La utilización de una persona: la semana en curso y las proyectadas."""
-    capacidad = float(usuario.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS)
+    capacidad = float(capacidad_semanal(db, usuario))
 
     horas_q = db.query(func.sum(Imputation.hours)).filter(
         Imputation.user_id == usuario.id,

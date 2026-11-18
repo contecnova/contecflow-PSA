@@ -8,9 +8,9 @@ from __future__ import annotations
 from datetime import date, timedelta
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
+from app.services.settings_service.por_empresa import capacidad_semanal, capacidad_semanal_de_empresa
 from app.core import timeutil
 from app.models.task import ESTADOS_DE_TAREA_TERMINADOS
-from app.core.config import settings
 from app.models.user import User
 from app.models.task import Task
 from app.models.resources import UserSkill
@@ -89,7 +89,8 @@ def _mapas_de_habilidades(db: Session) -> tuple[dict, dict]:
 
 def _puntuar_candidato(user, *, habilidades_pedidas: list, sus_habilidades: list,
                        niveles: dict, tareas_activas: int, semanas: float,
-                       horas_necesarias: float, horas_externo: float | None = None) -> dict:
+                       horas_necesarias: float, horas_externo: float | None = None,
+                       capacidad: float | None = None) -> dict:
     """Puntúa a una persona para un encargo, con los cuatro factores."""
     coincidentes = [h for h in habilidades_pedidas if h in sus_habilidades]
     p_habilidad = (
@@ -100,7 +101,9 @@ def _puntuar_candidato(user, *, habilidades_pedidas: list, sus_habilidades: list
         / max(len(coincidentes), 1)
     ) if coincidentes else 1.0
 
-    capacidad = user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
+    # 18-11-2026: `capacidad` la pasa quien llama (la de la persona o la de su empresa).
+    if capacidad is None:
+        capacidad = capacidad_semanal(None, user)
     disponibles = capacidad * semanas
     # Externos (migracion 178): solo cuenta lo que cae en su ventana de
     # contrato y no pasa de sus horas contratadas restantes.
@@ -152,7 +155,8 @@ def smartmatch(payload: dict, db: Session) -> dict:
     """Recomienda personas para un encargo: habilidad, disponibilidad, coste y carga."""
     habilidades_pedidas = [h.lower() for h in payload.get("skills", [])]
     rol = payload.get("role")
-    horas_necesarias = payload.get("hours_needed", 40)
+    # 18-11-2026: sin horas pedidas, una semana de la empresa (antes 40 fijas).
+    horas_necesarias = payload.get("hours_needed") or capacidad_semanal_de_empresa(db)
     tarifa_maxima = payload.get("max_hourly_rate")
     semanas = _semanas_del_periodo(payload.get("start_date"), payload.get("end_date"))
 
@@ -186,7 +190,7 @@ def smartmatch(payload: dict, db: Session) -> dict:
         v = ventanas_ext.get(user.id)
         if v is None:
             return None
-        return horas_disponibles(v, ini, fin, user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS)
+        return horas_disponibles(v, ini, fin, capacidad_semanal(db, user))
 
     resultados = [
         _puntuar_candidato(
@@ -198,6 +202,7 @@ def smartmatch(payload: dict, db: Session) -> dict:
             semanas=semanas,
             horas_necesarias=horas_necesarias,
             horas_externo=_horas_ext(user),
+            capacidad=capacidad_semanal(db, user),
         )
         for user in usuarios
         # La tarifa máxima descarta, no penaliza: es un límite de presupuesto.

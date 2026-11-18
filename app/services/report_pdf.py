@@ -1,5 +1,10 @@
 """
 report_pdf.py — Generación de PDF de informes con ReportLab
+
+18-11-2026 (auditoria de textos fijos): `idioma` (etiquetas de
+`textos_de_salida` y formato de fecha), `marca` (el nombre de la empresa,
+`OrgBranding`, o el del producto) y `generado_el` (la hora ya en la zona de la
+empresa). Sin ellos, castellano, el producto y la hora del servidor.
 """
 import io
 from datetime import datetime
@@ -11,8 +16,10 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
 
+from app.services.formato_regional import IDIOMA_DE_RESPALDO
 from app.services._pdf_marca import PALETA_POR_DEFECTO
 from app.core.constantes import NOMBRE_DEL_PRODUCTO
+from app.services.textos_de_salida import texto as _t_salida
 
 
 # ── PDF de informe ───────────────────────────────────────────────────────────
@@ -91,11 +98,11 @@ def _estilos_de_informe(paleta):
 
 def _cabecera(title: str, metric_label: str, generated_by: str, est: dict, paleta) -> list:
     return [
-        Paragraph(NOMBRE_DEL_PRODUCTO, est["marca"]),
+        Paragraph(est.get("_marca", NOMBRE_DEL_PRODUCTO), est["marca"]),
         Paragraph(title, est["titulo"]),
         Paragraph(metric_label, est["subtitulo"]),
         Paragraph(
-            f"Generado el {datetime.now().strftime('%d/%m/%Y %H:%M')} · {generated_by}",
+            f"{_t_salida('pdf.generado_el', est.get('_idioma'), cuando=est.get('_cuando', ''))} · {generated_by}",
             est["pequeno"],
         ),
         HRFlowable(width="100%", thickness=1, color=paleta.color("acento"), spaceAfter=16),
@@ -112,14 +119,15 @@ def _bloque_de_filtros(filters: Optional[Dict], est: dict) -> list:
     if not filters:
         return []
     partes = []
-    for clave, etiqueta in (("date_from", "Desde"), ("date_to", "Hasta"),
-                            ("project", "Proyecto")):
+    idioma = est.get("_idioma")
+    for clave, etiqueta in (("date_from", "pdf.desde"), ("date_to", "pdf.hasta"),
+                            ("project", "pdf.proyecto")):
         if filters.get(clave):
-            partes.append(f"{etiqueta}: {filters[clave]}")
+            partes.append(f"{_t_salida(etiqueta, idioma)}: {filters[clave]}")
     if not partes:
         return []
     return [
-        Paragraph("Filtros: " + " · ".join(partes), est["pequeno"]),
+        Paragraph(_t_salida("pdf.filtros", idioma) + ": " + " · ".join(partes), est["pequeno"]),
         Spacer(1, 8),
     ]
 
@@ -159,7 +167,7 @@ def _bloque_de_kpis(summary: Optional[Dict], est: dict, paleta) -> list:
         ("PADDING", (0, 0), (-1, -1), 10),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
     ]))
-    return [Paragraph("Resumen", est["seccion"]), tabla, Spacer(1, 16)]
+    return [Paragraph(_t_salida("pdf.resumen", est.get("_idioma")), est["seccion"]), tabla, Spacer(1, 16)]
 
 
 def _celda(valor, est: dict) -> Paragraph:
@@ -201,15 +209,14 @@ def _bloque_de_tabla(data: List[Dict[str, Any]], est: dict, paleta) -> list:
         ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
     ]))
 
-    salida = [Paragraph("Datos del informe", est["seccion"]), tabla]
+    salida = [Paragraph(_t_salida("pdf.datos", est.get("_idioma")), est["seccion"]), tabla]
     if len(data) > _MAX_FILAS:
         # La nota no es cosmetica: sin ella el lector creeria que el informe
         # esta completo y tomaria decisiones sobre 100 de 50.000 registros.
         salida += [
             Spacer(1, 8),
             Paragraph(
-                f"* Se muestran los primeros {_MAX_FILAS} de {len(data)} "
-                f"registros totales.",
+                _t_salida("pdf.primeras_filas", est.get("_idioma"), n=_MAX_FILAS, total=len(data)),
                 est["pequeno"],
             ),
         ]
@@ -221,8 +228,7 @@ def _pie(est: dict, paleta) -> list:
         Spacer(1, 20),
         HRFlowable(width="100%", thickness=0.5, color=paleta.color("linea_separadora")),
         Paragraph(
-            f"{NOMBRE_DEL_PRODUCTO} · Informe generado automáticamente · "
-            f"{datetime.now().strftime('%Y')}",
+            _t_salida("pdf.pie_informe", est.get("_idioma"), marca=est.get("_marca", NOMBRE_DEL_PRODUCTO), anio=datetime.now().strftime('%Y')),
             est["pie"],
         ),
     ]
@@ -236,13 +242,22 @@ def generate_report_pdf(
     filters: Optional[Dict] = None,
     generated_by: str = NOMBRE_DEL_PRODUCTO,
     paleta=None,
+    idioma: Optional[str] = None,
+    marca: Optional[str] = None,
+    generado_el: Optional[str] = None,
 ) -> bytes:
     """
     Genera un PDF de informe y devuelve los bytes.
+
+    `idioma`, `marca` y `generado_el` los resuelve quien llama (tiene el `db`).
     """
+    from app.services.formato_regional import formatear_fecha
     # Igual que en la factura: la resuelve el llamador, que tiene el `db`.
     paleta = paleta or PALETA_POR_DEFECTO
     est = _estilos_de_informe(paleta)
+    est["_idioma"] = idioma or IDIOMA_DE_RESPALDO
+    est["_marca"] = marca or NOMBRE_DEL_PRODUCTO
+    est["_cuando"] = generado_el or formatear_fecha(datetime.now(), est["_idioma"], con_hora=True)
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(

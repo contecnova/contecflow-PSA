@@ -20,6 +20,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
+import { useOrgSettings } from '../hooks/useOrgSettings'
 import DateInput from '../components/ui/DateInput'
 import { STALE_SHORT_MS } from '../constants/timings'
 import './CapacityPage.css'
@@ -101,11 +102,12 @@ function AssignModal({ prefill, onClose }: { prefill: AssignPrefill | null; onCl
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
+  const { working_hours_per_day: jornada } = useOrgSettings()
   const [form, setForm] = useState<AssignForm>({
     user_id:       prefill?.user_id ? String(prefill.user_id) : '',
     project_id:    prefill?.project_id ? String(prefill.project_id) : '',
     week_start:    prefill?.week_start || monday(new Date()),
-    planned_hours: prefill?.hours || 8,
+    planned_hours: prefill?.hours || jornada, // 18-11-2026: jornada de la empresa
     notes:         '',
   })
   const assignPlanSchema = useMemo(() => crearEsquema(t as Traducir), [t])
@@ -297,6 +299,7 @@ export default function CapacityPage(): JSX.Element {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
+  const { weekly_capacity_hours: capacidadSemanal } = useOrgSettings() // 18-11-2026: capacidad por defecto de la empresa
   const [weeksAhead, setWeeksAhead] = useState(8)
   const [showAssign, setShowAssign] = useState(false)
   const [assignPrefill, setAssignPrefill] = useState<AssignPrefill | null>(null)
@@ -396,13 +399,13 @@ export default function CapacityPage(): JSX.Element {
           unidad="semana"
           filas={displayUsers.map(u => ({
             id: String(u.id), nombre: u.full_name, usuario: u,
-            sub: [u.department, `${t('capacity.col_capacidad')} ${fmtHours(u.weekly_capacity_hours || 40)}`].filter(Boolean).join(' · '),
+            sub: [u.department, `${t('capacity.col_capacidad')} ${fmtHours(u.weekly_capacity_hours || capacidadSemanal)}`].filter(Boolean).join(' · '),
           }))}
           columnas={columnasDeSemanas(weekStarts)}
           celda={(fila, col) => {
             const u = fila.usuario
             const plans = planMap[`${u.id}_${col.clave}`] || []
-            const capacidad = u.weekly_capacity_hours || 40
+            const capacidad = u.weekly_capacity_hours || capacidadSemanal
             const horas = plans.reduce((s, p) => s + (p.planned_hours || 0), 0)
             return {
               estado: horas > 0 ? estadoDeCarga(capacidad > 0 ? (horas / capacidad) * 100 : 0) : undefined,

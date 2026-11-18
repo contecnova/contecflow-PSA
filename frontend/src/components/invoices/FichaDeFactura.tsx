@@ -21,6 +21,7 @@ import { extractErr, fmtDate, formatearMoneda } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 
 import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
+import { redondear2 } from '../../utils/redondeo'
 import './FichaDeFactura.css'
 /** Línea del formulario: la de la ficha (InvoiceLineOut) o una nueva, sin id ni importe. `source_ids` se reenvía tal cual
  *  para que el servidor no libere las horas facturadas al guardar. */
@@ -70,8 +71,8 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
   const borrador = f.status === 'draft'
   const estado = etiquetaDeEstado(f.status)
   const subtotal = editando ? lineas.reduce((a, l) => a + importe(l), 0) : (f.subtotal ?? 0)
-  const impuestos = editando ? Math.round(subtotal * (Number(form.tax_rate) || 0)) / 100 : (f.tax_amount ?? 0)
-  const total = editando ? Math.round((subtotal + impuestos) * 100) / 100 : (f.total ?? 0)
+  const impuestos = editando ? redondear2(subtotal * (Number(form.tax_rate) || 0) / 100) : (f.tax_amount ?? 0) // 18-11-2026: vista previa al editar, mismo redondeo que el backend; al guardar manda el servidor
+  const total = editando ? redondear2(subtotal + impuestos) : (f.total ?? 0)
   return (
     <Modal open onClose={onClose} size="xl"
       title={<span className="u-row-center-10">

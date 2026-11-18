@@ -6,7 +6,7 @@ sin cambiar el codigo. El paquete reexporta todos los nombres.
 from __future__ import annotations
 
 from datetime import date
-from app.core.config import settings
+from app.services.settings_service import por_empresa as _pe
 from app.models.bookings import ExchangeRate
 from sqlalchemy import func
 from app.core import timeutil
@@ -41,7 +41,7 @@ def get_exchange_rates_data(base: str, db) -> dict:
 
 def upsert_exchange_rate_record(payload: dict, db) -> dict:
     import re as _re
-    from_currency = payload.get("from_currency", settings.DEFAULT_CURRENCY).upper()
+    from_currency = (payload.get("from_currency") or _pe.moneda_de_empresa(db)).upper()  # 18-11-2026
     to_currency   = payload.get("to_currency", "USD").upper()
     _iso3 = _re.compile(r"^[A-Z]{3}$")
     if not _iso3.match(from_currency) or not _iso3.match(to_currency):
@@ -87,8 +87,8 @@ def upsert_exchange_rate_record(payload: dict, db) -> dict:
 
 def convert_currency_amount(payload: dict, db) -> dict:
     amount    = float(payload.get("amount", 0))
-    from_curr = (payload.get("from_currency") or payload.get("from") or settings.DEFAULT_CURRENCY).upper()
-    to_curr   = (payload.get("to_currency") or payload.get("to") or settings.DEFAULT_CURRENCY).upper()
+    from_curr = (payload.get("from_currency") or payload.get("from") or _pe.moneda_de_empresa(db)).upper()
+    to_curr   = (payload.get("to_currency") or payload.get("to") or _pe.moneda_de_empresa(db)).upper()
     on_date   = date.fromisoformat(payload.get("date", str(timeutil.today()))) if payload.get("date") else timeutil.today()
     if from_curr == to_curr:
         return {"converted_amount": amount, "amount": amount, "from_currency": from_curr, "to_currency": to_curr, "rate": 1.0}

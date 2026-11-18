@@ -1,152 +1,151 @@
-import PuestaEnMarchaSection from './settings-sections/PuestaEnMarchaSection'
-import MarcaSection from './settings-sections/MarcaSection'
-import TraduccionSection from './settings-sections/TraduccionSection'
-import { useEffect, useState } from 'react'
-import { useLocation } from 'react-router-dom'
-import { Tabs, Page } from '../components/ui'
-import { Settings } from 'lucide-react'
+/**
+ * Configuración: una sola entrada para toda la configuración del operador
+ * (reorganización del 18-11-2026; antes 23 pestañas aquí, 20 pantallas sueltas
+ * en el menú y pestañas «Configuración» dentro de los módulos).
+ *
+ * - `/settings/:seccion` pinta la sección; la lista sale del catálogo
+ *   (`pages/settings/catalogoDeAjustes.tsx`), agrupada en la navegación lateral
+ *   con un buscador (título, descripción y subapartados de cada sección).
+ * - Solo se listan las secciones que la persona puede usar (rol, superadmin y
+ *   bloqueo por ruta); pedir una que no puede usar lleva a /403.
+ * - `/settings` abre la primera sección visible; `/settings?tab=<id>` (enlaces
+ *   y marcadores de antes) redirige a `/settings/<id>` (con los ids retirados
+ *   traducidos por IDS_ANTIGUOS).
+ * - `?sub=<id>` abre una subpestaña de la sección (Ausencias, Service desk,
+ *   Campos personalizados).
+ * - Las pantallas de módulo se montan dentro con `IncrustadaEnAjustes`:
+ *   PageShell/PageHeader se pintan como sección (mismo aspecto en todas).
+ */
+import { Suspense, useMemo, useState } from 'react'
+import { Navigate, NavLink, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { ExternalLink, Settings } from 'lucide-react'
+import { Button, Page, Select, Spinner } from '../components/ui'
+import { SearchInput } from '../components/ui/TableControls'
 import { useAppLang } from '../i18n/AppLangContext'
 import { useAuth } from '../context/AuthContext'
-import './SettingsPage.css'
+import { IncrustadaEnAjustes } from '../components/layout/incrustacion'
+import SeccionDeAjustes from './settings-sections/SeccionDeAjustes'
 import {
-  GeneralSection,
-  SessionSecuritySection,
-  UsersSection,
-  RolesSection,
-  AlertConfigSection,
-  MetricsSection,
-  TaskTypesSection,
-  RateTablesSection,
-  VacationSection,
-  DepartmentsSection,
-  OfficesSection,
-  NumberingSection,
-  CustomFieldsSection,
-  IdiomasSection,
-  EmailInboundSection,
-  LogLevelSection,
-  SystemStateSection,
-  ESignSettingsSection,
-  RuntimeFlagsSection,
-  IntegrationCredentialsSection,
-} from './SettingsPageSections'
+  GRUPOS_DE_AJUSTES, IDS_ANTIGUOS, SECCIONES_DE_AJUSTES, claveDeSeccion, puedeVerSeccion,
+  type SeccionDeAjustes as Seccion,
+} from './settings/catalogoDeAjustes'
+import './SettingsPage.css'
 
-const TAB_GROUPS = [
-  {
-    id: 'personal',
-    label: 'settings_page.grupo_personal',
-    tabs: [
-      { id: 'setup',        label: 'settings_page.tab_setup', roles: ['admin'] },
-      { id: 'general',      label: 'settings_page.tab_general',        roles: ['admin'] },
-      { id: 'session',      label: 'settings_page.tab_session',         roles: ['admin'] },
-      { id: 'users',        label: 'settings_page.tab_users',       roles: ['admin', 'hr'] },
-      { id: 'vacations',    label: 'settings_page.tab_vacations',     roles: ['admin', 'hr'] },
-      { id: 'depts',        label: 'settings_page.tab_depts',  roles: ['admin', 'hr'] },
-      { id: 'offices',      label: 'settings_page.tab_offices',          roles: ['admin'] },
-      { id: 'idiomas',      label: 'settings_page.tab_idiomas',        roles: ['admin'] },
-    ],
-  },
-  {
-    id: 'workspace',
-    label: 'settings_page.grupo_workspace',
-    tabs: [
-      { id: 'task-types',   label: 'settings_page.tab_task_types',    roles: ['admin', 'pm'] },
-      { id: 'rates',        label: 'settings_page.tab_rates',        roles: ['admin'] },
-      { id: 'numbering',    label: 'settings_page.tab_numbering',     roles: ['admin'] },
-      { id: 'fields',       label: 'settings_page.tab_fields',   roles: ['admin'] },
-      { id: 'alert-config', label: 'settings_page.tab_alert_config',        roles: ['admin'] },
-      { id: 'metrics',      label: 'settings_page.tab_metrics',       roles: ['admin'] },
-      { id: 'branding',     label: 'settings_page.tab_branding',          roles: ['admin'] },
-    ],
-  },
-  {
-    id: 'sistema',
-    label: 'settings_page.grupo_sistema',
-    tabs: [
-      { id: 'roles',         label: 'settings_page.tab_roles',           roles: ['admin'] },
-      { id: 'runtime-flags', label: 'settings_page.tab_runtime_flags', roles: ['admin'] },
-      { id: 'integrations',  label: 'settings_page.tab_integrations',    roles: ['admin'] },
-      { id: 'traduccion',    label: 'traduccion_admin.tab',               roles: ['admin'] },
-      { id: 'email-inbound', label: 'settings_page.tab_email_inbound', roles: ['admin'] },
-      { id: 'esign',         label: 'settings_page.tab_esign',         roles: ['admin'] },
-      { id: 'log-level',     label: 'settings_page.tab_log_level',    roles: ['admin'] },
-      { id: 'system-state',  label: 'settings_page.tab_system_state',  roles: ['admin'] },
-    ],
-  },
-]
-
-const TABS = TAB_GROUPS.flatMap(g => g.tabs)
+/** Texto comparable: minúsculas y sin acentos. */
+const normalizar = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
 export default function SettingsPage() {
-  const { user } = useAuth()
   const { t } = useAppLang()
-  // `user?.role` es `string | undefined` y `includes` no lo acepta. Un rol
-  // ausente no encaja en ninguna pestaña, que es justo lo que hacía antes
-  // `includes(undefined)`: devolver falso.
-  const rol = user?.role ?? ''
-  const visibleTabs = TABS.filter(tab => tab.roles.includes(rol))
-  // `?tab=<id>` abre esa pestaña: desde el Service Desk se llega a Credenciales.
+  const { seccion } = useParams()
   const { search } = useLocation()
-  const pedida = new URLSearchParams(search).get('tab')
-  const [activeTab, setActiveTab] = useState(
-    visibleTabs.some(tab => tab.id === pedida) ? (pedida as string) : (visibleTabs[0]?.id || 'general'))
-  // Revisión 2026-11: la puesta en marcha enlaza a otras pestañas de esta misma
-  // página; navegar sin desmontarla no volvía a leer `?tab=`.
-  useEffect(() => {
-    if (pedida && visibleTabs.some(tab => tab.id === pedida)) setActiveTab(pedida)
-  }, [search]) // eslint-disable-line react-hooks/exhaustive-deps
+  const navigate = useNavigate()
+  const { user, hasRole, canOpen } = useAuth()
+  const [consulta, setConsulta] = useState('')
+
+  const visibles = useMemo(() => SECCIONES_DE_AJUSTES.filter(s => puedeVerSeccion(s, {
+    hasRole, esSuperadmin: !!user?.is_superadmin, canOpen: canOpen ?? (() => true),
+  })), [user, hasRole, canOpen])
+
+  const titulo = (s: Seccion) => t(claveDeSeccion(s.id))
+  const descripcion = (s: Seccion) => t(`${claveDeSeccion(s.id)}_d`)
+  const nombreDeGrupo = (g: string) => t(`ajustes.g_${g}`)
+
+  const encontradas = useMemo(() => {
+    const q = normalizar(consulta.trim())
+    if (!q) return visibles
+    return visibles.filter(s => normalizar(`${titulo(s)} ${descripcion(s)} ${nombreDeGrupo(s.grupo)}`).includes(q))
+  }, [consulta, visibles]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const params = new URLSearchParams(search)
+  const destinoDe = (id: string) => `/settings/${IDS_ANTIGUOS[id] ?? id}`
+
+  // `/settings` (con o sin el `?tab=` de antes).
+  if (!seccion) {
+    const tab = params.get('tab')
+    if (tab) return <Navigate to={destinoDe(tab)} replace />
+    if (visibles.length === 0) return <Navigate to="/403" state={{ from: '/settings' }} replace />
+    return <Navigate to={`/settings/${visibles[0].id}`} replace />
+  }
+  if (IDS_ANTIGUOS[seccion]) return <Navigate to={destinoDe(seccion)} replace />
+
+  const actual = visibles.find(s => s.id === seccion)
+  if (!actual) {
+    const existe = SECCIONES_DE_AJUSTES.some(s => s.id === seccion)
+    if (existe || visibles.length === 0) return <Navigate to="/403" state={{ from: `/settings/${seccion}` }} replace />
+    return <Navigate to={`/settings/${visibles[0].id}`} replace />
+  }
+
+  const sub = params.get('sub') ?? undefined
+  const grupoActual = GRUPOS_DE_AJUSTES.find(g => g.id === actual.grupo)
+  const Componente = actual.componente
+
+  let panel
+  if (actual.enlace) {
+    panel = (
+      <SeccionDeAjustes icon={grupoActual?.icono} title={titulo(actual)} description={descripcion(actual)}>
+        <Button icon={<ExternalLink size={14} />} onClick={() => navigate(actual.enlace as string)}>{t('ajustes.abrir')}</Button>
+      </SeccionDeAjustes>
+    )
+  } else if (Componente && actual.envolver) {
+    panel = (
+      <SeccionDeAjustes icon={grupoActual?.icono} title={titulo(actual)} description={descripcion(actual)}>
+        <Componente subInicial={sub} />
+      </SeccionDeAjustes>
+    )
+  } else if (Componente) {
+    panel = <Componente subInicial={sub} />
+  }
 
   return (
-    <Page
-      icon={<Settings size={18} />}
-      title={t('settings.title')}
-      subtitle={t('settings.subtitle')}
-    >
-      <div className="stp-groups">
-        {TAB_GROUPS.map(group => {
-          const groupVisible = group.tabs.filter(tab => tab.roles.includes(rol))
-          if (groupVisible.length === 0) return null
-          return (
-            <div key={group.id}>
-              <div className="ds-eyebrow stp-group-label">
-                {t(group.label)}
-              </div>
-              <Tabs
-                items={groupVisible.map(tab => ({ ...tab, label: t(tab.label) }))}
-                active={activeTab}
-                onChange={setActiveTab}
-                variant="pill"
-                ariaLabel={t(group.label)}
-                className="settings-page-e1"
-              />
-            </div>
-          )
-        })}
+    <Page icon={<Settings size={18} />} title={t('settings.title')} subtitle={t('ajustes.subtitulo')}>
+      <div className="ajustes">
+        <aside className="ajustes-nav" aria-label={t('ajustes.navegacion')}>
+          <SearchInput value={consulta} onChange={setConsulta} placeholder={t('ajustes.buscar')} />
+          {/* Pantalla estrecha: un desplegable en lugar de la lista. */}
+          <Select suelto className="ajustes-nav-movil" aria-label={t('ajustes.navegacion')} placeholder={false}
+            value={actual.id} onChange={e => navigate(`/settings/${e.target.value}`)}>
+            {GRUPOS_DE_AJUSTES.map(g => {
+              const delGrupo = encontradas.filter(s => s.grupo === g.id)
+              return delGrupo.length === 0 ? null : (
+                <optgroup key={g.id} label={nombreDeGrupo(g.id)}>
+                  {delGrupo.map(s => <option key={s.id} value={s.id}>{titulo(s)}</option>)}
+                </optgroup>
+              )
+            })}
+          </Select>
+          <nav className="ajustes-nav-lista" aria-label={t('ajustes.navegacion')}>
+            {GRUPOS_DE_AJUSTES.map(g => {
+              const delGrupo = encontradas.filter(s => s.grupo === g.id)
+              if (delGrupo.length === 0) return null
+              return (
+                <div key={g.id} className="ajustes-grupo">
+                  <div className="ds-eyebrow ajustes-grupo-titulo">{g.icono}<span>{nombreDeGrupo(g.id)}</span></div>
+                  <ul>
+                    {delGrupo.map(s => (
+                      <li key={s.id}>
+                        <NavLink to={`/settings/${s.id}`} title={descripcion(s)}
+                          className={({ isActive }) => `ajustes-enlace${isActive ? ' ajustes-enlace--activo' : ''}`}>
+                          {titulo(s)}
+                          {s.enlace && <ExternalLink size={12} aria-hidden className="ajustes-enlace-icono" />}
+                        </NavLink>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )
+            })}
+            {encontradas.length === 0 && <p className="ajustes-vacio">{t('ajustes.sin_resultados')}</p>}
+          </nav>
+        </aside>
+        <section className="ajustes-panel" aria-label={titulo(actual)}>
+          <div className="ajustes-miga">{nombreDeGrupo(actual.grupo)}</div>
+          <IncrustadaEnAjustes.Provider value={true}>
+            <Suspense fallback={<Spinner />}>
+              <div key={actual.id}>{panel}</div>
+            </Suspense>
+          </IncrustadaEnAjustes.Provider>
+        </section>
       </div>
-
-      {activeTab === 'general'       && <GeneralSection />}
-      {activeTab === 'session'       && <SessionSecuritySection />}
-      {activeTab === 'users'         && <UsersSection />}
-      {activeTab === 'roles'         && <RolesSection />}
-      {activeTab === 'setup'         && <PuestaEnMarchaSection />}
-      {activeTab === 'alert-config'  && <AlertConfigSection />}
-      {activeTab === 'metrics'       && <MetricsSection />}
-      {activeTab === 'branding'      && <MarcaSection />}
-      {activeTab === 'task-types'    && <TaskTypesSection />}
-      {activeTab === 'rates'         && <RateTablesSection />}
-      {activeTab === 'vacations'     && <VacationSection />}
-      {activeTab === 'depts'         && <DepartmentsSection />}
-      {activeTab === 'offices'       && <OfficesSection />}
-      {activeTab === 'numbering'     && <NumberingSection />}
-      {activeTab === 'fields'        && <CustomFieldsSection />}
-      {activeTab === 'idiomas'       && <IdiomasSection />}
-      {activeTab === 'email-inbound' && <EmailInboundSection />}
-      {activeTab === 'log-level'     && <LogLevelSection />}
-      {activeTab === 'system-state'  && <SystemStateSection />}
-      {activeTab === 'esign'         && <ESignSettingsSection />}
-      {activeTab === 'runtime-flags' && <RuntimeFlagsSection />}
-      {activeTab === 'integrations'  && <IntegrationCredentialsSection />}
-      {activeTab === 'traduccion'    && <TraduccionSection />}
     </Page>
   )
 }

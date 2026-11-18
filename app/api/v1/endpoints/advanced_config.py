@@ -64,7 +64,7 @@ class RateEntryIn(BaseModel):
     label: str
     cost_rate: Optional[float] = None
     billing_rate: Optional[float] = None
-    currency: str = settings.DEFAULT_CURRENCY
+    currency: Optional[str] = None  # 18-11-2026: sin valor, la moneda de la empresa (lo pone el servicio)
     valid_from: Optional[str] = None
     valid_to: Optional[str] = None
 
@@ -83,7 +83,7 @@ class OfficeIn(BaseModel):
     name: str
     country: Optional[str] = None
     city: Optional[str] = None
-    timezone: str = settings.DEFAULT_TIMEZONE
+    timezone: Optional[str] = None  # 18-11-2026: sin valor, la zona de la empresa (lo pone el servicio)
 
 class NumberingIn(BaseModel):
     prefix: str = ""
@@ -160,25 +160,25 @@ def get_modules(_: User = Depends(get_current_user)):
 
 # ── Task types ────────────────────────────────────────────────────────────────
 
-@router.get("/task-types", summary="Tipos de tarea")
+@router.get("/task-types", summary="Tipos de tarea", deprecated=True)
 def get_task_types(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     return APIListResponse.ok(items=_svc.list_task_types(db))
 
-@router.post("/task-types", summary="Crear tipo de tarea")
+@router.post("/task-types", summary="Crear tipo de tarea", deprecated=True)
 def create_task_type(payload: TaskTypeIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
     try:
         return APIResponse.ok(data=jsonable_encoder(_svc.create_task_type(payload.model_dump(), db)))
     except ValueError as e:
         raise HTTPException(400, str(e))
 
-@router.patch("/task-types/{type_id}", summary="Actualizar tipo de tarea")
+@router.patch("/task-types/{type_id}", summary="Actualizar tipo de tarea", deprecated=True)
 def update_task_type(type_id: str, payload: TaskTypeIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
     try:
         return APIResponse.ok(data=jsonable_encoder(_svc.update_task_type(type_id, payload.model_dump(), db)))
     except _svc.NotFoundError as e:
         raise HTTPException(404, str(e))
 
-@router.delete("/task-types/{type_id}", summary="Eliminar tipo de tarea")
+@router.delete("/task-types/{type_id}", summary="Eliminar tipo de tarea", deprecated=True)
 def delete_task_type(type_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
     enforce_abac(db, user, "task_type", type_id, action="delete")
     try:
@@ -205,26 +205,32 @@ def update_alert_config(alert_type: str, payload: AlertConfigUpdate, db: Session
 
 # ── Rate tables ───────────────────────────────────────────────────────────────
 
-@router.get("/rate-tables", summary="Tablas de tarifas")
+# 18-11-2026 (reorganización de Configuración): `/rate-tables` escribe la MISMA
+# tabla que `/rate-cards` (RateTable/RateEntry); la pantalla única es
+# Configuración → Finanzas → Tarifas, que usa `/rate-cards`. `/task-types` edita
+# `task_types`, que no lee ningún servicio (las tareas usan `issue_types` por
+# proyecto), y `/vacation-policies` edita `vacation_policies`, que tampoco lee
+# nadie. Se mantienen por compatibilidad de la API, marcados `deprecated`.
+@router.get("/rate-tables", summary="Tablas de tarifas", deprecated=True)
 def get_rate_tables(db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     return APIListResponse.ok(items=_svc.list_rate_tables(db))
 
-@router.post("/rate-tables", summary="Crear tabla de tarifas")
+@router.post("/rate-tables", summary="Crear tabla de tarifas", deprecated=True)
 def create_rate_table(payload: RateTableIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
     return APIResponse.ok(data=_svc.create_rate_table(payload.model_dump(), db))
 
-@router.post("/rate-tables/{table_id}/entries", summary="Añadir tarifa")
+@router.post("/rate-tables/{table_id}/entries", summary="Añadir tarifa", deprecated=True)
 def add_rate_entry(table_id: str, payload: RateEntryIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
     return APIResponse.ok(data=_svc.add_rate_entry(table_id, payload.model_dump(), db))
 
-@router.patch("/rate-tables/{table_id}/entries/{entry_id}", summary="Actualizar tarifa")
+@router.patch("/rate-tables/{table_id}/entries/{entry_id}", summary="Actualizar tarifa", deprecated=True)
 def update_rate_entry(table_id: str, entry_id: str, payload: RateEntryIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
     try:
         return APIResponse.ok(data=_svc.update_rate_entry(table_id, entry_id, payload.model_dump(), db))
     except _svc.NotFoundError as e:
         raise HTTPException(404, str(e))
 
-@router.delete("/rate-tables/{table_id}/entries/{entry_id}", summary="Eliminar tarifa")
+@router.delete("/rate-tables/{table_id}/entries/{entry_id}", summary="Eliminar tarifa", deprecated=True)
 def delete_rate_entry(table_id: str, entry_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
     enforce_abac(db, user, "rate_entry", entry_id, action="delete")
     try:
@@ -232,7 +238,7 @@ def delete_rate_entry(table_id: str, entry_id: str, db: Session = Depends(get_db
     except _svc.NotFoundError as e:
         raise HTTPException(404, str(e))
 
-@router.delete("/rate-tables/{table_id}", summary="Eliminar tabla de tarifas")
+@router.delete("/rate-tables/{table_id}", summary="Eliminar tabla de tarifas", deprecated=True)
 def delete_rate_table(table_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
     enforce_abac(db, user, "rate_table", table_id, action="delete")
     try:
@@ -243,22 +249,22 @@ def delete_rate_table(table_id: str, db: Session = Depends(get_db), user: User =
 
 # ── Vacation policies ─────────────────────────────────────────────────────────
 
-@router.get("/vacation-policies", summary="Políticas de vacaciones")
+@router.get("/vacation-policies", summary="Políticas de vacaciones", deprecated=True)
 def get_vacation_policies(db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
     return APIListResponse.ok(items=_svc.list_vacation_policies(db))
 
-@router.post("/vacation-policies", summary="Crear política de vacaciones")
+@router.post("/vacation-policies", summary="Crear política de vacaciones", deprecated=True)
 def create_vacation_policy(payload: VacationPolicyIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
     return APIResponse.ok(data=_svc.create_vacation_policy(payload.model_dump(), db))
 
-@router.patch("/vacation-policies/{policy_id}", summary="Actualizar política")
+@router.patch("/vacation-policies/{policy_id}", summary="Actualizar política", deprecated=True)
 def update_vacation_policy(policy_id: str, payload: VacationPolicyIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
     try:
         return APIResponse.ok(data=_svc.update_vacation_policy(policy_id, payload.model_dump(), db))
     except _svc.NotFoundError as e:
         raise HTTPException(404, str(e))
 
-@router.delete("/vacation-policies/{policy_id}", summary="Eliminar política")
+@router.delete("/vacation-policies/{policy_id}", summary="Eliminar política", deprecated=True)
 def delete_vacation_policy(policy_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
     enforce_abac(db, user, "vacation_policy", policy_id, action="delete")
     try:

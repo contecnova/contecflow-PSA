@@ -18,6 +18,7 @@ from typing import Optional
 
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
+from app.services.settings_service import por_empresa as _pe
 from app.db.session import is_postgres
 from app.models.clients import Client
 from app.models.financial import ProjectMilestone
@@ -28,7 +29,6 @@ from app.models.project import ProjectStatus
 from app.models.project import ProjectPhase
 from app.models.task import Task, TaskStatus
 from app.models.task import Task as _Task
-from app.core.config import settings
 from app.models.user import UserRole
 from app.models.user import User as UserModel
 from sqlalchemy.exc import IntegrityError
@@ -160,7 +160,7 @@ class ProjectService(ServiceBase):
         return {
             "project_id": project_id,
             "project_name": proj.name,
-            "currency": settings.DEFAULT_CURRENCY,
+            "currency": _pe.moneda_de_empresa(self.db, registro=proj),  # 18-11-2026
             **d,
             "pct_time_elapsed": d["pct_planned"],
             "total_tasks": total or 0,

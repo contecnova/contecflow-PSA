@@ -10,9 +10,14 @@
  * herramientas y el conmutador lista/detalle del móvil usan `Tabs` (eran
  * botones propios) y «Por aprobar» lleva el número en `count`. El vacío de
  * aprobaciones es un `EmptyState` (era texto gris suelto).
+ *
+ * 18-11-2026: la configuración sale del módulo y vive en Configuración
+ * (`/settings/sd`). Aquí queda el botón «Configurar» para quien puede tocar
+ * algo de ella (admin, PM, jefe de equipo, RRHH: las respuestas rápidas son de
+ * cualquier responsable) y `?tab=config[&sub=…]` redirige allí.
  */
 import { useState, useEffect, useRef, lazy, Suspense } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { sdApprovalsApi } from '../services/api'
 import type { SdAprobacionPendiente } from '../services/api/tipos-sd'
@@ -20,7 +25,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { useAuth } from '../context/AuthContext'
 import {
   AlertOctagon, ArrowLeft, BookOpen, Bug, ClipboardCheck, Columns3, GitPullRequestArrow, Inbox, LayoutDashboard,
-  List, ListTodo, MessageSquare, MessagesSquare, PanelRight, Plus, Settings, TriangleAlert, Wrench,
+  List, ListTodo, MessageSquare, MessagesSquare, PanelRight, Plus, Settings2, TriangleAlert, Wrench,
 } from 'lucide-react'
 import { Button, EmptyState, Spinner, Tabs, Pulsable } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
@@ -30,7 +35,6 @@ import { useWindowWidth } from './service-desk/sdUtils'
 import TicketDetail from './service-desk/TicketDetail'
 import CreateTicketModal from './service-desk/CreateTicketModal'
 import KanbanTicketsTab from './service-desk/KanbanTicketsTab'
-import Config from './service-desk/ConfigTab'
 import VoiceAgentPanel from '../components/servicedesk/VoiceAgentPanel'
 import IncidentAssignmentPanel from '../components/servicedesk/IncidentAssignmentPanel'
 import ChangeRolloutPanel from '../components/servicedesk/ChangeRolloutPanel'
@@ -54,7 +58,10 @@ const PESTANAS_EXTERNO = new Set(['queue', 'all', 'kanban', 'approvals'])
 
 export default function ServiceDeskPage() {
   const t = useAppT()
-  const esExterno = useAuth().hasRole('subcontractor')
+  const { hasRole } = useAuth()
+  const esExterno = hasRole('subcontractor')
+  const configura = !esExterno && hasRole('admin', 'pm', 'team_lead', 'hr')
+  const navigate = useNavigate()
   // `?ticket=<id>` abre ese ticket: es a donde llevan los avisos (campana y
   // correo). Se abre en «Todos» porque «Mi cola» solo muestra los asignados a
   // quien mira (ticket_read_service.my_queue_payload).
@@ -113,7 +120,6 @@ export default function ServiceDeskPage() {
     // Las herramientas avanzadas van juntas: eran cinco pestañas de primer
     // nivel al lado del trabajo diario, y los anuncios viven en Configuración.
     { id: 'tools',    label: t('sd_cfg.tab_tools'),          icon: <Wrench size={IC} /> },
-    { id: 'config',   label: t('service_desk.tab_config'),   icon: <Settings size={IC} /> },
   ]
   const TABS = esExterno ? TODAS.filter(x => PESTANAS_EXTERNO.has(x.id)) : TODAS
   const HERRAMIENTAS = [
@@ -127,6 +133,12 @@ export default function ServiceDeskPage() {
   ]
   const etiquetaDePanel = (id: string) => [...TABS, ...HERRAMIENTAS].find(x => x.id === id)?.label ?? id
 
+  // La configuración vive en Configuración (18-11-2026): los enlaces antiguos redirigen.
+  if (pestanaPedida === 'config') {
+    const subPedida = searchParams.get('sub')
+    return <Navigate to={'/settings/sd' + (subPedida ? '?sub=' + encodeURIComponent(subPedida) : '')} replace />
+  }
+
   return (
     <PageShell>
       <PageHeader
@@ -135,9 +147,12 @@ export default function ServiceDeskPage() {
         subtitle={t('service_desk.subtitle')}
         exportTargetSelector='[data-export-table="service-desk-export"]'
         exportFilePrefix='service_desk'
-        actions={
+        actions={<>
+          {configura && (
+            <Button variant="secondary" icon={<Settings2 size={14} />} onClick={() => navigate('/settings/sd')}>{t('ajustes.configurar')}</Button>
+          )}
           <Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('service_desk.new_ticket')}</Button>
-        }/>
+        </>}/>
 
       <Tabs
         items={TABS}
@@ -198,7 +213,6 @@ export default function ServiceDeskPage() {
             {tab === 'tools' && (
               <Tabs items={HERRAMIENTAS} active={herramienta} onChange={setHerramienta} ariaLabel={t('sd_cfg.tab_tools')} />
             )}
-            {tab === 'config'   && <div id="sd-panel-config" role="tabpanel" aria-label={etiquetaDePanel('config')}><Config /></div>}
             {tab === 'tools' && herramienta === 'voice'    && <div id="sd-panel-voice" role="tabpanel" aria-label={etiquetaDePanel('voice')}><VoiceAgentPanel /></div>}
             {tab === 'tools' && herramienta === 'assign'   && <div id="sd-panel-assign" role="tabpanel" aria-label={etiquetaDePanel('assign')}><IncidentAssignmentPanel /></div>}
             {tab === 'tools' && herramienta === 'rollout'     && <div id="sd-panel-rollout" role="tabpanel" aria-label={etiquetaDePanel('rollout')}><ChangeRolloutPanel /></div>}

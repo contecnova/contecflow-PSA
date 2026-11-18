@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react'
 import './PageShell.estilos.css'
+import { useIncrustadaEnAjustes } from './incrustacion'
 
 /**
  * PageShell — contenedor estándar de página con padding y max-width consistentes.
@@ -26,6 +27,10 @@ interface Props {
 }
 
 export default function PageShell({ children, maxWidth = 'default', dense = false, style, className = '' }: Props) {
+  // 18-11-2026: dentro de Configuración el relleno y el ancho los pone la pantalla de ajustes.
+  if (useIncrustadaEnAjustes()) {
+    return <div className={`page-shell--incrustada ${className}`.trim()} style={style || {}}>{children}</div>
+  }
   return (
     <div
       className={`${`page-content ${className}`.trim() || ''} ${maxWidth === 'full' ? 'page-shell-m1' : ''} ${dense ? 'page-shell-m2' : ''}`}

@@ -611,12 +611,14 @@ def opciones(db: Session, usuario) -> dict:
     equipos = sorted({d for (d,) in activos.with_entities(User.team).distinct() if d})
     roles = sorted({r.value for r in UserRole} | {str(getattr(r, "value", r)) for (r,) in
                                                    activos.with_entities(User.role).distinct() if r})
-    monedas = {settings.DEFAULT_CURRENCY}
+    from app.services.settings_service.por_empresa import moneda_de_empresa
+    moneda_por_defecto = moneda_de_empresa(db)  # 18-11-2026: la de la empresa
+    monedas = {moneda_por_defecto}
     for a, b in db.query(ExchangeRate.from_currency, ExchangeRate.to_currency).distinct().all():
         monedas |= {a, b}
     ciudades = sorted({c for (c,) in db.query(FilaDeTablaDeReferencia.ciudad).distinct() if c})
     return {"departamentos": departamentos, "equipos": equipos, "roles": roles,
-            "monedas": sorted(m for m in monedas if m), "moneda_por_defecto": settings.DEFAULT_CURRENCY,
+            "monedas": sorted(m for m in monedas if m), "moneda_por_defecto": moneda_por_defecto,
             "grupos": [{"id": g.id, "nombre": g.name} for g in db.query(ApprovalGroup).order_by(ApprovalGroup.name)],
             "tipos_de_documento": tipos_de_documento(db, _org(usuario)), "ciudades": ciudades,
             "tablas": tablas(db), **_opciones_de_dominios(db)}

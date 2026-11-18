@@ -1,7 +1,7 @@
 /**
  * InvoicesPage — Facturación: crear, gestionar y hacer seguimiento de facturas
  */
-import { useState, useId } from 'react'
+import { useState, useId, useEffect } from 'react'
 import type { CSSProperties } from 'react'
 import { extractErr, fmtDate, localeActivo } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
@@ -18,6 +18,7 @@ import FichaDeFactura from '../components/invoices/FichaDeFactura'
 import DateInput from '../components/ui/DateInput'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
+import { useOrgSettings } from '../hooks/useOrgSettings'
 import { STALE_DEFAULT_MS } from '../constants/timings'
 import { ACCOUNTING_PUSH_BATCH_SIZE } from '../constants/pagination'
 import './InvoicesPage.css'
@@ -96,7 +97,11 @@ function InvoicesTab() {
   const [statusFilter, setStatusFilter] = useState('')
   const [previewData, setPreviewData] = useState<PreviewData | null>(null)
   const [pdfLoadingId, setPdfLoadingId] = useState<string | number | null>(null)
-  const [form, setForm] = useState<InvoiceCreateForm>({ project_id:'', client_id:'', client_name:'', client_vat:'', client_email:'', issue_date:new Date().toISOString().slice(0,10), due_date:'', tax_rate:21, notes:'', period_from:'', period_to:'', po_reference:'', lines:[] })
+  // 18-11-2026: el IVA por defecto es el de la empresa; si el usuario ya lo tocó no se pisa al cargar los ajustes.
+  const { tax_rate: ivaEmpresa } = useOrgSettings()
+  const [ivaTocado, setIvaTocado] = useState(false)
+  useEffect(() => { if (!ivaTocado) setForm(f => ({ ...f, tax_rate: ivaEmpresa })) }, [ivaEmpresa, ivaTocado])
+  const [form, setForm] = useState<InvoiceCreateForm>({ project_id:'', client_id:'', client_name:'', client_vat:'', client_email:'', issue_date:new Date().toISOString().slice(0,10), due_date:'', tax_rate:ivaEmpresa, notes:'', period_from:'', period_to:'', po_reference:'', lines:[] })
 
   const { data: invoices = [], isLoading } = useQuery({
     queryKey: ['invoices', selectedProject, statusFilter],
@@ -324,7 +329,7 @@ function InvoicesTab() {
               <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="invoices-page-e10">{t('invoices.po_reference')}</label><input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.po_reference||''} onChange={e => { campos.limpiar('po_reference'); setForm(f=>({...f,po_reference:e.target.value})) }} className="invoices-page-e11" />{msg('po_reference')}</div>
               <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="invoices-page-e10">{t('invoices.issue_date_label')}</label><DateInput id={`${idCampo}-7`} value={form.issue_date} onChange={e => { campos.limpiar('issue_date'); setForm(f=>({...f,issue_date:e.target.value})) }} className="invoices-page-e11" />{msg('issue_date')}</div>
               <div><label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="invoices-page-e10">{t('invoices.due_date_label')}</label><DateInput id={`${idCampo}-8`} value={form.due_date} onChange={e => { campos.limpiar('due_date'); setForm(f=>({...f,due_date:e.target.value})) }} className="invoices-page-e11" />{msg('due_date')}</div>
-              <div><label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="invoices-page-e10">{t('invoices.tax_rate')}</label><input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} type="number" value={form.tax_rate} onChange={e => { campos.limpiar('tax_rate'); setForm(f=>({...f,tax_rate:+e.target.value})) }} className="invoices-page-e11" />{msg('tax_rate')}</div>
+              <div><label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="invoices-page-e10">{t('invoices.tax_rate')}</label><input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} type="number" value={form.tax_rate} onChange={e => { campos.limpiar('tax_rate'); setIvaTocado(true); setForm(f=>({...f,tax_rate:+e.target.value})) }} className="invoices-page-e11" />{msg('tax_rate')}</div>
               <div><label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} className="invoices-page-e10">{t('invoices.notes')}</label><input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} value={form.notes} onChange={e => { campos.limpiar('notes'); setForm(f=>({...f,notes:e.target.value})) }} className="invoices-page-e11" />{msg('notes')}</div>
             </div>
 

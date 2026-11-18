@@ -7,8 +7,9 @@ from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
+from app.services.settings_service import por_empresa as _pe
+from app.services.settings_service.por_empresa import capacidad_semanal
 from app.models.task import ESTADOS_DE_TAREA_TERMINADOS
-from app.core.config import settings
 from app.models.financial import CapacityPlan, Timesheet, TimesheetStatus
 from app.models.imputation import Imputation
 from app.models.project import Project
@@ -248,7 +249,7 @@ def build_invoice_preview_from_timesheets_flow(
     # Revisión 2026-11: la tarifa sale de las tablas de tarifas (perfil de la persona,
     # excepción de proyecto o cliente, vigencia y escalado), y si no, la del proyecto.
     from app.services.rate_card_service import tarifa_de_facturacion
-    moneda = project.currency or settings.DEFAULT_CURRENCY
+    moneda = project.currency or _pe.moneda_de_empresa(db, registro=project)
     cache: dict = {}
     by_profile = {}
     for imp in imps:
@@ -284,7 +285,8 @@ def build_invoice_preview_from_timesheets_flow(
             }
         )
 
-    safe_tax_rate = tax_rate if tax_rate is not None else settings.DEFAULT_TAX_RATE
+    # 18-11-2026: sin IVA explícito, el de la empresa del proyecto (antes el global).
+    safe_tax_rate = tax_rate if tax_rate is not None else _pe.iva_de_empresa(db, registro=project)
     tax_amount = round(subtotal * safe_tax_rate / 100, 2)
     total = round(subtotal + tax_amount, 2)
 
@@ -299,7 +301,7 @@ def build_invoice_preview_from_timesheets_flow(
         "tax_rate": safe_tax_rate,
         "tax_amount": tax_amount,
         "total": total,
-        "currency": project.currency or settings.DEFAULT_CURRENCY,
+        "currency": project.currency or _pe.moneda_de_empresa(db, registro=project),
         "imputation_count": len(imps),
     }
 
@@ -368,7 +370,7 @@ def comprobar_plan_de_capacidad(db: Session, user_id: str, week_start: date, new
         or 0.0
     )
     user_obj = db.query(User).filter(User.id == user_id).first()
-    weekly_capacity = getattr(user_obj, "weekly_capacity_hours", None) or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
+    weekly_capacity = capacidad_semanal(db, user_obj)
     if existing_hours + new_hours > weekly_capacity:
         raise ErrorDeDominio(
             status_code=400,

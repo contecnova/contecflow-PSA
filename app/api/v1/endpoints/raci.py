@@ -318,6 +318,9 @@ def export_uat_report(
     response: Response = None,
 ):
     try:
-        return APIResponse.ok(data=_svc.export_uat_report(project_id, db))
+        # 18-11-2026: en el idioma de quien lo exporta.
+        from app.services.formato_regional import idioma_de_salida
+        return APIResponse.ok(data=_svc.export_uat_report(
+            project_id, db, idioma=idioma_de_salida(db, user_id=current_user.id)))
     except ValueError as e:
         raise _http(e)

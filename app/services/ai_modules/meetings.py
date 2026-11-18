@@ -156,12 +156,15 @@ def process_meeting(db: Session, payload, current_user) -> dict:
     """Analiza la transcripción de una reunión y extrae decisiones y acciones."""
     t0 = time.time()
     meeting = _crear_reunion(db, payload, current_user)
+    # 18-11-2026: el informe en el idioma del usuario (antes, el del prompt).
+    from app.services.formato_regional import instruccion_de_idioma_para
+    sistema = _SISTEMA_DE_REUNION + " " + instruccion_de_idioma_para(db, user_id=getattr(current_user, "id", None))
 
     try:
         texto = map_reduce_analysis(
             payload.transcript,
-            map_system=_SISTEMA_DE_REUNION, map_user_prefix=_PREFIJO_DE_MAPEO,
-            reduce_system=_SISTEMA_DE_REUNION, reduce_user_suffix=_SUFIJO_DE_REDUCCION,
+            map_system=sistema, map_user_prefix=_PREFIJO_DE_MAPEO,
+            reduce_system=sistema, reduce_user_suffix=_SUFIJO_DE_REDUCCION,
             db=db, module="meeting_assistant", user_id=current_user.id,
             map_tokens=1500, reduce_tokens=2000,
         )

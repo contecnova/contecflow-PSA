@@ -182,12 +182,16 @@ def _avisar(db: Session, p: ALMPropuestaDeKit, user: User) -> None:
     titulo = f"Kit de alta para {user.full_name}"
     cuerpo = "Revisa y confirma con un clic las licencias y el equipo que le corresponden."
     url = f"/alm/altas-y-bajas?tab=kits_propuestos&propuesta={p.id}"
+    # 18-11-2026: cada destinatario lo lee en su idioma; el castellano, de respaldo.
+    aviso = {"titulo": "aviso.alm_kit.titulo", "cuerpo": "aviso.alm_kit.cuerpo",
+             "params": {"persona": user.full_name}}
     if p.responsable_id:
-        notify_user(db, p.responsable_id, "alm_onboarding", titulo, cuerpo, "alm_kit_propuesta", p.id, url)
+        notify_user(db, p.responsable_id, "alm_onboarding", titulo, cuerpo, "alm_kit_propuesta", p.id, url,
+                    aviso=aviso)
         return
     for rol in c.roles_de_respaldo(db, p.organization_id):
         notify_role(db, rol, "alm_onboarding", titulo, cuerpo, "alm_kit_propuesta", p.id, url,
-                    organization_id=p.organization_id)
+                    organization_id=p.organization_id, aviso=aviso)
 
 
 def puede_decidir(db: Session, p: ALMPropuestaDeKit, actor) -> bool:

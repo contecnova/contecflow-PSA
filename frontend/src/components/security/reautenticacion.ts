@@ -8,18 +8,19 @@
  */
 import type { PromptOptions } from '../../context/ConfirmContext'
 import type { Reautenticacion } from '../../services/api/auth'
+import { traducirSinHook } from '../../i18n/traducirSinHook'
 
 /** Pide la contrasena actual o un codigo de 6 digitos; null si se cancela. */
 export async function pedirReautenticacion(
   pedirTexto: (opts: PromptOptions) => Promise<string | null>,
 ): Promise<Reautenticacion | null> {
   const valor = await pedirTexto({
-    title: 'Confirma que eres tú',
-    message: 'Para cambiar el segundo factor escribe tu contraseña actual o un código de tu aplicación autenticadora.',
-    label: 'Contraseña o código',
+    title: traducirSinHook('mfa.reauth_titulo'),
+    message: traducirSinHook('mfa.reauth_mensaje'),
+    label: traducirSinHook('mfa.reauth_etiqueta'),
     inputType: 'password',
     required: true,
-    confirmLabel: 'Continuar',
+    confirmLabel: traducirSinHook('mfa.reauth_continuar'),
   })
   if (valor == null) return null
   const v = valor.trim()

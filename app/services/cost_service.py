@@ -140,8 +140,9 @@ def cost_amount(db: Session, user: User, hours: float, on_date: Optional[Date] =
 
     amount = rate * (hours or 0)
 
-    from app.core.config import settings
-    org_currency = settings.DEFAULT_CURRENCY
+    # 18-11-2026: la moneda de la empresa del usuario, no la global del entorno.
+    from app.services.settings_service.por_empresa import moneda_de_empresa
+    org_currency = moneda_de_empresa(db, registro=user)
     if src_currency and src_currency != org_currency:
         from app.services.profitability_service import get_fx_rate
         fx = get_fx_rate(db, src_currency, org_currency, on_date)
@@ -172,8 +173,9 @@ def create_profile(db: Session, *, user_id: str, valid_from: Date,
                    created_by_user_id: Optional[str] = None) -> UserCostProfile:
     """Create a new cost profile and close any open profile that overlaps."""
     if not currency:
-        from app.core.config import settings
-        currency = settings.DEFAULT_CURRENCY
+        # 18-11-2026: la moneda de la empresa del perfil, no la global del entorno.
+        from app.services.settings_service.por_empresa import moneda_de_empresa
+        currency = moneda_de_empresa(db, organization_id)
     if productive_hours_year is None:
         productive_hours_year = costes_por_defecto(db, organization_id)[1]
     total, per_hour = derive_cost(gross_annual_salary, employer_cost_pct,

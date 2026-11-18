@@ -25,9 +25,9 @@ from typing import Optional
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
+from app.services.settings_service import por_empresa as _pe
 from app.db.session import sin_filtro_de_tenant
 
-from app.core.config import settings
 from app.core.security import get_password_hash, validate_password_policy
 from app.models.imputation import Imputation
 from app.models.task import Task, TaskStatus
@@ -160,7 +160,7 @@ def get_load_map_payload(db: Session, current_user, week_start: Optional[date] =
         from app.services.resource_analytics import get_user_week_hours
         hw = get_user_week_hours(db, user.id, week_start)
         from app.services.resource_analytics import capacidad_de_semana
-        capacity = capacidad_de_semana(hw, user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS)
+        capacity = capacidad_de_semana(hw, _pe.capacidad_semanal(db, user))
         carga = max(hours_week, hw["committed_hours"])
         load_pct = round((carga / capacity) * 100, 1) if capacity > 0 else (100.0 if carga else 0)
         result.append(UserLoad(
@@ -716,7 +716,8 @@ def get_preferences_payload(user_id: str, db: Session) -> dict:
         return {
             "dashboard_widgets": None, "accent_color": None,
             "theme_mode": "freight", "sidebar_collapsed": False,
-            "language": settings.DEFAULT_LANGUAGE, "ui_density": "normal", "extra": None,
+            # 18-11-2026: sin preferencia, el idioma de la empresa (no el global del entorno).
+            "language": _pe.idioma_de_empresa(db), "ui_density": "normal", "extra": None,
         }
     return {
         "dashboard_widgets": json.loads(pref.dashboard_widgets) if pref.dashboard_widgets else None,
@@ -725,7 +726,7 @@ def get_preferences_payload(user_id: str, db: Session) -> dict:
         "accent_color":      pref.accent_color,
         "theme_mode":        pref.theme_mode or "freight",
         "sidebar_collapsed": pref.sidebar_collapsed or False,
-        "language":          pref.language or settings.DEFAULT_LANGUAGE,
+        "language":          pref.language or _pe.idioma_de_empresa(db),
         "ui_density":        pref.ui_density or "normal",
         "extra":             json.loads(pref.extra) if pref.extra else None,
     }

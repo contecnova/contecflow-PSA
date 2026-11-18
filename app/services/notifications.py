@@ -92,12 +92,24 @@ def notify_user(
     resource: Optional[str] = None,
     resource_id: Optional[str] = None,
     action_url: Optional[str] = None,
+    *,
+    aviso: Optional[dict] = None,
 ) -> Notification:
+    """Aviso en la aplicacion (fila + empujon por WebSocket).
+
+    18-11-2026 (auditoria de textos fijos): con `aviso={"titulo": clave,
+    "cuerpo": clave_o_None, "params": {...}}` el titulo y el cuerpo se pintan
+    en el idioma del destinatario (`textos_de_salida`); `title`/`body` quedan de
+    respaldo si la clave no se puede pintar. La clave y los datos tambien van
+    en el empujon por WebSocket (`title_key`, `body_key`, `params`).
+    """
     icon, color = NOTIFICATION_ICONS.get(ntype, ("🔔", "#7a8aaa"))
     # Si no lo quiere en la aplicacion, ni fila ni empujon por WebSocket.
     from app.services.preferencias_de_aviso import quiere
     if not quiere(db, user_id, ntype, "app"):
         return None
+    if aviso:
+        title, body = texto_de_aviso(db, user_id, aviso, title, body)
     n = Notification(
         user_id=user_id,
         type=ntype,
@@ -120,8 +132,25 @@ def notify_user(
         "resource": resource,
         "resource_id": resource_id,
         "action_url": action_url,
+        **({"title_key": aviso.get("titulo"), "body_key": aviso.get("cuerpo"),
+            "params": aviso.get("params") or {}} if aviso else {}),
     })
     return n
+
+
+def texto_de_aviso(db: Session, user_id: str, aviso: dict, title: str, body: Optional[str]):
+    """(titulo, cuerpo) de `aviso` en el idioma de `user_id`; si falla, `title`/`body`."""
+    try:
+        from app.services.formato_regional import idioma_de_salida
+        from app.services.textos_de_salida import texto
+        idioma = idioma_de_salida(db, user_id=user_id)
+        params = aviso.get("params") or {}
+        titulo = texto(aviso["titulo"], idioma, **params) if aviso.get("titulo") else title
+        cuerpo = texto(aviso["cuerpo"], idioma, **params) if aviso.get("cuerpo") else body
+        return titulo, cuerpo
+    except Exception:
+        logger.debug("texto_de_aviso: se usa el texto de respaldo", exc_info=True)
+        return title, body
 
 
 def notify_role(
@@ -135,6 +164,7 @@ def notify_role(
     action_url: Optional[str] = None,
     *,
     organization_id: Optional[str],
+    aviso: Optional[dict] = None,
 ) -> int:
     """Avisa a los usuarios activos de un rol **de una organizacion**.
 
@@ -148,6 +178,6 @@ def notify_role(
     users = db.query(User).filter(User.role == role, User.is_active == True,
                                   User.organization_id == organization_id).all()
     for u in users:
-        notify_user(db, u.id, ntype, title, body, resource, resource_id, action_url)
+        notify_user(db, u.id, ntype, title, body, resource, resource_id, action_url, aviso=aviso)
     return len(users)
 

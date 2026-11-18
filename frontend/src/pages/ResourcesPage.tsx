@@ -24,6 +24,7 @@ import { ROLE_LABELS, extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
 import DateInput from '../components/ui/DateInput'
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
+import { useOrgSettings } from '../hooks/useOrgSettings'
 import { STALE_5_MIN_MS } from '../constants/timings'
 import './ResourcesPage.css'
 
@@ -250,13 +251,14 @@ function EditUserModal({ user, open, onClose }: { user: Resource; open: boolean;
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
+  const { weekly_capacity_hours: capacidadEmpresa } = useOrgSettings() // 18-11-2026: capacidad por defecto de la empresa
   const [form, setForm] = useState<Record<string, string>>({
     email:                 String(user?.user?.email                 || user?.email                 || ''),
     full_name:             String(user?.user?.full_name             || user?.full_name             || ''),
     job_title:             String(user?.user?.job_title             || user?.job_title             || ''),
     department:            String(user?.user?.department            || user?.department            || ''),
     role:                  String(user?.user?.role                  || (user?.role as string)     || 'employee'),
-    weekly_capacity_hours: String(user?.user?.weekly_capacity_hours || 40),
+    weekly_capacity_hours: String(user?.user?.weekly_capacity_hours || capacidadEmpresa),
     hourly_rate:           String(user?.hourly_rate                 ?? user?.user?.hourly_rate     ?? ''),
   })
   const { hasRole } = useAuth()
@@ -276,7 +278,7 @@ function EditUserModal({ user, open, onClose }: { user: Resource; open: boolean;
   const handleSave = () => {
     const payload = {
       ...form,
-      weekly_capacity_hours: form.weekly_capacity_hours !== '' ? parseFloat(form.weekly_capacity_hours) : 40,
+      weekly_capacity_hours: form.weekly_capacity_hours !== '' ? parseFloat(form.weekly_capacity_hours) : capacidadEmpresa,
       hourly_rate: form.hourly_rate !== '' ? parseFloat(form.hourly_rate) : null,
     }
     mutate(payload)

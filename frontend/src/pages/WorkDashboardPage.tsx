@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
+import { useOrgSettings } from '../hooks/useOrgSettings'
 import {
   COLOR, KpiCardSkeleton, GaugeCard, GaugeCardSkeleton, BarRow,
   dateRange,
@@ -150,6 +151,7 @@ export default function WorkDashboardPage(): JSX.Element {
   const navigate = useNavigate()
   const toast = useToast()
   const { user } = useAuth()
+  const { weekly_capacity_hours: capacidadEmpresa } = useOrgSettings() // 18-11-2026
   const userId = user?.id
 
   const { data: taskStats, isLoading: lt, isError: taskStatsError } = useQuery<TaskStatResponse>({
@@ -233,7 +235,7 @@ export default function WorkDashboardPage(): JSX.Element {
   const pendingExp   = expenses.length
   const pendingAbsences = absences.filter((absence) => absence.status === 'pending').length
 
-  const hoursTarget  = (user?.weekly_capacity_hours ?? 40) as number
+  const hoursTarget  = (user?.weekly_capacity_hours ?? capacidadEmpresa) as number
   const hoursWeekPct = Math.min(Math.round((hoursWeek / Math.max(hoursTarget, 1)) * 100), 100)
   const hoursColor   = hoursWeekPct >= 80 ? COLOR.success : hoursWeekPct >= 50 ? COLOR.warning : COLOR.danger
   const taskCompletionBase = tasksOpen + tasksDone

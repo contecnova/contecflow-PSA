@@ -202,9 +202,19 @@ def notify_requester(
     for channel in channels:
         try:
             if channel == "email" and getattr(ticket, "requester_email", None):
+                # 18-11-2026: el asunto en el idioma del cliente (o el del ticket / la empresa).
+                from app.services.formato_regional import idioma_de_salida
+                from app.services.textos_de_salida import texto
+                from app.services.traduccion.salida import idioma_del_cliente
+                try:
+                    _cliente = idioma_del_cliente(db, ticket=ticket)[0]
+                except Exception:
+                    _cliente = None
+                _idioma = idioma_de_salida(db, org_id=getattr(ticket, "organization_id", None),
+                                           preferido=_cliente or getattr(ticket, "language", None))
                 ok = NotificationService.send_email(
                     to=ticket.requester_email,
-                    subject=f"Actualización ticket {ticket.number}",
+                    subject=texto("ticket.actualizacion.asunto", _idioma, numero=ticket.number),
                     html_body=f"<p>{message}</p>",
                 )
                 results["email"] = ok

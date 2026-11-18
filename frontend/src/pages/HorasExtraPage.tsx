@@ -10,28 +10,33 @@
  *   (POST /overtime/{id}/settle); «Para nómina» (GET /overtime/payroll, CSV).
  * - Resumen (responsables): GET /overtime/summary frente a límites y
  *   presupuestos, y GET /overtime/unauthorized.
- * - Configuración (admin/RRHH): GET/PUT /overtime/config, /overtime/budgets,
- *   POST /overtime/regularize y reglas del dominio `horas_extra` en Políticas.
+ * - Configuración (admin/RRHH): ya no es una pestaña; vive en Configuración
+ *   (`/settings/horas-extra`, ConfigHorasExtra). Aquí queda el botón
+ *   «Configurar» y `?tab=config` redirige allí (18-11-2026).
  * Las respuestas van envueltas en `{ok, data}`; `_core` las desenvuelve.
  */
 import { useState } from 'react'
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { AlarmClockPlus, BarChart3, Inbox, ListChecks, Settings2, UserRound } from 'lucide-react'
-import { Page, Tabs } from '../components/ui'
+import { Button, Page, Tabs } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import { useTh } from '../components/horas-extra/comun'
 import MisHorasExtra from '../components/horas-extra/MisHorasExtra'
 import BandejaHorasExtra from '../components/horas-extra/BandejaHorasExtra'
 import GestionHorasExtra from '../components/horas-extra/GestionHorasExtra'
 import ResumenHorasExtra from '../components/horas-extra/ResumenHorasExtra'
-import ConfigHorasExtra from '../components/horas-extra/ConfigHorasExtra'
 import CicloHorasExtra from '../components/horas-extra/CicloHorasExtra'
 
 export default function HorasExtraPage(): JSX.Element {
-  const { th } = useTh()
+  const { th, t } = useTh()
   const { hasRole } = useAuth()
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const pedida = searchParams.get('tab')
   const gestiona = hasRole('admin', 'hr', 'pm', 'team_lead')
   const administra = hasRole('admin', 'hr')
-  const [tab, setTab] = useState('mias')
+  const validas = ['mias', 'aprobar', ...(gestiona ? ['gestion', 'resumen'] : [])]
+  const [tab, setTab] = useState(pedida && validas.includes(pedida) ? pedida : 'mias')
   const [abierta, setAbierta] = useState<string | null>(null)
   const items = [
     { id: 'mias', label: th('tab_mias'), icon: <UserRound size={14} /> },
@@ -40,17 +45,20 @@ export default function HorasExtraPage(): JSX.Element {
       { id: 'gestion', label: th('tab_gestion'), icon: <ListChecks size={14} /> },
       { id: 'resumen', label: th('tab_resumen'), icon: <BarChart3 size={14} /> },
     ] : []),
-    ...(administra ? [{ id: 'config', label: th('tab_config'), icon: <Settings2 size={14} /> }] : []),
   ]
+  // La configuración vive en Configuración (18-11-2026): los enlaces antiguos redirigen.
+  if (pedida === 'config') return <Navigate to="/settings/horas-extra" replace />
   return (
-    <Page title={th('titulo')} subtitle={th('subtitulo')} icon={<AlarmClockPlus size={18} />}>
+    <Page title={th('titulo')} subtitle={th('subtitulo')} icon={<AlarmClockPlus size={18} />}
+      actions={administra ? (
+        <Button variant="secondary" icon={<Settings2 size={14} />} onClick={() => navigate('/settings/horas-extra')}>{t('ajustes.configurar')}</Button>
+      ) : undefined}>
       <Tabs items={items} active={tab} onChange={setTab} ariaLabel={th('secciones')} />
       <div role="tabpanel">
         {tab === 'mias' && <MisHorasExtra />}
         {tab === 'aprobar' && <BandejaHorasExtra onAbrir={setAbierta} />}
         {tab === 'gestion' && gestiona && <GestionHorasExtra onAbrir={setAbierta} />}
         {tab === 'resumen' && gestiona && <ResumenHorasExtra onAbrir={setAbierta} />}
-        {tab === 'config' && administra && <ConfigHorasExtra />}
       </div>
       <CicloHorasExtra id={abierta} onCerrar={() => setAbierta(null)} />
     </Page>

@@ -14,6 +14,7 @@ portal-ai        — Intelligent Client Portal chat
 governance       — AI Governance Dashboard
 """
 from app.core.constantes import NOMBRE_DEL_PRODUCTO
+from app.services.formato_regional import instruccion_de_idioma_para
 from app.core.config import settings
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from fastapi.responses import StreamingResponse
@@ -110,7 +111,7 @@ CÓMO ACTUAR:
 - Para acciones transaccionales (crear tarea, cerrar ticket): sugiere usar NexusAgent con /agente.
 
 REGLAS:
-- Responde SIEMPRE en español (o en el idioma del usuario).
+- Responde en el idioma que se indica al final de estas instrucciones.
 - Sé directo, concreto y útil. Cita los datos del contexto explícitamente cuando hagas afirmaciones.
 - NUNCA inventes cifras. Si no tienes el dato, dilo claramente y ofrece lo que sí puedes analizar.
 - NUNCA digas que "no tienes capacidad" para analizar o dar opiniones — esa es exactamente tu función.
@@ -211,7 +212,7 @@ def chat(
     except Exception as e:
         _logger.error("prepare_chat failed, using fallback context: %s", e, exc_info=True)
         ctx = _tenant_context(db, current_user)
-        system = NEXUSASSIST_SYSTEM.format(context=json.dumps(ctx, ensure_ascii=False))
+        system = NEXUSASSIST_SYSTEM.format(context=json.dumps(ctx, ensure_ascii=False)) + "\n\n" + instruccion_de_idioma_para(db, user_id=current_user.id, conversacional=True)
         messages = [{"role": "user", "content": effective_message}]
 
     # Llamada al proveedor (guardrails aplicados dentro)
@@ -693,7 +694,7 @@ def run_agent_stream(
 
     SYSTEM = f"""Eres NexusAgent, el agente autónomo de {NOMBRE_DEL_PRODUCTO}.
 Tu misión: ejecutar la instrucción del usuario usando las herramientas disponibles.
-Responde siempre en español. Hoy es {datetime.now(timezone.utc).strftime('%Y-%m-%d')}.
+{instruccion_de_idioma_para(db, user_id=current_user.id, conversacional=True)} Hoy es {datetime.now(timezone.utc).strftime('%Y-%m-%d')}.
 Contexto inicial del sistema: {json.dumps(_tenant_context(db, current_user))}"""
 
     return StreamingResponse(

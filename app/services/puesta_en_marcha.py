@@ -53,27 +53,28 @@ def lista(db: Session, org: str) -> dict:
         logging.getLogger(__name__).debug("lista: excepcion ignorada", exc_info=True)
         aislamiento = {"armed": False, "reason": "no se pudo medir"}
 
+    # 18-11-2026: enlaces a las secciones de Configuración (/settings/<seccion>).
     puntos = [
         _punto("ai_provider", proveedores or del_entorno,
-               {"providers": proveedores, "env_provider": del_entorno}, "/ai-hub"),
+               {"providers": proveedores, "env_provider": del_entorno}, "/settings/ai-hub"),
         _punto("email", bool((settings.SMTP_HOST or "").strip()),
                {"smtp_host": bool((settings.SMTP_HOST or "").strip())}, None),
-        _punto("support_inbox", bool(buzon), {"address": buzon or None}, "/service-desk?tab=config"),
-        _punto("users", usuarios >= 2, {"active_users": usuarios}, "/settings?tab=users"),
+        _punto("support_inbox", bool(buzon), {"address": buzon or None}, "/settings/sd?sub=mail"),
+        _punto("users", usuarios >= 2, {"active_users": usuarios}, "/settings/users"),
         _punto("clients", _contar(db, Client, org) >= 1, {"clients": _contar(db, Client, org)}, "/clients"),
         _punto("approval_workflows", _contar(db, ApprovalWorkflow, org, ApprovalWorkflow.is_active.is_(True)) >= 1,
                {"workflows": _contar(db, ApprovalWorkflow, org, ApprovalWorkflow.is_active.is_(True))},
                "/settings/approval-workflows"),
         _punto("sla", _contar(db, SLAPolicy, org, SLAPolicy.is_active.is_(True)) >= 1,
-               {"policies": _contar(db, SLAPolicy, org, SLAPolicy.is_active.is_(True))}, "/service-desk?tab=config"),
-        _punto("sso", sso >= 1, {"active_sso": sso}, "/enterprise?tab=sso", necesario=False),
+               {"policies": _contar(db, SLAPolicy, org, SLAPolicy.is_active.is_(True))}, "/settings/sd?sub=sla"),
+        _punto("sso", sso >= 1, {"active_sso": sso}, "/settings/enterprise?tab=sso", necesario=False),
         _punto("mfa", bool(getattr(empresa, "require_mfa", False)),
                {"require_mfa": bool(getattr(empresa, "require_mfa", False))}, None, necesario=False),
         _punto("branding", _contar(db, OrgBranding, org) >= 1, {"configured": _contar(db, OrgBranding, org) >= 1},
-               "/settings?tab=branding", necesario=False),
-        _punto("ai_budget", tope > 0, {"daily_budget_usd": tope}, "/settings?tab=runtime-flags", necesario=False),
+               "/settings/branding", necesario=False),
+        _punto("ai_budget", tope > 0, {"daily_budget_usd": tope}, "/settings/runtime-flags", necesario=False),
         _punto("db_isolation", bool(aislamiento.get("armed")), {"reason": aislamiento.get("reason")},
-               "/settings?tab=system-state", necesario=False),
+               "/settings/system-state", necesario=False),
     ]
     necesarios = [p for p in puntos if p["required"]]
     return {"items": puntos,

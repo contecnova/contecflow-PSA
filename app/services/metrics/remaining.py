@@ -5,7 +5,7 @@ from sqlalchemy import func, case
 from sqlalchemy.orm import Session
 
 from ._registro import register_metric
-from app.core.config import settings
+from app.services.settings_service.por_empresa import capacidad_semanal
 from app.models.imputation import Imputation
 from app.models.user import User
 from datetime import timedelta
@@ -230,7 +230,7 @@ def metric_load_by_person(
 
     rows = []
     for r in q.group_by(User.id, User.full_name, User.weekly_capacity_hours).all():
-        capacity = (r.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS) / 5 * working_days
+        capacity = (capacidad_semanal(db, r)) / 5 * working_days
         actual = float(r.actual or 0)
         if actual > 0 or capacity > 0:
             pct = round(actual / capacity * 100, 1) if capacity > 0 else 0

@@ -10,6 +10,7 @@ import logging
 import os
 from datetime import date, datetime
 from typing import Optional
+from app.services.settings_service import por_empresa as _pe
 from app.core import timeutil
 
 logger = logging.getLogger(__name__)
@@ -122,7 +123,7 @@ def _load_dim_users(db, conn) -> int:
     filas = [[u.id, u.full_name, u.email, _valor(u.role), u.department, u.organization_id,
               u.hourly_rate,   # coste interno €/h (User.hourly_rate)
               u.weekly_capacity_hours if u.weekly_capacity_hours is not None
-              else settings.DEFAULT_WEEKLY_CAPACITY_HOURS]
+              else _pe.capacidad_semanal_de_empresa(db, registro=u)]  # 18-11-2026: la de su empresa
              for u in db.query(User).filter(User.is_active.is_(True)).all()]
     return _vaciar_y_cargar(conn, "dim_user", 8, filas)
 
@@ -131,7 +132,7 @@ def _load_dim_projects(db, conn) -> int:
     from app.models.project import Project
     filas = [[p.id, p.code, p.name, _valor(p.status), _valor(p.project_type), p.billing_type, p.organization_id,
               p.client_id, p.start_date, p.end_date_real or p.end_date_planned, p.budget_amount,
-              p.currency or settings.DEFAULT_CURRENCY]
+              p.currency or _pe.moneda_de_empresa(db, registro=p)]
              for p in db.query(Project).all()]
     return _vaciar_y_cargar(conn, "dim_project", 12, filas)
 

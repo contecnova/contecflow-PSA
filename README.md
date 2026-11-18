@@ -4281,7 +4281,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **30 groups, 343 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **30 groups, 345 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4403,6 +4403,8 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **30 gr
 | locale | SUPPORTED_CURRENCIES | str | `EUR,USD,GBP,PLN,CHF,SEK,DKK,NOK,JPY,CAD,AUD,MXN,BRL` | Currencies offered in the screens (CSV of ISO 4217 codes) | rt (`/org-defaults` → every currency selector; exchange-rate list) |
 | locale | CURRENCY_SYMBOLS | str | `EUR:€,USD:$,GBP:£` | Currency symbols on documents (CODE:symbol, CSV); a currency without one shows its code | rt (invoice PDF) |
 | locale | DEFAULT_TAX_RATE | float | 21.0 | Default tax rate (%) | rt **only** in `/org-defaults`; invoice/booking column defaults use the value loaded at process start |
+| locale | TAX_NAME | str | '' | Tax name on invoices; empty = the usual one for the invoice language | rt in `invoice_pdf.nombre_del_impuesto` |
+| locale | COMPANY_SECTOR | str | '' | Company sector for AI narratives | rt in `bi_storytelling` |
 | locale | DEFAULT_WORKING_HOURS_PER_DAY | float | 8.0 | Working hours per day | rt (`/org-defaults`, SD ticket ops); static elsewhere |
 | locale | DEFAULT_WEEKLY_CAPACITY_HOURS | float | 40.0 | Weekly capacity (h) | rt only in `/org-defaults`; static in ~25 files (e.g. `alert_service`) |
 | locale | DEFAULT_PRODUCTIVE_HOURS_YEAR | float | 1700.0 | Staff cost: productive hours per year when the cost profile and the country preset say nothing | rt (company; `cost_service.costes_por_defecto`) |
@@ -5603,7 +5605,7 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 475 fields (measured 2026-11-16): 244 in `config.py` and 231 in ten mixins under `app/core/config_groups/` (`ai_config` 41, `sla_config` 20, `health_config` 25, `semantic_config` 10, `service_desk_config` 36, `automations_config` 13, `proceso_config` 74, `escalas_config` 5, `empresa_config` 4, `politicas_config` 3). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; a `JWT_ALGORITHM` other than HS256/HS384/HS512; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
 2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service/`::RUNTIME_FLAG_GROUPS declares **256 keys in 24 groups** (measured 2026-11-16 in `_catalogo.py`): `sla`, `service_desk`, `automations`, `tenants`, `audit`, `risk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `conectores`, `lecciones`, `gastos`, `politicas`, `presupuestos`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Two keys exist only there and have no `Settings` field: `SLACK_TEAM_ID` and `TEAMS_TENANT_ID` (they link a Slack workspace or Teams tenant to one company). Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the keys listed there are editable.
 
-#### 4.2 Settings fields (`Settings`, 564)
+#### 4.2 Settings fields (`Settings`, 566)
 
 Defaults are the code defaults, never values from `.env`. Meanings are taken from the field name, its inline comment and the code that reads it; behaviour described in bold was checked in the code that consumes the variable.
 
@@ -5694,6 +5696,8 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `SUPPORTED_CURRENCIES` | `'EUR,USD,GBP,PLN,CHF,SEK,DKK,NOK,JPY,CAD,AUD,MXN,BRL'` | Currencies offered in the screens. |
 | `CURRENCY_SYMBOLS` | `'EUR:€,USD:$,GBP:£'` | Currency symbols on documents. |
 | `DEFAULT_TAX_RATE` | `21.0` | Fallback VAT %. |
+| `TAX_NAME` | `''` | Tax name on invoices (VAT, IVA, GST...); empty = the usual one for the invoice language (18-11-2026). |
+| `COMPANY_SECTOR` | `''` | Company sector for the BI AI narrative; empty = none assumed (18-11-2026). |
 | `MIN_PASSWORD_LENGTH` | `8` | Password policy. |
 | `BCRYPT_ROUNDS` | `12` | bcrypt cost. |
 | `PASSWORD_REQUIRE_UPPERCASE` | `True` | Password policy. |

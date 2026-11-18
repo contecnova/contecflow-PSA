@@ -26,15 +26,17 @@ import { Pulsable, useDialogo } from '../ui'
 import './VoiceCommandModal.css'
 
 
-function _formatPendingAction(pa: AccionDeVozPendiente | undefined | null): string | null {
+function _formatPendingAction(pa: AccionDeVozPendiente | undefined | null, traducir: (clave: string, vars?: Record<string, unknown>) => string): string | null {
   if (!pa) return null
   switch (pa.type) {
     case 'log_hours':
-      return `Imputar ${pa.hours}h en ${pa.project_name}`
+      return traducir('voicecommand.pend_imputar', { horas: pa.hours, proyecto: pa.project_name })
     case 'create_ticket':
-      return `Crear ticket "${pa.title}" (prioridad ${pa.priority || 'medium'})`
+      return traducir('voicecommand.pend_crear_ticket', { titulo: pa.title, prioridad: pa.priority || 'medium' })
     case 'create_task':
-      return `Crear tarea "${pa.title}"` + (pa.project_name ? ` en ${pa.project_name}` : '')
+      return pa.project_name
+        ? traducir('voicecommand.pend_crear_tarea_en', { titulo: pa.title, proyecto: pa.project_name })
+        : traducir('voicecommand.pend_crear_tarea', { titulo: pa.title })
     default:
       return JSON.stringify(pa)
   }
@@ -91,12 +93,12 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
     chunksRef.current = []
 
     if (!navigator.mediaDevices?.getUserMedia) {
-      setError('Tu navegador no soporta grabación de audio. Usa Chrome/Edge/Safari recientes.')
+      setError(traducir('voicecommand.sin_audio_navegador'))
       return
     }
 
     if (typeof MediaRecorder === 'undefined') {
-      setError('Tu navegador no soporta MediaRecorder para grabar audio.')
+      setError(traducir('voicecommand.sin_mediarecorder'))
       return
     }
 
@@ -124,7 +126,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
       rec.onerror = (e: Event) => {
         // El evento de error de MediaRecorder lleva el fallo en `error` (no está en lib.dom).
         const err = (e as Event & { error?: DOMException }).error
-        setError(err?.message || 'No se pudo grabar audio con el micrófono.')
+        setError(err?.message || traducir('voicecommand.error_grabar'))
         setRecording(false)
         _stopMediaTracks()
       }
@@ -137,8 +139,8 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
     } catch (err: unknown) {
       const e = err as { name?: string; message?: string } | undefined
       const msg = e?.name === 'NotAllowedError'
-        ? 'Permiso de micrófono denegado. Habilítalo en la configuración del navegador.'
-        : `No se pudo acceder al micrófono: ${e?.message || String(err)}`
+        ? traducir('voicecommand.permiso_microfono')
+        : traducir('voicecommand.error_microfono', { mensaje: e?.message || String(err) })
       setError(msg)
     }
   }
@@ -157,7 +159,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
   // ── 3. Send audio for transcription (dry-run) ─────────────────────────────
   const { mutate: transcribe, isPending: isTranscribing } = useMutation({
     mutationFn: () => {
-      if (!audioBlob) throw new Error('No hay audio para transcribir')
+      if (!audioBlob) throw new Error(traducir('voicecommand.sin_audio'))
       const fd = new FormData()
       const ext = audioBlob.type.includes('ogg') ? 'ogg' : 'webm'
       fd.append('audio', audioBlob, `voice.${ext}`)
@@ -168,7 +170,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
     },
     // TODO type: backend error envelope — needs shared type
     onError: (e: { response?: { data?: { detail?: string } }; message?: string }) => {
-      const msg = e?.response?.data?.detail || e?.message || 'Error en la transcripción'
+      const msg = e?.response?.data?.detail || e?.message || traducir('voicecommand.error_transcripcion')
       setError(msg)
     },
   })
@@ -181,12 +183,12 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
         confirm: true,
       }).then(r => r.data),
     onSuccess: (data) => {
-      toast.success(data?.action || 'Acción ejecutada')
+      toast.success(data?.action || traducir('voicecommand.accion_ejecutada'))
       onClose()
     },
     // TODO type: backend error envelope — needs shared type
     onError: (e: { response?: { data?: { detail?: string } }; message?: string }) => {
-      const msg = e?.response?.data?.detail || e?.message || 'Error ejecutando la acción'
+      const msg = e?.response?.data?.detail || e?.message || traducir('voicecommand.error_ejecutar')
       toast.error(msg)
     },
   })
@@ -195,7 +197,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
   if (!open) return null
 
   const pendingAction = transcribeResult?.pending_action
-  const pendingLabel = _formatPendingAction(pendingAction)
+  const pendingLabel = _formatPendingAction(pendingAction, traducir)
 
   return (
     <div role="presentation" onClick={onClose} className="voicecom-sx1">
@@ -227,8 +229,8 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
             </div>
             <div className="vocomo-box-4">
               {recording
-                ? '🔴 Grabando… Habla con claridad. Click "Detener" cuando termines.'
-                : 'Ejemplos: "imputa 3 horas al proyecto Acme", "crea un ticket para el portal", "¿cuántas horas llevo esta semana?"'}
+                ? traducir('voicecommand.grabando')
+                : traducir('voicecommand.ejemplos')}
             </div>
             {!recording ? (
               <Pulsable onClick={handleStart} className="vocomo-row-1">
@@ -255,7 +257,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
                 {traducir('voicecommand.re_grabar')}
               </Pulsable>
               <Pulsable className={`vocomo-box-13 ${isTranscribing ? 'voice-command-modal-m4' : 'voice-command-modal-m5'}`} onClick={() => transcribe()} disabled={isTranscribing}>
-                {isTranscribing ? '⏳ Transcribiendo…' : '→ Transcribir e interpretar'}
+                {isTranscribing ? traducir('voicecommand.transcribiendo') : traducir('voicecommand.transcribir_interpretar')}
               </Pulsable>
             </div>
           </div>
@@ -278,7 +280,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
                 {traducir('voicecommandmodal.interpretacion')}
               </div>
               <div className="vocomo-box-11">
-                <div><strong>Intent:</strong> {transcribeResult.intent || 'unknown'}</div>
+                <div><strong>{traducir('voicecommand.intencion')}</strong> {transcribeResult.intent || traducir('voicecommand.intencion_desconocida')}</div>
                 <div className="vocomo-sp-1">{transcribeResult.action}</div>
               </div>
             </div>
@@ -294,7 +296,7 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
                     {traducir('voicecommand.cancelar')}
                   </Pulsable>
                   <Pulsable className={`vocomo-box-14 ${isConfirming ? 'voice-command-modal-m4' : 'voice-command-modal-m5'}`} onClick={() => confirm()} disabled={isConfirming}>
-                    {isConfirming ? '⏳ Ejecutando…' : '✓ Confirmar y ejecutar'}
+                    {isConfirming ? traducir('voicecommand.ejecutando') : traducir('voicecommand.confirmar_ejecutar')}
                   </Pulsable>
                 </div>
               </>

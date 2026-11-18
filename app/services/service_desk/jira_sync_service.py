@@ -242,6 +242,7 @@ def push_comment_to_jira(
     """Sync a public comment from Contecflow to the linked Jira issue."""
     if not config.sync_comments:
         return
+    from app.services.textos_de_salida import nombre_de_marca
 
     body = {
         "body": {
@@ -251,7 +252,9 @@ def push_comment_to_jira(
                 {
                     "type": "paragraph",
                     "content": [
-                        {"type": "text", "text": f"[Contecflow] {comment.body}"}
+                        # 18-11-2026: el nombre de la empresa (o el del producto), no «Contecflow» fijo.
+                        {"type": "text", "text": f"[{nombre_de_marca(db, getattr(config, 'organization_id', None))}] "
+                                                 f"{comment.body}"}
                     ],
                 }
             ],

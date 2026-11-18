@@ -7,12 +7,20 @@
  *   de espera, aprobaciones, documentos, saldo, avisos y bloqueos).
  * - Calendario de equipo y mapa de cobertura por turno.
  * - Por aprobar: la bandeja de quien decide, con explicación e impacto.
- * - Configuración (admin y RRHH): tipos, documentos, turnos, cuadrante,
- *   cobertura, acceso especial y ejemplo; las reglas están en Políticas.
+ * - Cuadrante y Cobertura (admin y RRHH): la planificación del día a día de
+ *   los turnos (antes dentro de la configuración).
+ *
+ * 18-11-2026: la configuración (tipos, documentos, turnos, jornadas,
+ * festivos, personas, horario, acceso especial y ejemplos) sale del módulo y
+ * vive en Configuración (`/settings/ausencias`, AdminDeAusencias). Aquí queda
+ * el botón «Configurar» para admin y RRHH, y `?tab=config` redirige allí.
+ * `?tab=mias|equipo|aprobar|cuadrante|cobertura` abre esa pestaña si el rol
+ * la ve.
  */
 import { useState } from 'react'
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarDays, Inbox, ListOrdered, Pencil, Plus, Settings2, Umbrella, X } from 'lucide-react'
+import { CalendarDays, Grid3x3, Inbox, ListOrdered, Pencil, Plus, Settings2, Umbrella, X } from 'lucide-react'
 import { ausenciasApi } from '../services/api/ausencias'
 import type { AusenciaServida } from '../services/api/tipos-ausencias'
 import { Button, EmptyState, Page, Spinner, Tabs, Pulsable, TablaSimple } from '../components/ui'
@@ -22,16 +30,22 @@ import FormularioDeAusencia from '../components/ausencias/FormularioDeAusencia'
 import DetalleDeAusencia from '../components/ausencias/DetalleDeAusencia'
 import BandejaDeAusencias from '../components/ausencias/BandejaDeAusencias'
 import CalendarioDeEquipo from '../components/ausencias/CalendarioDeEquipo'
-import AdminDeAusencias from '../components/ausencias/admin/AdminDeAusencias'
+import CuadranteDeTurnos from '../components/ausencias/admin/CuadranteDeTurnos'
+import { PanelDeCobertura } from '../components/ausencias/admin/MapaDeCobertura'
 import { AvisoDeError } from '../components/ausencias/admin/comun'
 import { EstadoDeAusenciaChip, TipoChip, cantidad, fecha, useTa } from '../components/ausencias/comun'
 import TarjetasDeSaldo from '../components/ausencias/Saldos'
 
 export default function AbsencesPage(): JSX.Element {
-  const { ta } = useTa()
+  const { t, ta } = useTa()
   const { hasRole } = useAuth()
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const pedida = searchParams.get('tab')
   const gestiona = hasRole('admin', 'hr', 'pm', 'team_lead')
-  const [tab, setTab] = useState('mias')
+  const planifica = hasRole('admin', 'hr')
+  const validas = ['mias', 'equipo', 'aprobar', ...(planifica ? ['cuadrante', 'cobertura'] : [])]
+  const [tab, setTab] = useState(pedida && validas.includes(pedida) ? pedida : 'mias')
   const [pidiendo, setPidiendo] = useState(false)
   const [editando, setEditando] = useState<AusenciaServida | null>(null)
   const [abierta, setAbierta] = useState<string | null>(null)
@@ -39,18 +53,29 @@ export default function AbsencesPage(): JSX.Element {
     { id: 'mias', label: ta('tab_mias'), icon: <Umbrella size={14} /> },
     { id: 'equipo', label: ta('tab_equipo'), icon: <CalendarDays size={14} /> },
     { id: 'aprobar', label: ta('tab_aprobar'), icon: <Inbox size={14} /> },
-    ...(hasRole('admin', 'hr') ? [{ id: 'config', label: ta('tab_config'), icon: <Settings2 size={14} /> }] : []),
+    ...(planifica ? [
+      { id: 'cuadrante', label: t('ausadm.tab_cuadrante'), icon: <CalendarDays size={14} /> },
+      { id: 'cobertura', label: t('ausadm.tab_cobertura'), icon: <Grid3x3 size={14} /> },
+    ] : []),
   ]
+  // La configuración vive en Configuración (18-11-2026): los enlaces antiguos redirigen.
+  if (pedida === 'config') return <Navigate to="/settings/ausencias" replace />
   return (
     <Page title={ta('titulo')} subtitle={ta('subtitulo')} icon={<Umbrella size={18} />}
-      actions={<Button icon={<Plus size={14} />} onClick={() => setPidiendo(true)}>{ta('pedir_ausencia')}</Button>}>
+      actions={<>
+        {planifica && (
+          <Button variant="secondary" icon={<Settings2 size={14} />} onClick={() => navigate('/settings/ausencias')}>{t('ajustes.configurar')}</Button>
+        )}
+        <Button icon={<Plus size={14} />} onClick={() => setPidiendo(true)}>{ta('pedir_ausencia')}</Button>
+      </>}>
       <Tabs items={items} active={tab} onChange={setTab} ariaLabel={ta('secciones')} />
       <div className="aus-panel" role="tabpanel">
         {tab === 'mias' && <MisAusencias onAbrir={setAbierta} onEditar={setEditando} onPedir={() => setPidiendo(true)} />}
         {tab === 'equipo' && (gestiona ? <CalendarioDeEquipo onAbrir={setAbierta} />
           : <EmptyState svgIcon={<CalendarDays size={26} />} title={ta('solo_responsables')} description={ta('solo_responsables_texto')} />)}
         {tab === 'aprobar' && <BandejaDeAusencias onAbrir={setAbierta} />}
-        {tab === 'config' && <AdminDeAusencias />}
+        {tab === 'cuadrante' && planifica && <CuadranteDeTurnos />}
+        {tab === 'cobertura' && planifica && <PanelDeCobertura />}
       </div>
       {(pidiendo || editando) && (
         <FormularioDeAusencia abierto editar={editando} onCerrar={() => { setPidiendo(false); setEditando(null) }} />

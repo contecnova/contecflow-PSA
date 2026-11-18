@@ -49,7 +49,8 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core import timeutil
-from app.core.config import settings
+from sqlalchemy.orm import object_session
+from app.services.settings_service import por_empresa as _pe
 from app.models.alm import ALMAsignacion, ALMAsset, ALMContract, ALMLicense, LicenseMetric
 
 DIAS_DEL_ANO = 365.0
@@ -163,7 +164,10 @@ def _vigente(a: ALMAsignacion, dia: date) -> bool:
 # ── Licencias ─────────────────────────────────────────────────────────────────
 
 def _moneda(lic: ALMLicense) -> str:
-    return (lic.contract.currency if lic.contract is not None and lic.contract.currency else settings.DEFAULT_CURRENCY)
+    # 18-11-2026: sin contrato con moneda, la de la empresa de la licencia (no la global).
+    if lic.contract is not None and lic.contract.currency:
+        return lic.contract.currency
+    return _pe.moneda_de_empresa(object_session(lic), registro=lic)
 
 
 def _ventana_licencia(lic: ALMLicense) -> tuple[date, Optional[date]]:
@@ -296,7 +300,7 @@ def _lineas_de_contrato(cache: _Cache, c: ALMContract, cuota: float, desde: date
     dias = (a1 - a0).days + 1
     salida.append(Linea(kind="contract", resource_type="contract", resource_id=c.id, resource_name=c.title,
                         amount=cuota / DIAS_DEL_ANO * dias, days=dias,
-                        currency=c.currency or settings.DEFAULT_CURRENCY, project_id=c.project_id,
+                        currency=c.currency or _pe.moneda_de_empresa(cache.db, registro=c), project_id=c.project_id,
                         cost_center_id=c.cost_center_id, client_id=cache.cliente_de_proyecto(c.project_id),
                         contract_id=c.id))
 
@@ -335,7 +339,7 @@ def _lineas_de_activo(cache: _Cache, activo: ALMAsset, desde: date, hasta: date,
         celda[0] += diaria * dias
         celda[1] += dias
     por_id = {a.id: a for a in asignaciones}
-    moneda = activo.currency or settings.DEFAULT_CURRENCY
+    moneda = activo.currency or _pe.moneda_de_empresa(cache.db, registro=activo)
     for ident, (importe, dias) in acumulado.items():
         if importe <= 0:
             continue
@@ -418,7 +422,7 @@ def resumen(db: Session, desde: date, hasta: date, agrupar: str = "holder", mone
     from app.services.alm_asignaciones import nombre_de_titular
     if agrupar not in AGRUPACIONES:
         agrupar = "holder"
-    moneda = (moneda or settings.DEFAULT_CURRENCY).upper()
+    moneda = (moneda or _pe.moneda_de_empresa(db)).upper()
     fx: dict = {}
     filas = lineas(db, desde, hasta, project_id=project_id)
     grupos: dict = {}
@@ -552,7 +556,7 @@ def comprometido_por_mes(db: Session, meses: list[str], *, project_id: Optional[
     (sin amortizaciones: lo comprado ya no es compromiso), sin los meses ya facturados."""
     if not meses or (not project_id and not cost_center_ids):
         return {}
-    moneda = (moneda or settings.DEFAULT_CURRENCY).upper()
+    moneda = (moneda or _pe.moneda_de_empresa(db)).upper()
     facturados = meses_facturados(db)
     fx: dict = {}
     salida: dict[str, float] = {}

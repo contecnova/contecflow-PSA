@@ -163,12 +163,15 @@ def _avisar_baja(db: Session, baja: ALMBaja, user: User) -> None:
     titulo = f"Baja de {user.full_name}: {pendientes} equipo(s) por devolver"
     cuerpo = "Se ha abierto un ticket de devolución por equipo; la baja sigue abierta hasta el acta firmada."
     url = "/alm/altas-y-bajas?tab=bajas"
+    # 18-11-2026: cada destinatario lo lee en su idioma; el castellano, de respaldo.
+    aviso = {"titulo": "aviso.alm_baja.titulo", "cuerpo": "aviso.alm_baja.cuerpo",
+             "params": {"persona": user.full_name, "n": pendientes}}
     if user.manager_id:
-        notify_user(db, user.manager_id, "alm_offboarding", titulo, cuerpo, "alm_baja", baja.id, url)
+        notify_user(db, user.manager_id, "alm_offboarding", titulo, cuerpo, "alm_baja", baja.id, url, aviso=aviso)
         return
     for rol in c.roles_de_respaldo(db, baja.organization_id):
         notify_role(db, rol, "alm_offboarding", titulo, cuerpo, "alm_baja", baja.id, url,
-                    organization_id=baja.organization_id)
+                    organization_id=baja.organization_id, aviso=aviso)
 
 
 def actualizar_estado(db: Session, baja: ALMBaja) -> None:

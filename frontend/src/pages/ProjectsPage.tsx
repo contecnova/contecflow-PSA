@@ -449,7 +449,7 @@ function ProjectFormModal({ open, onClose, project = null }: { open: boolean; on
           <label className="prj-ls-2" id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`}>{traducir('projects.label_billing')}</label>
           <Select suelto placeholder={false} className="prj-fs-2" id={`${idCampo}-5`} value={form.billing_type} onChange={set('billing_type')}>
             <option value="">{traducir('projects.no_billing')}</option>
-            {(BILLING_TYPES as { value: string; label: string }[]).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {(BILLING_TYPES as { value: string; label: string }[]).map(o => <option key={o.value} value={o.value}>{etiquetaCodigo(traducir, 'billing_type', o.value, o.label)}</option>)}
           </Select>
           {err('billing_type') && <div className="u-field-error">{err('billing_type')}</div>}
         </div>

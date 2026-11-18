@@ -397,7 +397,9 @@ def _pg_utilization_by_user(org_id: Optional[str]) -> list[dict]:
                 User.weekly_capacity_hours,
             ).all()
 
-            por_defecto = settings.DEFAULT_WEEKLY_CAPACITY_HOURS or 40
+            # 18-11-2026: la capacidad de la empresa consultada (sin empresa, la global).
+            from app.services.settings_service.por_empresa import capacidad_semanal_de_empresa
+            por_defecto = capacidad_semanal_de_empresa(db, org_id)
             result = []
             for r in rows:
                 weekly_capacity = float(r.weekly_capacity or por_defecto)

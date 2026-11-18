@@ -79,9 +79,15 @@ def approve_client_invoice(invoice_id: str, approved: bool, reason: str, current
     inv.internal_notes = f"{existing}\n{note_line}".strip() if existing else note_line
     inv.client_approval_status = "approved" if approved else "rejected"
 
+    # 18-11-2026: el asunto lo lee el equipo: en el idioma de la empresa.
+    from app.services.formato_regional import idioma_de_salida
+    from app.services.textos_de_salida import texto
+    _idioma = idioma_de_salida(db, org_id=getattr(inv, "organization_id", None))
     db.add(ClientMessage(
         project_id=inv.project_id,
-        subject=f"Factura {inv.number} {action.lower()}",
+        subject=texto("portal.factura_decidida.asunto", _idioma, numero=inv.number,
+                      decision=texto("portal.factura.aprobada" if approved else "portal.factura.rechazada",
+                                     _idioma)),
         body=note_line,
         sender_client_id=current_client.id,
         is_read_by_team=False,

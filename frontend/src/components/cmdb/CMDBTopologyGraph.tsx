@@ -256,7 +256,7 @@ function Graph2D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
     <svg
       viewBox={`0 0 ${W} ${H}`}
       className="cmdbgrap-box-1"
-      aria-label="CMDB topology graph 2D"
+      aria-label={traducir('cmdbtopologygraph.grafo_2d')}
     >
       <defs>
         {Object.entries(REL_COLORS).map(([rel, color]) => (
@@ -377,6 +377,7 @@ const W3 = 700
 const H3 = 500
 
 function Graph3D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpactSourceChange }: GraphViewProps) {
+  const { t: traducir } = useAppLang()
   const textoCi = useTextoCi()
   const positions = useMemo(() => layout3D(nodes, edges), [nodes, edges])
   // Rotación de la cámara (radianes): se gira arrastrando, como la órbita de plotly.
@@ -443,7 +444,7 @@ function Graph3D({ nodes, edges, impactDist, impactRadius, onNodeClick, onImpact
     <svg
       viewBox={`0 0 ${W3} ${H3}`}
       className="cmdbgrap-box-7"
-      aria-label="CMDB topology graph 3D"
+      aria-label={traducir('cmdbtopologygraph.grafo_3d')}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}

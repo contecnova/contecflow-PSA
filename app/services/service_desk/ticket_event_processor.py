@@ -158,13 +158,16 @@ def _asunto_con_numero(asunto: str, numero: str) -> str:
     return asunto if marca in asunto else f"{marca} {asunto}"
 
 
-def _fecha(dt: Optional[datetime], org_id: Optional[str], db: Session) -> str:
+def _fecha(dt: Optional[datetime], org_id: Optional[str], db: Session, idioma: Optional[str] = None) -> str:
+    """Fecha y hora en la zona de la empresa, en el formato del idioma del destinatario.
+
+    18-11-2026: antes `%d/%m/%Y` fijo para cualquier idioma.
+    """
     if dt is None:
         return "—"
-    from zoneinfo import ZoneInfo
+    from app.services.formato_regional import formatear_fecha, zona_horaria
     from app.services.sla_service import aware
-    zona = ZoneInfo(_ss.get_runtime_str(db, "DEFAULT_TIMEZONE", org_id) or settings.DEFAULT_TIMEZONE)
-    return aware(dt).astimezone(zona).strftime("%d/%m/%Y %H:%M")
+    return formatear_fecha(aware(dt), idioma, con_hora=True, zona=zona_horaria(db, org_id))
 
 
 def _variables(db: Session, ev: TicketEvent, ticket: Ticket, data: dict, dest: Destinatario) -> dict:
@@ -205,7 +208,7 @@ def _variables(db: Session, ev: TicketEvent, ticket: Ticket, data: dict, dest: D
         "comment_body": _cuerpo_del_comentario(db, ticket, comentario, dest) if comentario is not None
         else (data.get("note") or data.get("action") or ""),
         "resolution": et.get(decision, decision) if decision else (ticket.resolution or ""),
-        "sla_due": _fecha(sla_due, org_id, db),
+        "sla_due": _fecha(sla_due, org_id, db, dest.idioma),
         "link": _enlace(ticket, dest),
         "org_name": "",
     }

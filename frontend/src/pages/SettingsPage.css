@@ -1,17 +1,88 @@
-/* Configuración (SettingsPage.tsx). Solo tokens de index.css. */
+/* Configuración (SettingsPage.tsx), 18-11-2026: navegación lateral agrupada +
+   panel de la sección. Solo tokens de index.css. */
 
-.stp-groups {
-  border-bottom: 1px solid var(--surface-4);
-  padding-bottom: var(--space-3);
+.ajustes {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.ajustes-nav {
+  position: sticky;
+  top: var(--space-4);
   display: flex;
   flex-direction: column;
+  gap: var(--space-3);
+  max-height: calc(100vh - 140px);
+  min-width: 0;
+}
+
+.ajustes-nav-lista {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-right: var(--space-1);
+}
+
+.ajustes-nav-movil { display: none; }
+
+.ajustes-grupo ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ajustes-grupo-titulo {
+  display: flex;
+  align-items: center;
   gap: var(--space-2);
-}
-.stp-group-label { margin-bottom: 5px; padding-left: 2px; }
-
-/* >>> estilos-en-linea (generado por scripts/codemods/estilos-en-linea.mjs; las modificadoras `-m` van despues de las base para ganar en la cascada como ganaba el estilo en linea) */
-.settings-page-e1 {
-  margin-bottom: 0;
+  margin-bottom: var(--space-1);
+  padding-left: var(--space-2);
 }
 
-/* <<< estilos-en-linea */
+.ajustes-enlace {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 6px var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--text-2);
+  font-size: var(--text-sm);
+  text-decoration: none;
+}
+.ajustes-enlace:hover { background: var(--surface-2); color: var(--text-1); }
+.ajustes-enlace:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ajustes-enlace--activo {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.ajustes-enlace-icono { flex-shrink: 0; opacity: 0.7; }
+
+.ajustes-vacio {
+  color: var(--text-3);
+  font-size: var(--text-sm);
+  padding: var(--space-2);
+}
+
+.ajustes-panel { min-width: 0; }
+
+.ajustes-miga {
+  color: var(--text-3);
+  font-size: var(--text-xs);
+  letter-spacing: 0.06em;
+  margin-bottom: var(--space-2);
+}
+
+@media (max-width: 900px) {
+  .ajustes { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
+  .ajustes-nav { position: static; max-height: none; }
+  .ajustes-nav-lista { display: none; }
+  .ajustes-nav-movil { display: block; width: 100%; }
+}

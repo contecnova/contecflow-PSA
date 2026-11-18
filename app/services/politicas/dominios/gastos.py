@@ -289,9 +289,9 @@ def ejemplos(db, usuario) -> dict:
     A quién se informa de los viajes caros sale de los datos: el departamento
     cuyo nombre contiene «financ»/«finanz» si existe; si no, el rol admin.
     """
-    from app.core.config import settings
     from app.models.user import User
-    eur = settings.DEFAULT_CURRENCY or "EUR"
+    from app.services.settings_service.por_empresa import moneda_de_empresa
+    eur = moneda_de_empresa(db, registro=usuario)
     deps = sorted({d for (d,) in db.query(User.department).filter(User.is_active.is_(True)).distinct() if d})
     finanzas = next((d for d in deps if "financ" in d.lower() or "finanz" in d.lower()), None)
     a_finanzas = {"tipo": "departamento", "valor": finanzas} if finanzas else {"tipo": "rol", "valor": "admin"}

@@ -35,10 +35,28 @@ DEFAULT_SETTINGS = {
 }
 
 
+#: 18-11-2026 (reorganización de Configuración): alias de compatibilidad.
+#: La pantalla General guardaba `currency`, `timezone`, `language` y
+#: `work_hours_per_day` en filas propias que no leía nadie; lo que usa la
+#: aplicación son las claves de ejecución del grupo `locale` (las de
+#: `GET /settings/org-defaults`). Ahora hay una sola fuente: leer o escribir el
+#: alias por `/settings/general` lee o escribe la clave de ejecución. Las filas
+#: viejas las migra y borra la revisión 185.
+ALIAS_DE_EJECUCION = {
+    "currency": "DEFAULT_CURRENCY",
+    "timezone": "DEFAULT_TIMEZONE",
+    "language": "DEFAULT_LANGUAGE",
+    "work_hours_per_day": "DEFAULT_WORKING_HOURS_PER_DAY",
+}
+GRUPO_DE_LOS_ALIAS = "locale"
+
+
 # ── General settings ──────────────────────────────────────────────────────────
 
 def get_general_settings(db: Session) -> list:
     for key, (value, desc, _audiencia) in DEFAULT_SETTINGS.items():
+        if key in ALIAS_DE_EJECUCION:
+            continue  # 18-11-2026: no se siembran; su valor es el de la clave de ejecución
         exists = db.query(AppSetting).filter(
             AppSetting.key == key, AppSetting.organization_id.is_(None)
         ).first()
@@ -120,6 +138,8 @@ def ajustes_generales_para(db: Session, audiencia: Audiencia, es_superadmin: boo
             efectivas[f.key] = f
     salida = []
     for f in sorted(efectivas.values(), key=lambda x: x.key):
+        if f.key in ALIAS_DE_EJECUCION:
+            continue  # filas viejas anteriores a la revisión 185: manda la clave de ejecución
         if audiencia_de_ajuste(f.key) > audiencia:
             continue
         if not es_superadmin and f.organization_id is None and not es_ajuste_general(f.key):
@@ -128,7 +148,13 @@ def ajustes_generales_para(db: Session, audiencia: Audiencia, es_superadmin: boo
         if es_sensible(f.key) and valor:
             valor = MASCARA
         salida.append({"key": f.key, "value": valor, "description": f.description})
-    return salida
+    for alias, clave in ALIAS_DE_EJECUCION.items():
+        if DEFAULT_SETTINGS[alias][2] > audiencia:
+            continue
+        valor = get_runtime_str(db, clave, org_id)
+        salida.append({"key": alias, "value": None if valor is None else str(valor),
+                       "description": DEFAULT_SETTINGS[alias][1]})
+    return sorted(salida, key=lambda x: x["key"])
 
 
 def update_setting(key: str, value: str, org_id: Optional[str], db: Session) -> AppSetting:
@@ -138,6 +164,13 @@ def update_setting(key: str, value: str, org_id: Optional[str], db: Session) -> 
     la GLOBAL, la que comparten todas las organizaciones: un administrador de
     una cambiaba el ajuste de todas. Ahora se crea la fila de su organizacion.
     """
+    if key in ALIAS_DE_EJECUCION:
+        # 18-11-2026: una sola fuente (ver ALIAS_DE_EJECUCION). Valida el tipo y
+        # deja la entrada de auditoría como la pantalla de Config. dinámica.
+        from app.services.settings_service.runtime import set_runtime_value
+        hecho = set_runtime_value(db, GRUPO_DE_LOS_ALIAS, ALIAS_DE_EJECUCION[key], value, org_id)
+        return AppSetting(key=key, value=hecho["value"], organization_id=org_id,
+                          description=DEFAULT_SETTINGS[key][1])
     setting = db.query(AppSetting).filter(
         AppSetting.key == key,
         AppSetting.organization_id == org_id if org_id else AppSetting.organization_id.is_(None),

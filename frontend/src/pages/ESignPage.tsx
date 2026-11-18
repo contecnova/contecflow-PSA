@@ -261,8 +261,8 @@ export default function ESignPage(): JSX.Element {
         <ProviderBadge label="Adobe Sign" ok={!!adobeOk} />
         {!docusignOk && !adobeOk && (
           <a
-            href="/settings"
-            onClick={e => { e.preventDefault(); window.location.href = '/settings#esign' }}
+            href="/settings/esign"
+            onClick={e => { e.preventDefault(); window.location.href = '/settings/esign' }}
             className="esign-link"
           >
             {t('esign.configura_las_credenciales_en_settings_e_firma')}

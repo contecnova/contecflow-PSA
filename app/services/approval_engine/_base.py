@@ -116,12 +116,19 @@ def notify_approver(
                 ids = ids | {ausente.away_delegate_id}
         titulo = f"Aprobación requerida: {request.entity_type}"
         cuerpo = f"{request.entity_summary or request.entity_id} — Paso {step.step_order}: {step.name}"
+        # 18-11-2026: cada aprobador lo lee en su idioma (`textos_de_salida`);
+        # `titulo`/`cuerpo` en castellano quedan de respaldo.
+        from app.services.notifications import texto_de_aviso
+        aviso = {"titulo": "aviso.aprobacion_requerida.titulo", "cuerpo": "aviso.aprobacion_requerida.cuerpo",
+                 "params": {"tipo": request.entity_type, "resumen": request.entity_summary or request.entity_id,
+                            "paso_n": step.step_order, "paso": step.name}}
         for approver_id in sorted(i for i in ids if i and i != request.requested_by):
+            titulo_i, cuerpo_i = texto_de_aviso(db, approver_id, aviso, titulo, cuerpo)
             db.add(Notification(
                 id=str(uuid.uuid4()), user_id=approver_id, type=NotificationType.approval_requested,
-                title=titulo, body=cuerpo, resource="approval_request", resource_id=request.id,
+                title=titulo_i, body=cuerpo_i, resource="approval_request", resource_id=request.id,
             ))
-            _correo_de_aprobacion(db, approver_id, titulo, cuerpo, request)
+            _correo_de_aprobacion(db, approver_id, titulo_i, cuerpo_i, request)
         if not explicit_user_id:
             _aviso_al_canal(db, request, step)
     except Exception:
@@ -550,12 +557,19 @@ def _record_sod_violation(req, current_user: User, db: Session) -> None:
 def _notify_requester_approved(req, db: Session) -> None:
     try:
         from app.models.enterprise import Notification, NotificationType
+        from app.services.notifications import texto_de_aviso
+        # 18-11-2026: en el idioma de quien lo pidio; el castellano, de respaldo.
+        titulo, cuerpo = texto_de_aviso(
+            db, req.requested_by,
+            {"titulo": "aviso.aprobacion_aprobada.titulo", "cuerpo": "aviso.aprobacion_aprobada.cuerpo",
+             "params": {"resumen": req.entity_summary or req.entity_id}},
+            "Solicitud aprobada", f"{req.entity_summary or req.entity_id} ha sido aprobada")
         db.add(Notification(
             id=str(uuid.uuid4()),
             user_id=req.requested_by,
             type=NotificationType.system,
-            title="Solicitud aprobada",
-            body=f"{req.entity_summary or req.entity_id} ha sido aprobada",
+            title=titulo,
+            body=cuerpo,
             resource="approval_request",
             resource_id=req.id,
         ))

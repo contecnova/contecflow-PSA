@@ -15,11 +15,11 @@ from sqlalchemy.orm import Session
 import logging
 import json
 
+from app.services.settings_service import por_empresa as _pe
 from app.db.session import get_db
 from app.core.deps import require_any_manager
 from app.core.responses import APIResponse
 from app.models.user import User
-from app.core.config import settings
 from app.services import accounting_hub_service
 
 logger = logging.getLogger(__name__)
@@ -102,7 +102,8 @@ def push_invoice(
         "issue_date":   str(inv.issue_date) if inv.issue_date else "",
         "due_date":     str(inv.due_date)   if inv.due_date   else "",
         "subtotal":     inv.subtotal  or 0,
-        "tax_rate":     inv.tax_rate  or settings.DEFAULT_TAX_RATE,
+        # 18-11-2026: 0 % es un IVA válido; sin él, el de la empresa de la factura.
+        "tax_rate":     inv.tax_rate if inv.tax_rate is not None else _pe.iva_de_empresa(db, registro=inv),
         "total":        inv.total     or 0,
         "notes":        inv.notes     or "",
         "lines": [

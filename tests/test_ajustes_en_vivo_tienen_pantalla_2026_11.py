@@ -11,6 +11,10 @@ from pathlib import Path
 from app.services.settings_service import RUNTIME_FLAG_GROUPS
 
 PANTALLA = (Path(__file__).resolve().parents[1] / "frontend/src/pages/settings-sections/SettingsAdvancedSections.tsx")
+CATALOGO = (Path(__file__).resolve().parents[1] / "frontend/src/pages/settings/catalogoDeAjustes.tsx")
+#: 18-11-2026 (configuración única): estos grupos se editan en su propia sección
+#: de Configuración, no en «Configuración dinámica» (antes estaban en las dos).
+CON_SECCION_PROPIA = {"service_desk": "sd", "traduccion": "traduccion"}
 
 
 def test_cada_grupo_del_servidor_esta_en_la_pantalla():
@@ -18,5 +22,9 @@ def test_cada_grupo_del_servidor_esta_en_la_pantalla():
     i = texto.index("const RUNTIME_GROUPS = [")
     ids = re.findall(r"id: '([a-z_]+)'", texto[i:texto.index("]\n", i)])
     assert len(ids) >= 18
-    assert [g for g in RUNTIME_FLAG_GROUPS if g not in ids] == []
+    catalogo = CATALOGO.read_text(encoding="utf-8")
+    for grupo, seccion in CON_SECCION_PROPIA.items():
+        assert f"id: '{seccion}'" in catalogo, f"{grupo}: falta su sección «{seccion}» en Configuración"
+        assert grupo not in ids, f"{grupo} estaría en dos sitios"
+    assert [g for g in RUNTIME_FLAG_GROUPS if g not in ids and g not in CON_SECCION_PROPIA] == []
     assert [g for g in ids if g not in RUNTIME_FLAG_GROUPS] == []

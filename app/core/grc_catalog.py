@@ -41,7 +41,6 @@ GRC_EXEMPT_PREFIXES: dict[str, str] = {
     "/api/v1/client-errors":  "público: sólo registra el error de render en el log",
     "/api/v1/webhooks/fire":  "webhook público firmado; la gestión de /webhooks sí se gobierna",
     "/api/v1/forms/public":   "formulario público por token de capacidad; la gestión de /forms sí se gobierna",
-    "/api/v1/ui":             "etiquetas de UI que necesita la propia interfaz",
     "/api/v1/translations":   "catálogo i18n que necesita la propia interfaz",
     "/api/v1/labels":         "stub 501",
 }

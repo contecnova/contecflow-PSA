@@ -14,12 +14,16 @@ en un fichero llamado `mfa_service`.
 El reparto se pudo hacer mecanicamente porque los seis dominios nunca estuvieron
 acoplados, solo apilados: se comprobo por AST que no habia ni una llamada entre
 grupos ni un solo ciclo. Los cuerpos se movieron verbatim.
+
+18-11-2026: la jornada (capacidad diaria y horas de una reserva sin
+`hours_per_day`) es la de la empresa de la reserva (`jornada_de_empresa`), no
+`settings.DEFAULT_WORKING_HOURS_PER_DAY` global.
 """
 
 from datetime import date, timedelta
 from typing import Optional
 from sqlalchemy.orm import Session
-from app.core.config import settings
+from app.services.settings_service.por_empresa import jornada_de_empresa
 from app.models.user import User
 from app.models.bookings import ResourceBooking as Booking
 from collections import defaultdict
@@ -47,14 +51,14 @@ def get_booking_conflicts(
         user_bookings[b.user_id].append(b)
 
     conflicts = []
-    capacity_per_day = settings.DEFAULT_WORKING_HOURS_PER_DAY
 
     for uid, user_bks in user_bookings.items():
+        capacity_per_day = jornada_de_empresa(db, registro=user_bks[0])
         daily: dict = defaultdict(float)
         for b in user_bks:
             d = b.start_date
             while d <= b.end_date:
-                daily[d] += (b.hours_per_day or settings.DEFAULT_WORKING_HOURS_PER_DAY)
+                daily[d] += (b.hours_per_day or capacity_per_day)
                 d += timedelta(days=1)
 
         overloaded_days = [
@@ -97,7 +101,7 @@ def _dias_sobrecargados(reservas, capacidad: float) -> set:
     """
     por_dia: dict = defaultdict(float)
     for reserva in reservas:
-        horas = reserva.hours_per_day or settings.DEFAULT_WORKING_HOURS_PER_DAY
+        horas = reserva.hours_per_day or capacidad
         for dia in _dias_de(reserva):
             por_dia[dia] += horas
     return {dia for dia, horas in por_dia.items() if horas > capacidad}
@@ -156,10 +160,10 @@ def get_gantt_leveling(
     for reserva in q.order_by(Booking.start_date).all():
         por_usuario[reserva.user_id].append(reserva)
 
-    capacidad = settings.DEFAULT_WORKING_HOURS_PER_DAY
     propuestas: list[dict] = []
     for uid, reservas in por_usuario.items():
         reservas = sorted(reservas, key=lambda r: r.start_date)
+        capacidad = jornada_de_empresa(db, registro=reservas[0])
         sobrecargados = _dias_sobrecargados(reservas, capacidad)
         if not sobrecargados:
             continue

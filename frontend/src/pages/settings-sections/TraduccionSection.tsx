@@ -1,6 +1,6 @@
 /**
  * TraduccionSection — administración de la traducción en tiempo real operador ↔ cliente
- * (16-11-2026). Ajustes → Sistema → Traducción (`/settings?tab=traduccion`), solo admin.
+ * (16-11-2026). Configuración → IA e idiomas → Traducción (`/settings/traduccion`), solo admin.
  *
  * - Uso: KPIs de `GET /translation/usage`.
  * - Ajustes: grupo en vivo `traduccion` (`/settings/runtime/traduccion`), con controles

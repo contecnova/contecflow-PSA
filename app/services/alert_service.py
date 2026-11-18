@@ -8,7 +8,7 @@ import logging
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_, and_
 
-from app.core.config import settings
+from app.services.settings_service.por_empresa import capacidad_semanal
 from app.models.alert import Alert, AlertType, AlertSeverity
 from app.models.imputation import Imputation
 from app.models.project import Project, ProjectStatus
@@ -163,7 +163,7 @@ class AlertEngine:
 
         for user in users:
             hours = hours_by_uid.get(user.id, 0.0)
-            capacity = user.weekly_capacity_hours or settings.DEFAULT_WEEKLY_CAPACITY_HOURS
+            capacity = capacidad_semanal(self.db, user)
             load_pct = (hours / capacity) * 100 if capacity > 0 else 0
 
             activa, umbral, severidad = self._config(AlertType.overload, user.organization_id)

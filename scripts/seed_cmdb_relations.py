@@ -1,13 +1,25 @@
-"""Seed CMDB relations between existing CIs."""
+"""Seed CMDB relations between existing CIs.
+
+18-11-2026: la URL y las credenciales salen del entorno, no del código:
+`CONTECFLOW_API_URL` (por defecto http://localhost:8000/api/v1),
+`SEED_ADMIN_USERNAME` (por defecto admin) y `SEED_ADMIN_PASSWORD` (obligatoria;
+si falta, se usa `DEFAULT_USER_PASSWORD`; sin ninguna, el script sale).
+"""
 import json
+import os
+import sys
 import urllib.request
 
-BASE = "http://localhost:8000/api/v1"
+BASE = os.environ.get("CONTECFLOW_API_URL", "http://localhost:8000/api/v1").rstrip("/")
+_USUARIO = os.environ.get("SEED_ADMIN_USERNAME", "admin")
+_CLAVE = os.environ.get("SEED_ADMIN_PASSWORD") or os.environ.get("DEFAULT_USER_PASSWORD")
+if not _CLAVE:
+    sys.exit("seed_cmdb_relations: define SEED_ADMIN_PASSWORD (o DEFAULT_USER_PASSWORD) en el entorno.")
 
 login = urllib.request.urlopen(
     urllib.request.Request(
         f"{BASE}/auth/login",
-        data=json.dumps({"username": "admin", "password": "CHANGE_ME_strong_password"}).encode(),
+        data=json.dumps({"username": _USUARIO, "password": _CLAVE}).encode(),
         headers={"Content-Type": "application/json"},
         method="POST",
     )

@@ -86,7 +86,11 @@ def informar(db: Session, req, step) -> None:
     cuerpo = f"{req.entity_summary or req.entity_id} — {step.name}"
     for uid in ids:
         try:
-            notify_user(db, uid, "system", titulo, cuerpo, resource="approval_request", resource_id=req.id)
+            notify_user(db, uid, "system", titulo, cuerpo, resource="approval_request", resource_id=req.id,
+                        aviso={"titulo": "aviso.aprobacion_informar.titulo",   # 18-11-2026: su idioma
+                               "cuerpo": "aviso.aprobacion_informar.cuerpo",
+                               "params": {"tipo": req.entity_type, "resumen": req.entity_summary or req.entity_id,
+                                          "paso": step.name}})
         except Exception:
             logger.warning("no se pudo informar a %s de la solicitud %s", uid, req.id, exc_info=True)
     log_financial_approval_event(db=db, request_id=req.id, entity_type=req.entity_type, entity_id=req.entity_id,

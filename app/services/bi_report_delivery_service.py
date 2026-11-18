@@ -337,17 +337,22 @@ def _export_to_excel(columns: List[str], rows: List[Dict], sheet_name: str = "Re
     return buf.getvalue()
 
 
-def _export_to_pdf(title: str, columns: List[str], rows: List[Dict], paleta=None) -> bytes:
+def _export_to_pdf(title: str, columns: List[str], rows: List[Dict], paleta=None, *,
+                   idioma: Optional[str] = None, marca: Optional[str] = None,
+                   generado_el: Optional[str] = None) -> bytes:
     """El PDF tabular comun (`report_pdf.generate_report_pdf`), con la marca de la organizacion.
 
     Ese generador pone las primeras filas y resume el resto en una nota: para
-    el informe completo esta el formato `xlsx`/`csv`.
+    el informe completo esta el formato `xlsx`/`csv`. 18-11-2026: en el idioma
+    de la empresa y con su nombre (`idioma`, `marca`, `generado_el`).
     """
     from app.services.report_pdf import generate_report_pdf
+    from app.services.textos_de_salida import texto
 
     datos = [{c: row.get(c) for c in columns} for row in rows]
-    return generate_report_pdf(title=title, metric_label="Informe BI", data=datos,
-                               summary={"Filas": len(rows)}, paleta=paleta)
+    return generate_report_pdf(title=title, metric_label=texto("pdf.informe_bi", idioma), data=datos,
+                               summary={texto("pdf.filas", idioma): len(rows)}, paleta=paleta,
+                               idioma=idioma, marca=marca, generado_el=generado_el)
 
 
 # ── Channel senders ────────────────────────────────────────────────────────────
@@ -492,7 +497,7 @@ def _generar_informe(db: Session, organization_id, preset_id: str, errores: list
 
 
 def _generar_adjunto(preset_id: str, export_format: str, title: str,
-                     columns: list, rows: list, errores: list, paleta=None):
+                     columns: list, rows: list, errores: list, paleta=None, **regional):
     """El fichero que se adjunta al correo. Devuelve (bytes, nombre).
 
     Sin columnas no se genera Excel: una hoja sin cabeceras no sirve de nada.
@@ -504,7 +509,7 @@ def _generar_adjunto(preset_id: str, export_format: str, title: str,
             # 31 caracteres es el limite de Excel para el nombre de una hoja.
             return _export_to_excel(columns, rows, sheet_name=title[:31]), f"{preset_id}_{ts}.xlsx"
         if export_format == "pdf":
-            return _export_to_pdf(title, columns, rows, paleta=paleta), f"{preset_id}_{ts}.pdf"
+            return _export_to_pdf(title, columns, rows, paleta=paleta, **regional), f"{preset_id}_{ts}.pdf"
     except Exception as exc:
         logger.exception(
             "Failed to generate report attachment for preset=%s format=%s",
@@ -524,13 +529,18 @@ def _entregar_por_webhook(canal: str, sched: dict, title: str, summary: str) -> 
 
 
 def _entregar_por_correo(recipients: list, title: str, summary: str,
-                         attachment_bytes, attachment_filename) -> str:
-    """Entrega por correo, con el informe adjunto si se pudo generar."""
+                         attachment_bytes, attachment_filename, marca: Optional[str] = None) -> str:
+    """Entrega por correo, con el informe adjunto si se pudo generar.
+
+    18-11-2026: el asunto lleva el nombre de la empresa (`OrgBranding`) o el del
+    producto, no «Contecflow» fijo.
+    """
+    from app.core.constantes import NOMBRE_DEL_PRODUCTO
     if not recipients:
         return "skipped_no_recipients"
     body_html = f"<h2>📊 {title}</h2><p>{summary.replace(chr(10), '<br>')}</p>"
     ok = _send_email(
-        recipients, subject=f"[Contecflow BI] {title}", body_html=body_html,
+        recipients, subject=f"[{marca or NOMBRE_DEL_PRODUCTO} BI] {title}", body_html=body_html,
         attachment_bytes=attachment_bytes, attachment_filename=attachment_filename,
     )
     return "ok" if ok else "failed"
@@ -539,7 +549,7 @@ def _entregar_por_correo(recipients: list, title: str, summary: str,
 def _despachar_a_los_canales(sched: dict, channels: list, recipients: list,
                              title: str, summary: str, attachment_bytes,
                              attachment_filename, schedule_id: str,
-                             errores: list) -> dict:
+                             errores: list, marca: Optional[str] = None) -> dict:
     """Envia por cada canal configurado. Un canal caido no impide los demas.
 
     Ese aislamiento es el motivo del `try` por canal: si Slack no responde, el
@@ -554,7 +564,7 @@ def _despachar_a_los_canales(sched: dict, channels: list, recipients: list,
                 )
             elif channel == "email":
                 resultados["email"] = _entregar_por_correo(
-                    recipients, title, summary, attachment_bytes, attachment_filename
+                    recipients, title, summary, attachment_bytes, attachment_filename, marca=marca
                 )
             # Un canal desconocido no deja rastro, igual que antes: la
             # configuracion la valida quien crea el programa.
@@ -615,24 +625,27 @@ def send_schedule_now(
     skipped_no_changes = bool(send_only_on_change and not diff.get("has_changes"))
 
     paleta = None
+    from app.services.formato_regional import formatear_fecha, idioma_de_salida, sello_de_hora
+    from app.services.textos_de_salida import nombre_de_marca, texto
+    idioma = idioma_de_salida(db, org_id=organization_id)
+    marca = nombre_de_marca(db, organization_id)
+    regional = {"idioma": idioma, "marca": marca, "generado_el": sello_de_hora(db, organization_id, idioma)}
     if export_format == "pdf":
         from app.services._pdf_marca import PALETA_POR_DEFECTO, marca_de_organizacion
         paleta = marca_de_organizacion(db, organization_id, base=PALETA_POR_DEFECTO).paleta
     attachment_bytes, attachment_filename = _generar_adjunto(
-        preset_id, export_format, title, columns, rows, errors, paleta=paleta
+        preset_id, export_format, title, columns, rows, errors, paleta=paleta, **regional
     )
 
-    summary = (
-        f"*{title}* — {len(rows)} registros generados el {_iso_now()[:10]}.\n"
-        f"Formato: `{export_format}` | Filas: `{len(rows)}`"
-    )
+    summary = texto("bi.entrega.resumen", idioma, titulo=title, n=len(rows),
+                    fecha=formatear_fecha(datetime.now(timezone.utc).date(), idioma), formato=export_format)
 
     if skipped_no_changes:
         results: Dict[str, Any] = {c: "skipped_no_changes" for c in channels}
     else:
         results = _despachar_a_los_canales(
             sched, channels, recipients, title, summary,
-            attachment_bytes, attachment_filename, schedule_id, errors,
+            attachment_bytes, attachment_filename, schedule_id, errors, marca=marca,
         )
 
     # La foto se guarda SOLO si todo fue bien: guardarla tras un fallo haria que

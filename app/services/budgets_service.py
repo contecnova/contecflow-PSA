@@ -146,8 +146,8 @@ def _real_mensual(db: Session, b: Budget) -> dict[str, dict[str, float]]:
     # Revisión 2026-11: cada importe en la moneda del presupuesto, con el tipo de su fecha
     # (la del usuario para las horas, la del gasto, la de la subcontrata), como la rentabilidad.
     from app.services.profitability_service import get_fx_rate
-    from app.core.config import settings
-    moneda = (b.currency or settings.DEFAULT_CURRENCY).upper()
+    from app.services.settings_service.por_empresa import moneda_de_empresa
+    moneda = (b.currency or moneda_de_empresa(db, registro=b)).upper()
     cache: dict = {}
 
     def convertir(importe, de, fecha) -> float:

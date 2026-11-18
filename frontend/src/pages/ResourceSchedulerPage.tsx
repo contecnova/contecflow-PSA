@@ -29,6 +29,7 @@ import { Button, Spinner, EmptyState, Tabs, useDialogo, Select, Pulsable } from 
 import { useAppT } from '../i18n/AppLangContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import useMediaQuery from '../hooks/useMediaQuery'
+import { useOrgSettings } from '../hooks/useOrgSettings'
 import { alpha } from '../constants/theme'
 import { STALE_NEAR_LIVE_MS, STALE_SHORT_MS } from '../constants/timings'
 import { FULL_LIST_SIZE } from '../constants/pagination'
@@ -141,6 +142,7 @@ interface BookingBarProps {
 }
 
 function BookingBar({ booking, weekStart, weekCount, color, isSelected, onMouseDown, onClick, t }: BookingBarProps) {
+  const { working_hours_per_day: jornada } = useOrgSettings() // 18-11-2026: horas/día por defecto = jornada de la empresa
   const bStart = new Date(booking.start_date + 'T00:00:00')
   const bEnd   = new Date(booking.end_date   + 'T00:00:00')
   const gridStart = weekStart
@@ -160,11 +162,11 @@ function BookingBar({ booking, weekStart, weekCount, color, isSelected, onMouseD
       role="button"
       tabIndex={0}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onClick() } }}
-      title={t('agenda_recursos_ui.titulo_reserva', { proyecto: booking.project_name || booking.project_id || t('resource_scheduler.no_project_short'), horas: booking.hours_per_day || 8, tipo: booking.booking_type === 'hard' ? t('resource_scheduler.confirmed') : t('resource_scheduler.tentative') })}
+      title={t('agenda_recursos_ui.titulo_reserva', { proyecto: booking.project_name || booking.project_id || t('resource_scheduler.no_project_short'), horas: booking.hours_per_day || jornada, tipo: booking.booking_type === 'hard' ? t('resource_scheduler.confirmed') : t('resource_scheduler.tentative') })}
       style={{ '--rsch-row-border': isSelected ? '2px solid var(--text-1)' : `1px solid ${color}`, '--rsch-row-box-shadow': isSelected ? `0 0 0 2px ${color}` : 'none', '--rsch-row-z-index': isSelected ? '10' : '5', '--resource-scheduler-page-left': px(x), '--resource-scheduler-page-height': px(ROW_H - 12), '--resource-scheduler-page-width': px(w), '--rsch-row-background': alpha(color, isSelected ? 'ff' : 'cc') } as CSSProperties}
     >
       <span className="rsch-box">
-        {booking.project_name || booking.project_id || '—'} · {booking.hours_per_day || 8}h
+        {booking.project_name || booking.project_id || '—'} · {booking.hours_per_day || jornada}h
       </span>
     </div>
   )
@@ -184,9 +186,10 @@ interface BookingPanelProps {
 }
 
 function BookingPanel({ booking, position, projects, onSave, onDelete, onClose, t }: BookingPanelProps) {
+  const { working_hours_per_day: jornada } = useOrgSettings() // 18-11-2026
   const idCampo = useId()
   const [projectId, setProjectId] = useState(booking.project_id || '')
-  const [hoursPerDay, setHours]   = useState(booking.hours_per_day || 8)
+  const [hoursPerDay, setHours]   = useState(booking.hours_per_day || jornada)
   const [bookingType, setType]    = useState(booking.booking_type || 'soft')
   const isNew = !booking.id
   const dialogRef = useDialogo<HTMLDivElement>(true, onClose)
@@ -236,6 +239,7 @@ function BookingPanel({ booking, position, projects, onSave, onDelete, onClose, 
 // ── Main page ────────────────────────────────────────────────────────────────
 
 export default function ResourceSchedulerPage() {
+  const { working_hours_per_day: jornada } = useOrgSettings() // 18-11-2026: jornada de la empresa
   const t = useAppT()
   const toast  = useToast()
   const qc     = useQueryClient()
@@ -371,7 +375,7 @@ export default function ResourceSchedulerPage() {
         const startDate = fmtISO(weekDates[s])
         const endDate   = fmtISO(addWeeks(weekDates[end], 1) > weekDates[weeks - 1] ? weekDates[end] : addWeeks(weekDates[end], 1))
         setPanel({
-          booking: { user_id: userId, start_date: startDate, end_date: endDate, project_id: '', hours_per_day: 8, booking_type: 'soft' },
+          booking: { user_id: userId, start_date: startDate, end_date: endDate, project_id: '', hours_per_day: jornada, booking_type: 'soft' },
           position: { x: me.clientX, y: me.clientY },
           isNew: true,
         })
@@ -381,7 +385,7 @@ export default function ResourceSchedulerPage() {
 
     document.addEventListener('mousemove', onMove)
     document.addEventListener('mouseup', onUp)
-  }, [panel, weekDates, weeks])
+  }, [panel, weekDates, weeks, jornada])
 
   // ── Drag to move booking ──────────────────────────────────────────────────
   const handleBookingMouseDown = useCallback((e: ReactMouseEvent, booking: Booking) => {
@@ -476,7 +480,7 @@ export default function ResourceSchedulerPage() {
             project_id: assignDropProject.current,
             start_date: startDate,
             end_date: endDate,
-            hours_per_day: 8,
+            hours_per_day: jornada,
             booking_type: 'soft',
           },
           position: { x: ev.clientX, y: ev.clientY },
@@ -489,7 +493,7 @@ export default function ResourceSchedulerPage() {
 
     document.addEventListener('mousemove', onMove)
     document.addEventListener('mouseup', onUp)
-  }, [])
+  }, [jornada])
 
   const users: ForecastUser[] = forecastData?.users || []
 
