@@ -44,7 +44,13 @@ class Client(Base):
     industry    = Column(Enum(ClientIndustry), default=ClientIndustry.other)
     status      = Column(Enum(ClientStatus),   default=ClientStatus.active)
 
-    # Contacto principal
+    # Datos propios de la empresa (18-11-2026): centralita y email general.
+    # No son los del contacto principal (esos, abajo).
+    phone       = Column(String(50),  nullable=True)
+    email       = Column(String(200), nullable=True)
+
+    # Contacto principal: REFLEJO de solo lectura del contacto `is_primary`
+    # (`client_service._reflejar_en_cliente`); la fuente es el contacto.
     contact_name  = Column(String(200), nullable=True)
     contact_email = Column(String(200), nullable=True)
     contact_phone = Column(String(50),  nullable=True)
@@ -121,6 +127,12 @@ class ClientContact(Base):
     notes      = Column(Text, nullable=True)
     is_active  = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    # Usuario del portal que es esta persona (18-11-2026): cada usuario del
+    # portal de un cliente existe también como contacto suyo.
+    portal_user_id = Column(String(36), ForeignKey("client_users.id", ondelete="SET NULL"),
+                            nullable=True, index=True)
+    # Desde cuándo está desactivado: de ahí cuenta su retención (`bloqueo_legal.TIPOS`).
+    deactivated_at = Column(DateTime(timezone=True), nullable=True)
 
     client = relationship("Client", back_populates="contacts")
 

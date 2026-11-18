@@ -40,6 +40,9 @@ import { ETIQUETA_TEXTO_1, TOOLTIP_SUPERFICIE_2_BORDE_5 } from '../constants/est
 interface ClientItem {
   id: string | number
   name?: string
+  /** Email general de la empresa. */
+  email?: string | null
+  /** Email del contacto principal (persona), reflejado en el cliente. */
   contact_email?: string
 }
 
@@ -238,7 +241,9 @@ export default function NPSPage() {
               <div className="nps-cliente">
                 <div className="u-flex1-min0">
                   <div className="nps-cliente__nombre">{selectedClient?.name || clientId}</div>
-                  {selectedClient?.contact_email && <div className="nps-cliente__email">{selectedClient.contact_email}</div>}
+                  {selectedClient?.email
+                    ? <div className="nps-cliente__email" title={t('clicontactos.email_empresa')}>{selectedClient.email}</div>
+                    : selectedClient?.contact_email && <div className="nps-cliente__email">{t('clicontactos.email_del_contacto_principal', { email: selectedClient.contact_email })}</div>}
                 </div>
                 {latestHealth !== undefined && (
                   <div className="nps-cliente__salud">

@@ -74,8 +74,11 @@ def import_xero_contacts(db: Session, contacts: list) -> int:
             client = Client(
                 id=str(_uuid.uuid4()),
                 name=c["name"],
-                contact_email=c.get("email"),
-                contact_phone=c.get("phone"),
+                # Un contacto de Xero es la EMPRESA (nombre, email y teléfono
+                # generales), no una persona: van a los datos de empresa y no se
+                # inventa un contacto principal (18-11-2026).
+                email=c.get("email"),
+                phone=c.get("phone"),
                 tax_id=c.get("vat"),
                 notes=f"Importado desde Xero (ID: {c.get('xero_id')})",
             )

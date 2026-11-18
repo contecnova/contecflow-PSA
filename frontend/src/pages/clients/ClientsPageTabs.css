@@ -541,3 +541,7 @@
 @media (max-width: 760px) {
   .clpata-grid-3 { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Etiquetas de acceso al portal de un contacto. */
+.clpata-portal { margin-left: 6px; font-size: var(--text-2xs); padding: 1px 6px; border-radius: 4px; background: var(--success-bg); color: var(--success); }
+.clpata-portal--off { background: var(--surface-3); color: var(--text-3); }

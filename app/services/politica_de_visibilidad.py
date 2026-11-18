@@ -263,3 +263,34 @@ def audiencia_de(viewer) -> Audiencia:
     if es_externo(viewer):
         return Audiencia.SESION
     return Audiencia.INTERNA
+
+
+# ── Contactos de clientes (18-11-2026) ────────────────────────────────────────
+# Las personas de un cliente (contactos y su reflejo `contact_*` en la ficha)
+# son datos personales. Los internos con acceso al cliente
+# (`client_service.scoped_client_query`) los ven; el externo (subcontratado)
+# solo ve quién es (nombre, cargo, rol), sin email, teléfono ni notas.
+
+#: Lo que se quita de un contacto de cliente a quien no ve datos de contacto.
+CAMPOS_DE_CONTACTO_DE_CLIENTE = ("email", "phone", "notes")
+
+
+def ve_datos_de_contacto_de_clientes(viewer) -> bool:
+    """Email, teléfono y notas de las personas de un cliente: la plantilla interna."""
+    return viewer is None or not es_externo(viewer)
+
+
+def recortar_contacto_de_cliente(viewer, fila: dict) -> dict:
+    if ve_datos_de_contacto_de_clientes(viewer):
+        return fila
+    return {k: (None if k in CAMPOS_DE_CONTACTO_DE_CLIENTE else v) for k, v in fila.items()}
+
+
+def recortar_ficha_de_cliente(viewer, ficha: dict) -> dict:
+    """La ficha del cliente: el reflejo del contacto principal y sus contactos."""
+    if ve_datos_de_contacto_de_clientes(viewer):
+        return ficha
+    out = {**ficha, "contact_email": None, "contact_phone": None}
+    if isinstance(out.get("contacts"), list):
+        out["contacts"] = [recortar_contacto_de_cliente(viewer, c) for c in out["contacts"]]
+    return out

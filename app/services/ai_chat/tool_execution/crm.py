@@ -57,7 +57,10 @@ def _get_clients(tool_input, db, user, now, is_financial_role):
             "status": str(c.status) if c.status else None,
             "projects_count": len(projects),
             "total_contract_value": round(total_revenue, 2),
-            "email": c.contact_email, "phone": c.contact_phone,
+            # Empresa (centralita / email general) y su contacto principal (persona), por separado.
+            "email": c.email, "phone": c.phone,
+            "primary_contact": {"name": c.contact_name, "email": c.contact_email,
+                                "phone": c.contact_phone, "role": c.contact_role} if c.contact_name or c.contact_email else None,
         })
     return {"clients": result}
 

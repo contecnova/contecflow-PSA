@@ -26,7 +26,7 @@ from app.models.billing_reports import Invoice
 from app.models.client_portal import ClientUser
 from app.models.clients import Client
 from app.models.clients import ClientPortalConfig
-from app.models.clients import ClientContact, ClientLicenseLink, ClientContractLink
+from app.models.clients import ClientContact, ClientContactRole, ClientLicenseLink, ClientContractLink
 from app.models.pipeline import Contract
 from app.models.project import Project
 from app.models.service_desk import Ticket
@@ -75,7 +75,9 @@ def list_clients(
         query = query.filter(
             Client.name.ilike(f"%{q}%") |
             Client.short_name.ilike(f"%{q}%") |
-            Client.contact_email.ilike(f"%{q}%")
+            Client.contact_email.ilike(f"%{q}%") |
+            Client.contact_name.ilike(f"%{q}%") |
+            Client.email.ilike(f"%{q}%")
         )
     if status:
         query = query.filter(Client.status == status)
@@ -126,6 +128,8 @@ def create_client_record(data: dict, current_user: User, db: Session) -> dict:
         c.created_by = current_user.id
         db.add(c)
         db.flush()
+        # El contacto principal de la ficha existe también como contacto.
+        sincronizar_contacto_principal(db, c)
         cfg = ClientPortalConfig(
             client_id=c.id,
             enabled_modules=json.dumps(["service_desk", "projects", "documents"]),
@@ -150,6 +154,10 @@ def get_client_summary(client, db: Session, recuentos: Optional[dict] = None) ->
     return {
         "id": client.id, "name": client.name, "short_name": client.short_name,
         "tax_id": client.tax_id, "industry": client.industry, "status": client.status,
+        # Empresa: teléfono y email generales (no los del contacto principal).
+        "phone": client.phone, "email": client.email,
+        # Contacto principal: reflejo del contacto `is_primary` (persona).
+        "primary_contact_id": _id_del_principal(db, client.id),
         "contact_name": client.contact_name, "contact_email": client.contact_email,
         "contact_phone": client.contact_phone, "contact_role": client.contact_role,
         "website": client.website, "address": client.address,
@@ -420,6 +428,11 @@ def update_client(cid: str, data: dict, current_user: User, db: Session) -> dict
     for k, v in data.items():
         if es_asignable(c, k):
             setattr(c, k, v if v != "" else None)
+    if data.get("primary_contact_id"):
+        # Un contacto existente pasa a ser el principal; `contact_*` lo reflejan.
+        _poner_principal(db, c, data["primary_contact_id"])
+    elif any(k in data for k in ("contact_name", "contact_email", "contact_phone", "contact_role")):
+        sincronizar_contacto_principal(db, c)
     db.commit()
     db.refresh(c)
     return get_client_summary(c, db)
@@ -445,12 +458,9 @@ def delete_client(cid: str, current_user: User, db: Session) -> dict:
     if invoice_count > 0:
         dependencies.append(f"{invoice_count} factura(s)")
 
-    active_contacts = db.query(func.count(ClientContact.id)).filter(
-        ClientContact.client_id == cid,
-        ClientContact.is_active == True,
-    ).scalar() or 0
-    if active_contacts > 0:
-        dependencies.append(f"{active_contacts} contacto(s) activos")
+    # 18-11-2026: los contactos ya no impiden la baja. Son las personas del
+    # cliente (todo cliente con contacto principal tiene al menos uno) y la baja
+    # es lógica: siguen ahí, con el cliente, para el historial y el RGPD.
 
     active_license_links = db.query(func.count(ClientLicenseLink.id)).filter(
         ClientLicenseLink.client_id == cid,
@@ -484,55 +494,347 @@ def delete_client(cid: str, current_user: User, db: Session) -> dict:
 
 # ── Contacts ──────────────────────────────────────────────────────────────────
 
-def list_contacts(cid: str, db: Session) -> list:
-    return [
-        {"id": ct.id, "full_name": ct.full_name, "email": ct.email,
-         "phone": ct.phone, "job_title": ct.job_title, "role": ct.role,
-         "is_primary": ct.is_primary, "notes": ct.notes, "is_active": ct.is_active}
-        for ct in db.query(ClientContact).filter(
-            ClientContact.client_id == cid, ClientContact.is_active == True
-        ).order_by(ClientContact.is_primary.desc()).all()
-    ]
+# ── Contacto principal ↔ contactos (18-11-2026) ─────────────────────────────
+# El cliente guarda su contacto principal en `contact_*` y los contactos viven
+# en `client_contacts`; antes no se relacionaban: el principal podía no existir
+# como contacto, o haber dos «principales». Ahora son lo mismo visto desde dos
+# sitios: el contacto marcado `is_primary` es la fuente y `contact_*` su espejo.
+
+def _texto(v) -> str:
+    return (v or "").strip()
 
 
-def add_contact(cid: str, data: dict, db: Session) -> dict:
-    c = db.query(Client).filter(Client.id == cid, Client.is_active == True).first()
-    if not c:
-        raise ErrorDeDominio(404)
-    ct = ClientContact(client_id=cid, **campos_asignables(ClientContact, data, ("client_id",)))
-    db.add(ct)
+def _buscar_contacto(db: Session, cid: str, email: str, nombre: str) -> Optional[ClientContact]:
+    """Contacto activo del cliente con ese email (sin mayúsculas) o, sin email, ese nombre."""
+    q = db.query(ClientContact).filter(ClientContact.client_id == cid, ClientContact.is_active == True)  # noqa: E712
+    if email:
+        return q.filter(func.lower(ClientContact.email) == email.lower()).first()
+    if nombre:
+        return q.filter(func.lower(ClientContact.full_name) == nombre.lower()).first()
+    return None
+
+
+def _marcar_principal(db: Session, cid: str, contacto: ClientContact) -> None:
+    """Deja a `contacto` como único principal del cliente."""
+    for otro in db.query(ClientContact).filter(
+        ClientContact.client_id == cid,
+        or_(ClientContact.is_primary == True, ClientContact.role == ClientContactRole.primary),  # noqa: E712
+        ClientContact.id != contacto.id,
+    ).all():
+        otro.is_primary = False
+        if otro.role == ClientContactRole.primary:
+            otro.role = ClientContactRole.other
+    contacto.is_primary = True
+    contacto.role = ClientContactRole.primary
+
+
+def _id_del_principal(db: Session, cid: str) -> Optional[str]:
+    fila = db.query(ClientContact.id).filter(
+        ClientContact.client_id == cid, ClientContact.is_active == True,  # noqa: E712
+        ClientContact.is_primary == True,  # noqa: E712
+    ).first()
+    return fila[0] if fila else None
+
+
+def _poner_principal(db: Session, cliente: Client, contact_id: str) -> ClientContact:
+    """Marca un contacto activo del cliente como único principal y lo refleja en la ficha."""
+    ct = db.query(ClientContact).filter(
+        ClientContact.id == contact_id, ClientContact.client_id == cliente.id,
+        ClientContact.is_active == True,  # noqa: E712
+    ).first()
+    if not ct:
+        raise ErrorDeDominio(404, "Contacto no encontrado")
+    _marcar_principal(db, cliente.id, ct)
+    _reflejar_en_cliente(cliente, ct)
+    return ct
+
+
+def _reflejar_en_cliente(cliente: Client, contacto: Optional[ClientContact]) -> None:
+    """Copia el contacto principal en los campos `contact_*` del cliente (o los vacía)."""
+    cliente.contact_name = contacto.full_name if contacto else None
+    cliente.contact_email = contacto.email if contacto else None
+    cliente.contact_phone = contacto.phone if contacto else None
+    cliente.contact_role = contacto.job_title if contacto else None
+
+
+def sincronizar_contacto_principal(db: Session, cliente: Client) -> Optional[ClientContact]:
+    """Tras crear/editar el cliente: el contacto principal escrito en la ficha
+    existe como contacto (se reutiliza el que tenga ese email o nombre, o se
+    crea) y es el único principal. Sin nombre ni email no hace nada."""
+    nombre, email = _texto(cliente.contact_name), _texto(cliente.contact_email)
+    if not nombre and not email:
+        return None
+    contacto = _buscar_contacto(db, cliente.id, email, nombre)
+    if contacto is None:
+        contacto = ClientContact(client_id=cliente.id, full_name=nombre or email,
+                                 email=email or None, phone=_texto(cliente.contact_phone) or None,
+                                 job_title=_texto(cliente.contact_role) or None)
+        db.add(contacto)
+    else:
+        # Lo escrito en la ficha manda; lo vacío no borra lo que ya tenía el contacto.
+        if nombre:
+            contacto.full_name = nombre
+        if email:
+            contacto.email = email
+        if _texto(cliente.contact_phone):
+            contacto.phone = _texto(cliente.contact_phone)
+        if _texto(cliente.contact_role):
+            contacto.job_title = _texto(cliente.contact_role)
+    db.flush()
+    _marcar_principal(db, cliente.id, contacto)
+    return contacto
+
+
+# ── Usuarios del portal ↔ contactos (18-11-2026) ─────────────────────────────
+# Cada usuario del portal de un cliente es una persona del cliente: existe como
+# contacto suyo (`ClientContact.portal_user_id`). Desactivar el usuario no
+# toca el contacto; solo deja de tener acceso.
+
+def vincular_usuario_del_portal(db: Session, usuario: ClientUser) -> Optional[ClientContact]:
+    """Tras crear o editar un usuario del portal: su contacto (el enlazado, el
+    activo con su email o uno nuevo) lleva su nombre, email, teléfono y cargo.
+    Sin empresa cliente no hace nada."""
+    if not usuario.client_org_id:
+        return None
+    contacto = db.query(ClientContact).filter(ClientContact.portal_user_id == usuario.id).first()
+    email = _texto(usuario.email)
+    if contacto is None and email:
+        contacto = db.query(ClientContact).filter(
+            ClientContact.client_id == usuario.client_org_id, ClientContact.is_active == True,  # noqa: E712
+            ClientContact.portal_user_id.is_(None),
+            func.lower(ClientContact.email) == email.lower(),
+        ).first()
+    if contacto is None:
+        contacto = ClientContact(client_id=usuario.client_org_id, organization_id=usuario.organization_id)
+        db.add(contacto)
+    contacto.portal_user_id = usuario.id
+    contacto.full_name = _texto(usuario.full_name) or email or contacto.full_name
+    contacto.email = email or contacto.email
+    if _texto(usuario.phone):
+        contacto.phone = _texto(usuario.phone)
+    if _texto(usuario.job_title):
+        contacto.job_title = _texto(usuario.job_title)
+    db.flush()
+    if contacto.is_primary:
+        cliente = db.get(Client, contacto.client_id)
+        if cliente is not None:
+            _reflejar_en_cliente(cliente, contacto)
+    return contacto
+
+
+def desvincular_usuario_del_portal(db: Session, usuario_id: str) -> None:
+    """Antes de borrar un usuario del portal: su contacto se queda, sin enlace."""
+    for ct in db.query(ClientContact).filter(ClientContact.portal_user_id == usuario_id).all():
+        ct.portal_user_id = None
+
+
+def dar_acceso_al_portal(cid: str, contact_id: str, datos: dict, current_user: User, db: Session) -> dict:
+    """Crea el usuario del portal de un contacto con sus datos (mismo alta, tope
+    de usuarios y validaciones que la pestaña de usuarios del portal)."""
+    cliente = get_scoped_client_or_404(db, current_user, cid)
+    ct = db.query(ClientContact).filter(
+        ClientContact.id == contact_id, ClientContact.client_id == cliente.id,
+        ClientContact.is_active == True,  # noqa: E712
+    ).first()
+    if not ct:
+        raise ErrorDeDominio(404, "Contacto no encontrado")
+    if ct.portal_user_id and db.get(ClientUser, ct.portal_user_id) is not None:
+        raise ErrorDeDominio(409, "Este contacto ya tiene acceso al portal")
+    if not _texto(ct.email):
+        raise ErrorDeDominio(400, "El contacto necesita un email para acceder al portal")
+    from app.api.v1.endpoints.client_portal import ClientCreateIn
+    from app.services.client_portal_service import create_client as crear_usuario_del_portal
+    payload = ClientCreateIn(
+        client_org_id=cliente.id, full_name=ct.full_name, email=_texto(ct.email),
+        job_title=(ct.job_title or None) and ct.job_title[:80], phone=(ct.phone or None) and ct.phone[:30],
+        **{k: v for k, v in datos.items() if k in ("password", "language", "project_ids")},
+    )
+    try:
+        creado = crear_usuario_del_portal(payload, db)
+    except ValueError as e:
+        raise ErrorDeDominio(400, str(e))
+    # El enlace es con ESTE contacto (aunque otro compartiera el email).
+    for otro in db.query(ClientContact).filter(ClientContact.portal_user_id == creado["id"],
+                                               ClientContact.id != ct.id).all():
+        otro.portal_user_id = None
+    ct.portal_user_id = creado["id"]
+    _auditar_contacto(db, current_user, "PORTAL_ACCESS", ct, antes={"portal_user_id": None},
+                      despues={"portal_user_id": creado["id"]})
     db.commit()
-    db.refresh(ct)
-    return {"id": ct.id, "full_name": ct.full_name, "email": ct.email,
-            "phone": ct.phone, "job_title": ct.job_title, "role": ct.role,
+    return creado
+
+
+# Campos de una persona que se auditan (antes/después).
+_CAMPOS_AUDITADOS = ("full_name", "email", "phone", "job_title", "role", "notes", "is_primary", "is_active",
+                     "portal_user_id")
+
+
+def _foto(ct: ClientContact) -> dict:
+    return {k: getattr(getattr(ct, k), "value", getattr(ct, k)) for k in _CAMPOS_AUDITADOS}
+
+
+def _auditar_contacto(db: Session, usuario: Optional[User], accion: str, ct: ClientContact,
+                      antes: Optional[dict] = None, despues: Optional[dict] = None, **meta) -> None:
+    """Auditoría de contactos (datos personales): quién, cuándo y antes/después.
+    Solo los campos que cambian; el llamante confirma."""
+    from app.services.audit import audit_log
+    if antes is not None and despues is not None:
+        cambios = [k for k in despues if antes.get(k) != despues.get(k)]
+        if not cambios and not meta:
+            return
+        antes = {k: antes.get(k) for k in cambios}
+        despues = {k: despues.get(k) for k in cambios}
+    audit_log(db, usuario, accion, "client_contacts", ct.id, ct.full_name,
+              old_values=antes or None, new_values=despues or None,
+              metadata={"client_id": ct.client_id, **meta})
+
+
+def _contacto_out(ct: ClientContact) -> dict:
+    return {"id": ct.id, "full_name": ct.full_name, "email": ct.email, "phone": ct.phone,
+            "job_title": ct.job_title, "role": ct.role, "notes": ct.notes,
             "is_primary": ct.is_primary}
 
 
-def update_contact(cid: str, contact_id: str, data: dict, db: Session) -> dict:
+def _contacto_activo_o_404(db: Session, cid: str, contact_id: str) -> ClientContact:
     ct = db.query(ClientContact).filter(
-        ClientContact.id == contact_id,
-        ClientContact.client_id == cid,
-        ClientContact.is_active == True,
+        ClientContact.id == contact_id, ClientContact.client_id == cid,
+        ClientContact.is_active == True,  # noqa: E712
     ).first()
     if not ct:
-        raise ErrorDeDominio(404)
-    for k, v in data.items():
-        if es_asignable(ct, k, ("client_id",)):
-            setattr(ct, k, v)
+        raise ErrorDeDominio(404, "Contacto no encontrado")
+    return ct
+
+
+def list_contacts(cid: str, db: Session, current_user: Optional[User] = None) -> list:
+    """Contactos activos, el principal primero. Acotado a la empresa; el
+    externo (subcontratado) no recibe email, teléfono ni notas
+    (`politica_de_visibilidad.recortar_contacto_de_cliente`)."""
+    from app.services.politica_de_visibilidad import recortar_contacto_de_cliente
+    if current_user is not None:
+        get_scoped_client_or_404(db, current_user, cid)
+    contactos = db.query(ClientContact).filter(
+        ClientContact.client_id == cid, ClientContact.is_active == True
+    ).order_by(ClientContact.is_primary.desc(), ClientContact.full_name).all()
+    ids = [ct.portal_user_id for ct in contactos if ct.portal_user_id]
+    activos = {u.id: bool(u.is_active) for u in db.query(ClientUser).filter(ClientUser.id.in_(ids)).all()} if ids else {}
+    filas = [
+        {"id": ct.id, "full_name": ct.full_name, "email": ct.email,
+         "phone": ct.phone, "job_title": ct.job_title, "role": ct.role,
+         "is_primary": ct.is_primary, "notes": ct.notes, "is_active": ct.is_active,
+         # Acceso al portal: sin usuario, `None`; con usuario, si está activo.
+         "portal_user_id": ct.portal_user_id if ct.portal_user_id in activos else None,
+         "portal_active": activos.get(ct.portal_user_id) if ct.portal_user_id in activos else None}
+        for ct in contactos
+    ]
+    return [recortar_contacto_de_cliente(current_user, f) for f in filas]
+
+
+def add_contact(cid: str, data: dict, db: Session, current_user: Optional[User] = None) -> dict:
+    if current_user is not None:
+        c = get_scoped_client_or_404(db, current_user, cid)
+    else:
+        c = db.query(Client).filter(Client.id == cid, Client.is_active == True).first()
+        if not c:
+            raise ErrorDeDominio(404)
+    ct = ClientContact(client_id=cid, organization_id=c.organization_id,
+                       **campos_asignables(ClientContact, data, _CONTACTO_PROTEGIDOS))
+    if not _texto(ct.full_name):
+        raise ErrorDeDominio(422, "El nombre es obligatorio")
+    db.add(ct)
+    db.flush()
+    # Un contacto marcado como principal pasa a ser EL principal y la ficha del cliente lo refleja.
+    if ct.is_primary or ct.role == ClientContactRole.primary:
+        _marcar_principal(db, cid, ct)
+        _reflejar_en_cliente(c, ct)
+    _auditar_contacto(db, current_user, "CREATE", ct, despues=_foto(ct))
     db.commit()
     db.refresh(ct)
-    return {"id": ct.id, "full_name": ct.full_name, "email": ct.email, "role": ct.role}
+    return _contacto_out(ct)
 
 
-def delete_contact(cid: str, contact_id: str, db: Session) -> dict:
-    ct = db.query(ClientContact).filter(
-        ClientContact.id == contact_id,
-        ClientContact.client_id == cid,
-        ClientContact.is_active == True,
-    ).first()
-    if not ct:
-        raise ErrorDeDominio(404)
+def update_contact(cid: str, contact_id: str, data: dict, db: Session,
+                   current_user: Optional[User] = None) -> dict:
+    if current_user is not None:
+        get_scoped_client_or_404(db, current_user, cid)
+    ct = _contacto_activo_o_404(db, cid, contact_id)
+    antes = _foto(ct)
+    era_principal = bool(ct.is_primary)
+    for k, v in data.items():
+        if es_asignable(ct, k, _CONTACTO_PROTEGIDOS):
+            setattr(ct, k, v if v != "" or k == "full_name" else None)
+    if not _texto(ct.full_name):
+        raise ErrorDeDominio(422, "El nombre es obligatorio")
+    cliente = db.get(Client, cid)
+    if ct.is_primary or (data.get("role") == ClientContactRole.primary.value):
+        _marcar_principal(db, cid, ct)
+        _reflejar_en_cliente(cliente, ct)
+    elif era_principal:
+        # Deja de ser principal: la ficha del cliente se queda sin principal.
+        if ct.role == ClientContactRole.primary:
+            ct.role = ClientContactRole.other
+        _reflejar_en_cliente(cliente, None)
+    _reflejar_en_usuario_del_portal(db, ct)
+    _auditar_contacto(db, current_user, "UPDATE", ct, antes=antes, despues=_foto(ct))
+    db.commit()
+    db.refresh(ct)
+    return _contacto_out(ct)
+
+
+# El enlace con el portal y la empresa no se cambian editando el contacto.
+_CONTACTO_PROTEGIDOS = ("client_id", "portal_user_id", "organization_id", "is_active", "deactivated_at")
+
+
+def _reflejar_en_usuario_del_portal(db: Session, ct: ClientContact) -> None:
+    """Editar un contacto con acceso al portal actualiza su usuario del portal
+    (misma persona). El email es su usuario de acceso: no puede chocar con otro."""
+    if not ct.portal_user_id:
+        return
+    usuario = db.get(ClientUser, ct.portal_user_id)
+    if usuario is None:
+        return
+    email = _texto(ct.email)
+    if email and email.lower() != _texto(usuario.email).lower():
+        otro = db.query(ClientUser.id).filter(func.lower(ClientUser.email) == email.lower(),
+                                              ClientUser.id != usuario.id).first()
+        if otro:
+            raise ErrorDeDominio(409, "Ya existe un usuario de portal con ese email")
+        usuario.email = email
+    if _texto(ct.full_name):
+        usuario.full_name = ct.full_name
+    usuario.phone = ct.phone
+    usuario.job_title = (ct.job_title or None) and ct.job_title[:100]
+
+
+def marcar_contacto_principal(cid: str, contact_id: str, current_user: User, db: Session) -> dict:
+    """Marca un contacto como único principal del cliente y la ficha lo refleja.
+
+    Acotado a la empresa del usuario: un cliente ajeno (o un contacto que no
+    es suyo) responde 404."""
+    cliente = get_scoped_client_or_404(db, current_user, cid)
+    anterior = _id_del_principal(db, cliente.id)
+    ct = _poner_principal(db, cliente, contact_id)
+    _auditar_contacto(db, current_user, "UPDATE", ct, antes={"is_primary": anterior == ct.id},
+                      despues={"is_primary": True}, previous_primary_id=anterior)
+    db.commit()
+    db.refresh(ct)
+    return _contacto_out(ct)
+
+
+def delete_contact(cid: str, contact_id: str, db: Session, current_user: Optional[User] = None) -> dict:
+    """Desactiva el contacto (no se borra: el historial del cliente lo cita).
+    Desde `deactivated_at` cuenta la retención (`bloqueo_legal.TIPOS`)."""
+    if current_user is not None:
+        get_scoped_client_or_404(db, current_user, cid)
+    ct = _contacto_activo_o_404(db, cid, contact_id)
+    antes = _foto(ct)
     ct.is_active = False
+    ct.deactivated_at = datetime.now(timezone.utc)
+    if ct.is_primary:
+        ct.is_primary = False
+        if ct.role == ClientContactRole.primary:
+            ct.role = ClientContactRole.other
+        _reflejar_en_cliente(db.get(Client, cid), None)
+    _auditar_contacto(db, current_user, "DEACTIVATE", ct, antes=antes, despues=_foto(ct))
     db.commit()
     return {"ok": True, "message": "Contacto eliminado correctamente"}
 

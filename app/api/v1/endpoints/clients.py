@@ -6,7 +6,8 @@ si tiene proyectos vinculados.
 """
 from fastapi import APIRouter, Depends, HTTPException, Body, Query, Response
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import List, Optional
+from pydantic import BaseModel, Field
 from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.core.abac_enforce import enforce_abac
@@ -41,8 +42,10 @@ def list_clients(
     ignoraban (siempre la lista entera, con ``meta.page_size=50`` aunque fueran
     mil). Ahora paginan de verdad; sin ellos, la lista entera hasta
     ``LIST_MAX_ROWS``. ``limit`` sigue siendo «solo las primeras N»."""
+    from app.services.politica_de_visibilidad import recortar_ficha_de_cliente
     return lista_paginada(response, _svc.list_clients(
-        db, cu, q=q, status=status, industry=industry, limit=limit, pagina=pagina))
+        db, cu, q=q, status=status, industry=industry, limit=limit, pagina=pagina,
+    ).mapear(lambda f: recortar_ficha_de_cliente(cu, f)))
 
 
 @router.post("")
@@ -56,7 +59,9 @@ def create_client(data: dict = Body(...), db: Session = Depends(get_db), cu: Use
 def get_client(cid: str, db: Session = Depends(get_db), _=Depends(get_current_user), response: Response = None):
     cu = _
     c = _get_scoped_client_or_404(db, cu, cid)
-    return APIResponse.ok(data=_out_detail(c, db))
+    # Mínimo privilegio: el externo no ve el email ni el teléfono de las personas del cliente.
+    from app.services.politica_de_visibilidad import recortar_ficha_de_cliente
+    return APIResponse.ok(data=recortar_ficha_de_cliente(cu, _out_detail(c, db)))
 
 
 @router.patch("/{cid}")
@@ -77,22 +82,45 @@ def delete_client(cid: str, db: Session = Depends(get_db), cu: User = Depends(ge
 # ── Contactos ─────────────────────────────────────────────────────────────────
 
 @router.get("/{cid}/contacts")
-def list_contacts(cid: str, db: Session = Depends(get_db), _=Depends(get_current_user)):
-    return APIListResponse.ok(items=_svc.list_contacts(cid, db))
+def list_contacts(cid: str, db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+    return APIListResponse.ok(items=_svc.list_contacts(cid, db, cu))
 
 
 @router.post("/{cid}/contacts")
 def add_contact(cid: str, data: dict = Body(...), db: Session = Depends(get_db), cu: User = Depends(get_current_user),
     _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
-    return APIResponse.ok(data=_svc.add_contact(cid, data, db))
+    return APIResponse.ok(data=_svc.add_contact(cid, data, db, cu))
 
 
 @router.patch("/{cid}/contacts/{contact_id}")
 def update_contact(cid: str, contact_id: str, data: dict = Body(...),
     _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
                    db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
-    return APIResponse.ok(data=_svc.update_contact(cid, contact_id, data, db))
+    return APIResponse.ok(data=_svc.update_contact(cid, contact_id, data, db, cu))
+
+
+@router.post("/{cid}/contacts/{contact_id}/primary")
+def set_primary_contact(cid: str, contact_id: str,
+    _rol: User = Depends(require_any_manager),
+                        db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+    """Marca el contacto como principal del cliente (único) y lo copia en la ficha."""
+    return APIResponse.ok(data=_svc.marcar_contacto_principal(cid, contact_id, cu, db))
+
+
+class AccesoAlPortalIn(BaseModel):
+    password: str = Field(..., min_length=8, max_length=128)
+    language: Optional[str] = Field(None, min_length=2, max_length=10)
+    project_ids: Optional[List[str]] = None
+
+
+@router.post("/{cid}/contacts/{contact_id}/portal-access")
+def give_portal_access(cid: str, contact_id: str, payload: AccesoAlPortalIn,
+    _rol: User = Depends(require_any_manager),
+                       db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
+    """Crea el usuario del portal del contacto con sus datos (mismo alta y tope que la pestaña del portal)."""
+    return APIResponse.ok(data=_svc.dar_acceso_al_portal(
+        cid, contact_id, payload.model_dump(exclude_none=True), cu, db))
 
 
 @router.delete("/{cid}/contacts/{contact_id}")
@@ -112,7 +140,7 @@ def delete_contact(
     _: User = Depends(require_any_manager),
 ):
     enforce_abac(db, cu, "client_contact", contact_id, action="delete")
-    return APIResponse.ok(data=_svc.delete_contact(cid, contact_id, db))
+    return APIResponse.ok(data=_svc.delete_contact(cid, contact_id, db, cu))
 
 
 # ── Vinculación de licencias ───────────────────────────────────────────────────

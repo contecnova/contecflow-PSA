@@ -14,6 +14,7 @@ import type { AdopcionO365, AlertaDisparadaBi, AvisoDePanelBi, BorradoDeDsr, Cap
 import type { AlertasDeMetricas, AnomaliasDeImputacion, DesgloseDeMargen, FiltroDeMargen, BusquedaGlobal, CargaDeRecurso, CargaOlapRealizada, Cartera, CatalogoDeMetricas, CierreAutomatico, ClusterFusionado, ClustersDeAlertas, ComandoDeVoz, ComandoDeVozTranscrito, ConfigDeAutoResolucion, ConfigDelAgenteDeVoz, ConfigDelMotorSemantico, ConfigDelMotorSemanticoGuardada, ConfirmacionAnalitica, ConsultaDeMetrica, Conversacion, ConversacionResumen, ConversacionesArchivadas, EjecucionDelAgente, EjecucionDelAgenteEnCola, EjecucionDelAgenteResumen, EjemploDeAskGuardado, EmbeddingsReconstruidos, EntrenamientoDelModelo, EscaneoDeCorrelacion, EstadisticasDeAutoResolucion, EstadisticasDeCorrelacion, EstadisticasDelMotorSemantico, EstadoDelAgente, EstadoDelAlmacenOlap, EstimacionDelBacklog, EtapaDelEmbudoOlap, HorasPorSemana, InstantaneasDeAgotamiento, KpisDelCuadroDeMando, KpisOlap, MargenMensualOlap, ModeloDePrediccion, MonitorDeAgotamiento, NarrativaEjecutiva, OpcionesDeFiltroAnalitico, PanelDeCartera, PerfilSemantico, PerfilSemanticoGuardado, PerfilesSemanticosGenerados, PlanificacionSugerida, PrediccionDeDesvio, PrediccionImposible, ProductividadDelEquipo, RegistroDePrediccion, RentabilidadDeProyecto, RespuestaDeAskTheData, RespuestaDelAsistente, Reunion, ReunionProcesada, ReunionResumen, RiesgoDeLaCartera, SaludDeProyecto, SaludDeProyectoOlap, SesionDeVoz, SesionDeVozCreada, SesionesDeVoz, SugerenciaDeAsignacionDeTicket, SugerenciasDelGantt, TareasDeReunionCreadas, TextoTransformado, TicketDeSesionDeVoz, TrabajoDeAutoResolucion, UtilizacionAvanzada, UtilizacionOlap, ValoracionDeRespuesta } from './tipos-analitica'
 import type { ParamsPeriodoApi } from '../../utils/periodo'
 import { API_BASE_URL } from './urls'
+import { trasEscritura } from './refrescoTrasEscritura'
 import { ESCALATION_LOGS_LIMIT, GOVERNANCE_LOGS_LIMIT, INBOUND_MESSAGES_LIMIT, MONITORING_ALERTS_LIMIT } from '../../constants/pagination'
 
 const BASE_URL = API_BASE_URL
@@ -103,6 +104,9 @@ api.interceptors.response.use((res) => {
       res.data = (body as { data?: unknown }).data
     }
   }
+  // 18-11-2026: tras crear/editar/borrar con éxito se refrescan las pantallas
+  // (ver refrescoTrasEscritura.ts); antes cada pantalla lo hacía a mano y fallaba.
+  trasEscritura(res?.config?.method, res?.config?.url)
   return res
 })
 
@@ -1489,6 +1493,11 @@ export const clientExtApi = {
   unlinkProject:      (cid: PathId, pid: PathId): Promise<AxiosResponse<{ ok: boolean }>>  => api.delete(`/clients/${cid}/projects/${pid}/link`),
   createContact:      (cid: PathId, data: unknown): Promise<AxiosResponse<ClienteContactoCreado>> => api.post(`/clients/${cid}/contacts`, data),
   deleteContact:      (cid: PathId, id: PathId): Promise<AxiosResponse<ConfirmacionOk>>   => api.delete(`/clients/${cid}/contacts/${id}`),
+  updateContact:      (cid: PathId, id: PathId, data: unknown): Promise<AxiosResponse<ClienteContactoCreado>> => api.patch(`/clients/${cid}/contacts/${id}`, data),
+  /** Lo deja como único contacto principal; la ficha del cliente lo refleja. */
+  setPrimaryContact:  (cid: PathId, id: PathId): Promise<AxiosResponse<ClienteContactoCreado>> => api.post(`/clients/${cid}/contacts/${id}/primary`),
+  /** Crea el usuario del portal con los datos del contacto (400 sin email o sin cupo; 409 si ya lo tiene). */
+  givePortalAccess:   (cid: PathId, id: PathId, data: { password: string; language?: string; project_ids?: string[] }): Promise<AxiosResponse<PortalUsuarioCreado>> => api.post(`/clients/${cid}/contacts/${id}/portal-access`, data),
   licenses:           (cid: PathId): Promise<AxiosResponse<ClienteLicencia[]>>       => api.get(`/clients/${cid}/licenses`),
   linkLicense:        (cid: PathId, data: unknown): Promise<AxiosResponse<ClienteLicenciaVinculada>> => api.post(`/clients/${cid}/licenses`, data),
   unlinkLicense:      (cid: PathId, id: PathId): Promise<AxiosResponse<ConfirmacionOk>>   => api.delete(`/clients/${cid}/licenses/${id}`),

@@ -6,6 +6,7 @@ import { portalClientsApi, clientsApi } from '../../services/api'
 import { Button, EmptyState, Modal, Checkbox, GrupoDeOpciones, useErroresDeCampo } from '../../components/ui'
 import { Check, ClipboardCopy, Coins, FolderOpen, Globe, KeyRound, Lock, LockOpen, Mail, Pause, Pencil, Play, Plus, TriangleAlert, Users } from 'lucide-react'
 import { extractErr, fmtDate } from '../../utils/helpers'
+import { invalidarContactosDelCliente } from './contactosCliente'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useAppLang } from '../../i18n/AppLangContext'
 import './PortalUsersTab.css'
@@ -85,6 +86,43 @@ const PORTAL_PERMISSIONS: { key: PortalPermissionKey }[] = [
   { key: 'can_view_team' },
 ]
 
+/** Las credenciales recién creadas (se muestran una sola vez). También la usa
+ *  la pestaña Contactos al dar acceso al portal a un contacto. */
+export function CredencialesDelPortal({ credenciales, onClose }: { credenciales: Credentials; onClose: () => void }) {
+  const { t } = useAppLang()
+  const toast = useToast()
+  const portalUrl = `${window.location.origin}/portal`
+  return (
+    <Modal open title={t('portaluserstab.credenciales_creadas')} onClose={onClose} width={480}>
+      <div className="pousta-box-10">
+        <div className="pousta-box-11">{t('portalusers.credenciales_de_acceso_al_portal')}</div>
+        <div className="u-stack-8">
+          <div className="u-row-between">
+            <span className="u-text2-sm">{t('portalusers.url_del_portal')}</span>
+            <strong className="pousta-txt-2">{portalUrl}</strong>
+          </div>
+          <div className="u-row-between">
+            <span className="u-text2-sm">{t('portaluserstab.email_dos_puntos')}</span>
+            <strong className="pousta-txt-3">{credenciales.email}</strong>
+          </div>
+          <div className="u-row-between">
+            <span className="u-text2-sm">{t('portalusers.contrasena')}</span>
+            <strong className="ds-codigo pousta-box-12">{credenciales.password}</strong>
+          </div>
+        </div>
+      </div>
+      <div className="pousta-box-13 pousta-ico"><TriangleAlert size={14} aria-hidden="true" />{t('portalusers.guarda_estas_credenciales_la_contrasena_no_se')}</div>
+      <div className="u-actions-8">
+        <Button variant="secondary" icon={<ClipboardCopy size={14} />} onClick={() => {
+          navigator.clipboard.writeText([`Portal: ${portalUrl}`, `${t('portaluserstab.email_dos_puntos')} ${credenciales.email}`, `${t('portaluserstab.contrasena_dos_puntos')} ${credenciales.password}`].join('\n'))
+          toast.success(t('portaluserstab.copiado'))
+        }}>{t('portaluserstab.copiar_todo')}</Button>
+        <Button onClick={onClose}>{t('portaluserstab.entendido')}</Button>
+      </div>
+    </Modal>
+  )
+}
+
 export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
   const idCampo = useId()
   const { t } = useAppLang()
@@ -120,7 +158,8 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
     onMutate: () => campos.limpiar(),
     mutationFn: (d: PortalForm & { client_org_id: string | number; project_ids?: string[] }) => portalClientsApi.create(d).then(r => r.data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['portal-clients-org', cid] })
+      // El servidor crea/actualiza el contacto del usuario: contactos y ficha cambian.
+      invalidarContactosDelCliente(qc, cid)
       setShowAdd(false)
       setCreatedCreds({ email: form.email, password: form.password })
       setForm(emptyForm())
@@ -130,7 +169,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
 
   const { mutate: toggle } = useMutation({
     mutationFn: ({ id, active }: { id: string; active: boolean }) => portalClientsApi.update(id, { is_active: active }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['portal-clients-org', cid] }),
+    onSuccess: () => invalidarContactosDelCliente(qc, cid),
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))
   })
 
@@ -145,7 +184,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
     onMutate: () => camposEdit.limpiar(),
     mutationFn: ({ id, data }: { id: string; data: Partial<PortalEditForm> }) => portalClientsApi.update(id, data).then(r => r.data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['portal-clients-org', cid] })
+      invalidarContactosDelCliente(qc, cid)
       setEditUser(null)
       setEditForm(null)
       toast.success(t('portaluserstab.usuario_actualizado'))
@@ -247,35 +286,7 @@ export function PortalUsersTab({ cid, clientName }: PortalUsersTabProps) {
         })
       }
 
-      {createdCreds && (
-        <Modal open title={t('portaluserstab.credenciales_creadas')} onClose={() => setCreatedCreds(null)} width={480}>
-          <div className="pousta-box-10">
-            <div className="pousta-box-11">{t('portalusers.credenciales_de_acceso_al_portal')}</div>
-            <div className="u-stack-8">
-              <div className="u-row-between">
-                <span className="u-text2-sm">{t('portalusers.url_del_portal')}</span>
-                <strong className="pousta-txt-2">{portalUrl}</strong>
-              </div>
-              <div className="u-row-between">
-                <span className="u-text2-sm">{t('portaluserstab.email_dos_puntos')}</span>
-                <strong className="pousta-txt-3">{createdCreds.email}</strong>
-              </div>
-              <div className="u-row-between">
-                <span className="u-text2-sm">{t('portalusers.contrasena')}</span>
-                <strong className="ds-codigo pousta-box-12">{createdCreds.password}</strong>
-              </div>
-            </div>
-          </div>
-          <div className="pousta-box-13 pousta-ico"><TriangleAlert size={14} aria-hidden="true" />{t('portalusers.guarda_estas_credenciales_la_contrasena_no_se')}</div>
-          <div className="u-actions-8">
-            <Button variant="secondary" icon={<ClipboardCopy size={14} />} onClick={() => {
-              navigator.clipboard.writeText([`Portal: ${portalUrl}`, `${t('portaluserstab.email_dos_puntos')} ${createdCreds.email}`, `${t('portaluserstab.contrasena_dos_puntos')} ${createdCreds.password}`].join('\n'))
-              toast.success(t('portaluserstab.copiado'))
-            }}>{t('portaluserstab.copiar_todo')}</Button>
-            <Button onClick={() => setCreatedCreds(null)}>{t('portaluserstab.entendido')}</Button>
-          </div>
-        </Modal>
-      )}
+      {createdCreds && <CredencialesDelPortal credenciales={createdCreds} onClose={() => setCreatedCreds(null)} />}
 
       {showReset && (
         <Modal open title={t('portalusers.cambiar_contrasena')} onClose={() => { setShowReset(null); setNewPassword('') }} width={420}>

@@ -1,6 +1,6 @@
 import { type CSSProperties, useState, useEffect, useId } from 'react'
 import type { LucideIcon } from 'lucide-react'
-import { BookOpen, Check, Download, FilePen, FileText, FlaskConical, FolderKanban, FolderOpen, Globe, KeyRound, LayoutDashboard, Lightbulb, Link2, Map as MapIcon, MessageSquare, Package, PenLine, Phone, Plus, Receipt, Rocket, Ticket, Trash2, TriangleAlert, Unlink, User, FileBarChart, ClipboardList, Paperclip, ScrollText } from 'lucide-react'
+import { BookOpen, Check, Download, FilePen, FileText, FlaskConical, FolderKanban, FolderOpen, Globe, KeyRound, LayoutDashboard, Lightbulb, Link2, Map as MapIcon, MessageSquare, Package, PenLine, Pencil, Phone, Plus, Receipt, Rocket, Star, Ticket, Trash2, TriangleAlert, Unlink, User, FileBarChart, ClipboardList, Paperclip, ScrollText } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { useToast } from '../../context/ToastContext'
@@ -13,7 +13,9 @@ import { IconFR, IconCR } from '../../components/ui/FRCRIcons'
 import { fmtCurrency, fmtDate, fmtDateTime, extractErr } from '../../utils/helpers'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { PortalUsersTab } from './PortalUsersTab'
+import { PortalUsersTab, CredencialesDelPortal } from './PortalUsersTab'
+import { ModalEditarContacto } from './ModalEditarContacto'
+import { invalidarContactosDelCliente, rolesDeContacto } from './contactosCliente'
 import { ConversationPoliciesPanel, TeamGovernedConversationInbox } from '../../components/portal/GovernedConversations'
 import { useAppLang } from '../../i18n/AppLangContext'
 import type { FacturaDeCliente, ClienteContrato, ClienteLicencia, ClientePortalConfig, ClienteProyecto, PortalDocumento, PortalPeticion, PortalSesionUat } from '../../services/api/tipos-alm'
@@ -214,31 +216,53 @@ export function ContactsTab({ cid }: { cid: string }) {
   const toast = useToast()
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState<ContactForm>({ full_name: '', email: '', phone: '', job_title: '', role: 'other', is_primary: false })
+  const [editando, setEditando] = useState<ClientContact | null>(null)
+  const [accesoPara, setAccesoPara] = useState<ClientContact | null>(null)
+  const [claves, setClaves] = useState({ password: '', confirm: '' })
+  const [credenciales, setCredenciales] = useState<{ email: string; password: string } | null>(null)
 
   const { data: contacts = [], isLoading } = useQuery<ClientContact[]>({
     queryKey: ['client-contacts', cid],
     queryFn: () => clientsApi.contacts(cid).then(r => r.data),
   })
+  // El servidor ya los manda con el principal primero; se asegura igualmente.
+  const ordenados = [...contacts].sort((a, b) => Number(!!b.is_primary) - Number(!!a.is_primary))
+  const invalidar = () => invalidarContactosDelCliente(qc, cid)
   const camposB = useErroresDeCampo()
+  const camposAcceso = useErroresDeCampo()
   const msgB = (k: string) => camposB.de(k) ? <div className="u-field-error">{camposB.de(k)}</div> : null
   const { mutate: add } = useMutation({
     onMutate: () => camposB.limpiar(),
     mutationFn: (d: ContactForm) => clientExtApi.createContact(cid, d).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['client-contacts', cid] }); setShowAdd(false); setForm({ full_name: '', email: '', phone: '', job_title: '', role: 'other', is_primary: false }) },
+    onSuccess: () => { invalidar(); setShowAdd(false); setForm({ full_name: '', email: '', phone: '', job_title: '', role: 'other', is_primary: false }) },
     onError: (e: unknown) => { if (!camposB.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
   })
   const { mutate: remove } = useMutation({
     mutationFn: (id: string) => clientExtApi.deleteContact(cid, id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['client-contacts', cid] }),
+    onSuccess: () => { invalidar(); toast.success(traducir('clicontactos.contacto_desactivado')) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
+  const { mutate: marcarPrincipal } = useMutation({
+    mutationFn: (ct: ClientContact) => clientExtApi.setPrimaryContact(cid, ct.id),
+    onSuccess: (_r, ct) => { invalidar(); toast.success(traducir('clicontactos.marcado_principal', { nombre: ct.full_name })) },
+    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
+  })
+  const { mutate: darAcceso, isPending: dandoAcceso } = useMutation({
+    onMutate: () => camposAcceso.limpiar(),
+    mutationFn: ({ ct, password }: { ct: ClientContact; password: string }) => clientExtApi.givePortalAccess(cid, ct.id, { password }).then(r => r.data),
+    onSuccess: (r, { ct, password }) => {
+      invalidar()
+      setAccesoPara(null)
+      setClaves({ password: '', confirm: '' })
+      setCredenciales({ email: r.email || ct.email || '', password })
+    },
+    onError: (e: unknown) => { if (!camposAcceso.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
+  })
 
-  const roles = [
-    { id: 'primary', label: traducir('clientstabs.rol_principal') }, { id: 'billing', label: traducir('clientstabs.rol_facturacion') },
-    { id: 'technical', label: traducir('clientstabs.rol_tecnico') }, { id: 'executive', label: traducir('clientstabs.rol_ejecutivo') },
-    { id: 'support', label: traducir('clientstabs.rol_soporte') }, { id: 'other', label: traducir('clientstabs.rol_otro') },
-  ]
+  const roles = rolesDeContacto(traducir)
   const roleColor: Record<string, string> = { primary: 'var(--accent)', billing: 'var(--warning)', technical: 'var(--purple)', executive: 'var(--success)', support: 'var(--warning)', other: 'var(--text-2)' }
+  const claveCorta = claves.password.length > 0 && claves.password.length < 8
+  const noCoinciden = claves.confirm.length > 0 && claves.password !== claves.confirm
 
   if (isLoading) return <Spinner />
   return (
@@ -250,7 +274,7 @@ export function ContactsTab({ cid }: { cid: string }) {
       {contacts.length === 0 ? (
         <EmptyState icon={<User size={28} />} title={traducir('clients.sin_contactos')} description={traducir('clientstabs.anade_contacto')}
           action={<Button onClick={() => setShowAdd(true)} size="sm" icon={<Plus size={14} />}>{traducir('clients.anadir_contacto')}</Button>} />
-      ) : contacts.map(ct => (
+      ) : ordenados.map(ct => (
         <div key={ct.id} className="clpata-panel3">
           <div className="u-row-center-12">
             <div className="clpata-row-14 clients-page-tabs-e1" style={{ '--clients-page-tabs-background': alpha((roleColor[ct.role] || 'var(--text-2)'), '20'), '--clients-page-tabs-color': roleColor[ct.role] || 'var(--text-2)' } as CSSProperties}>
@@ -258,7 +282,9 @@ export function ContactsTab({ cid }: { cid: string }) {
             </div>
             <div>
               <div className="u-md-700">{ct.full_name}
-                {ct.is_primary && <span className="clpata-box-7">{traducir('clientstabs.rol_principal')}</span>}
+                {ct.is_primary && <span className="clpata-box-7">{traducir('clicontactos.principal')}</span>}
+                {ct.portal_active === true && <span className="clpata-portal">{traducir('clicontactos.portal')}</span>}
+                {ct.portal_active === false && <span className="clpata-portal clpata-portal--off">{traducir('clicontactos.portal_desactivado')}</span>}
               </div>
               <div className="u-text2-sm">{ct.job_title} {ct.email && `· ${ct.email}`}</div>
             </div>
@@ -268,16 +294,62 @@ export function ContactsTab({ cid }: { cid: string }) {
               {roles.find(r => r.id === ct.role)?.label || ct.role}
             </span>
             {ct.phone && <span className="u-text2-sm clpata-ico"><Phone size={13} aria-hidden="true" />{ct.phone}</span>}
-            <IconButton onClick={() => remove(ct.id)} className="clpata-del" ariaLabel={traducir('clientstabs.eliminar_contacto', { nombre: ct.full_name || '' })}><Trash2 size={14} /></IconButton>
+            <IconButton onClick={() => setEditando(ct)} ariaLabel={traducir('clicontactos.editar_contacto_de', { nombre: ct.full_name || '' })}><Pencil size={14} /></IconButton>
+            {!ct.is_primary && (
+              <IconButton onClick={() => marcarPrincipal(ct)} ariaLabel={traducir('clicontactos.marcar_principal_de', { nombre: ct.full_name || '' })}
+                title={traducir('clicontactos.marcar_principal')}><Star size={14} /></IconButton>
+            )}
+            {!ct.portal_user_id && ct.email && (
+              <Button size="sm" variant="secondary" icon={<Globe size={14} />} onClick={() => { camposAcceso.limpiar(); setClaves({ password: '', confirm: '' }); setAccesoPara(ct) }}>
+                {traducir('clicontactos.dar_acceso_portal')}
+              </Button>
+            )}
+            <IconButton className="clpata-del" ariaLabel={traducir('clicontactos.desactivar_contacto', { nombre: ct.full_name || '' })}
+              onClick={() => openConfirmGlobal({ message: traducir('clicontactos.confirmar_desactivar', { nombre: ct.full_name || '' }), onConfirm: () => remove(ct.id), danger: true })}>
+              <Trash2 size={14} />
+            </IconButton>
           </div>
         </div>
       ))}
+      {editando && <ModalEditarContacto cid={cid} contacto={editando} onClose={() => setEditando(null)} />}
+      {accesoPara && (
+        <Modal open title={traducir('clicontactos.dar_acceso_titulo', { nombre: accesoPara.full_name })} onClose={() => setAccesoPara(null)} width={460}>
+          <form onSubmit={e => { e.preventDefault(); if (!claveCorta && !noCoinciden && claves.password) darAcceso({ ct: accesoPara, password: claves.password }) }}>
+            <div className="u-text2-sm u-mb-16">{traducir('clicontactos.dar_acceso_ayuda', { email: accesoPara.email || '' })}</div>
+            <div className="clpata-grid-1">
+              <div>
+                <label id={`${idCampo}-pwd-et`} htmlFor={`${idCampo}-pwd`} className="clpata-lbl">{traducir('clicontactos.contrasena')} *</label>
+                <input id={`${idCampo}-pwd`} aria-labelledby={`${idCampo}-pwd-et`} type="password" autoComplete="new-password" value={claves.password}
+                  aria-invalid={claveCorta || camposAcceso.de('password') ? true : undefined}
+                  onChange={e => { camposAcceso.limpiar('password'); setClaves(c => ({ ...c, password: e.target.value })) }} className="clpata-inp" />
+                {(camposAcceso.de('password') || claveCorta) && <div className="u-field-error">{camposAcceso.de('password') || traducir('clicontactos.contrasena_minimo')}</div>}
+              </div>
+              <div>
+                <label id={`${idCampo}-pwd2-et`} htmlFor={`${idCampo}-pwd2`} className="clpata-lbl">{traducir('clicontactos.confirmar_contrasena')} *</label>
+                <input id={`${idCampo}-pwd2`} aria-labelledby={`${idCampo}-pwd2-et`} type="password" autoComplete="new-password" value={claves.confirm}
+                  aria-invalid={noCoinciden ? true : undefined}
+                  onChange={e => setClaves(c => ({ ...c, confirm: e.target.value }))} className="clpata-inp" />
+                {noCoinciden && <div className="u-field-error">{traducir('clicontactos.contrasenas_no_coinciden')}</div>}
+              </div>
+            </div>
+            {camposAcceso.de('email') && <div className="u-field-error u-mb-16">{camposAcceso.de('email')}</div>}
+            <div className="u-actions-8">
+              <Button variant="secondary" onClick={() => setAccesoPara(null)}>{traducir('clicontactos.cancelar')}</Button>
+              <Button type="submit" loading={dandoAcceso}
+                disabled={!claves.password || claves.password.length < 8 || claves.password !== claves.confirm || dandoAcceso}>
+                {dandoAcceso ? traducir('clicontactos.creando') : traducir('clicontactos.crear_acceso')}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+      {credenciales && <CredencialesDelPortal credenciales={credenciales} onClose={() => setCredenciales(null)} />}
       {showAdd && (
         <Modal open title={traducir('clients.nuevo_contacto')} onClose={() => setShowAdd(false)} width={500}>
           <div className="clpata-grid-1">
             <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="clpata-lbl">{traducir('clientstabs.nombre_completo')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.full_name} onChange={e => { camposB.limpiar('full_name'); setForm(f => ({ ...f, full_name: e.target.value })) }} className="clpata-inp" />{msgB('full_name')}</div>
-            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="clpata-lbl">{traducir('clientstabs.email')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={form.email} onChange={e => { camposB.limpiar('email'); setForm(f => ({ ...f, email: e.target.value })) }} className="clpata-inp" />{msgB('email')}</div>
-            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="clpata-lbl">{traducir('clients.telefono')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.phone} onChange={e => { camposB.limpiar('phone'); setForm(f => ({ ...f, phone: e.target.value })) }} className="clpata-inp" />{msgB('phone')}</div>
+            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="clpata-lbl">{traducir('clicontactos.email_contacto')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={form.email} onChange={e => { camposB.limpiar('email'); setForm(f => ({ ...f, email: e.target.value })) }} className="clpata-inp" />{msgB('email')}</div>
+            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="clpata-lbl">{traducir('clicontactos.telefono_contacto')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.phone} onChange={e => { camposB.limpiar('phone'); setForm(f => ({ ...f, phone: e.target.value })) }} className="clpata-inp" />{msgB('phone')}</div>
             <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="clpata-lbl">{traducir('clientstabs.cargo')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.job_title} onChange={e => { camposB.limpiar('job_title'); setForm(f => ({ ...f, job_title: e.target.value })) }} className="clpata-inp" />{msgB('job_title')}</div>
             <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="clpata-lbl">{traducir('clientstabs.rol')}</label>
               <Select suelto placeholder={false} id={`${idCampo}-5`} value={form.role} onChange={e => { camposB.limpiar('role'); setForm(f => ({ ...f, role: e.target.value })) }} className="clpata-inp">

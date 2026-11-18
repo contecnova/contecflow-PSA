@@ -160,24 +160,39 @@ def process_gdpr_request(request_id: str, current_user, db: Session) -> dict:
     # (o borrada a mano), la solicitud se daba por completada sin hacer nada.
     if req.subject_user_id and user is None:
         raise ErrorDeDominio(404, "La persona de la solicitud ya no existe en esta empresa")
-    if tipo in _CON_COPIA and user is None:
+    # 18-11-2026: la persona también puede ser contacto de un cliente o usuario
+    # de su portal (sin cuenta en la aplicación): se le identifica por su email.
+    from app.services import datos_personales_de_contactos as contactos_rgpd
+    email = (user.email if user else None) or req.subject_email
+    es_contacto = bool(contactos_rgpd.contactos_de(db, email, org) or contactos_rgpd.usuarios_del_portal_de(db, email, org))
+    if tipo in _CON_COPIA and user is None and not es_contacto:
         raise ErrorDeDominio(422, "Sin persona registrada no hay datos que copiar: recházala o tramítala a mano")
-    if tipo == GDPRRequestType.erasure and user:
+    if tipo == GDPRRequestType.erasure:
         # Segunda auditoría 2026-11: bajo bloqueo legal, 409 antes de marcarla en curso.
-        from app.services.supresion_service import exigir_sin_bloqueo_legal
-        exigir_sin_bloqueo_legal(db, user)
+        if user:
+            from app.services.supresion_service import exigir_sin_bloqueo_legal
+            exigir_sin_bloqueo_legal(db, user)
+        if es_contacto:
+            contactos_rgpd.exigir_sin_bloqueo_legal(db, email, org)
 
     req.status = GDPRRequestStatus.processing
     req.processed_by = current_user.id
     db.commit()
     export_data: dict = {}
 
-    if tipo == GDPRRequestType.erasure and user:
-        export_data = _gdpr_erase_user(db, user)
+    if tipo == GDPRRequestType.erasure and (user or es_contacto):
+        # Primero sus fichas de contacto (con el email original), luego la cuenta.
+        contactos_suprimidos = contactos_rgpd.anonimizar(db, email, org) if es_contacto else None
+        export_data = _gdpr_erase_user(db, user) if user else {"anonymised": True}
+        if contactos_suprimidos is not None:
+            export_data["client_contacts"] = contactos_suprimidos
     elif tipo in _CON_COPIA:
         # Revisión GRC 16-11-2026: «acceso» (art. 15) se marcaba completada sin
         # entregar nada; da la misma copia que la portabilidad.
-        export_data = _gdpr_portability_export(db, user)
+        export_data = _gdpr_portability_export(db, user) if user else {
+            "export_date": str(timeutil.today()), "format": "JSON"}
+        if es_contacto:
+            export_data.update(contactos_rgpd.copia(db, email, org))
     elif tipo == GDPRRequestType.rectification:
         # La rectificación la hace una persona en la ficha: aquí se deja
         # constancia de quién la confirma.

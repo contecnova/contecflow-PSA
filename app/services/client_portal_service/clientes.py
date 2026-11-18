@@ -113,6 +113,9 @@ def create_client(payload, db: Session) -> dict:
             proj = db.query(ProjectModel).filter(ProjectModel.id == pid).first()
             if proj and proj not in client.projects:
                 client.projects.append(proj)
+    # 18-11-2026: el usuario del portal es una persona del cliente: existe como contacto suyo.
+    from app.services.client_service import vincular_usuario_del_portal
+    vincular_usuario_del_portal(db, client)
     db.commit()
     db.refresh(client)
     return {
@@ -151,6 +154,10 @@ def update_client(client_id: str, payload: dict, db: Session) -> dict:
                 client.projects.append(proj)
                 valid_ids.append(pid)
         client.project_id = valid_ids[0] if valid_ids else None
+    if any(k in payload for k in ("full_name", "email", "phone", "job_title")):
+        # Su contacto lleva los mismos datos (desactivarlo no toca el contacto).
+        from app.services.client_service import vincular_usuario_del_portal
+        vincular_usuario_del_portal(db, client)
     db.commit()
     return {"ok": True, "project_ids": client.get_project_ids()}
 
@@ -160,6 +167,9 @@ def delete_client(client_id: str, db: Session) -> dict:
     client = db.query(ClientUser).filter(ClientUser.id == client_id).first()
     if not client:
         raise ErrorConCodigo("cliente_no_encontrado")
+    # La persona sigue siendo contacto del cliente; solo pierde el enlace.
+    from app.services.client_service import desvincular_usuario_del_portal
+    desvincular_usuario_del_portal(db, client.id)
     db.delete(client)
     db.commit()
     return {"ok": True}
@@ -293,6 +303,9 @@ def update_my_profile(payload: dict, current_client, db: Session, min_password_l
             current_client.hashed_password = hash_password(str(v))
         elif k in SAFE_FIELDS:
             setattr(current_client, k, v)
+    if any(k in payload for k in ("full_name", "phone", "job_title")):
+        from app.services.client_service import vincular_usuario_del_portal
+        vincular_usuario_del_portal(db, current_client)
 
     db.commit()
     db.refresh(current_client)

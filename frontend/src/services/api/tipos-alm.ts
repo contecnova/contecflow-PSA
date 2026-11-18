@@ -462,6 +462,13 @@ export interface ClienteResumen {
   tax_id: string | null
   industry: string | null
   status: string | null
+  /** Teléfono y email generales de la EMPRESA. */
+  phone: string | null
+  email: string | null
+  /** Contacto (persona) principal; null si no hay. */
+  primary_contact_id: string | null
+  /** Reflejo de solo lectura del contacto principal (persona), no datos de la empresa.
+   *  `contact_role` es su cargo. */
   contact_name: string | null
   contact_email: string | null
   contact_phone: string | null

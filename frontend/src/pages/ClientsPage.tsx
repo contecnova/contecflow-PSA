@@ -3,7 +3,7 @@ import { useState, useId, useMemo } from 'react'
 import { z } from 'zod'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
-import { clientsApi, unwrapList } from '../services/api'
+import { clientsApi, unwrapList, type ClientContact } from '../services/api'
 import type { MetaDeLista } from '../services/api/tipos-plataforma'
 import { Button, Spinner, EmptyState, Modal, Tabs, useSort, SortableTH, Pulsable, Select, useErroresDeCampo } from '../components/ui'
 import Pagination from '../components/ui/Pagination'
@@ -13,7 +13,7 @@ import { extractErr, fmtDate } from '../utils/helpers'
 import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
 import { useFormValidation } from '../hooks/useFormValidation'
 import { useAppT } from '../i18n/AppLangContext'
-import { Award, Briefcase, Building2, FileText, FolderKanban, Globe, KeyRound, LayoutGrid, List, Pencil, Plus, Receipt, Ticket, User, Users } from 'lucide-react'
+import { Award, Briefcase, Building2, FileText, FolderKanban, Globe, KeyRound, LayoutGrid, List, Mail, MapPin, Pencil, Phone, Plus, Receipt, Ticket, User, Users } from 'lucide-react'
 import {
   ProjectsTab,
   ContactsTab,
@@ -22,6 +22,8 @@ import {
   InvoicesTab,
   PortalConfigTab,
 } from './clients/ClientsPageTabs'
+import { ModalEditarContacto } from './clients/ModalEditarContacto'
+import { SelectorContactoPrincipal, datosDeContactoPrincipal, NUEVO_CONTACTO_VACIO, type NuevoContacto } from './clients/SelectorContactoPrincipal'
 import './ClientsPage.css'
 
 type Traductor = ReturnType<typeof useAppT>
@@ -76,9 +78,16 @@ type Client = {
   website?: string
   country?: string
   city?: string
+  address?: string
+  /** Teléfono y email generales de la empresa. */
+  phone?: string
+  email?: string
+  primary_contact_id?: string | null
+  /** Reflejo de solo lectura del contacto principal (persona). */
   contact_name?: string
   contact_email?: string
   contact_phone?: string
+  contact_role?: string
   account_manager_name?: string
   projects_count?: number
   tickets_count?: number
@@ -107,7 +116,15 @@ function crearEsquemaCliente(t: Traductor) {
     name: z.string().trim().min(1, t('clientspage.nombre_obligatorio')).max(255, max(255)),
     short_name: optionalString(50),
     tax_id: optionalString(50),
+    phone: optionalString(50),
+    email: optionalEmail,
+    website: optionalString(255),
+    address: optionalString(500),
+    city: optionalString(100),
+    country: optionalString(100),
+    // Nuevo contacto principal (persona).
     contact_name: optionalString(200),
+    contact_role: optionalString(100),
     contact_email: optionalEmail,
     contact_phone: optionalString(50),
     status: z.string().min(1),
@@ -116,7 +133,59 @@ function crearEsquemaCliente(t: Traductor) {
   })
 }
 
-const FORM_VACIO = { name: '', short_name: '', tax_id: '', contact_name: '', contact_email: '', contact_phone: '', status: 'active', industry: 'other', notes: '' }
+const FORM_VACIO = { name: '', short_name: '', tax_id: '', phone: '', email: '', website: '', address: '', city: '', country: '', status: 'active', industry: 'other', notes: '' }
+
+// Campos de datos de la EMPRESA (alta y edición). El contacto principal va
+// aparte, en SelectorContactoPrincipal.
+type CamposEmpresaProps = {
+  idBase: string
+  t: Traductor
+  form: Record<string, string>
+  onCampo: (clave: string, valor: string) => void
+  errorDe: (clave: string) => string | undefined
+  opcionesSector: JSX.Element[]
+  opcionesEstado: JSX.Element[]
+}
+function CamposEmpresa({ idBase, t, form, onCampo, errorDe, opcionesSector, opcionesEstado }: CamposEmpresaProps): JSX.Element {
+  const texto = (clave: string, etiqueta: string, opciones: { tipo?: string; ancho?: boolean; placeholder?: string } = {}) => {
+    const id = `${idBase}-${clave}`
+    const err = errorDe(clave)
+    return (
+      <div className={opciones.ancho ? 'u-col-full' : undefined}>
+        <label id={`${id}-et`} htmlFor={id} className="cli-label">{etiqueta}</label>
+        <input id={id} aria-labelledby={`${id}-et`} type={opciones.tipo ?? 'text'} value={form[clave] ?? ''}
+          placeholder={opciones.placeholder} className="cli-input"
+          aria-invalid={err ? true : undefined} aria-describedby={err ? `${id}-err` : undefined}
+          onChange={e => onCampo(clave, e.target.value)} />
+        {err && <div id={`${id}-err`} className="u-field-error">{err}</div>}
+      </div>
+    )
+  }
+  return (
+    <div className="cli-seccion" role="group" aria-labelledby={`${idBase}-empresa`}>
+      <div id={`${idBase}-empresa`} className="cli-seccion__titulo">{t('clicontactos.seccion_empresa')}</div>
+      <div className="cli-form-grid">
+        {texto('name', t('clientspage.campo_nombre'))}
+        {texto('short_name', t('clientspage.campo_nombre_corto'))}
+        {texto('tax_id', t('clientspage.campo_cif'))}
+        <Select label={t('clientspage.campo_sector')} placeholder={false} value={form.industry}
+          onChange={e => onCampo('industry', e.target.value)} error={errorDe('industry')}>
+          {opcionesSector}
+        </Select>
+        {texto('phone', t('clicontactos.telefono_empresa'))}
+        {texto('email', t('clicontactos.email_empresa'), { tipo: 'email' })}
+        {texto('website', t('clientspage.campo_web'), { placeholder: t('clientspage.placeholder_web') })}
+        <Select label={t('clientspage.campo_estado')} placeholder={false} value={form.status}
+          onChange={e => onCampo('status', e.target.value)} error={errorDe('status')}>
+          {opcionesEstado}
+        </Select>
+        {texto('address', t('clicontactos.direccion'), { ancho: true })}
+        {texto('city', t('clientspage.campo_ciudad'))}
+        {texto('country', t('clients.pais'))}
+      </div>
+    </div>
+  )
+}
 
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function ClientsPage(): JSX.Element {
@@ -136,6 +205,10 @@ export default function ClientsPage(): JSX.Element {
   const createValidation = useFormValidation(clientCreateSchema)
   const [showEdit, setShowEdit] = useState(false)
   const [editClientForm, setEditClientForm] = useState<Record<string, string>>({})
+  // Contacto principal en el alta/edición: id elegido (o NUEVO_CONTACTO) y datos del nuevo.
+  const [contactoElegido, setContactoElegido] = useState('')
+  const [contactoNuevo, setContactoNuevo] = useState<NuevoContacto>(NUEVO_CONTACTO_VACIO)
+  const [contactoAEditar, setContactoAEditar] = useState<ClientContact | null>(null)
   const [clientView, setClientView] = useState('grid')
   const camposNuevo = useErroresDeCampo()
   const camposEdit = useErroresDeCampo()
@@ -166,6 +239,14 @@ export default function ClientsPage(): JSX.Element {
     queryFn: () => clientsApi.get(selected!.id).then(r => r.data),
     enabled: !!selected,
   })
+  // Misma clave que la pestaña Contactos: comparten caché y se invalidan juntas.
+  const { data: contactos = [] } = useQuery<ClientContact[]>({
+    queryKey: ['client-contacts', selected?.id],
+    queryFn: () => clientsApi.contacts(selected!.id).then(r => r.data),
+    enabled: !!selected,
+  })
+  const principal = contactos.find(c => c.is_primary)
+    ?? (detail?.primary_contact_id ? contactos.find(c => c.id === detail.primary_contact_id) : undefined)
 
   const { mutate: create, isPending: creating } = useMutation({
     mutationFn: (d: Record<string, unknown>) => clientsApi.create(d),
@@ -174,6 +255,7 @@ export default function ClientsPage(): JSX.Element {
       qc.invalidateQueries({ queryKey: ['clients'] })
       setShowCreate(false)
       setNewForm(FORM_VACIO)
+      setContactoNuevo(NUEVO_CONTACTO_VACIO)
       createValidation.setErrors({})
       toast.success(t('clientspage.cliente_creado'))
     },
@@ -186,6 +268,8 @@ export default function ClientsPage(): JSX.Element {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['clients'] })
       qc.invalidateQueries({ queryKey: ['client-detail', selected?.id] })
+      qc.invalidateQueries({ queryKey: ['client-contacts', selected?.id] })
+      qc.invalidateQueries({ queryKey: ['client-detail-projects', selected?.id] })
       setShowEdit(false)
       toast.success(t('clientspage.cliente_actualizado'))
     },
@@ -194,20 +278,26 @@ export default function ClientsPage(): JSX.Element {
 
   const openEditClient = () => {
     if (!selected) return
+    // El detalle trae los campos nuevos (phone/email de empresa, principal); si
+    // aún no ha llegado, lo del listado.
+    const c: Record<string, unknown> = { ...selected, ...(detail ?? {}) }
+    const txt = (k: string, porDefecto = '') => (typeof c[k] === 'string' && c[k] ? String(c[k]) : porDefecto)
     setEditClientForm({
-      name:          selected.name          || '',
-      short_name:    selected.short_name    || '',
-      tax_id:        selected.tax_id        || '',
-      industry:      selected.industry      || 'other',
-      contact_name:  selected.contact_name  || '',
-      contact_email: selected.contact_email || '',
-      contact_phone: selected.contact_phone || '',
-      status:        selected.status        || 'active',
-      notes:         selected.notes         || '',
-      website:       selected.website       || '',
-      country:       selected.country       || '',
-      city:          selected.city          || '',
+      name:       txt('name'),
+      short_name: txt('short_name'),
+      tax_id:     txt('tax_id'),
+      industry:   txt('industry', 'other'),
+      phone:      txt('phone'),
+      email:      txt('email'),
+      status:     txt('status', 'active'),
+      notes:      txt('notes'),
+      website:    txt('website'),
+      address:    txt('address'),
+      country:    txt('country'),
+      city:       txt('city'),
     })
+    setContactoElegido(txt('primary_contact_id') || principal?.id || '')
+    setContactoNuevo(NUEVO_CONTACTO_VACIO)
     setShowEdit(true)
   }
 
@@ -283,7 +373,18 @@ export default function ClientsPage(): JSX.Element {
                   {statusLabel(c.status)}
                 </span>
               </div>
-              {c.contact_name && <div className="cli-card__contact"><User size={12} aria-hidden="true" /><span className="cli-ellipsis">{c.contact_name}</span></div>}
+              {c.contact_name && (
+                <div className="cli-card__contact" title={t('clicontactos.contacto_principal_de', { nombre: c.contact_name })}>
+                  <User size={12} aria-hidden="true" /><span className="cli-ellipsis">{c.contact_name}</span>
+                </div>
+              )}
+              {(c.phone || c.contact_phone) && (
+                <div className="cli-card__contact" title={c.phone ? t('clicontactos.telefono_empresa') : t('clicontactos.telefono_contacto')}>
+                  <Phone size={12} aria-hidden="true" />
+                  <span className="cli-ellipsis">{c.phone || c.contact_phone}</span>
+                  {!c.phone && <span className="cli-card__nota">({t('clicontactos.del_contacto')})</span>}
+                </div>
+              )}
               <div className="cli-card__stats">
                 <span title={t('clientspage.orden_proyectos')}><FolderKanban size={12} aria-hidden="true" />{c.projects_count ?? 0}</span>
                 <span title={t('clientspage.orden_tickets')}><Ticket size={12} aria-hidden="true" />{c.tickets_count ?? 0}</span>
@@ -355,6 +456,37 @@ export default function ClientsPage(): JSX.Element {
                   )}
                 </div>
               </div>
+              {/* Datos generales de la EMPRESA */}
+              {(detail?.phone || detail?.email || detail?.website || detail?.address) && (
+                <div className="cli-empresa-datos">
+                  {detail?.phone && <span title={t('clicontactos.telefono_empresa')}><Phone size={13} aria-hidden="true" />{detail.phone}</span>}
+                  {detail?.email && <span title={t('clicontactos.email_empresa')}><Mail size={13} aria-hidden="true" />{detail.email}</span>}
+                  {detail?.website && <span title={t('clientspage.campo_web')}><Globe size={13} aria-hidden="true" />{detail.website}</span>}
+                  {detail?.address && <span title={t('clicontactos.direccion')}><MapPin size={13} aria-hidden="true" />{detail.address}</span>}
+                </div>
+              )}
+              {/* Contacto principal (persona) */}
+              <div className="cli-contacto-principal" role="group" aria-label={t('clicontactos.seccion_contacto_principal')}>
+                <div className="u-min0">
+                  <div className="cli-contacto-principal__titulo">{t('clicontactos.seccion_contacto_principal')}</div>
+                  {principal ? (
+                    <>
+                      <div className="cli-contacto-principal__nombre">{principal.full_name}{principal.job_title && <span className="u-text2-sm"> · {principal.job_title}</span>}</div>
+                      <div className="cli-empresa-datos">
+                        {principal.email && <span title={t('clicontactos.email_contacto')}><Mail size={13} aria-hidden="true" />{principal.email}</span>}
+                        {principal.phone && <span title={t('clicontactos.telefono_contacto')}><Phone size={13} aria-hidden="true" />{principal.phone}</span>}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="cli-contacto-principal__vacio">{t('clicontactos.sin_contacto_principal')}</div>
+                  )}
+                </div>
+                {principal && (
+                  <Button size="sm" variant="secondary" icon={<Pencil size={14} />} onClick={() => setContactoAEditar(principal)}>
+                    {t('clicontactos.editar_contacto')}
+                  </Button>
+                )}
+              </div>
               {/* Chips de recursos vinculados */}
               <div className="u-wrap-8">
                 {(detail?.projects?.length ?? 0) > 0 && <span className="cli-chip cli-chip--accent cli-ico"><FolderKanban size={12} aria-hidden="true" />{t('clientspage.n_proyectos', { count: detail?.projects?.length ?? 0 })}</span>}
@@ -402,90 +534,14 @@ export default function ClientsPage(): JSX.Element {
 
       {/* Modal editar cliente */}
       {showEdit && (
-        <Modal open title={t('clientspage.editar_titulo', { name: editClientForm.name })} onClose={() => setShowEdit(false)} width={600}>
-          <div className="cli-form-grid">
-            <div>
-              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cli-label">{t('clientspage.campo_nombre')}</label>
-              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={editClientForm.name}
-                onChange={e => { camposEdit.limpiar('name'); setEditClientForm(f => ({ ...f, name: e.target.value })) }}
-                className="cli-input" />
-              {camposEdit.de('name') && <div className="u-field-error">{camposEdit.de('name')}</div>}
-            </div>
-            <div>
-              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cli-label">{t('clientspage.campo_nombre_corto')}</label>
-              <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={editClientForm.short_name}
-                onChange={e => { camposEdit.limpiar('short_name'); setEditClientForm(f => ({ ...f, short_name: e.target.value })) }}
-                className="cli-input" />
-              {camposEdit.de('short_name') && <div className="u-field-error">{camposEdit.de('short_name')}</div>}
-            </div>
-            <div>
-              <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cli-label">{t('clientspage.campo_cif')}</label>
-              <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={editClientForm.tax_id}
-                onChange={e => { camposEdit.limpiar('tax_id'); setEditClientForm(f => ({ ...f, tax_id: e.target.value })) }}
-                className="cli-input" />
-              {camposEdit.de('tax_id') && <div className="u-field-error">{camposEdit.de('tax_id')}</div>}
-            </div>
-            <div>
-              <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cli-label">{t('clientspage.campo_sector')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-4`} value={editClientForm.industry}
-                onChange={e => { camposEdit.limpiar('industry'); setEditClientForm(f => ({ ...f, industry: e.target.value })) }}
-                className="cli-input">
-                {industryOptions}
-              </Select>
-              {camposEdit.de('industry') && <div className="u-field-error">{camposEdit.de('industry')}</div>}
-            </div>
-            <div>
-              <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="cli-label">{t('clientspage.campo_contacto')}</label>
-              <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={editClientForm.contact_name}
-                onChange={e => { camposEdit.limpiar('contact_name'); setEditClientForm(f => ({ ...f, contact_name: e.target.value })) }}
-                className="cli-input" />
-              {camposEdit.de('contact_name') && <div className="u-field-error">{camposEdit.de('contact_name')}</div>}
-            </div>
-            <div>
-              <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="cli-label">{t('clientspage.campo_email')}</label>
-              <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="email" value={editClientForm.contact_email}
-                onChange={e => { camposEdit.limpiar('contact_email'); setEditClientForm(f => ({ ...f, contact_email: e.target.value })) }}
-                className="cli-input" />
-              {camposEdit.de('contact_email') && <div className="u-field-error">{camposEdit.de('contact_email')}</div>}
-            </div>
-            <div>
-              <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="cli-label">{t('clients.telefono')}</label>
-              <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={editClientForm.contact_phone}
-                onChange={e => { camposEdit.limpiar('contact_phone'); setEditClientForm(f => ({ ...f, contact_phone: e.target.value })) }}
-                className="cli-input" />
-              {camposEdit.de('contact_phone') && <div className="u-field-error">{camposEdit.de('contact_phone')}</div>}
-            </div>
-            <div>
-              <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="cli-label">{t('clientspage.campo_estado')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-8`} value={editClientForm.status}
-                onChange={e => { camposEdit.limpiar('status'); setEditClientForm(f => ({ ...f, status: e.target.value })) }}
-                className="cli-input">
-                {statusOptions}
-              </Select>
-              {camposEdit.de('status') && <div className="u-field-error">{camposEdit.de('status')}</div>}
-            </div>
-            <div>
-              <label id={`${idCampo}-etpais`} htmlFor={`${idCampo}-pais`} className="cli-label">{t('clients.pais')}</label>
-              <input id={`${idCampo}-pais`} aria-labelledby={`${idCampo}-etpais`} value={editClientForm.country}
-                onChange={e => { camposEdit.limpiar('country'); setEditClientForm(f => ({ ...f, country: e.target.value })) }}
-                className="cli-input" placeholder={t('clients.pais')} />
-              {camposEdit.de('country') && <div className="u-field-error">{camposEdit.de('country')}</div>}
-            </div>
-            <div>
-              <label id={`${idCampo}-etciudad`} htmlFor={`${idCampo}-ciudad`} className="cli-label">{t('clientspage.campo_ciudad')}</label>
-              <input id={`${idCampo}-ciudad`} aria-labelledby={`${idCampo}-etciudad`} value={editClientForm.city}
-                onChange={e => { camposEdit.limpiar('city'); setEditClientForm(f => ({ ...f, city: e.target.value })) }}
-                className="cli-input" placeholder={t('clientspage.campo_ciudad')} />
-              {camposEdit.de('city') && <div className="u-field-error">{camposEdit.de('city')}</div>}
-            </div>
-            <div className="u-col-full">
-              <label id={`${idCampo}-etweb`} htmlFor={`${idCampo}-web`} className="cli-label">{t('clientspage.campo_web')}</label>
-              <input id={`${idCampo}-web`} aria-labelledby={`${idCampo}-etweb`} value={editClientForm.website}
-                onChange={e => { camposEdit.limpiar('website'); setEditClientForm(f => ({ ...f, website: e.target.value })) }}
-                className="cli-input" placeholder={t('clientspage.placeholder_web')} />
-              {camposEdit.de('website') && <div className="u-field-error">{camposEdit.de('website')}</div>}
-            </div>
-          </div>
+        <Modal open title={t('clientspage.editar_titulo', { name: editClientForm.name })} onClose={() => setShowEdit(false)} width={640}>
+          <CamposEmpresa idBase={`${idCampo}-edit`} t={t} form={editClientForm}
+            onCampo={(k, v) => { camposEdit.limpiar(k); setEditClientForm(f => ({ ...f, [k]: v })) }}
+            errorDe={k => camposEdit.de(k)} opcionesSector={industryOptions} opcionesEstado={statusOptions} />
+          <SelectorContactoPrincipal idBase={`${idCampo}-edit-contacto`} contactos={contactos}
+            valor={contactoElegido} onCambiar={v => { camposEdit.limpiar('primary_contact_id'); setContactoElegido(v) }}
+            nuevo={contactoNuevo} onCambiarNuevo={(k, v) => { camposEdit.limpiar(k); setContactoNuevo(n => ({ ...n, [k]: v })) }}
+            errorDe={k => camposEdit.de(k)} />
           <div className="u-mb-16">
             <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="cli-label">{t('clientspage.campo_notas')}</label>
             <textarea id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} value={editClientForm.notes}
@@ -500,58 +556,51 @@ export default function ClientsPage(): JSX.Element {
             <Button
               loading={updatingClient}
               disabled={!editClientForm.name || updatingClient}
-              onClick={() => selected && updateClient({ id: selected.id, data: editClientForm })}>
+              onClick={() => selected && updateClient({ id: selected.id, data: {
+                ...editClientForm,
+                // Existente → primary_contact_id; nuevo → contact_* (el servidor lo crea o reutiliza).
+                ...datosDeContactoPrincipal(contactos.length > 0, contactoElegido, contactoNuevo),
+              } })}>
               {updatingClient ? t('clientspage.guardando') : t('clientspage.guardar_cambios')}
             </Button>
           </div>
         </Modal>
       )}
 
+      {/* Modal editar contacto (tarjeta «Contacto principal») */}
+      {contactoAEditar && selected && (
+        <ModalEditarContacto cid={selected.id} contacto={contactoAEditar} onClose={() => setContactoAEditar(null)} />
+      )}
+
       {/* Modal nuevo cliente */}
       {showCreate && (() => {
-        const setCreateField = (key: string) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-          const value = e.target.value
-          setNewForm(f => ({ ...f, [key]: value }))
-          createValidation.clearFieldError(key)
-          camposNuevo.limpiar(key)
-        }
+        const datosDelAlta = () => ({ ...newForm, ...datosDeContactoPrincipal(false, '', contactoNuevo) })
         const submitCreate = () => {
-          const result = createValidation.validateForm(newForm)
+          const result = createValidation.validateForm({ ...newForm, ...contactoNuevo })
           if (!result.success) return
-          create(newForm)
+          create(datosDelAlta())
         }
-        const errId = (key: string) => `${idCampo}-err-${key}`
-        // Props de error de un campo: marca aria-invalid (lo pinta .cli-input) y lo enlaza al mensaje.
         const errTxt = (key: string) => createValidation.errors[key] ?? camposNuevo.de(key)
-        const errProps = (key: string) => errTxt(key)
-          ? { 'aria-invalid': true as const, 'aria-describedby': errId(key) }
-          : {}
-        const errField = (key: string) => errTxt(key) && (
-          <div id={errId(key)} className="u-field-error">{errTxt(key)}</div>
-        )
+        const limpiarError = (key: string) => { createValidation.clearFieldError(key); camposNuevo.limpiar(key) }
+        const cerrar = () => { setShowCreate(false); createValidation.setErrors({}) }
         return (
-        <Modal open title={t('clients.new_client')} onClose={() => { setShowCreate(false); createValidation.setErrors({}) }} width={600}>
-          <div className="cli-form-grid">
-            <div><label id={`${idCampo}-etnuevo515`} htmlFor={`${idCampo}-nuevo515`} className="cli-label">{t('clientspage.campo_nombre')}</label><input id={`${idCampo}-nuevo515`} aria-labelledby={`${idCampo}-etnuevo515`} value={newForm.name} onChange={setCreateField('name')} className="cli-input" {...errProps('name')} />{errField('name')}</div>
-            <div><label id={`${idCampo}-etnuevo516`} htmlFor={`${idCampo}-nuevo516`} className="cli-label">{t('clientspage.campo_nombre_corto')}</label><input id={`${idCampo}-nuevo516`} aria-labelledby={`${idCampo}-etnuevo516`} value={newForm.short_name} onChange={setCreateField('short_name')} className="cli-input" {...errProps('short_name')} />{errField('short_name')}</div>
-            <div><label id={`${idCampo}-etnuevo517`} htmlFor={`${idCampo}-nuevo517`} className="cli-label">{t('clientspage.campo_cif')}</label><input id={`${idCampo}-nuevo517`} aria-labelledby={`${idCampo}-etnuevo517`} value={newForm.tax_id} onChange={setCreateField('tax_id')} className="cli-input" {...errProps('tax_id')} />{errField('tax_id')}</div>
-            <div><label id={`${idCampo}-etnuevo518`} htmlFor={`${idCampo}-nuevo518`} className="cli-label">{t('clientspage.campo_sector')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-nuevo518`} value={newForm.industry} onChange={setCreateField('industry')} className="cli-input">
-                {industryOptions}
-              </Select>{errField('industry')}
-            </div>
-            <div><label id={`${idCampo}-etnuevo523`} htmlFor={`${idCampo}-nuevo523`} className="cli-label">{t('clientspage.campo_contacto')}</label><input id={`${idCampo}-nuevo523`} aria-labelledby={`${idCampo}-etnuevo523`} value={newForm.contact_name} onChange={setCreateField('contact_name')} className="cli-input" {...errProps('contact_name')} />{errField('contact_name')}</div>
-            <div><label id={`${idCampo}-etnuevo524`} htmlFor={`${idCampo}-nuevo524`} className="cli-label">{t('clientspage.campo_email')}</label><input id={`${idCampo}-nuevo524`} aria-labelledby={`${idCampo}-etnuevo524`} type="email" value={newForm.contact_email} onChange={setCreateField('contact_email')} className="cli-input" {...errProps('contact_email')} />{errField('contact_email')}</div>
-            <div><label id={`${idCampo}-etnuevo525`} htmlFor={`${idCampo}-nuevo525`} className="cli-label">{t('clients.telefono')}</label><input id={`${idCampo}-nuevo525`} aria-labelledby={`${idCampo}-etnuevo525`} value={newForm.contact_phone} onChange={setCreateField('contact_phone')} className="cli-input" {...errProps('contact_phone')} />{errField('contact_phone')}</div>
-            <div><label id={`${idCampo}-etnuevo526`} htmlFor={`${idCampo}-nuevo526`} className="cli-label">{t('clientspage.campo_estado')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-nuevo526`} value={newForm.status} onChange={setCreateField('status')} className="cli-input">
-                {statusOptions}
-              </Select>{errField('status')}
-            </div>
+        <Modal open title={t('clients.new_client')} onClose={cerrar} width={640}>
+          <CamposEmpresa idBase={`${idCampo}-nuevo`} t={t} form={newForm}
+            onCampo={(k, v) => { setNewForm(f => ({ ...f, [k]: v })); limpiarError(k) }}
+            errorDe={errTxt} opcionesSector={industryOptions} opcionesEstado={statusOptions} />
+          <SelectorContactoPrincipal idBase={`${idCampo}-nuevo-contacto`} contactos={[]}
+            valor="" onCambiar={() => undefined}
+            nuevo={contactoNuevo} onCambiarNuevo={(k, v) => { setContactoNuevo(n => ({ ...n, [k]: v })); limpiarError(k) }}
+            errorDe={errTxt} />
+          <div className="u-mb-16">
+            <label id={`${idCampo}-etnuevo-notas`} htmlFor={`${idCampo}-nuevo-notas`} className="cli-label">{t('clientspage.campo_notas')}</label>
+            <textarea id={`${idCampo}-nuevo-notas`} aria-labelledby={`${idCampo}-etnuevo-notas`} value={newForm.notes}
+              onChange={(e: ChangeEvent<HTMLTextAreaElement>) => { const v = e.target.value; setNewForm(f => ({ ...f, notes: v })); limpiarError('notes') }}
+              className="cli-input" aria-invalid={errTxt('notes') ? true : undefined} />
+            {errTxt('notes') && <div className="u-field-error">{errTxt('notes')}</div>}
           </div>
-          <div className="u-mb-16"><label id={`${idCampo}-etnuevo532`} htmlFor={`${idCampo}-nuevo532`} className="cli-label">{t('clientspage.campo_notas')}</label><textarea id={`${idCampo}-nuevo532`} aria-labelledby={`${idCampo}-etnuevo532`} value={newForm.notes} onChange={setCreateField('notes')} className="cli-input" {...errProps('notes')} />{errField('notes')}</div>
           <div className="u-actions-8">
-            <Button variant="secondary" onClick={() => { setShowCreate(false); createValidation.setErrors({}) }}>{t('clientspage.cancelar')}</Button>
+            <Button variant="secondary" onClick={cerrar}>{t('clientspage.cancelar')}</Button>
             <Button onClick={submitCreate} disabled={creating} loading={creating}>
               {creating ? t('clientspage.creando') : t('clientspage.crear_cliente')}
             </Button>

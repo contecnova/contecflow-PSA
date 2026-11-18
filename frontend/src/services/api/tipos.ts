@@ -33,6 +33,10 @@ export interface ClientContact {
   is_primary?: boolean
   notes?: string | null
   is_active?: boolean
+  /** Usuario del portal enlazado al contacto (null: sin acceso). */
+  portal_user_id?: string | null
+  /** null: sin acceso al portal; false: su usuario del portal está desactivado. */
+  portal_active?: boolean | null
 }
 
 /** RiskIn: probability e impact son cualitativos (low/medium/high...). Algunas

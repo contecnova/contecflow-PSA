@@ -76,6 +76,11 @@ def _actividad():
     return ActivityEvent
 
 
+def _contacto_de_cliente():
+    from app.models.clients import ClientContact
+    return ClientContact
+
+
 TIPOS: dict[str, Tipo] = {
     # Sólo tickets cerrados, contando desde el cierre.
     "tickets": Tipo(_ticket, lambda M: M.closed_at, lambda M: M.closed_at.isnot(None),
@@ -97,6 +102,10 @@ TIPOS: dict[str, Tipo] = {
     "absence_documents": Tipo(_documento_de_ausencia, lambda M: M.subido_en, None, ("id", "absence_id", "user_id")),
     "activity_events": Tipo(_actividad, lambda M: M.created_at, None,
                             ("id", "actor_id", "entity_type", "entity_id", "target_id")),
+    # 18-11-2026: personas de un cliente (datos personales). Sólo las
+    # desactivadas, desde que se desactivaron; las activas son el cliente vivo.
+    "client_contacts": Tipo(_contacto_de_cliente, lambda M: func.coalesce(M.deactivated_at, M.created_at),
+                            lambda M: M.is_active.is_(False), ("id", "client_id", "email")),
 }
 
 

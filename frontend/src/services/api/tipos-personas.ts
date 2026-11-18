@@ -444,6 +444,7 @@ export type Oportunidad = {
   name: string
   client_id: string | null
   client_name: string | null
+  /** Contacto propio de la oportunidad (no el contacto principal del cliente). */
   contact_name: string | null
   stage: EtapaDeOportunidad
   stage_label: string

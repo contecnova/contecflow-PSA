@@ -163,3 +163,26 @@ textarea.cli-input { min-height: 70px; resize: vertical; }
 .cli-tag { font-size: var(--text-2xs); padding: 2px 6px; border-radius: 4px; }
 .cli-tag--neutral { background: var(--surface-4); color: var(--text-2); }
 .cli-tag--accent { background: var(--accent-muted); color: var(--accent); }
+
+/* ── Empresa frente a contacto principal (persona) ───────────────────────── */
+.cli-seccion { margin-bottom: 16px; }
+.cli-seccion + .cli-seccion { border-top: 1px solid var(--surface-4); padding-top: 14px; }
+.cli-seccion__titulo { font-size: var(--text-sm); font-weight: 700; color: var(--text-1); margin-bottom: 10px; }
+.cli-empresa-datos { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 6px 0 10px; color: var(--text-2); font-size: var(--text-sm); }
+.cli-empresa-datos > span { display: inline-flex; align-items: center; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
+.cli-contacto-principal {
+  background: var(--surface-2);
+  border: 1px solid var(--surface-4);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.cli-contacto-principal__titulo { font-size: var(--text-xs); font-weight: 700; color: var(--text-2); margin-bottom: 4px; }
+.cli-contacto-principal__nombre { font-weight: 700; }
+.cli-contacto-principal__vacio { color: var(--text-3); font-size: var(--text-sm); }
+.cli-card__nota { color: var(--text-3); font-size: var(--text-2xs); }

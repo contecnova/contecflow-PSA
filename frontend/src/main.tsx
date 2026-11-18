@@ -15,6 +15,7 @@
 })()
 
 import React from 'react'
+import { registrarClienteDeConsultas } from './services/api/refrescoTrasEscritura'
 import type { ReactNode } from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
@@ -146,6 +147,8 @@ const queryClient = new QueryClient({
     },
   },
 })
+// Tras cualquier escritura con éxito se refrescan las pantallas (refrescoTrasEscritura.ts).
+registrarClienteDeConsultas(queryClient)
 
 // Suppress the React DevTools development hint — informational-only, not actionable.
 if (import.meta.env.DEV) {
