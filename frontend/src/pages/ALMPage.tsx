@@ -587,7 +587,7 @@ function ContractModal({ contract, vendors, users, costCenters, onClose }: { con
         <div>
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="alm-label">{t('alm.contracts_label_type')}</label>
           <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.type} onChange={s('type')} className="alm-input">
-            {Object.entries(CONTRACT_TYPES).map(([k,v]) => <option key={k} value={k}>{v.icon} {t(`alm.contract_type_${k}`)}</option>)}
+            {Object.entries(CONTRACT_TYPES).map(([k,v]) => <option key={k} value={k}>{t(`alm.contract_type_${k}`)}</option>)}
           </Select>{msgC('type')}
         </div>
         <div>
@@ -1365,7 +1365,7 @@ function AssetsTab() {
           className="alm-input alm-toolbar__search" />
         <Select suelto placeholder={false} aria-label={t('alm.assets_filter_type_aria')} value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1) }} className="alm-input alm-toolbar__select--fixed">
           <option value="">{t('alm.assets_filter_all_types')}</option>
-          {Object.entries(ASSET_TYPES).map(([k,v]) => <option key={k} value={k}>{v.icon} {t(`alm.asset_type_${k}`)}</option>)}
+          {Object.entries(ASSET_TYPES).map(([k,v]) => <option key={k} value={k}>{t(`alm.asset_type_${k}`)}</option>)}
         </Select>
         <Select suelto placeholder={false} aria-label={t('alm.assets_filter_status_aria')} value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }} className="alm-input alm-toolbar__select--fixed">
           <option value="">{t('alm.assets_filter_all_statuses')}</option>

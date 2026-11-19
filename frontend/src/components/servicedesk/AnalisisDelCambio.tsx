@@ -80,7 +80,7 @@ function Plan({ cambio, clave, leer, generar }: {
     <div className="u-stack-10">
       <div className="u-row-end"><Button size="sm" variant="secondary" onClick={() => gen.mutate()} loading={gen.isPending}>{t(q.data ? 'sd_mercado.regenerar' : 'sd_mercado.generar')}</Button></div>
       {q.isLoading ? <Spinner /> : q.data ? <VistaDeDatos datos={q.data} />
-        : <EmptyState icon={<FileText size={28} />} title={t(err404(q.error) ? 'sd_mercado.plan_sin_generar' : 'sd_mercado.error_carga')} />}
+        : <EmptyState icon={<FileText size={28} />} title={t(q.isError && !err404(q.error) ? 'sd_mercado.error_carga' : 'sd_mercado.plan_sin_generar')} />}
     </div>
   )
 }

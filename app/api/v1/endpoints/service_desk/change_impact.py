@@ -84,6 +84,9 @@ def get_impact_analysis(
     current_user: User = Depends(get_current_user),
 ):
     _cambio_propio(db, change_id, current_user)
+    # 19-11-2026: «aún no se ha generado» no es un error: 200 con data=null.
+    # El 404 queda para un cambio que no existe (`_cambio_propio`); antes el
+    # navegador anotaba un 404 en la consola cada vez que se abría el cambio.
     return APIResponse.ok(data=get_cached_impact_analysis(db, change_id))
 
 
@@ -116,10 +119,10 @@ def get_rollback_plan(
 ):
     _cambio_propio(db, change_id, current_user)
     from fastapi import HTTPException
-    plan = _get_json_setting(db, f"sd.change.rollback.{change_id}")
-    if not plan:
-        raise error_http(404, "rollback_plan_no_generado", detail="Rollback plan no encontrado. Ejecuta POST primero.")
-    return APIResponse.ok(data=plan)
+    # 19-11-2026: «aún no se ha generado» no es un error: 200 con data=null.
+    # El 404 queda para un cambio que no existe (`_cambio_propio`); antes el
+    # navegador anotaba un 404 en la consola cada vez que se abría el cambio.
+    return APIResponse.ok(data=_get_json_setting(db, f"sd.change.rollback.{change_id}") or None)
 
 
 # ── Testing Plan ──────────────────────────────────────────────────────────────
@@ -148,10 +151,10 @@ def get_testing_plan(
 ):
     _cambio_propio(db, change_id, current_user)
     from fastapi import HTTPException
-    plan = _get_json_setting(db, f"sd.change.testing.{change_id}")
-    if not plan:
-        raise error_http(404, "testing_plan_no_generado", detail="Plan de pruebas no encontrado. Ejecuta POST /testing-plan primero.")
-    return APIResponse.ok(data=plan)
+    # 19-11-2026: «aún no se ha generado» no es un error: 200 con data=null.
+    # El 404 queda para un cambio que no existe (`_cambio_propio`); antes el
+    # navegador anotaba un 404 en la consola cada vez que se abría el cambio.
+    return APIResponse.ok(data=_get_json_setting(db, f"sd.change.testing.{change_id}") or None)
 
 
 # ── Communications Plan ───────────────────────────────────────────────────────
@@ -181,10 +184,10 @@ def get_comms_plan(
 ):
     _cambio_propio(db, change_id, current_user)
     from fastapi import HTTPException
-    plan = _get_json_setting(db, f"sd.change.comms.{change_id}")
-    if not plan:
-        raise error_http(404, "comms_plan_no_generado", detail="Plan de comunicaciones no encontrado. Ejecuta POST /comms-plan primero.")
-    return APIResponse.ok(data=plan)
+    # 19-11-2026: «aún no se ha generado» no es un error: 200 con data=null.
+    # El 404 queda para un cambio que no existe (`_cambio_propio`); antes el
+    # navegador anotaba un 404 en la consola cada vez que se abría el cambio.
+    return APIResponse.ok(data=_get_json_setting(db, f"sd.change.comms.{change_id}") or None)
 
 
 # ── What-If Simulation ────────────────────────────────────────────────────────

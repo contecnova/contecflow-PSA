@@ -66,10 +66,10 @@ def get_workflow(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    # 19-11-2026: sin workflow iniciado todavía → 200 con data=null (no 404):
+    # la ficha del cambio lo consulta siempre y la pantalla ofrece iniciarlo.
     state = svc.get_workflow(db, change_id=change_id)
-    if not state:
-        raise HTTPException(status_code=404, detail='workflow_cab_not_found')
-    return APIResponse.ok(data=state)
+    return APIResponse.ok(data=state or None)
 
 
 @router.post('/changes/{change_id}/cab/meeting', summary='Programar meeting CAB')

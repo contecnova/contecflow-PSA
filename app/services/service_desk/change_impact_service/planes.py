@@ -60,12 +60,10 @@ def analyze_change_impact_full(
     return report
 
 
-def get_cached_impact_analysis(db: Session, change_id: str) -> dict:
-    """Return cached impact analysis or 404."""
-    result = _get_json_setting(db, f"sd.change.impact.{change_id}")
-    if not result:
-        raise error(404, "no_encontrado", detail="Análisis de impacto no encontrado. Ejecuta POST /impact-analysis primero.", que="analisis_de_impacto")
-    return result
+def get_cached_impact_analysis(db: Session, change_id: str) -> Optional[dict]:
+    """El análisis de impacto guardado, o None si aún no se ha generado (19-11-2026:
+    antes 404; quien llama comprueba antes que el cambio existe)."""
+    return _get_json_setting(db, f"sd.change.impact.{change_id}") or None
 
 
 def generate_rollback_plan(
