@@ -271,7 +271,6 @@ const NAV_GROUPS: NavGroupConfig[] = [
     { to: '/cumulative-flow', icon: <BarChart2 size={SZ} />,       label: 'Cumulative Flow' },
     { to: '/risk-scores',     icon: <Shield size={SZ} />,          label: 'Project Risk' },
     { to: '/exports',         icon: <Download size={SZ} />,        label: 'Data Export' },
-    { divider: true },
     { to: '/data-platform',   icon: <Database size={SZ} />,        label: 'Data Platform' },
     { to: '/data-governance', icon: <Shield size={SZ} />,          label: 'Data Governance' },
   ]},
