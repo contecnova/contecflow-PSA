@@ -329,21 +329,29 @@ export default function GanttChart({
     const startX = e.clientX
     const origS  = parseDate(item.start_date)
     const origE  = parseDate(item.due_date || item.end_date_planned || item.end_date)
+    // 19-11-2026: lo último arrastrado se guarda aquí y se avisa al soltar FUERA
+    // del actualizador de estado (llamar a `onTaskUpdate` dentro de
+    // `setDragState(prev => ...)` actualizaba GanttPage durante el render de
+    // GanttChart: aviso «Cannot update a component while rendering»).
+    let ultimo: DragState | null = null
     const onMove = (me: MouseEvent) => {
       const dDays = Math.round((me.clientX - startX) / dayPx)
       if (type === 'move') {
-        setDragState({ id: item.id, start: fmtDate(origS ? addDays(origS, dDays) : null), end: fmtDate(origE ? addDays(origE, dDays) : null), type: 'move' })
+        ultimo = { id: item.id, start: fmtDate(origS ? addDays(origS, dDays) : null), end: fmtDate(origE ? addDays(origE, dDays) : null), type: 'move' }
+        setDragState(ultimo)
       } else {
         if (!origE) return
         const rawE = addDays(origE, dDays)
         const minE = origS ? addDays(origS, 1) : rawE
-        setDragState({ id: item.id, start: fmtDate(origS), end: fmtDate(rawE > minE ? rawE : minE), type: 'resize' })
+        ultimo = { id: item.id, start: fmtDate(origS), end: fmtDate(rawE > minE ? rawE : minE), type: 'resize' }
+        setDragState(ultimo)
       }
     }
     const onUp = () => {
       document.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseup', onUp)
-      setDragState(prev => { if (prev) onTaskUpdate(prev); return null })
+      setDragState(null)
+      if (ultimo) onTaskUpdate(ultimo)
     }
     document.addEventListener('mousemove', onMove)
     document.addEventListener('mouseup', onUp)
