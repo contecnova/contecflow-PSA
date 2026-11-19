@@ -22,7 +22,7 @@ vi.mock('../i18n/AppLangContext', () => ({
   useAppT: () => (k: string) => k,
   useAppLang: () => ({ t: (k: string) => k, lang: 'es' }),
 }))
-vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ hasRole: () => true }) }))
+vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ puede: () => true }) }))
 vi.mock('../components/SmartScheduleModal', () => ({ default: () => null }))
 
 import GanttPage from '../pages/GanttPage'

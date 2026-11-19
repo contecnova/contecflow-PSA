@@ -28,7 +28,7 @@ vi.mock('../context/ConfirmContext', () => ({
 }))
 vi.mock('../i18n/AppLangContext', () => ({ useAppT: () => (k: string, p?: Record<string, unknown>) => (p ? `${k} ${JSON.stringify(p)}` : k) }))
 vi.mock('../context/AuthContext', () => ({
-  useAuth: () => ({ user: { role: estado.rol }, hasRole: (...r: string[]) => r.includes(estado.rol) }),
+  useAuth: () => ({ user: { role: estado.rol }, puede: (c: string) => puedeComo(estado.rol)(c) }),
 }))
 
 import PanelDelPlan from '../components/planificador/PanelDelPlan'
@@ -38,6 +38,7 @@ import VistasDeTrabajo from '../components/planificador/VistasDeTrabajo'
 import es from '../i18n/langs/es.mjs'
 import en from '../i18n/langs/en.mjs'
 import zh from '../i18n/langs/zh.mjs'
+import { puedeComo } from './capacidadesDelBackend'
 
 const envolver = (n: ReactNode) => render(
   <MemoryRouter>

@@ -17,9 +17,9 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from app.core.errores import ErrorDeDominio
 from app.models.settings import AppSetting
 import logging
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -81,10 +81,10 @@ def save_layout(db: Session, organization_id: Optional[str], role: str, layout: 
     """Guarda el panel de la persona (`user_id`) o, sin el, el de la empresa."""
     widgets = (layout or {}).get("widgets")
     if not isinstance(widgets, list) or not widgets:
-        raise ErrorDeDominio(422, "El panel necesita al menos un widget")
+        raise error(422, "panel_sin_widgets")
     desconocidos = [w for w in widgets if w not in WIDGETS]
     if desconocidos:
-        raise ErrorDeDominio(422, f"Widgets desconocidos: {', '.join(map(str, desconocidos))}")
+        raise error(422, "widgets_desconocidos", widgets=', '.join(map(str, desconocidos)))
     limpio = {"widgets": list(dict.fromkeys(widgets))[:MAX_WIDGETS]}
     clave = _key(role, user_id)
     setting = (db.query(AppSetting)

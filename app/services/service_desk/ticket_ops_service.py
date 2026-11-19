@@ -184,4 +184,5 @@ def commit_or_rollback(db, detail: str = "Error de transacción") -> None:
     except Exception:
         db.rollback()
         _logger.exception("Database transaction failed in service_desk")
-        raise ErrorDeDominio(500, detail)
+        from app.core.codigos_de_error import error
+        raise error(500, "error_interno", detail=detail)

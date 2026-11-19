@@ -15,6 +15,7 @@ from app.models.project import Project
 from app.models.task import Task, TaskStatus
 from app.core import timeutil
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -111,7 +112,7 @@ def resource_demand_payload(db: Session, horizon_months: int, min_probability: f
 def create_demand_line_record(db: Session, payload) -> dict:
     opp = db.query(Opportunity).filter(Opportunity.id == payload.opportunity_id).first()
     if not opp:
-        raise ErrorDeDominio(404, "Opportunity not found")
+        raise error(404, "no_encontrado", detail="Opportunity not found", que="oportunidad")
     d = payload.model_dump()
     if d.get("start_date"):
         d["start_date"] = date.fromisoformat(d["start_date"])
@@ -178,7 +179,7 @@ def simulate_project_payload(db: Session, project_id: str, payload) -> dict:
         Task.status.not_in([TaskStatus.done, TaskStatus.cancelled]),
     ).all()
     if not tasks:
-        raise ErrorDeDominio(404, "No open tasks found")
+        raise error(404, "no_encontrado", detail="No open tasks found", que="tarea")
 
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:

@@ -12,6 +12,7 @@ from app.services.service_desk.scoping import scope_kb_query
 from app.services.sla_service import next_kb_number as _next_kb_number
 import logging
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -205,7 +206,7 @@ def create_kb_from_ticket(db: Session, ticket_id: str, title: str, author_id: st
     if not ticket:
         raise ErrorDeDominio(404)
     if not ticket.resolution:
-        raise ErrorDeDominio(400, "El ticket no tiene resolución")
+        raise error(400, "ticket_sin_resolucion")
 
     article = KBArticle(
         number=_next_kb_number(db),
@@ -295,7 +296,7 @@ def rollback_kb_to_version(
         .first()
     )
     if not target:
-        raise ErrorDeDominio(404, "KB version not found")
+        raise error(404, "no_encontrado", detail="KB version not found", que="version_kb")
 
     article.title = target.title
     article.body = target.body
@@ -335,7 +336,7 @@ def puede_publicar(db: Session, user: User) -> bool:
 
 def exigir_que_pueda_publicar(db: Session, user: User, nuevo_estado) -> None:
     if getattr(nuevo_estado, "value", nuevo_estado) == KBStatus.published.value and not puede_publicar(db, user):
-        raise ErrorDeDominio(403, "Este artículo necesita revisión: envíalo a revisar")
+        raise error(403, "kb_requiere_revision")
 
 
 def revisores(db: Session, user: User) -> list[str]:
@@ -353,7 +354,7 @@ def enviar_a_revision(db: Session, article: KBArticle, user: User) -> None:
     from app.services.notifications import notify_user
 
     if article.status not in (KBStatus.draft, KBStatus.draft.value):
-        raise ErrorDeDominio(409, "Solo se envía a revisión un borrador")
+        raise error(409, "kb_solo_borrador_a_revision")
     article.status = KBStatus.in_review
     article.review_comment = None
     for uid in revisores(db, user):
@@ -368,11 +369,11 @@ def revisar(db: Session, article: KBArticle, user: User, publicar: bool, comenta
     from app.services.service_desk.kb_sugerencias import refrescar_vector
 
     if article.status not in (KBStatus.in_review, KBStatus.in_review.value):
-        raise ErrorDeDominio(409, "El artículo no está en revisión")
+        raise error(409, "kb_no_en_revision")
     if not puede_publicar(db, user):
-        raise ErrorDeDominio(403, "Solo un revisor puede publicar")
+        raise error(403, "kb_solo_revisor_publica")
     if not publicar and not (comentario or "").strip():
-        raise ErrorDeDominio(422, "Devolver un artículo pide decir qué cambiar")
+        raise error(422, "kb_devolver_sin_motivo", detail="Devolver un artículo pide decir qué cambiar")
     article.reviewer_id = user.id
     article.review_comment = (comentario or "").strip() or None
     if publicar:

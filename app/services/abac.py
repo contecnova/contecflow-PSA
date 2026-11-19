@@ -17,6 +17,7 @@ from sqlalchemy import func
 from sqlalchemy import text
 import logging
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -941,5 +942,5 @@ DEFAULT_ABAC_ATTRIBUTES = [
 
 def get_org_id(user) -> str:
     if not user.organization_id:
-        raise ErrorDeDominio(400, "User has no organization")
+        raise error(400, "sin_empresa", detail="User has no organization")
     return str(user.organization_id)

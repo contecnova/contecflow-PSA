@@ -22,6 +22,7 @@ from app.services.service_desk.ticket_events import registrar
 from app.services.sla_service import aware
 import logging
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -63,29 +64,29 @@ def validate_escalation_rule(payload: EscalationRuleIn) -> None:
         trigger = EscalationTrigger(payload.trigger)
         action = EscalationAction(payload.action)
     except ValueError as exc:
-        raise ErrorDeDominio(400, str(exc))
+        raise error(400, "tipo_no_valido", detail=str(exc))
     if trigger == EscalationTrigger.idle_hours and not (payload.idle_hours_threshold or 0) > 0:
-        raise ErrorDeDominio(422, "La regla de inactividad necesita las horas")
+        raise error(422, "escalado_sin_horas")
     if action == EscalationAction.reassign_group and not payload.target_group_id:
-        raise ErrorDeDominio(422, "Falta la cola de destino")
+        raise error(422, "escalado_sin_cola")
     if action == EscalationAction.elevate_priority:
         try:
             TicketPriority(payload.target_priority or "")
         except ValueError:
-            raise ErrorDeDominio(422, "Falta la prioridad nueva")
+            raise error(422, "escalado_sin_prioridad")
     if action == EscalationAction.notify_custom:
         try:
             ids = json.loads(payload.notify_user_ids or "[]")
         except ValueError:
             ids = None
         if not isinstance(ids, list) or not ids:
-            raise ErrorDeDominio(422, "Falta a quién avisar")
+            raise error(422, "escalado_sin_destinatario")
     if payload.applies_to_priority:
         try:
             prioridades = json.loads(payload.applies_to_priority)
             [TicketPriority(p) for p in prioridades]
         except (ValueError, TypeError):
-            raise ErrorDeDominio(422, "Prioridades inválidas")
+            raise error(422, "prioridad_no_valida", detail="Prioridades inválidas")
 
 
 def build_escalation_rule(payload: EscalationRuleIn) -> EscalationRule:

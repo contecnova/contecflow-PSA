@@ -34,6 +34,8 @@ import {
   type PortalIcon, metaItems,
 } from './PortalUI'
 import { localeActivo, fmtDate, fmtDateTime } from '../../utils/helpers'
+import { conDefectos, tonoDe } from '../../utils/umbrales'
+import type { Umbrales } from '../../utils/umbrales'
 import type { ApiError } from '../../services/api'
 import { STALE_DEFAULT_MS, STALE_SHORT_MS } from '../../constants/timings'
 import './PortalDashboard.css'
@@ -84,6 +86,8 @@ interface PortalDashboardData {
   kpis?: DashKpis
   service_desk?: DashServiceDesk
   recent_activity?: DashActivity[]
+  /** Umbrales de semáforo de la empresa (19-11-2026; el portal no lee /settings/org-defaults). */
+  umbrales?: Partial<Umbrales>
 }
 
 interface DashMilestone {
@@ -303,6 +307,10 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
   const sd: DashServiceDesk = dash.service_desk || {}
   const milestones: DashMilestone[] = projectFull?.milestones || []
   const deliverables: DashDeliverable[] = projectFull?.deliverables || []
+  // 19-11-2026: una definición por métrica (presupuesto, SLA, hitos) para todo el producto.
+  const umbrales = conDefectos(dash.umbrales)
+  const horizonteHitos = umbrales.sueltos.UMBRAL_HITOS_HORIZONTE_DIAS
+  const hitoInminente = umbrales.sueltos.UMBRAL_HITOS_INMINENTE_DIAS
 
   const today = new Date()
   const startDate = project.start_date ? new Date(project.start_date) : null
@@ -329,7 +337,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
   const upcomingMilestones = milestones
     .filter(m => !m.is_completed && m.due_date)
     .map(m => ({ ...m, days: Math.round((+new Date(m.due_date) - +today) / 86400000) }))
-    .filter(m => m.days <= 60)
+    .filter(m => m.days <= horizonteHitos)
     .sort((a, b) => a.days - b.days)
     .slice(0, 4)
 
@@ -505,11 +513,11 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
         />
         <PortalKpi
           icon={Wallet}
-          tone={budgetPct > 90 ? 'danger' : budgetPct > 75 ? 'warning' : 'success'}
+          tone={tonoDe('presupuesto', budgetPct, umbrales)}
           label={traducir('uikit.presupuesto')}
           value={`${budgetPct}%`}
           sub={kpis.budget_total ? `${(kpis.budget_spent || 0).toLocaleString(localeActivo())}h / ${kpis.budget_total.toLocaleString(localeActivo())}h` : t('pdash_no_budget')}
-          footer={<PortalProgress value={budgetPct} />}
+          footer={<PortalProgress value={budgetPct} umbrales={umbrales} />}
         />
         <PortalKpi
           icon={Target} tone="accent"
@@ -541,7 +549,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
         />
         <PortalKpi
           icon={ShieldCheck}
-          tone={slaCompliance == null ? 'default' : slaCompliance >= 90 ? 'success' : slaCompliance >= 75 ? 'warning' : 'danger'}
+          tone={tonoDe('sla', slaCompliance, umbrales) ?? 'default'}
           label={traducir('reportes_presets.p14')}
           value={slaCompliance != null ? `${slaCompliance}%` : '—'}
           sub={tf('pdash_sla_sub', { resp: sd.response_breached_open || 0, resol: sd.resolution_breached_open || 0 })}
@@ -588,14 +596,14 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
         </PortalCard>
 
         <PortalCard>
-          <PortalSection title={traducir('portaldashboard.proximos_hitos')} hint={t('pdash_next60')}
+          <PortalSection title={traducir('portaldashboard.proximos_hitos')} hint={t('pdash_next60', { n: horizonteHitos })}
             action={<PortalButton variant="ghost" size="sm" onClick={() => go('roadmap')} icon={<ArrowRight size={13} />}>{t('nav_roadmap')}</PortalButton>}>
             {upcomingMilestones.length === 0 ? (
               <PortalEmpty icon={CalendarDays} title={traducir('portaldashboard.no_hay_hitos_previstos_a_corto_plazo')} />
             ) : (
               <div className="u-stack-10">
                 {upcomingMilestones.map(m => {
-                  const tone = m.days < 0 ? 'danger' : m.days < 7 ? 'warning' : 'accent'
+                  const tone = m.days < 0 ? 'danger' : m.days < hitoInminente ? 'warning' : 'accent'
                   return (
                     <div key={m.id} className="u-row-center-12">
                       <div className="portdash-row-14 portal-dashboard-e6" style={{ '--portal-dashboard-background': tone === 'danger' ? 'var(--danger-bg, rgba(239,68,68,0.12))'
@@ -608,7 +616,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
                           {m.billing_pct ? ` · ${tf('pdash_billing_pct', { n: m.billing_pct })}` : ''}
                         </div>
                       </div>
-                      <PortalBadge tone={tone}>{m.days < 0 ? t('pdash_badge_overdue') : m.days < 7 ? t('pdash_badge_soon') : t('pdash_on_time')}</PortalBadge>
+                      <PortalBadge tone={tone}>{m.days < 0 ? t('pdash_badge_overdue') : m.days < hitoInminente ? t('pdash_badge_soon') : t('pdash_on_time')}</PortalBadge>
                     </div>
                   )
                 })}
@@ -691,7 +699,7 @@ export function PortalDashboard({ onNavigate }: { onNavigate?: (section: string)
               <MetricBlock icon={TimerReset} label={traducir('portaldashboard.1_respuesta_media')} value={formatDuration(sd.avg_first_response_minutes)} tone="accent" />
               <MetricBlock icon={Clock}       label={traducir('portaldashboard.resolucion_media')}   value={formatDuration(sd.avg_resolution_minutes)}     tone="success" />
             </div>
-            <DataRow label={traducir('reportes_presets.p14')} value={slaCompliance != null ? `${slaCompliance}%` : '—'} tone={slaCompliance == null ? 'default' : slaCompliance >= 90 ? 'success' : 'warning'} />
+            <DataRow label={traducir('reportes_presets.p14')} value={slaCompliance != null ? `${slaCompliance}%` : '—'} tone={tonoDe('sla', slaCompliance, umbrales) ?? 'default'} />
             <DataRow label={traducir('portaldashboard.riesgo_sla_respuesta')} value={sd.response_breached_open || 0} tone={sd.response_breached_open ? 'danger' : 'default'} />
             <DataRow label={traducir('portaldashboard.riesgo_sla_resolucion')} value={sd.resolution_breached_open || 0} tone={sd.resolution_breached_open ? 'danger' : 'default'} />
             <DataRow label={traducir('grc.retencion_tipo_tickets')} value={ticketsResolved} tone="default" />

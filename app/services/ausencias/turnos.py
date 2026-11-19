@@ -54,7 +54,7 @@ def _fecha(v, nombre: str) -> date:
     try:
         return date.fromisoformat(str(v)[:10])
     except (TypeError, ValueError):
-        raise ErrorDeDominio(422, f"Fecha no válida en «{nombre}»: {v}")
+        raise error_con_codigo(422, "fecha_no_valida_en", detail=f"Fecha no válida en «{nombre}»: {v}", nombre=nombre)
 
 
 def _hora(v, nombre: str) -> time:
@@ -64,7 +64,7 @@ def _hora(v, nombre: str) -> time:
         h, m = str(v).split(":")[:2]
         return time(int(h), int(m))
     except (TypeError, ValueError):
-        raise ErrorDeDominio(422, f"Hora no válida en «{nombre}» (HH:MM): {v}")
+        raise error_con_codigo(422, "hora_no_valida_en", detail=f"Hora no válida en «{nombre}» (HH:MM): {v}", nombre=nombre)
 
 
 def dias(desde: date, hasta: date) -> list[date]:
@@ -73,9 +73,9 @@ def dias(desde: date, hasta: date) -> list[date]:
 
 def _rango(desde: date, hasta: date) -> None:
     if hasta < desde:
-        raise ErrorDeDominio(422, "La fecha final es anterior a la inicial")
+        raise error_con_codigo(422, "fecha_final_anterior")
     if (hasta - desde).days + 1 > MAX_DIAS_DE_CUADRANTE:
-        raise ErrorDeDominio(422, f"Como mucho {MAX_DIAS_DE_CUADRANTE} días de una vez")
+        raise error_con_codigo(422, "maximo_de_dias", max=MAX_DIAS_DE_CUADRANTE)
 
 
 # ── Turnos ───────────────────────────────────────────────────────────────────
@@ -119,7 +119,7 @@ def turnos(db: Session, *, incluir_inactivos: bool = False) -> list[Turno]:
 def turno(db: Session, turno_id: str) -> Turno:
     t = db.query(Turno).filter(Turno.id == turno_id).first()
     if t is None:
-        raise ErrorDeDominio(404, "Turno no encontrado")
+        raise error_con_codigo(404, "no_encontrado", detail="Turno no encontrado", que="turno")
     return t
 
 
@@ -128,10 +128,10 @@ def guardar_turno(db: Session, usuario, datos: dict, turno_id: Optional[str] = N
     t = turno(db, turno_id) if turno_id else Turno(id=str(uuid.uuid4()), organization_id=_org(db, usuario))
     nombre = (datos.get("nombre") or "").strip()
     if not nombre:
-        raise ErrorDeDominio(422, "El turno necesita un nombre")
+        raise error_con_codigo(422, "nombre_obligatorio", detail="El turno necesita un nombre")
     dias_semana = sorted({int(d) for d in datos.get("dias_semana") or []})
     if any(d < 1 or d > 7 for d in dias_semana):
-        raise ErrorDeDominio(422, "Días de la semana del 1 (lunes) al 7 (domingo)")
+        raise error_con_codigo(422, "dia_semana_no_valido")
     tramos_in = [x for x in (datos.get("tramos") or []) if x and (x[0] or x[1])]
     if tramos_in:
         try:
@@ -151,9 +151,9 @@ def guardar_turno(db: Session, usuario, datos: dict, turno_id: Optional[str] = N
         raise error_con_codigo(422, "pausa_mayor_que_turno")
     requeridas = int(datos.get("personas_requeridas") or 0)
     if requeridas < 0:
-        raise ErrorDeDominio(422, "Las personas requeridas no pueden ser negativas")
+        raise error_con_codigo(422, "personas_requeridas_negativas")
     if datos.get("office_id") and db.query(Office.id).filter(Office.id == datos["office_id"]).first() is None:
-        raise ErrorDeDominio(422, "Esa oficina no existe")
+        raise error_con_codigo(422, "sede_no_existe", detail="Esa oficina no existe")
     t.nombre, t.color = nombre[:80], datos.get("color") or t.color or "#4f8cff"
     t.hora_inicio, t.hora_fin = inicio, fin
     t.tramos = json.dumps(tr.a_lista(tramos)) if len(tramos) > 1 else None
@@ -253,7 +253,7 @@ def patrones(db: Session) -> list[PatronDeTurnos]:
 def patron(db: Session, patron_id: str) -> PatronDeTurnos:
     p = db.query(PatronDeTurnos).filter(PatronDeTurnos.id == patron_id).first()
     if p is None:
-        raise ErrorDeDominio(404, "Rotación no encontrada")
+        raise error_con_codigo(404, "no_encontrado", detail="Rotación no encontrada", que="rotacion")
     return p
 
 
@@ -266,19 +266,19 @@ def guardar_patron(db: Session, usuario, datos: dict, patron_id: Optional[str] =
     p = patron(db, patron_id) if patron_id else PatronDeTurnos(id=str(uuid.uuid4()), organization_id=_org(db, usuario))
     nombre = (datos.get("nombre") or "").strip()
     if not nombre:
-        raise ErrorDeDominio(422, "La rotación necesita un nombre")
+        raise error_con_codigo(422, "nombre_obligatorio", detail="La rotación necesita un nombre")
     ciclo = list(datos.get("ciclo") or [])
     if not 1 <= len(ciclo) <= MAX_CICLO:
-        raise ErrorDeDominio(422, f"El ciclo tiene de 1 a {MAX_CICLO} días")
+        raise error_con_codigo(422, "rotacion_ciclo_dias", max=MAX_CICLO)
     validos = {t.id for t in turnos(db, incluir_inactivos=True)}
     if any(x and x not in validos for x in ciclo):
-        raise ErrorDeDominio(422, "El ciclo usa un turno que no existe")
+        raise error_con_codigo(422, "rotacion_turno_inexistente")
     miembros = datos.get("miembros") or []
     for m in miembros:
         if db.query(User.id).filter(User.id == m.get("user_id")).first() is None:
-            raise ErrorDeDominio(422, "Una persona de la rotación no existe en tu empresa")
+            raise error_con_codigo(422, "rotacion_persona_inexistente")
         if m.get("hasta") and _fecha(m["hasta"], "hasta") < _fecha(m.get("desde"), "desde"):
-            raise ErrorDeDominio(422, "Una persona sale de la rotación antes de entrar")
+            raise error_con_codigo(422, "rotacion_salida_antes_de_entrada")
     # Una persona no puede estar en dos rotaciones activas a la vez.
     otros = db.query(MiembroDePatron).join(PatronDeTurnos, PatronDeTurnos.id == MiembroDePatron.patron_id).filter(
         PatronDeTurnos.activo.is_(True), MiembroDePatron.patron_id != p.id).all()
@@ -320,10 +320,10 @@ def asignar(db: Session, usuario, cambios: list[dict]) -> int:
     for c in cambios:
         uid, d = c.get("user_id"), _fecha(c.get("fecha"), "fecha")
         if db.query(User.id).filter(User.id == uid).first() is None:
-            raise ErrorDeDominio(422, "Esa persona no existe en tu empresa")
+            raise error_con_codigo(422, "persona_no_existe_en_empresa")
         tid = c.get("turno_id") or None
         if tid and tid not in validos:
-            raise ErrorDeDominio(422, "Ese turno no existe")
+            raise error_con_codigo(422, "no_encontrado", detail="Ese turno no existe", que="turno")
         fila = db.query(AsignacionDeTurno).filter(AsignacionDeTurno.user_id == uid, AsignacionDeTurno.fecha == d).first()
         if c.get("quitar"):
             if fila is not None:

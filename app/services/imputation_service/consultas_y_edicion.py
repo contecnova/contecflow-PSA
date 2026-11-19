@@ -25,6 +25,7 @@ from app.services.imputation_service._comun import (
     get_lockout_cutoff,
     sync_imputation_week_timesheet,
 )
+from app.core.codigos_de_error import error
 
 
 def update_imputation_fields(imp, payload, db: Session, current_user: User = None):
@@ -37,7 +38,7 @@ def update_imputation_fields(imp, payload, db: Session, current_user: User = Non
     # Obtener usuario actual de la imputación
     user = db.query(UserModel).filter(UserModel.id == imp.user_id).first()
     if not user:
-        raise ErrorDeDominio(status_code=404, detail="Usuario no encontrado para la imputación")
+        raise error(404, "no_encontrado", detail="Usuario no encontrado para la imputación", que="usuario")
 
     # G3 Fix: Field-level permissions — restrict critical fields by role
     # Only admin and manager can edit: billable_hours, hourly_rate_snapshot, project_id, task_id
@@ -54,7 +55,7 @@ def update_imputation_fields(imp, payload, db: Session, current_user: User = Non
         allowed_fields = {"hours", "notes", "body"}
         filtered_payload = {k: v for k, v in payload.model_dump(exclude_unset=True).items() if k in allowed_fields}
         if set(payload.model_dump(exclude_unset=True).keys()) & critical_fields:
-            raise ErrorDeDominio(status_code=403, detail="No tienes permiso para editar campos críticos de la imputación")
+            raise error(403, "sin_permiso", detail="No tienes permiso para editar campos críticos de la imputación")
     else:
         filtered_payload = payload.model_dump(exclude_unset=True)
 
@@ -68,10 +69,7 @@ def update_imputation_fields(imp, payload, db: Session, current_user: User = Non
         Imputation.id != imp.id
     ).scalar() or 0.0
     if existing_hours + new_hours > 24:
-        raise ErrorDeDominio(
-            status_code=400,
-            detail=f"No puedes imputar más de 24h en un día. Ya tienes {existing_hours}h registradas para el {imputation_date}."
-        )
+        raise error(400, "imputar_mas_de_24h", detail=f"No puedes imputar más de 24h en un día. Ya tienes {existing_hours}h registradas para el {imputation_date}.", horas=existing_hours)
 
     # Límite semanal: sumar todas las imputaciones del usuario esa semana, excepto la actual
     week_start = imputation_date - timedelta(days=imputation_date.weekday())
@@ -89,10 +87,7 @@ def update_imputation_fields(imp, payload, db: Session, current_user: User = Non
     from app.services.horas_extra import control as control_horas_extra
     weekly_capacity += control_horas_extra.capacidad_semanal_extra(db, user.id, imputation_date)
     if weekly_hours + new_hours > weekly_capacity:
-        raise ErrorDeDominio(
-            status_code=400,
-            detail=f"Excederías la capacidad semanal ({weekly_capacity}h). Semana actual: {weekly_hours}h, nueva imputación: {new_hours}h."
-        )
+        raise error(400, "imputar_supera_capacidad", detail=f"Excederías la capacidad semanal ({weekly_capacity}h). Semana actual: {weekly_hours}h, nueva imputación: {new_hours}h.", capacidad=weekly_capacity, semana=weekly_hours, nueva=new_hours)
 
     control_horas_extra.antes_de_imputar(db, user.id, imputation_date, new_hours, excluir_imputacion=imp.id)
 
@@ -148,9 +143,9 @@ def dismiss_alert_record(db: Session, alert_id: str, current_user: User) -> dict
     """Dismiss an imputation alert. Raises 404/403 on violations."""
     alert = db.query(ImputationAlert).filter(ImputationAlert.id == alert_id).first()
     if not alert:
-        raise ErrorDeDominio(status_code=404, detail="Alert not found")
+        raise error(404, "no_encontrado", detail="Alert not found", que="alerta")
     if alert.user_id != current_user.id:
-        raise ErrorDeDominio(status_code=403, detail="Cannot dismiss another user's alert")
+        raise error(403, "alerta_ajena", detail="Cannot dismiss another user's alert")
     alert.dismissed_at = datetime.now(timezone.utc)
     db.commit()
     return {"status": "dismissed"}

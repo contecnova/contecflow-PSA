@@ -64,7 +64,9 @@ def huella(secreto: str) -> str:
 
 
 def _no(detalle: str, codigo: int = status.HTTP_401_UNAUTHORIZED) -> HTTPException:
-    return HTTPException(status_code=codigo, detail=detalle, headers={"WWW-Authenticate": "Bearer"})
+    """19-11-2026: con codigo traducible (`credencial_rechazada`); `detail` con el motivo."""
+    from app.core.codigos_de_error import error_http
+    return error_http(codigo, "credencial_rechazada", {"WWW-Authenticate": "Bearer"}, detail=detalle)
 
 
 def comprobar_alcance(metodo: str, ruta: str, alcances: list[str]) -> None:

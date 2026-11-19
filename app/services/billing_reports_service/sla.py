@@ -10,17 +10,26 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.service_desk._enums import ESTADOS_DE_TICKET_ABIERTOS, ESTADOS_DE_TICKET_RESUELTOS, PRIORIDADES_DE_TICKET
 from app.models.service_desk import Ticket
 from app.core.errores import ErrorDeDominio
-from app.services.sla_service import ventana_de_riesgo_sla
+from app.services.sla_service import CalendarioSLA, calendario_sla, horas_sla_entre, sumar_horas_sla, ventana_de_riesgo_sla
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SLA HELPER
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def business_minutes_between(start: datetime, end: datetime) -> int:
-    """Roughly calculate elapsed minutes in business days (Mon-Fri)."""
+def business_minutes_between(start: datetime, end: datetime, cal: "CalendarioSLA | None" = None) -> int:
+    """Minutos de reloj de SLA entre dos instantes.
+
+    19-11-2026 (semana laboral): con `cal` (`sla_service.calendario_sla`: el de
+    la política del ticket o los ajustes SLA_BUSINESS_HOURS_ONLY /
+    SLA_BUSINESS_START_HOUR / SLA_BUSINESS_END_HOUR / SLA_BUSINESS_DAYS, sus
+    festivos y la zona de la empresa) cuenta solo su horario, sus días y salta
+    sus festivos. Sin `cal`, lo de antes: días enteros de lunes a viernes, UTC.
+    """
     if start >= end:
         return 0
+    if cal is not None:
+        return int(round(horas_sla_entre(start, end, cal) * 60))
     total = 0
     current = start
     while current < end:
@@ -164,12 +173,20 @@ def pause_resume_sla(ticket_id: str, payload: dict, db: Session) -> dict:
         ticket.sla_resolution_status = "paused"
         msg = "SLA pausado — esperando respuesta del cliente"
     elif action == "resume" and ticket.sla_paused_at:
-        paused_minutes = business_minutes_between(ticket.sla_paused_at, now)
+        # 19-11-2026: minutos del calendario SLA del ticket (horario, días y festivos
+        # de su política o de los ajustes SLA_BUSINESS_*), y el plazo se corre en ese
+        # mismo calendario; antes, días enteros L-V sumados como reloj de pared.
+        politica = None
+        if getattr(ticket, "sla_policy_id", None):
+            from app.models.service_desk import SLAPolicy
+            politica = db.get(SLAPolicy, ticket.sla_policy_id)
+        cal = calendario_sla(db, politica, ticket.organization_id)
+        paused_minutes = business_minutes_between(ticket.sla_paused_at, now, cal)
         ticket.sla_pause_minutes = (ticket.sla_pause_minutes or 0) + paused_minutes
         if ticket.sla_resolution_due:
-            ticket.sla_resolution_due = ticket.sla_resolution_due + timedelta(minutes=paused_minutes)
+            ticket.sla_resolution_due = sumar_horas_sla(ticket.sla_resolution_due, paused_minutes / 60, cal)
         if ticket.sla_response_due:
-            ticket.sla_response_due = ticket.sla_response_due + timedelta(minutes=paused_minutes)
+            ticket.sla_response_due = sumar_horas_sla(ticket.sla_response_due, paused_minutes / 60, cal)
         ticket.sla_paused_at = None
         ticket.sla_resolution_status = "ok"
         msg = f"SLA reanudado. {paused_minutes} minutos de horario laboral añadidos al plazo."

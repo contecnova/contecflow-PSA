@@ -35,6 +35,7 @@ from app.models.advanced_config import (
     ProjectTemplate, TemplateDeliverable, TemplatePhase, TemplateRisk, TemplateTask, TemplateTaskDependency,
 )
 from app.models.marketplace import TemplateDocument, TemplateRole
+from app.core.codigos_de_error import error
 
 TIPOS_DE_DEPENDENCIA = ("FS", "SS", "FF", "SF")
 
@@ -56,7 +57,7 @@ def propia(db: Session, user, template_id: str) -> ProjectTemplate:
         q = q.filter(ProjectTemplate.organization_id == _org(user))
     t = q.first()
     if not t:
-        raise ErrorDeDominio(404, "Plantilla no encontrada")
+        raise error(404, "no_encontrado", detail="Plantilla no encontrada", que="plantilla")
     return t
 
 
@@ -130,7 +131,7 @@ def crear(db: Session, user, datos: dict) -> ProjectTemplate:
     from app.services.audit import audit_log
 
     if not (datos.get("name") or "").strip():
-        raise ErrorDeDominio(422, "La plantilla necesita un nombre")
+        raise error(422, "nombre_obligatorio", detail="La plantilla necesita un nombre")
     org = _org(user)
     t = ProjectTemplate(organization_id=org, name=datos["name"].strip(), description=datos.get("description"),
                         project_type=datos.get("project_type"), estimated_weeks=datos.get("estimated_weeks"),
@@ -158,9 +159,9 @@ def crear(db: Session, user, datos: dict) -> ProjectTemplate:
         pred, suc = claves.get(str(dd.get("predecessor"))), claves.get(str(dd.get("successor")))
         tipo = (dd.get("dependency_type") or "FS").upper()
         if not pred or not suc or pred == suc:
-            raise ErrorDeDominio(422, "Una dependencia de la plantilla apunta a una tarea que no está")
+            raise error(422, "plantilla_dependencia_rota")
         if tipo not in TIPOS_DE_DEPENDENCIA:
-            raise ErrorDeDominio(422, f"Tipo de dependencia no válido: {tipo}")
+            raise error(422, "tipo_de_dependencia_no_valido", detail=f"Tipo de dependencia no válido: {tipo}", valor=tipo)
         db.add(TemplateTaskDependency(organization_id=org, template_id=t.id, predecessor_id=pred,
                                       successor_id=suc, dependency_type=tipo, lag_days=int(dd.get("lag_days") or 0)))
     for rd in datos.get("risks") or []:

@@ -34,6 +34,7 @@ from app.models.user import User as _User
 from app.models.user import UserStatus
 from datetime import timezone
 from app.core import timeutil
+from app.core.codigos_de_error import ErrorConCodigo
 
 if TYPE_CHECKING:
     pass   # avoid circular imports at runtime
@@ -335,7 +336,7 @@ def compute_user_burnout_risk(user: User, db: Session, today: date) -> dict:
 def get_project_raci(project_id: str, db: Session) -> dict:
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
-        raise ValueError("Proyecto no encontrado")
+        raise ErrorConCodigo("no_encontrado", detail="Proyecto no encontrado", que="proyecto")
     entries = (
         db.query(RACIEntry)
         .filter(
@@ -367,16 +368,16 @@ def get_project_raci(project_id: str, db: Session) -> dict:
 def upsert_raci(project_id: str, entries_in: list, db: Session) -> dict:
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
-        raise ValueError("Proyecto no encontrado")
+        raise ErrorConCodigo("no_encontrado", detail="Proyecto no encontrado", que="proyecto")
     created, updated = 0, 0
     for entry_in in entries_in:
         try:
             role_enum = RACIRole(entry_in.role.upper())
         except ValueError:
-            raise ValueError(f"422:Rol RACI inválido: '{entry_in.role}'. Usa R, A, C o I.")
+            raise ErrorConCodigo("raci_rol_no_valido", detail=f"422:Rol RACI inválido: '{entry_in.role}'. Usa R, A, C o I.", rol=entry_in.role)
         user = db.query(_User).filter(_User.id == entry_in.user_id).first()
         if not user:
-            raise ValueError(f"Usuario {entry_in.user_id} no encontrado")
+            raise ErrorConCodigo("no_encontrado", detail=f"Usuario {entry_in.user_id} no encontrado", que="usuario")
         existing = (
             db.query(RACIEntry)
             .filter(
@@ -412,7 +413,7 @@ def delete_raci_entry(project_id: str, entry_id: str, db: Session) -> None:
         RACIEntry.id == entry_id, RACIEntry.project_id == project_id
     ).first()
     if not entry:
-        raise ValueError("Entrada RACI no encontrada")
+        raise ErrorConCodigo("no_encontrado", detail="Entrada RACI no encontrada", que="entrada_raci")
     # audit #36 soft-delete — la matriz RACI conserva histórico de responsables.
     entry.is_active = False
     db.commit()
@@ -426,7 +427,7 @@ def get_sprint_retrospective(project_id: str, sprint_id: str, db: Session) -> di
         _Sprint.id == sprint_id, _Sprint.project_id == project_id
     ).first()
     if not sprint:
-        raise ValueError("Sprint no encontrado")
+        raise ErrorConCodigo("no_encontrado", detail="Sprint no encontrado", que="sprint")
     insights = compute_retro_insights(sprint, db)
     saved = db.query(SprintRetroNote).filter(SprintRetroNote.sprint_id == sprint_id).first()
     return {
@@ -453,7 +454,7 @@ def save_sprint_retrospective(
         _Sprint.id == sprint_id, _Sprint.project_id == project_id
     ).first()
     if not sprint:
-        raise ValueError("Sprint no encontrado")
+        raise ErrorConCodigo("no_encontrado", detail="Sprint no encontrado", que="sprint")
     insights = compute_retro_insights(sprint, db)
     m = insights["metrics"]
     saved = db.query(SprintRetroNote).filter(SprintRetroNote.sprint_id == sprint_id).first()
@@ -559,7 +560,7 @@ def get_project_changelog(
 ) -> dict:
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
-        raise ValueError("Proyecto no encontrado")
+        raise ErrorConCodigo("no_encontrado", detail="Proyecto no encontrado", que="proyecto")
     q = db.query(PCE).filter(
         PCE.project_id == project_id,
         PCE.is_active == True,  # audit #36 soft-delete
@@ -584,11 +585,11 @@ def get_project_changelog(
 def create_changelog_entry(project_id: str, payload, author_id: str, db: Session) -> dict:
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
-        raise ValueError("Proyecto no encontrado")
+        raise ErrorConCodigo("no_encontrado", detail="Proyecto no encontrado", que="proyecto")
     try:
         entry_type = ChangelogEntryType(payload.entry_type)
     except ValueError:
-        raise ValueError(f"422:Tipo de entrada inválido: '{payload.entry_type}'")
+        raise ErrorConCodigo("valor_no_valido", detail=f"422:Tipo de entrada inválido: '{payload.entry_type}'", valor=payload.entry_type)
     entry = PCE(
         project_id=project_id,
         version_tag=payload.version_tag,
@@ -612,7 +613,7 @@ def generate_changelog(
     import json as _json
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
-        raise ValueError("Proyecto no encontrado")
+        raise ErrorConCodigo("no_encontrado", detail="Proyecto no encontrado", que="proyecto")
     since = timeutil.today() - timedelta(weeks=weeks)
     since_dt = datetime.combine(since, datetime.min.time())
     completed_tasks = (
@@ -678,7 +679,7 @@ def update_changelog_entry(project_id: str, entry_id: str, payload, db: Session)
         PCE.id == entry_id, PCE.project_id == project_id
     ).first()
     if not entry:
-        raise ValueError("Entrada no encontrada")
+        raise ErrorConCodigo("no_encontrado", detail="Entrada no encontrada", que="entrada")
     if payload.version_tag is not None:
         entry.version_tag = payload.version_tag
     if payload.entry_date is not None:
@@ -687,7 +688,7 @@ def update_changelog_entry(project_id: str, entry_id: str, payload, db: Session)
         try:
             entry.entry_type = ChangelogEntryType(payload.entry_type)
         except ValueError:
-            raise ValueError(f"422:Tipo inválido: '{payload.entry_type}'")
+            raise ErrorConCodigo("tipo_no_valido_valor", detail=f"422:Tipo inválido: '{payload.entry_type}'", tipo=payload.entry_type)
     if payload.title is not None:
         entry.title = payload.title
     if payload.description is not None:
@@ -704,7 +705,7 @@ def delete_changelog_entry(project_id: str, entry_id: str, db: Session) -> None:
         PCE.id == entry_id, PCE.project_id == project_id
     ).first()
     if not entry:
-        raise ValueError("Entrada no encontrada")
+        raise ErrorConCodigo("no_encontrado", detail="Entrada no encontrada", que="entrada")
     # audit #36 soft-delete — conserva historial de releases.
     entry.is_active = False
     db.commit()
@@ -772,7 +773,7 @@ def _uat_case_activo(project_id: str, case_id: str, db: Session):
 def update_uat_case(project_id: str, case_id: str, payload, db: Session) -> dict:
     case = _uat_case_activo(project_id, case_id, db)
     if not case:
-        raise ValueError("Caso UAT no encontrado")
+        raise ErrorConCodigo("no_encontrado", detail="Caso UAT no encontrado", que="caso_uat")
     for field, val in payload.model_dump(exclude_unset=True).items():
         if field == "status" and val:
             setattr(case, field, UATStatus(val))
@@ -790,7 +791,7 @@ def update_uat_case(project_id: str, case_id: str, payload, db: Session) -> dict
 def delete_uat_case(project_id: str, case_id: str, db: Session) -> None:
     case = _uat_case_activo(project_id, case_id, db)
     if not case:
-        raise ValueError("Caso UAT no encontrado")
+        raise ErrorConCodigo("no_encontrado", detail="Caso UAT no encontrado", que="caso_uat")
     # audit #36 soft-delete — preserva el caso para histórico de QA.
     case.is_active = False
     db.commit()
@@ -807,7 +808,7 @@ def export_uat_report(project_id: str, db: Session, idioma: Optional[str] = None
     from app.services.textos_de_salida import texto
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
-        raise ValueError("Proyecto no encontrado")
+        raise ErrorConCodigo("no_encontrado", detail="Proyecto no encontrado", que="proyecto")
     cases = db.query(UATCase).filter(
         UATCase.project_id == project_id,
         UATCase.is_active == True,  # audit #36 soft-delete

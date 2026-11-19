@@ -38,6 +38,7 @@ import logging
 from app.core.background import spawn
 from app.core.errores import ErrorDeDominio
 from app.core.constantes import NOMBRE_DEL_PRODUCTO
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -59,19 +60,19 @@ def _resolve_conversation(db: Session, *, conversation_id: Optional[str], channe
     if channel_id:
         ch = db.query(CollaborationChannel).filter(CollaborationChannel.id == channel_id).first()
         if not ch:
-            raise ErrorDeDominio(404, "Canal no encontrado")
+            raise error(404, "no_encontrado", detail="Canal no encontrado", que="canal")
         return db.query(CollaborationConversation).filter(CollaborationConversation.id == ch.conversation_id).first()
     if direct_id:
         d = db.query(CollaborationDirectConversation).filter(CollaborationDirectConversation.id == direct_id).first()
         if not d:
-            raise ErrorDeDominio(404, "Direct no encontrada")
+            raise error(404, "no_encontrado", detail="Direct no encontrada", que="conversacion")
         return db.query(CollaborationConversation).filter(CollaborationConversation.id == d.conversation_id).first()
     if group_id:
         g = db.query(CollaborationGroupConversation).filter(CollaborationGroupConversation.id == group_id).first()
         if not g:
-            raise ErrorDeDominio(404, "Grupo no encontrado")
+            raise error(404, "no_encontrado", detail="Grupo no encontrado", que="grupo")
         return db.query(CollaborationConversation).filter(CollaborationConversation.id == g.conversation_id).first()
-    raise ErrorDeDominio(400, "Indica conversation_id / channel_id / direct_id / group_id")
+    raise error(400, "indica_conversacion")
 
 
 # ── Notifications fan-out ────────────────────────────────────────────────────
@@ -368,7 +369,7 @@ def _exigir_enlaces_de_la_org(db: Session, org, tarea, ticket, entregable, riesg
         with sin_filtro_de_tenant(db):
             fila = db.query(modelo.organization_id).filter(modelo.id == valor).first()
         if fila is None or (fila[0] and fila[0] != org):
-            raise ErrorDeDominio(422, f"El {nombre} enlazado no existe en tu organizacion")
+            raise error(422, "enlazado_no_existe", tipo=nombre)
 
 
 def send_message(
@@ -517,11 +518,11 @@ def edit_message(db: Session, user, message_id: str, body: str, metadata_json: O
         CollaborationMessage.id == message_id, CollaborationMessage.organization_id == org,
     ).first()
     if not msg:
-        raise ErrorDeDominio(404, "Mensaje no encontrado")
+        raise error(404, "no_encontrado", detail="Mensaje no encontrado", que="mensaje")
     if msg.user_id != user.id:
-        raise ErrorDeDominio(403, "Solo puedes editar tus propios mensajes")
+        raise error(403, "solo_mensajes_propios_editables")
     if msg.status == "deleted":
-        raise ErrorDeDominio(409, "Mensaje borrado")
+        raise error(409, "mensaje_borrado")
     # Save version
     db.add(CollaborationMessageVersion(
         organization_id=org, message_id=msg.id, body=msg.body, body_html=msg.body_html,
@@ -551,11 +552,11 @@ def delete_message(db: Session, user, message_id: str) -> None:
         CollaborationMessage.id == message_id, CollaborationMessage.organization_id == org,
     ).first()
     if not msg:
-        raise ErrorDeDominio(404, "Mensaje no encontrado")
+        raise error(404, "no_encontrado", detail="Mensaje no encontrado", que="mensaje")
     if msg.user_id != user.id and not getattr(user, "is_superadmin", False):
         # team_lead and admin can delete others' messages — relax later via policy
         if getattr(user, "role", None) not in ("admin",):
-            raise ErrorDeDominio(403, "No puedes borrar mensajes de otros")
+            raise error(403, "no_borrar_mensajes_ajenos")
     msg.status = "deleted"
     msg.deleted_at = datetime.now(timezone.utc)
     msg.body = "[mensaje eliminado]"
@@ -596,7 +597,7 @@ def get_message_versions(db: Session, user, message_id: str) -> list[Collaborati
     org = _org(user)
     msg = db.query(CollaborationMessage).filter(CollaborationMessage.id == message_id, CollaborationMessage.organization_id == org).first()
     if not msg:
-        raise ErrorDeDominio(404, "Mensaje no encontrado")
+        raise error(404, "no_encontrado", detail="Mensaje no encontrado", que="mensaje")
     assert_conversation_access(db, user, msg.conversation_id)
     return db.query(CollaborationMessageVersion).filter(CollaborationMessageVersion.message_id == message_id).order_by(CollaborationMessageVersion.edited_at.asc()).all()
 
@@ -606,7 +607,7 @@ def toggle_reaction(db: Session, user, message_id: str, emoji: str) -> dict:
     org = _org(user)
     msg = db.query(CollaborationMessage).filter(CollaborationMessage.id == message_id, CollaborationMessage.organization_id == org).first()
     if not msg:
-        raise ErrorDeDominio(404, "Mensaje no encontrado")
+        raise error(404, "no_encontrado", detail="Mensaje no encontrado", que="mensaje")
     assert_conversation_access(db, user, msg.conversation_id)
     existing = db.query(CollaborationReaction).filter(
         CollaborationReaction.message_id == message_id,
@@ -674,7 +675,7 @@ def pin_message(db: Session, user, message_id: str) -> None:
     org = _org(user)
     msg = db.query(CollaborationMessage).filter(CollaborationMessage.id == message_id, CollaborationMessage.organization_id == org).first()
     if not msg:
-        raise ErrorDeDominio(404, "Mensaje no encontrado")
+        raise error(404, "no_encontrado", detail="Mensaje no encontrado", que="mensaje")
     assert_conversation_access(db, user, msg.conversation_id)
     if not db.query(CollaborationPinnedMessage).filter(
         CollaborationPinnedMessage.conversation_id == msg.conversation_id,
@@ -700,7 +701,7 @@ def unpin_message(db: Session, user, message_id: str) -> None:
     org = _org(user)
     msg = db.query(CollaborationMessage).filter(CollaborationMessage.id == message_id, CollaborationMessage.organization_id == org).first()
     if not msg:
-        raise ErrorDeDominio(404, "Mensaje no encontrado")
+        raise error(404, "no_encontrado", detail="Mensaje no encontrado", que="mensaje")
     assert_conversation_access(db, user, msg.conversation_id)
     row = db.query(CollaborationPinnedMessage).filter(
         CollaborationPinnedMessage.conversation_id == msg.conversation_id,
@@ -741,7 +742,7 @@ def save_message(db: Session, user, message_id: str, note: Optional[str] = None)
     org = _org(user)
     msg = db.query(CollaborationMessage).filter(CollaborationMessage.id == message_id, CollaborationMessage.organization_id == org).first()
     if not msg:
-        raise ErrorDeDominio(404, "Mensaje no encontrado")
+        raise error(404, "no_encontrado", detail="Mensaje no encontrado", que="mensaje")
     assert_conversation_access(db, user, msg.conversation_id)
     if not db.query(CollaborationSavedMessage).filter(
         CollaborationSavedMessage.user_id == user.id,
@@ -954,7 +955,7 @@ def _mensaje_accesible(db: Session, user, message_id: str) -> CollaborationMessa
         .first()
     )
     if not msg:
-        raise ErrorDeDominio(404, "Mensaje no encontrado")
+        raise error(404, "no_encontrado", detail="Mensaje no encontrado", que="mensaje")
     assert_conversation_access(db, user, msg.conversation_id)
     return msg
 
@@ -972,7 +973,7 @@ def link_message(db: Session, user, message_id: str, *, kind: str, linked_id) ->
     msg = _mensaje_accesible(db, user, message_id)
     kind = (kind or "").lower()
     if kind not in ENTIDADES_ANCLABLES:
-        raise ErrorDeDominio(400, "kind debe ser task|ticket|deliverable|risk")
+        raise error(400, "enlace_tipo_no_valido", detail="kind debe ser task|ticket|deliverable|risk")
     # Auditoria 2026-11: el id se guardaba sin comprobar; un id de otra
     # organizacion (o inventado) quedaba anclado. `None` desancla.
     _exigir_enlaces_de_la_org(db, org, *[linked_id if k == kind else None

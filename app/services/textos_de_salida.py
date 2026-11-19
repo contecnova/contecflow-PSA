@@ -30,6 +30,10 @@ IDIOMA_DE_RESPALDO = "es"
 
 #: clave -> idioma -> plantilla (`str.format` con los datos).
 TEXTOS: dict[str, dict[str, str]] = {
+    # ── Catálogo interno de equipos y licencias (19-11-2026, alm_integracion) ──
+    "alm.categoria": {"es": "Equipos y licencias", "en": "Equipment and licences", "zh": "设备与许可证"},
+    "alm.item.equipo": {"es": "Pedir equipo", "en": "Request equipment", "zh": "申请设备"},
+    "alm.item.licencia": {"es": "Pedir licencia", "en": "Request a licence", "zh": "申请许可证"},
     # ── Copiloto de proyectos (ai_copilot_service) ──────────────────────────
     "copilot.retraso": {"es": "La tarea lleva {dias} día(s) de retraso.",
                         "en": "The task is {dias} day(s) overdue.",

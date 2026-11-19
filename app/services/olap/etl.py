@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
+import tempfile
 from datetime import date, datetime
 from typing import Optional
 from app.services.settings_service import por_empresa as _pe
@@ -29,12 +30,18 @@ def _resolve_duckdb_path() -> str:
         os.makedirs(preferred_dir, exist_ok=True)
         if os.access(preferred_dir, os.W_OK):
             return preferred
-    # intentional: best-effort fallback, log noise outweighs diagnostic value
     except Exception:
-        logger.debug("_resolve_duckdb_path: fallo best-effort ignorado", exc_info=True)
+        logger.debug("_resolve_duckdb_path: %s no se puede crear", preferred_dir, exc_info=True)
 
-    # Local/dev fallback when /var is not writable (common on macOS without root).
-    fallback = "/tmp/contecflow/olap.duckdb"  # noqa: S108
+    # 19-11-2026 (auditoría de hardcodeados): antes caía EN SILENCIO a /tmp, que
+    # el sistema borra: el almacén OLAP desaparecía sin aviso. Ahora lo dice: ERROR
+    # en staging/producción (se arranca igual: el OLAP se reconstruye con el ETL,
+    # y tumbar la API entera por él sería peor), WARNING en desarrollo.
+    from app.core.comprobacion_de_produccion import es_entorno_real
+    fallback = os.path.join(tempfile.gettempdir(), "contecflow", "olap.duckdb")
+    (logger.error if es_entorno_real() else logger.warning)(
+        "OLAP: DUCKDB_PATH vacío y %s no escribible; uso %s, TEMPORAL (se pierde al limpiar el sistema). "
+        "Configura DUCKDB_PATH con una ruta persistente.", preferred_dir, fallback)
     os.makedirs(os.path.dirname(fallback), exist_ok=True)
     return fallback
 

@@ -29,6 +29,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.orm import joinedload as _jl
 from app.core import timeutil
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 
 # ── Wiki page serialisers ─────────────────────────────────────────────────────
@@ -98,18 +99,18 @@ def save_mentions(entity_type: str, entity_id: str, content: str, by_id: str, db
 def _resolve_threaded_entity_id(entity_type: str, entity_ref: str, db: Session) -> str:
     ref = (entity_ref or "").strip()
     if not ref:
-        raise ErrorDeDominio(400, "entity_id requerido")
+        raise error(400, "campo_obligatorio", detail="entity_id requerido", campo="entity_id")
 
     if entity_type == "task":
         task = db.query(Task).filter(or_(Task.id == ref, func.upper(Task.code) == ref.upper())).first()
         if not task:
-            raise ErrorDeDominio(404, f"Tarea '{entity_ref}' no encontrada")
+            raise error(404, "no_encontrado", detail=f"Tarea '{entity_ref}' no encontrada", que="tarea")
         return task.id
 
     if entity_type == "ticket":
         ticket = db.query(Ticket).filter(or_(Ticket.id == ref, func.upper(Ticket.number) == ref.upper())).first()
         if not ticket:
-            raise ErrorDeDominio(404, f"Ticket '{entity_ref}' no encontrado")
+            raise error(404, "no_encontrado", detail=f"Ticket '{entity_ref}' no encontrado", que="ticket")
         return ticket.id
 
     return ref
@@ -172,28 +173,28 @@ def acotar_espacios(q, db, viewer):
 
 def exigir_espacio_visible(db, viewer, space_id: str) -> None:
     if not acotar_espacios(db.query(WikiSpace.id), db, viewer).filter(WikiSpace.id == space_id).first():
-        raise ErrorDeDominio(404, "Espacio no encontrado")
+        raise error(404, "no_encontrado", detail="Espacio no encontrado", que="espacio")
 
 
 def exigir_pagina_visible(db, viewer, page_id: str) -> None:
     pagina = db.query(WikiPage.space_id).filter(WikiPage.id == page_id).first()
     if not pagina:
-        raise ErrorDeDominio(404, "Página no encontrada")
+        raise error(404, "no_encontrado", detail="Página no encontrada", que="pagina")
     try:
         exigir_espacio_visible(db, viewer, pagina.space_id)
     except ErrorDeDominio:
-        raise ErrorDeDominio(404, "Página no encontrada")
+        raise error(404, "no_encontrado", detail="Página no encontrada", que="pagina")
 
 
 def exigir_epica_visible(db, viewer, epic_id: str) -> None:
     from app.services import politica_de_visibilidad as _vis
     epica = db.query(Epic.project_id).filter(Epic.id == epic_id).first()
     if not epica:
-        raise ErrorDeDominio(404, "Épica no encontrada")
+        raise error(404, "no_encontrado", detail="Épica no encontrada", que="epica")
     try:
         _vis.exigir_proyecto_visible(db, viewer, epica.project_id)
     except ErrorDeDominio:
-        raise ErrorDeDominio(404, "Épica no encontrada")
+        raise error(404, "no_encontrado", detail="Épica no encontrada", que="epica")
 
 
 def acotar_plantillas(q, viewer):
@@ -207,7 +208,7 @@ def acotar_plantillas(q, viewer):
 def _ve_proyecto_de_hilo(db, viewer, entity_id: str) -> None:
     from app.services import politica_de_visibilidad as _vis
     if not db.query(Project.id).filter(Project.id == entity_id).first():
-        raise ErrorDeDominio(404, "Proyecto no encontrado")
+        raise error(404, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")
     _vis.exigir_proyecto_visible(db, viewer, entity_id)
 
 
@@ -242,7 +243,7 @@ def exigir_lectura_de_hilo(db, viewer, entity_type: str, entity_id: str) -> str:
     if guarda is not None:
         guarda(db, viewer, resuelto)
     elif not (getattr(viewer, "is_superadmin", False) or viewer.role == UserRole.admin):
-        raise ErrorDeDominio(404, "Entidad no encontrada")
+        raise error(404, "no_encontrado", detail="Entidad no encontrada", que="entidad")
     return resuelto
 
 
@@ -264,7 +265,7 @@ def list_wiki_spaces(project_id, db, viewer) -> list:
 
 def create_wiki_space(data: dict, created_by_id, db) -> dict:
     if db.query(WikiSpace).filter(WikiSpace.slug == data["slug"], WikiSpace.is_active == True).first():
-        raise ErrorDeDominio(400, f"Ya existe un espacio con slug '{data['slug']}'")
+        raise error(400, "espacio_ya_existe", detail=f"Ya existe un espacio con slug '{data['slug']}'", slug=data['slug'])
     s = WikiSpace(**data, created_by=created_by_id)
     db.add(s); db.commit(); db.refresh(s)
     return {"id": s.id, "name": s.name, "slug": s.slug, "project_id": s.project_id}
@@ -272,7 +273,7 @@ def create_wiki_space(data: dict, created_by_id, db) -> dict:
 
 def update_wiki_space(space_id: str, data: dict, db) -> dict:
     s = db.query(WikiSpace).filter(WikiSpace.id == space_id, WikiSpace.is_active == True).first()
-    if not s: raise ErrorDeDominio(404, "Espacio no encontrado")
+    if not s: raise error(404, "no_encontrado", detail="Espacio no encontrado", que="espacio")
     for k, v in data.items(): setattr(s, k, v)
     db.commit(); db.refresh(s)
     return {"id": s.id, "name": s.name, "slug": s.slug}
@@ -280,13 +281,13 @@ def update_wiki_space(space_id: str, data: dict, db) -> dict:
 
 def delete_wiki_space(space_id: str, db) -> dict:
     s = db.query(WikiSpace).filter(WikiSpace.id == space_id, WikiSpace.is_active == True).first()
-    if not s: raise ErrorDeDominio(404, "Espacio no encontrado")
+    if not s: raise error(404, "no_encontrado", detail="Espacio no encontrado", que="espacio")
     active_pages = db.query(func.count(WikiPage.id)).filter(
         WikiPage.space_id == space_id,
         WikiPage.is_active == True,
     ).scalar() or 0
     if active_pages > 0:
-        raise ErrorDeDominio(400, f"No se puede eliminar: el espacio tiene {active_pages} pagina(s) activas")
+        raise error(400, "espacio_con_paginas", detail=f"No se puede eliminar: el espacio tiene {active_pages} pagina(s) activas", n=active_pages)
     s.is_active = False
     if s.slug:
         s.slug = f"{s.slug}__deleted__{s.id[:8]}"
@@ -307,7 +308,7 @@ def create_wiki_page(space_id: str, title: str, slug: str, content,
                      parent_id, is_published: bool, sort_order: int,
                      created_by_id, db) -> dict:
     if not db.query(WikiSpace).filter(WikiSpace.id == space_id, WikiSpace.is_active == True).first():
-        raise ErrorDeDominio(404, "Espacio no encontrado")
+        raise error(404, "no_encontrado", detail="Espacio no encontrado", que="espacio")
     content_json = json.dumps(content or [])
     content_text = blocks_to_text(content_json)
     page = WikiPage(
@@ -329,7 +330,7 @@ def create_wiki_page(space_id: str, title: str, slug: str, content,
 
 def get_wiki_page(page_id: str, db) -> dict:
     page = db.query(WikiPage).filter(WikiPage.id == page_id, WikiPage.is_active == True).first()
-    if not page: raise ErrorDeDominio(404, "Página no encontrada")
+    if not page: raise error(404, "no_encontrado", detail="Página no encontrada", que="pagina")
     return serialize_page_full(page)
 
 
@@ -337,7 +338,7 @@ def update_wiki_page(page_id: str, title: str, slug: str, content,
                      parent_id, sort_order: int, is_published: bool,
                      change_note: str, updated_by_id, db) -> dict:
     page = db.query(WikiPage).filter(WikiPage.id == page_id, WikiPage.is_active == True).first()
-    if not page: raise ErrorDeDominio(404, "Página no encontrada")
+    if not page: raise error(404, "no_encontrado", detail="Página no encontrada", que="pagina")
     content_json = json.dumps(content or [])
     content_text = blocks_to_text(content_json)
     last_v = db.query(func.max(WikiVersion.version_num)).filter(
@@ -364,9 +365,9 @@ def cambiar_visibilidad_wiki_page(page_id: str, visibility: str, updated_by_id, 
     interfaz del portal la cambiaba con un PATCH a una ruta que no existia, y
     el PATCH completo exige titulo y slug y reescribe el contenido."""
     if visibility not in ("team", "portal", "public"):
-        raise ErrorDeDominio(422, "Visibilidad no valida")
+        raise error(422, "visibilidad_no_valida", detail="Visibilidad no valida")
     page = db.query(WikiPage).filter(WikiPage.id == page_id, WikiPage.is_active == True).first()
-    if not page: raise ErrorDeDominio(404, "Página no encontrada")
+    if not page: raise error(404, "no_encontrado", detail="Página no encontrada", que="pagina")
     page.visibility = visibility
     page.updated_by = updated_by_id
     db.commit(); db.refresh(page)
@@ -375,10 +376,10 @@ def cambiar_visibilidad_wiki_page(page_id: str, visibility: str, updated_by_id, 
 
 def delete_wiki_page(page_id: str, db) -> dict:
     page = db.query(WikiPage).filter(WikiPage.id == page_id, WikiPage.is_active == True).first()
-    if not page: raise ErrorDeDominio(404, "Página no encontrada")
+    if not page: raise error(404, "no_encontrado", detail="Página no encontrada", que="pagina")
     kids = db.query(WikiPage).filter(WikiPage.parent_id == page_id, WikiPage.is_active == True).count()
     if kids:
-        raise ErrorDeDominio(400, f"Esta página tiene {kids} subpáginas — elimínalas primero")
+        raise error(400, "pagina_con_subpaginas", n=kids)
     page.is_active = False
     db.commit()
     return {"ok": True, "message": "Pagina wiki eliminada correctamente"}
@@ -398,9 +399,9 @@ def restore_wiki_version(page_id: str, version_num: int, restored_by_id, db) -> 
     ver = db.query(WikiVersion).filter(
         WikiVersion.page_id == page_id,
         WikiVersion.version_num == version_num).first()
-    if not ver: raise ErrorDeDominio(404, "Versión no encontrada")
+    if not ver: raise error(404, "no_encontrado", detail="Versión no encontrada", que="version")
     page = db.query(WikiPage).filter(WikiPage.id == page_id).first()
-    if not page: raise ErrorDeDominio(404, "Página no encontrada")
+    if not page: raise error(404, "no_encontrado", detail="Página no encontrada", que="pagina")
     last_v = db.query(func.max(WikiVersion.version_num)).filter(
         WikiVersion.page_id == page_id).scalar() or 0
     db.add(WikiVersion(
@@ -468,7 +469,7 @@ def add_wiki_page_comment(page_id: str, content: str, parent_id, created_by_id, 
 
 def resolve_wiki_page_comment(comment_id: str, db) -> dict:
     c = db.query(WikiComment).filter(WikiComment.id == comment_id).first()
-    if not c: raise ErrorDeDominio(404, "Comentario no encontrado")
+    if not c: raise error(404, "no_encontrado", detail="Comentario no encontrado", que="comentario")
     c.is_resolved = True; db.commit()
     return {"resolved": True}
 
@@ -485,7 +486,7 @@ def list_epics_records(project_id: str, db) -> list:
 
 def create_epic_record(data: dict, project_id: str, created_by_id, db) -> dict:
     if not db.query(Project).filter(Project.id == project_id).first():
-        raise ErrorDeDominio(404, "Proyecto no encontrado")
+        raise error(404, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")
     e = Epic(**data, project_id=project_id, created_by=created_by_id)
     db.add(e); db.commit(); db.refresh(e)
     return serialize_epic(e)
@@ -495,7 +496,7 @@ def get_epic_record(epic_id: str, db) -> dict:
     e = (db.query(Epic)
          .options(_jl(Epic.epic_tasks), _jl(Epic.dependencies))
          .filter(Epic.id == epic_id, Epic.is_active == True).first())
-    if not e: raise ErrorDeDominio(404, "Épica no encontrada")
+    if not e: raise error(404, "no_encontrado", detail="Épica no encontrada", que="epica")
     d = serialize_epic(e)
     d["tasks"] = []
     for et in (e.epic_tasks or []):
@@ -517,7 +518,7 @@ def get_epic_record(epic_id: str, db) -> dict:
 
 def update_epic_record(epic_id: str, data: dict, db) -> dict:
     e = db.query(Epic).filter(Epic.id == epic_id, Epic.is_active == True).first()
-    if not e: raise ErrorDeDominio(404, "Épica no encontrada")
+    if not e: raise error(404, "no_encontrado", detail="Épica no encontrada", que="epica")
     for k, v in data.items(): setattr(e, k, v)
     db.commit(); db.refresh(e)
     return serialize_epic(e)
@@ -525,11 +526,11 @@ def update_epic_record(epic_id: str, data: dict, db) -> dict:
 
 def delete_epic_record(epic_id: str, db) -> dict:
     e = db.query(Epic).filter(Epic.id == epic_id, Epic.is_active == True).first()
-    if not e: raise ErrorDeDominio(404, "Épica no encontrada")
+    if not e: raise error(404, "no_encontrado", detail="Épica no encontrada", que="epica")
     active_tasks = db.query(func.count(EpicTask.id)).filter(EpicTask.epic_id == epic_id, EpicTask.is_active == True).scalar() or 0
     active_deps = db.query(func.count(EpicDependency.id)).filter(EpicDependency.epic_id == epic_id, EpicDependency.is_active == True).scalar() or 0
     if active_tasks or active_deps:
-        raise ErrorDeDominio(400, f"No se puede eliminar: tareas={active_tasks}, dependencias={active_deps}")
+        raise error(400, "epica_con_tareas", detail=f"No se puede eliminar: tareas={active_tasks}, dependencias={active_deps}", tareas=active_tasks, dependencias=active_deps)
     e.is_active = False
     db.commit()
     return {"ok": True, "message": "Epica eliminada correctamente"}
@@ -537,9 +538,9 @@ def delete_epic_record(epic_id: str, db) -> dict:
 
 def add_task_to_epic_record(epic_id: str, task_id: str, db) -> dict:
     if not db.query(Epic).filter(Epic.id == epic_id, Epic.is_active == True).first():
-        raise ErrorDeDominio(404, "Épica no encontrada")
+        raise error(404, "no_encontrado", detail="Épica no encontrada", que="epica")
     if not db.query(Task).filter(Task.id == task_id).first():
-        raise ErrorDeDominio(404, "Tarea no encontrada")
+        raise error(404, "no_encontrado", detail="Tarea no encontrada", que="tarea")
     if not db.query(EpicTask).filter(EpicTask.epic_id == epic_id, EpicTask.task_id == task_id, EpicTask.is_active == True).first():
         db.add(EpicTask(epic_id=epic_id, task_id=task_id)); db.commit()
     return {"linked": True}
@@ -559,7 +560,7 @@ def remove_task_from_epic_record(epic_id: str, task_id: str, db) -> dict:
 
 def add_epic_dependency(epic_id: str, depends_on_id: str, db) -> dict:
     if epic_id == depends_on_id:
-        raise ErrorDeDominio(400, "Una épica no puede depender de sí misma")
+        raise error(400, "epica_depende_de_si_misma")
     if not db.query(EpicDependency).filter(
         EpicDependency.epic_id == epic_id,
         EpicDependency.depends_on_id == depends_on_id,
@@ -675,11 +676,8 @@ def execute_nql_search(entity_type: str, query: str, limit: int, db, viewer) -> 
     """Busca con una consulta NQL sobre una de las entidades declaradas."""
     spec = _ENTIDADES_NQL.get(entity_type)
     if spec is None:
-        raise ErrorDeDominio(
-            400,
-            f"entity_type '{entity_type}' no soportado. "
-            f"Usa: {', '.join(sorted(_ENTIDADES_NQL))}",
-        )
+        raise error(400, "tipo_de_entidad_no_soportado", detail=f"entity_type '{entity_type}' no soportado. "
+            f"Usa: {', '.join(sorted(_ENTIDADES_NQL))}", tipo=entity_type, opciones=', '.join(sorted(_ENTIDADES_NQL)))
 
     condiciones = parse_nql(query)
     q = spec["consulta"](db, viewer)
@@ -724,7 +722,7 @@ def delete_saved_filter(filter_id: str, user_id, db) -> dict:
         SavedFilter.created_by == user_id,
         SavedFilter.is_active == True,
     ).first()
-    if not f: raise ErrorDeDominio(404, "Filtro no encontrado")
+    if not f: raise error(404, "no_encontrado", detail="Filtro no encontrado", que="filtro")
     f.is_active = False
     db.commit()
     return {"ok": True, "message": "Filtro eliminado correctamente"}
@@ -882,14 +880,14 @@ def edit_threaded_comment(comment_id: str, content: str, user_id, db) -> dict:
         ThreadedComment.created_by == user_id,
         ThreadedComment.is_active == True,
     ).first()
-    if not c: raise ErrorDeDominio(404, "Comentario no encontrado")
+    if not c: raise error(404, "no_encontrado", detail="Comentario no encontrado", que="comentario")
     c.content = content; db.commit()
     return {"id": c.id, "content": c.content}
 
 
 def resolve_threaded_comment(comment_id: str, db) -> dict:
     c = db.query(ThreadedComment).filter(ThreadedComment.id == comment_id, ThreadedComment.is_active == True).first()
-    if not c: raise ErrorDeDominio(404, "Comentario no encontrado")
+    if not c: raise error(404, "no_encontrado", detail="Comentario no encontrado", que="comentario")
     c.is_resolved = True; db.commit()
     return {"resolved": True}
 
@@ -900,9 +898,9 @@ def delete_threaded_comment(comment_id: str, user_id, db) -> dict:
         ThreadedComment.created_by == user_id,
         ThreadedComment.is_active == True,
     ).first()
-    if not c: raise ErrorDeDominio(404, "Comentario no encontrado")
+    if not c: raise error(404, "no_encontrado", detail="Comentario no encontrado", que="comentario")
     if [r for r in (c.replies or []) if r.is_active]:
-        raise ErrorDeDominio(400, "No se puede eliminar un comentario con respuestas")
+        raise error(400, "comentario_con_respuestas")
     c.is_active = False
     db.commit()
     return {"ok": True, "message": "Comentario eliminado correctamente"}

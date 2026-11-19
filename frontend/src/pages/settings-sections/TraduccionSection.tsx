@@ -46,7 +46,7 @@ function useErrorDeTraduccion() {
 
 export default function TraduccionSection() {
   const { t } = useAppLang()
-  const esAdmin = useAuth().user?.role === 'admin'
+  const esAdmin = useAuth().puede('org.administrar')
   if (!esAdmin) return <EmptyState icon={<Lock size={28} strokeWidth={1.5} aria-hidden="true" />} title={t('traduccion_admin.solo_admin')} />
   return (
     <div className="trad-admin">

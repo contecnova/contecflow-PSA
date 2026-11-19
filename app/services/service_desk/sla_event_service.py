@@ -6,6 +6,7 @@ from app.models.service_desk._enums import ESTADOS_DE_TICKET_RESUELTOS
 from app.models.service_desk import SLAEvent, SLAEventType, Ticket
 import logging
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ def get_ticket_or_404(db: Session, ticket_id: str) -> Ticket:
 def pause_ticket_sla(db: Session, ticket_id: str, user_id: str, note: str) -> dict:
     ticket = get_ticket_or_404(db, ticket_id)
     if ticket.sla_paused_at:
-        raise ErrorDeDominio(400, "SLA ya está pausado")
+        raise error(400, "sla_ya_pausado", detail="SLA ya está pausado")
 
     ticket.sla_paused_at = datetime.now(timezone.utc)
     if ticket.status.value not in ESTADOS_DE_TICKET_RESUELTOS:
@@ -44,7 +45,7 @@ def pause_ticket_sla_from_payload(db: Session, ticket_id: str, user_id: str, pay
 def resume_ticket_sla(db: Session, ticket_id: str, user_id: str) -> dict:
     ticket = get_ticket_or_404(db, ticket_id)
     if not ticket.sla_paused_at:
-        raise ErrorDeDominio(400, "SLA no está pausado")
+        raise error(400, "sla_no_pausado", detail="SLA no está pausado")
 
     now = datetime.now(timezone.utc)
     paused_at_tz = ticket.sla_paused_at

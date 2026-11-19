@@ -97,7 +97,7 @@ function InstanceModal({ id, onClose }: { id: string; onClose: () => void }) {
   const { t } = useAppLang()
   const toast = useToast()
   const qc = useQueryClient()
-  const { hasRole } = useAuth()
+  const { puede } = useAuth()
   const { confirmar } = useConfirm()
   const { data, isLoading, isError } = useQuery<BpmnInstance>({ queryKey: ['bpmn-instance', id], queryFn: () => bpmnInstancesApi.get(id).then(r => r.data) })
   const { mutate: cancel, isPending: cancelando } = useMutation({
@@ -127,7 +127,7 @@ function InstanceModal({ id, onClose }: { id: string; onClose: () => void }) {
               { key: 'completed_at', label: t('bpm.cuando'), render: (_v, s: BpmnStep) => <span className="u-xs">{fmtDateTime(s.completed_at || s.due_at || s.created_at)}</span> },
             ]}
           />
-          {data.status === 'running' && hasRole('admin', 'pm') && (
+          {data.status === 'running' && puede('bpm.editar') && (
             <div className="u-row-end">
               <Button variant="secondary" onClick={pedirCancelar} loading={cancelando} disabled={cancelando}>{t('bpm.cancelar_instancia')}</Button>
             </div>

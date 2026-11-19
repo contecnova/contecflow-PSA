@@ -33,6 +33,7 @@ from app.models.project import Project
 from app.core import timeutil
 from app.core.paginacion import Pagina, Paginacion, paginar
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 # Un dato que falta —un proyecto sin tarifa— no puede ser silencio: quien opera
 # el cierre mensual tiene que poder ver qué contratos no se han podido reconocer.
@@ -51,7 +52,7 @@ def list_contracts(db: Session, project_id: Optional[str] = None):
 def get_contract(db: Session, contract_id: str) -> RevenueContract:
     c = db.query(RevenueContract).filter(RevenueContract.id == contract_id).first()
     if not c:
-        raise ErrorDeDominio(404, "Contrato de reconocimiento no encontrado")
+        raise error(404, "no_encontrado", detail="Contrato de reconocimiento no encontrado", que="contrato_de_reconocimiento")
     return c
 
 
@@ -86,7 +87,7 @@ def delete_contract(db: Session, contract_id: str) -> None:
     c = get_contract(db, contract_id)
     has_entries = db.query(RevenueEntry).filter(RevenueEntry.rev_contract_id == contract_id).first()
     if has_entries:
-        raise ErrorDeDominio(400, "No se puede eliminar un contrato con entradas contables")
+        raise error(400, "contrato_con_asientos")
     db.delete(c)
     db.commit()
 
@@ -125,15 +126,15 @@ def _datos_de_obligacion(data: dict) -> dict:
     if metodo == "":
         datos["method"] = None
     elif metodo is not None and metodo not in {m.value for m in ASCMethod}:
-        raise ErrorDeDominio(422, f"Metodo de reconocimiento desconocido: {metodo}")
+        raise error(422, "valor_no_valido", detail=f"Metodo de reconocimiento desconocido: {metodo}", valor=metodo)
     precio = datos.get("standalone_price")
     if precio is not None:
         try:
             precio = datos["standalone_price"] = float(precio)
         except (TypeError, ValueError):
-            raise ErrorDeDominio(422, "El precio de venta independiente debe ser un número")
+            raise error(422, "precio_independiente_no_numerico")
     if precio is not None and precio < 0:
-        raise ErrorDeDominio(422, "El precio de venta independiente no puede ser negativo")
+        raise error(422, "precio_independiente_negativo")
     return datos
 
 
@@ -141,7 +142,7 @@ def create_obligation(db: Session, contract_id: str, data: dict) -> RevenueOblig
     c = get_contract(db, contract_id)
     datos = _datos_de_obligacion(data)
     if not datos.get("name"):
-        raise ErrorDeDominio(422, "La obligacion necesita un nombre")
+        raise error(422, "nombre_obligatorio", detail="La obligacion necesita un nombre")
     ob = RevenueObligation(
         id=str(uuid.uuid4()),
         organization_id=c.organization_id,
@@ -157,7 +158,7 @@ def create_obligation(db: Session, contract_id: str, data: dict) -> RevenueOblig
 def update_obligation(db: Session, obligation_id: str, data: dict) -> RevenueObligation:
     ob = db.query(RevenueObligation).filter(RevenueObligation.id == obligation_id).first()
     if not ob:
-        raise ErrorDeDominio(404, "Obligación no encontrada")
+        raise error(404, "no_encontrado", detail="Obligación no encontrada", que="obligacion")
     for k, v in _datos_de_obligacion(data).items():
         setattr(ob, k, v)
     db.commit()
@@ -167,7 +168,7 @@ def update_obligation(db: Session, obligation_id: str, data: dict) -> RevenueObl
 def delete_obligation(db: Session, obligation_id: str) -> None:
     ob = db.query(RevenueObligation).filter(RevenueObligation.id == obligation_id).first()
     if not ob:
-        raise ErrorDeDominio(404, "Obligación no encontrada")
+        raise error(404, "no_encontrado", detail="Obligación no encontrada", que="obligacion")
     db.delete(ob)
     db.commit()
 
@@ -194,7 +195,7 @@ def is_period_closed(db: Session, year: int, month: int, organization_id: Option
 
 def close_period(db: Session, organization_id: str, year: int, month: int, user_id: str, notes: Optional[str] = None) -> RevenuePeriodClose:
     if is_period_closed(db, year, month, organization_id):
-        raise ErrorDeDominio(400, f"El período {year}-{month:02d} ya está cerrado")
+        raise error(400, "periodo_ya_cerrado", anio=year, mes=month)
     pc = RevenuePeriodClose(
         id=str(uuid.uuid4()),
         organization_id=organization_id,
@@ -220,7 +221,7 @@ def reopen_period(db: Session, organization_id: str, year: int, month: int) -> N
         .first()
     )
     if not pc:
-        raise ErrorDeDominio(404, "Período no encontrado o no cerrado")
+        raise error(404, "periodo_no_cerrado")
     db.delete(pc)
     db.commit()
 
@@ -277,16 +278,16 @@ def _create_entry(
 def reverse_entry(db: Session, entry_id: str, user_id: str) -> RevenueEntry:
     orig = db.query(RevenueEntry).filter(RevenueEntry.id == entry_id).first()
     if not orig:
-        raise ErrorDeDominio(404, "Entrada no encontrada")
+        raise error(404, "no_encontrado", detail="Entrada no encontrada", que="entrada")
     if orig.entry_type == EntryType.reversal:
-        raise ErrorDeDominio(400, "No se puede revertir una entrada de tipo 'reversal'")
+        raise error(400, "asiento_reversion_no_revertible", detail="No se puede revertir una entrada de tipo 'reversal'")
     # Auditoria 2026-11: una entrada ya revertida se podia revertir otra vez, y cada
     # reversion restaba de nuevo el importe.
     if db.query(RevenueEntry.id).filter(RevenueEntry.reverses_entry_id == entry_id).first():
-        raise ErrorDeDominio(400, "La entrada ya está revertida")
+        raise error(400, "asiento_ya_revertido")
     contract = get_contract(db, orig.rev_contract_id)
     if is_period_closed(db, orig.period_year, orig.period_month, contract.organization_id):
-        raise ErrorDeDominio(400, "No se puede revertir una entrada de un período cerrado")
+        raise error(400, "asiento_periodo_cerrado")
     rev = _create_entry(
         db, contract,
         entry_type=EntryType.reversal,

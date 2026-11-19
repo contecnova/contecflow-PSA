@@ -14,6 +14,7 @@ from app.models.settings import AppSetting
 from app.core.config import settings as app_settings
 
 from app.services.settings_service._catalogo import RUNTIME_FLAG_GROUPS
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 logger = logging.getLogger("contecflow.settings")
@@ -225,11 +226,30 @@ AJUSTES_DE_PLATAFORMA = frozenset({
 })
 
 
+#: Ajustes que son una hora local HH:MM (19-11-2026, avisos a la hora de cada
+#: empresa): se validan al guardarlos y se guardan normalizados («8:5» → «08:05»).
+AJUSTES_DE_HORA = frozenset({
+    "NOTIFICATIONS_ALERTS_TIME", "NOTIFICATIONS_BUDGET_CAMPAIGN_TIME", "NOTIFICATIONS_MISSING_IMPUTATIONS_TIME",
+    "NOTIFICATIONS_PERF_REMINDERS_TIME",
+})
+
+
+def _hora_hhmm(key: str, valor: str) -> str:
+    """'8:05' → '08:05'. ValueError si no es una hora del día HH:MM (00:00-23:59)."""
+    try:
+        h, m = (int(x) for x in str(valor).strip().split(":"))
+    except (TypeError, ValueError) as exc:
+        raise ErrorConCodigo("ajuste_hora_no_valida", detail=f"invalid value for {key}: {valor!r} (expected HH:MM)", clave=key, valor=valor) from exc
+    if not (0 <= h <= 23 and 0 <= m <= 59):
+        raise ErrorConCodigo("ajuste_hora_no_valida", detail=f"invalid value for {key}: {valor!r} (expected HH:MM, 00:00-23:59)", clave=key, valor=valor)
+    return f"{h:02d}:{m:02d}"
+
+
 def get_runtime_group(db: Session, group: str, org_id: Optional[str] = None) -> list[dict]:
     """Return the effective value of every setting in a UI-exposed group."""
     spec = RUNTIME_FLAG_GROUPS.get(group)
     if spec is None:
-        raise ValueError(f"unknown runtime-flag group: {group}")
+        raise ErrorConCodigo("ajuste_grupo_desconocido", detail=f"unknown runtime-flag group: {group}", grupo=group)
     getters = {"int": get_runtime_int, "float": get_runtime_float, "bool": get_runtime_bool, "str": get_runtime_str}
     out: list[dict] = []
     for key, type_, label in spec:
@@ -281,10 +301,10 @@ def set_runtime_value(
     """
     spec = RUNTIME_FLAG_GROUPS.get(group)
     if spec is None:
-        raise ValueError(f"unknown runtime-flag group: {group}")
+        raise ErrorConCodigo("ajuste_grupo_desconocido", detail=f"unknown runtime-flag group: {group}", grupo=group)
     entry = next((e for e in spec if e[0] == key), None)
     if entry is None:
-        raise ValueError(f"key {key!r} is not part of group {group!r}")
+        raise ErrorConCodigo("ajuste_clave_fuera_de_grupo", detail=f"key {key!r} is not part of group {group!r}", clave=key, grupo=group)
     _, type_, _ = entry
 
     try:
@@ -297,7 +317,14 @@ def set_runtime_value(
         else:
             stored = str(value)
     except (TypeError, ValueError) as exc:
-        raise ValueError(f"invalid value for {key} (expected {type_}): {exc}") from exc
+        raise ErrorConCodigo("ajuste_valor_no_valido", detail=f"invalid value for {key} (expected {type_}): {exc}", clave=key, esperado=type_) from exc
+    if key in AJUSTES_DE_HORA:
+        stored = _hora_hhmm(key, stored)
+    # 19-11-2026: umbrales de semáforo — rango de su métrica y aviso/crítico en orden.
+    from app.core import umbrales as _umbrales
+    if key in _umbrales.SUELTOS or _umbrales.otro_del_par(key):
+        otra = _umbrales.otro_del_par(key)
+        _umbrales.validar_umbral(key, float(stored), get_runtime_float(db, otra, org_id) if otra else None)
 
     # Capture old value pre-write for the audit trail. Runtime flags are
     # plaintext (no secrets), so is_secret=False always.

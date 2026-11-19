@@ -17,6 +17,7 @@ from datetime import date
 from pydantic import BaseModel
 import jwt
 import logging
+from app.core.codigos_de_error import error_http
 
 logger = logging.getLogger("contecflow.client_portal")
 
@@ -503,7 +504,7 @@ def create_uat(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    raise HTTPException(400, "Usa POST /uat/{project_id}")
+    raise error_http(400, "usar_post_uat")
 
 
 @router.post("/uat/{project_id}", summary="Crear sesión UAT para un proyecto")
@@ -864,7 +865,7 @@ def portal_ai_chat(
             raise ErrorDeDominio(400, "message required", code="mensaje_obligatorio", params={})
         if "invalid_token" in err:
             raise ErrorDeDominio(401, "Token inválido", code="sesion_invalida", params={})
-        raise HTTPException(400, err)
+        raise desde_valor(400, e)
 
 
 class _ValoracionIn(BaseModel):

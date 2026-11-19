@@ -13,6 +13,7 @@ from app.models.cab import CABVote, ChangeRequestWindow
 from app.models.cab import MaintenanceWindow
 from app.services.audit import audit_log
 from collections import defaultdict
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 # ─── CAB Vote helpers ─────────────────────────────────────────────────────────
@@ -69,11 +70,11 @@ def get_cab_pending_changes(db: Session, current_user_id: str) -> list:
 def cast_cab_vote(cr_id: str, vote: str, comment: Optional[str], current_user, db: Session) -> dict:
     cr = db.query(ChangeRequest).filter(ChangeRequest.id == cr_id).first()
     if not cr:
-        raise ValueError("CR no encontrada")
+        raise ErrorConCodigo("no_encontrado", detail="CR no encontrada", que="solicitud_de_cambio")
     if cr.status not in ["submitted", "under_review"]:
-        raise ValueError(f"No se puede votar en estado '{cr.status}'")
+        raise ErrorConCodigo("cab_no_se_puede_votar", detail=f"No se puede votar en estado '{cr.status}'", estado=cr.status)
     if vote not in ["approve", "reject", "abstain"]:
-        raise ValueError("Voto debe ser: approve, reject o abstain")
+        raise ErrorConCodigo("cab_voto_no_valido", detail="Voto debe ser: approve, reject o abstain")
 
     existing = db.query(CABVote).filter(
         CABVote.change_request_id == cr_id,
@@ -106,19 +107,19 @@ def cast_cab_vote(cr_id: str, vote: str, comment: Optional[str], current_user, d
 def close_cab_vote(cr_id: str, decision: str, reason: Optional[str], current_user, db: Session) -> dict:
     cr = db.query(ChangeRequest).filter(ChangeRequest.id == cr_id).first()
     if not cr:
-        raise ValueError("CR no encontrada")
+        raise ErrorConCodigo("no_encontrado", detail="CR no encontrada", que="solicitud_de_cambio")
     if decision not in ["approved", "rejected"]:
-        raise ValueError("decision debe ser approved o rejected")
+        raise ErrorConCodigo("decision_aprobada_o_rechazada", detail="decision debe ser approved o rejected")
     # Revisión 2026-11: sólo se cierra una votación abierta, y una decisión que
     # va contra el recuento (o con empate) necesita su motivo, que queda auditado.
     estado = str(getattr(cr.status, "value", cr.status))
     if estado not in ("submitted", "under_review"):
-        raise ValueError(f"Sólo se cierra una votación abierta; esta CR está «{estado}»")
+        raise ErrorConCodigo("cab_votacion_no_abierta", detail=f"Sólo se cierra una votación abierta; esta CR está «{estado}»", estado=estado)
     votos = [v.vote for v in db.query(CABVote).filter(CABVote.change_request_id == cr_id).all()]
     a_favor, en_contra = votos.count("approve"), votos.count("reject")
     mayoria = "approved" if a_favor > en_contra else "rejected" if en_contra > a_favor else None
     if decision != mayoria and not (reason or "").strip():
-        raise ValueError(f"La decisión no sigue la votación ({a_favor} a favor, {en_contra} en contra): indica el motivo")
+        raise ErrorConCodigo("cab_decision_contra_votacion", a_favor=a_favor, en_contra=en_contra)
     cr.status = decision
     audit_log(db, current_user, "CAB_CLOSE", "change_requests", cr_id, cr.code,
               new_values={"decision": decision, "reason": reason, "a_favor": a_favor, "en_contra": en_contra})
@@ -152,9 +153,9 @@ def create_maintenance_window(payload, current_user_id: str, db: Session) -> dic
 def schedule_cr_in_window(cr_id: str, window_id: str, rollback_plan: Optional[str], test_plan: Optional[str], db: Session) -> dict:
     cr = db.query(ChangeRequest).filter(ChangeRequest.id == cr_id).first()
     if not cr:
-        raise ValueError("CR no encontrada")
+        raise ErrorConCodigo("no_encontrado", detail="CR no encontrada", que="solicitud_de_cambio")
     if not db.query(MaintenanceWindow).filter(MaintenanceWindow.id == window_id).first():
-        raise ValueError("Ventana de mantenimiento no encontrada")
+        raise ErrorConCodigo("no_encontrado", detail="Ventana de mantenimiento no encontrada", que="ventana_de_mantenimiento")
     crw = ChangeRequestWindow(
         change_request_id=cr_id,
         window_id=window_id,

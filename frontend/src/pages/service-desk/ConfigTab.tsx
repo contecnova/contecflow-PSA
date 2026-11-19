@@ -11,7 +11,7 @@
  * subpestañas se filtran por rol como el backend: todo es require_admin salvo
  * las respuestas rápidas (require_any_manager: admin, pm, team_lead, hr).
  */
-import { useState, useId } from 'react'
+import { useState, useId, useEffect } from 'react'
 import type { ChangeEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
@@ -26,7 +26,7 @@ import { useAuth } from '../../context/AuthContext'
 import type { TipoDeContenidoDelPortal } from '../../services/api/traduccion'
 import type { StatusBadgeKind } from '../../components/ui/StatusBadge'
 import { COLOR_DATO_POR_DEFECTO } from '../../constants/theme'
-import { sdCatalogApi, sdSlaPoliciesApi, sdGroupsApi, sdTemplatesApi, sdCannedApi, sdAnnouncementsApi, usersApi, approvalsApi, slaCalendarsApi, clientsApi, contractsApi, type SlaCalendar, type UserListItem } from '../../services/api'
+import { settingsApi, sdCatalogApi, sdSlaPoliciesApi, sdGroupsApi, sdTemplatesApi, sdCannedApi, sdAnnouncementsApi, usersApi, approvalsApi, slaCalendarsApi, clientsApi, contractsApi, type SlaCalendar, type UserListItem } from '../../services/api'
 import type { SdAnuncio, SdCategoriaDeCatalogo, SdGrupo, SdPlantillaDeTicket, SdPoliticaSla, SdRespuestaRapida, SdServicioDeCatalogo } from '../../services/api/tipos-sd'
 import { EscalationConfig, NotificationsConfig } from './ConfigEscaladoYAvisos'
 import { CiclosDeVida, ReglasSlaYOla } from './ConfigSlaYCiclos'
@@ -537,8 +537,39 @@ function NewSLAForm({ IS, LS, onSave, isPending, onClose, initial }: { IS: strin
   const [horario, setHorario] = useState(horarioDe(initial))
   const [dias, setDias] = useState<number[]>(
     (initial?.business_days || '1,2,3,4,5').split(',').map(Number).filter(Boolean))
-  const set = (k: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+  // 19-11-2026: una política nueva parte de los SLA de la empresa (grupo `sla`:
+  // SLA_P*_*_HOURS, SLA_BUSINESS_START/END_HOUR, SLA_BUSINESS_DAYS) y no de unos
+  // valores escritos aquí (9-18 frente al 8-18 del ajuste). Sin permiso para
+  // leerlos (403) se queda con los de siempre.
+  const { data: slaEmpresa } = useQuery({
+    queryKey: ['runtime-flags', 'sla'],
+    queryFn: () => settingsApi.runtimeGroup('sla').then(r => r.data),
+    enabled: !initial, retry: false,
+  })
+  const [tocado, setTocado] = useState(false)
+  useEffect(() => {
+    if (initial || tocado || !slaEmpresa?.items) return
+    const v = Object.fromEntries(slaEmpresa.items.map(i => [i.key, i.value]))
+    const num = (k: string) => (v[k] == null || v[k] === '' ? undefined : Number(v[k]))
+    setForm(f => {
+      const nuevo: Record<string, unknown> = { ...f }
+      for (const p of [1, 2, 3, 4]) {
+        for (const tipo of ['response', 'resolution']) {
+          const valor = num(`SLA_P${p}_${tipo.toUpperCase()}_HOURS`)
+          if (valor != null) nuevo[`p${p}_${tipo}_hours`] = valor
+        }
+      }
+      if (num('SLA_BUSINESS_START_HOUR') != null) nuevo.business_start = num('SLA_BUSINESS_START_HOUR')
+      if (num('SLA_BUSINESS_END_HOUR') != null) nuevo.business_end = num('SLA_BUSINESS_END_HOUR')
+      return nuevo as typeof f
+    })
+    const diasEmpresa = String(v.SLA_BUSINESS_DAYS ?? '').split(',').map(Number).filter(d => d >= 1 && d <= 7)
+    if (diasEmpresa.length) setDias(diasEmpresa)
+  }, [slaEmpresa, initial, tocado])
+  const set = (k: string) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setTocado(true)
     setForm(f => ({...f, [k]: (e.target as HTMLInputElement).type==='checkbox' ? (e.target as HTMLInputElement).checked : e.target.value}))
+  }
   const formRec = form as Record<string, unknown>
   const nombresDias = t('sd_cfg.days_short').split(',')
   const propio = horario === 'own'
@@ -1123,7 +1154,7 @@ const SUB_DE_RESPONSABLES = new Set(['canned'])
 
 export default function Config({ subInicial }: { subInicial?: string }) {
   const t = useAppT()
-  const esAdmin = useAuth().hasRole('admin')
+  const esAdmin = useAuth().puede('sd.administrar')
   const todas = [
     {id:'catalog',  label:t('sd_cfg.cfg_tab_catalog')},
     {id:'sla',      label:t('sd_cfg.cfg_tab_sla')},

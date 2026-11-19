@@ -21,6 +21,7 @@ from sqlalchemy import func as sqlfunc
 from sqlalchemy import case as sa_case
 from app.core import timeutil
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -183,6 +184,7 @@ class ResourceAnalyticsService:
             users = users.filter(~User.id.in_(exclude_user_ids))
         users = users.all()
 
+        from app.core.umbrales import estado_de_carga
         scoring = []
         current_week = ResourceAnalyticsService.get_week_iso(timeutil.today())
 
@@ -197,9 +199,9 @@ class ResourceAnalyticsService:
                     "capacity_hours": avail["capacity_hours"],
                     "allocated_hours": avail["planned_hours"] + avail["actual_hours"],
                     "available_hours": avail["available_hours"],
-                    "status": "overloaded" if avail["load_pct"] > 100 else (
-                        "at_capacity" if avail["load_pct"] >= 80 else "underutilized"
-                    ),
+                    # 19-11-2026: UMBRAL_CARGA_* de la empresa (antes 100/80 fijos).
+                    "status": {"overloaded": "overloaded", "high": "at_capacity"}.get(
+                        estado_de_carga(avail["load_pct"], db, registro=user), "underutilized"),
                 })
 
         return sorted(scoring, key=lambda x: x["load_pct"], reverse=True)
@@ -352,9 +354,12 @@ def get_team_health_payload(db: Session) -> Dict:
             "total_users": 0,
             "billable_pct": 0.0,
         }
-    overloaded = sum(1 for s in scores if s.get("load_pct", 0) > 100)
-    at_capacity = sum(1 for s in scores if 80 <= s.get("load_pct", 0) <= 100)
-    underutilized = sum(1 for s in scores if s.get("load_pct", 0) < 50)
+    # 19-11-2026: los mismos cortes que el estado de cada persona (UMBRAL_CARGA_*,
+    # RESOURCE_UNDERUSE_PCT); antes 100/80/50 fijos.
+    overloaded = sum(1 for s in scores if s.get("status") == "overloaded")
+    at_capacity = sum(1 for s in scores if s.get("status") == "at_capacity")
+    from app.core.umbrales import umbral as _umbral
+    underutilized = sum(1 for s in scores if s.get("load_pct", 0) < _umbral("RESOURCE_UNDERUSE_PCT", db))
     avg_load = sum(s.get("load_pct", 0) for s in scores) / total
 
     # billable_pct: fraction of users whose billable_hours > 0
@@ -425,7 +430,7 @@ def acknowledge_alert_record(db: Session, alert_id: str, current_user: User) -> 
 
     alert = db.query(ResourceAlert).filter(ResourceAlert.id == alert_id).first()
     if not alert:
-        raise ErrorDeDominio(status_code=404, detail="Alerta no encontrada")
+        raise error(404, "no_encontrado", detail="Alerta no encontrada", que="alerta")
 
     alert.acknowledged_at = datetime.now(timezone.utc)
     alert.acknowledged_by = str(current_user.id)

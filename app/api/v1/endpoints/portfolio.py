@@ -22,6 +22,7 @@ from app.models.user import User
 from app.services import portfolio_service
 from app.services.portfolio_service import serialize_portfolio as _serialize_portfolio
 from app.core import timeutil
+from app.core.codigos_de_error import error_http, desde_valor
 
 router = APIRouter()
 
@@ -75,7 +76,7 @@ def get_portfolio(portfolio_id: str, db: Session = Depends(get_db),
                   cu: User = Depends(get_current_user)):
     p = portfolio_service.get_portfolio(db, portfolio_id)
     if not p:
-        raise HTTPException(404, "Cartera no encontrada")
+        raise error_http(404, "no_encontrado", detail="Cartera no encontrada", que="cartera")
     return APIResponse.ok(data=_serialize_portfolio(p))
 
 
@@ -85,7 +86,7 @@ def update_portfolio(portfolio_id: str, payload: PortfolioIn,
                      cu: User = Depends(require_admin_or_pm)):
     p = portfolio_service.get_portfolio(db, portfolio_id)
     if not p:
-        raise HTTPException(404, "Cartera no encontrada")
+        raise error_http(404, "no_encontrado", detail="Cartera no encontrada", que="cartera")
     p = portfolio_service.update_portfolio(db, p, payload.model_dump(exclude_unset=True))
     emit_event(db, EventType.PORTFOLIO_UPDATED, payload.model_dump(exclude_unset=True),
                actor=cu, resource_type="portfolio", resource_id=portfolio_id)
@@ -97,13 +98,13 @@ def delete_portfolio(portfolio_id: str, db: Session = Depends(get_db),
                      cu: User = Depends(require_admin_or_pm)):
     p = portfolio_service.get_portfolio(db, portfolio_id)
     if not p:
-        raise HTTPException(404, "Cartera no encontrada")
+        raise error_http(404, "no_encontrado", detail="Cartera no encontrada", que="cartera")
     enforce_abac(db, cu, "portfolio", portfolio_id, action="delete")
     name = p.name
     try:
         portfolio_service.delete_portfolio(db, p)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
     emit_event(db, EventType.PORTFOLIO_DELETED, {"name": name},
                actor=cu, resource_type="portfolio", resource_id=portfolio_id)
     return APIResponse.ok(data={"ok": True, "message": "Cartera eliminada correctamente"})
@@ -116,12 +117,12 @@ def add_project(portfolio_id: str, payload: PortfolioProjectIn,
                 cu: User = Depends(require_admin_or_pm)):
     p = portfolio_service.get_portfolio(db, portfolio_id)
     if not p:
-        raise HTTPException(404, "Cartera no encontrada")
+        raise error_http(404, "no_encontrado", detail="Cartera no encontrada", que="cartera")
     proj = portfolio_service.get_project(db, payload.project_id)
     if not proj:
-        raise HTTPException(404, "Proyecto no encontrado")
+        raise error_http(404, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")
     if portfolio_service.get_portfolio_project(db, portfolio_id, payload.project_id):
-        raise HTTPException(409, "El proyecto ya pertenece a esta cartera")
+        raise error_http(409, "proyecto_ya_en_cartera")
     portfolio_service.add_project_to_portfolio(
         db,
         portfolio_id=portfolio_id,
@@ -141,7 +142,7 @@ def remove_project(portfolio_id: str, project_id: str,
                    cu: User = Depends(require_admin_or_pm)):
     pp = portfolio_service.get_portfolio_project(db, portfolio_id, project_id)
     if not pp:
-        raise HTTPException(404, "El proyecto no está en esta cartera")
+        raise error_http(404, "proyecto_no_en_cartera")
     enforce_abac(db, cu, "portfolio_project", pp.id, action="delete")
     portfolio_service.remove_project_from_portfolio(db, pp)
     emit_event(db, EventType.PORTFOLIO_PROJECT_REMOVED,
@@ -163,7 +164,7 @@ def portfolio_dashboard(portfolio_id: str, db: Session = Depends(get_db),
     """
     port = portfolio_service.get_portfolio(db, portfolio_id)
     if not port:
-        raise HTTPException(404, "Cartera no encontrada")
+        raise error_http(404, "no_encontrado", detail="Cartera no encontrada", que="cartera")
 
     projects_data = []
     total_budget  = 0.0

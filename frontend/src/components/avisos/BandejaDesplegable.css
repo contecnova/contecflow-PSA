@@ -43,7 +43,7 @@
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  z-index: 300;
+  z-index: calc(var(--z-dropdown) + 100);
   width: min(380px, calc(100vw - 24px));
   max-height: min(520px, calc(100vh - 80px));
   display: flex;

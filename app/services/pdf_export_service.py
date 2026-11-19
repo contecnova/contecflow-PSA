@@ -21,6 +21,7 @@ from app.models.task import Task
 from app.models.mfa import (
     PDFExportJob,
 )
+from app.core.codigos_de_error import ErrorConCodigo
 
 _logger = logging.getLogger(__name__)
 
@@ -234,7 +235,7 @@ def create_and_run_pdf_export(
         job.status = "failed"
         job.error = str(e)[:500]
         db.commit()
-        raise ValueError(f"Error generando PDF: {e}")
+        raise ErrorConCodigo("pdf_no_generado", detail=f"Error generando PDF: {e}")
 
 
 def list_pdf_jobs(user_id: str, db: Session) -> list:

@@ -57,6 +57,8 @@ SERVICE_AUTHZ_SIGNALS = re.compile(
     r"_scoped_\w*or_404|org_scoped_or_404|assert_same_org|assert_org_id_is_own|"
     r"verify_admin_or_governance_role|require_|"
     r"HTTPException\(\s*403|status\.HTTP_403|"
+    # 19-11-2026: los 403 con codigo traducible (`error_http(403, ...)`, `error(403, ...)`).
+    r"error_http\(\s*403|(?<![\w.])error\(\s*403|"
     # Comprobacion de PROPIEDAD, que en este proyecto es tan control como las
     # anteriores: una busqueda acotada al usuario que pregunta, que devuelve
     # 404 si la fila no es suya. Auditoria 2026-09: faltaba, y por eso el

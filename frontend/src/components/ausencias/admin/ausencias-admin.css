@@ -113,4 +113,4 @@
 .ausadm-tramos--compacto { padding: 0; border: 0; margin: 0; gap: 4px; }
 .ausadm-semana { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
 .ausadm-semana-dia { display: flex; flex-direction: column; gap: 4px; background: var(--surface-1); border: 1px solid var(--surface-4); border-radius: 8px; padding: 8px; }
-.ausadm-parciales { font-size: 9px; color: var(--text-2); margin-left: 1px; }
+.ausadm-parciales { font-size: var(--text-3xs); color: var(--text-2); margin-left: 1px; }

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.models.service_desk import RoutingRule, Ticket
 import logging
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ def serialize_routing_rule(rule: RoutingRule) -> dict:
 
 def build_routing_rule(db, payload: dict) -> RoutingRule:
     if not payload.get("name"):
-        raise ErrorDeDominio(422, "name es obligatorio")
+        raise error(422, "campo_obligatorio", detail="name es obligatorio", campo="name")
     rule = RoutingRule(
         name=payload["name"],
         is_active=payload.get("is_active", True),

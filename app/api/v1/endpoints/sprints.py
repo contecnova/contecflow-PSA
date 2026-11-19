@@ -18,6 +18,7 @@ import app.services.sprint_service as svc
 
 from typing import Any, Dict
 from app.core import timeutil
+from app.core.codigos_de_error import error_http
 
 router = APIRouter()
 
@@ -137,7 +138,7 @@ def update_sprint(
 ):
     enforce_abac(db, current_user, "sprint", sprint_id, action="update")
     sprint = svc.get_sprint_simple(db, sprint_id, project_id, current_user)
-    if not sprint: raise HTTPException(404, "Sprint no encontrado")
+    if not sprint: raise error_http(404, "no_encontrado", detail="Sprint no encontrado", que="sprint")
 
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(sprint, k, v)
@@ -159,15 +160,15 @@ def start_sprint(
 ):
     enforce_abac(db, current_user, "sprint", sprint_id, action="update")
     sprint = svc.get_sprint_with_tasks(db, sprint_id, project_id, current_user)
-    if not sprint: raise HTTPException(404, "Sprint no encontrado")
+    if not sprint: raise error_http(404, "no_encontrado", detail="Sprint no encontrado", que="sprint")
     # Revisión 2026-11: antes se podía volver a iniciar uno terminado o cancelado.
     if sprint.status != SprintStatus.planning:
-        raise HTTPException(400, f"Sólo se inicia un sprint en planificación; este está «{sprint.status.value}»")
+        raise error_http(400, "sprint_solo_planificacion", detail=f"Sólo se inicia un sprint en planificación; este está «{sprint.status.value}»", estado=sprint.status.value)
 
     # Only one active sprint per project
     active = svc.get_active_sprint_for_project(db, project_id, current_user)
     if active and active.id != sprint_id:
-        raise HTTPException(400, f"Ya hay un sprint activo: {active.name}")
+        raise error_http(400, "sprint_ya_activo", sprint=active.name)
 
     sprint.status = SprintStatus.active
     if not sprint.start_date:
@@ -201,7 +202,7 @@ def add_tasks_to_sprint(
     current_user: User = Depends(require_any_manager),
 ):
     sprint = svc.get_sprint_simple(db, sprint_id, project_id, current_user)
-    if not sprint: raise HTTPException(404, "Sprint no encontrado")
+    if not sprint: raise error_http(404, "no_encontrado", detail="Sprint no encontrado", que="sprint")
 
     added = svc.add_tasks_to_sprint(db, sprint_id, project_id, payload.task_ids)
     return APIResponse.ok(data={"ok": True, "added": added})

@@ -124,6 +124,7 @@ COLUMNAS_POR_EMPRESA = {
     "tax_rate": "DEFAULT_TAX_RATE",
     "tax_pct": "DEFAULT_TAX_RATE",
     "currency": "DEFAULT_CURRENCY",
+    "country": "DEFAULT_COUNTRY",  # 19-11-2026: clientes y proveedores
     "weekly_capacity_hours": "DEFAULT_WEEKLY_CAPACITY_HOURS",
     "hours_per_day": "DEFAULT_WORKING_HOURS_PER_DAY",
     "timezone": "DEFAULT_TIMEZONE",

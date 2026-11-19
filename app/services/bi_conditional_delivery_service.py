@@ -21,6 +21,7 @@ from typing import Any, Optional
 from sqlalchemy.orm import Session
 
 from app.models.settings import AppSetting
+from app.core.codigos_de_error import ErrorConCodigo
 
 _KEY_RULES = "bi.cond_delivery.rules"
 _KEY_SNAPSHOTS = "bi.cond_delivery.snapshots"
@@ -107,7 +108,7 @@ def list_rules(db: Session, *, org_id: Optional[str]) -> list[dict]:
 def update_rule(db: Session, *, org_id: Optional[str], rule_id: str, updates: dict) -> dict:
     rules: dict = _get(db, _KEY_RULES, org_id, {})
     if rule_id not in rules:
-        raise ValueError(f"Rule '{rule_id}' not found")
+        raise ErrorConCodigo("no_encontrado", detail=f"Rule '{rule_id}' not found", que="regla")
     allowed = {"name", "enabled", "condition_metric", "condition_operator", "condition_value",
                "diff_threshold_pct", "recipients", "schedule_cron"}
     for k, v in updates.items():
@@ -121,7 +122,7 @@ def update_rule(db: Session, *, org_id: Optional[str], rule_id: str, updates: di
 def delete_rule(db: Session, *, org_id: Optional[str], rule_id: str) -> None:
     rules: dict = _get(db, _KEY_RULES, org_id, {})
     if rule_id not in rules:
-        raise ValueError(f"Rule '{rule_id}' not found")
+        raise ErrorConCodigo("no_encontrado", detail=f"Rule '{rule_id}' not found", que="regla")
     del rules[rule_id]
     _set(db, _KEY_RULES, org_id, rules)
 
@@ -146,7 +147,7 @@ def evaluate_rule(
     """
     rules: dict = _get(db, _KEY_RULES, org_id, {})
     if rule_id not in rules:
-        raise ValueError(f"Rule '{rule_id}' not found")
+        raise ErrorConCodigo("no_encontrado", detail=f"Rule '{rule_id}' not found", que="regla")
     rule = rules[rule_id]
 
     if not rule.get("enabled", True):

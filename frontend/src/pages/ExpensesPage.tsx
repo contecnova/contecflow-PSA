@@ -40,6 +40,7 @@ import IndicadorDePolitica from '../components/politicas/IndicadorDePolitica'
 import DsBadge from '../components/ui/StatusBadge'
 import DateInput from '../components/ui/DateInput'
 import { POLL_FREQUENT_MS } from '../constants/timings'
+import { useCatalogo } from '../hooks/useCatalogo'
 import './ExpensesPage.css'
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -66,10 +67,20 @@ const EJE = { fontSize: 'var(--text-2xs)', fill: 'var(--text-2)' }
 
 function useEtiquetas() {
   const t = useAppT()
+  // 19-11-2026: las categorías son el catálogo de la empresa (`/settings/expense-categories`);
+  // las del sistema se traducen con `expenses.cat_<clave>`, las propias llevan su etiqueta.
+  const cats = useCatalogo('expense-categories')
   return {
-    categoria: (c: string) => t(`expenses.cat_${c}`, c),
+    categoria: cats.etiqueta,
+    categorias: cats.opciones,
     estado: (s: string) => t(`expenses.st_${s}`, s),
   }
+}
+
+/** Etiqueta y color de una categoría (los colores de las propias, del catálogo). */
+function useEtiquetasConColor() {
+  const cats = useCatalogo('expense-categories')
+  return { categoria: cats.etiqueta, color: cats.color }
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -78,8 +89,8 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function CatBadge({ cat }: { cat: string }) {
-  const { categoria } = useEtiquetas()
-  const cfg = CATEGORIES[cat] ?? CATEGORIES.other
+  const { categoria, color: colorDeCategoria } = useEtiquetasConColor()
+  const cfg = CATEGORIES[cat] ?? { ...CATEGORIES.other, color: colorDeCategoria(cat) }
   return <DsBadge color={cfg.color} caps={false}><cfg.Icon size={11} aria-hidden /> {categoria(cat)}</DsBadge>
 }
 
@@ -178,7 +189,7 @@ function Cabecera({ sort, onSort, ultima }: { sort: Orden; onSort: (k: string) =
 function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => void }) {
   const idCampo = useId()
   const t = useAppT()
-  const { categoria } = useEtiquetas()
+  const { categorias } = useEtiquetas()
   const qc = useQueryClient()
   const toast = useToast()
   const { currency: defaultCurrency, currencies: monedasDeLaEmpresa } = useOrgSettings()
@@ -275,7 +286,7 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
         <div className="ds-field">
           <label htmlFor={id('cat')} className="ds-field__label">{t('expenses.category')}</label>
           <Select suelto placeholder={false} id={id('cat')} value={form.category} onChange={set('category')} className="ds-input">
-            {Object.keys(CATEGORIES).map(v => <option key={v} value={v}>{categoria(v)}</option>)}
+            {categorias.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </Select>
           {msg('category')}
         </div>
@@ -417,7 +428,7 @@ function ReviewModal({ expense, onClose }: { expense: Expense; onClose: () => vo
 // ── Tab: Mis gastos ───────────────────────────────────────────────────────────
 function MyExpenses({ showCreate, setShowCreate }: { showCreate: boolean; setShowCreate: (v: boolean) => void }) {
   const t = useAppT()
-  const { categoria, estado } = useEtiquetas()
+  const { estado, categorias } = useEtiquetas()
   const toast = useToast()
   const qc = useQueryClient()
   const [editing, setEditing] = useState<Expense | null>(null)
@@ -469,7 +480,7 @@ function MyExpenses({ showCreate, setShowCreate }: { showCreate: boolean; setSho
         <FilterSelect value={statusFilter} onChange={lista.conFiltro(setStatusFilter)} placeholder={t('expenses.estado')}
           options={Object.keys(STATUSES).map(v => ({ value: v, label: estado(v) }))} />
         <FilterSelect value={catFilter} onChange={lista.conFiltro(setCatFilter)} placeholder={t('expenses.tipo')}
-          options={Object.keys(CATEGORIES).map(v => ({ value: v, label: categoria(v) }))} />
+          options={categorias} />
         <FiltroDeFecha valor={dateFrom} onChange={lista.conFiltro(setDateFrom)} etiqueta={t('expenses.desde')} />
         <span className="u-text3" aria-hidden>—</span>
         <FiltroDeFecha valor={dateTo} onChange={lista.conFiltro(setDateTo)} etiqueta={t('expenses.hasta')} />
@@ -531,7 +542,7 @@ function MyExpenses({ showCreate, setShowCreate }: { showCreate: boolean; setSho
 // ── Tab: Pendientes aprobación ────────────────────────────────────────────────
 function PendingApproval() {
   const t = useAppT()
-  const { categoria } = useEtiquetas()
+  const { categorias } = useEtiquetas()
   const [reviewing, setReviewing] = useState<Expense | null>(null)
   const [pendSearch, setPendSearch] = useState('')
   const [pendCat, setPendCat] = useState('')
@@ -561,7 +572,7 @@ function PendingApproval() {
       <div className="exp-filtros">
         <div className="exp-busqueda"><SearchInput value={pendSearch} onChange={lista.conFiltro(setPendSearch)} placeholder={t('expenses.buscar_codigo_descripcion_o_solicitante')} /></div>
         <FilterSelect value={pendCat} onChange={lista.conFiltro(setPendCat)} placeholder={t('expenses.tipo')}
-          options={Object.keys(CATEGORIES).map(v => ({ value: v, label: categoria(v) }))} />
+          options={categorias} />
         <FiltroDeFecha valor={pendFrom} onChange={lista.conFiltro(setPendFrom)} etiqueta={t('expenses.desde')} />
         <span className="u-text3" aria-hidden>—</span>
         <FiltroDeFecha valor={pendTo} onChange={lista.conFiltro(setPendTo)} etiqueta={t('expenses.hasta')} />
@@ -716,8 +727,8 @@ function TeamExpenses() {
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function ExpensesPage(): JSX.Element {
   const t = useAppT()
-  const { hasRole } = useAuth()
-  const isManager = hasRole('admin', 'pm', 'hr')
+  const { puede } = useAuth()
+  const isManager = puede('gastos.gestionar')
   const toast = useToast()
   const [tab, setTab] = useState('my')
   const [creando, setCreando] = useState(false)
@@ -738,7 +749,7 @@ export default function ExpensesPage(): JSX.Element {
         subtitle={t('expenses.subtitle')}
         showListExport={false}
         actions={<>
-          {hasRole('admin') && <Link to="/settings/policies" className="u-text2-sm">{t('gas.politicas_de_gasto')}</Link>}
+          {puede('org.administrar') && <Link to="/settings/policies" className="u-text2-sm">{t('gas.politicas_de_gasto')}</Link>}
           <Button variant="secondary" icon={<FileSpreadsheet size={14} />}
             onClick={async () => {
               // Por el cliente (refresco de sesión y errores); antes abría la URL en otra pestaña.

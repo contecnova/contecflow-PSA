@@ -58,7 +58,8 @@ async def github_create_issue(integration, owner: str, repo: str, title: str, bo
     token = _token_for(integration)
     if not token:
         return {"error": "GitHub no autenticado"}
-    url = f"https://api.github.com/repos/{owner}/{repo}/issues"
+    from app.core.comprobacion_de_produccion import github_api_base
+    url = f"{github_api_base(integration.config)}/repos/{owner}/{repo}/issues"  # GHES (19-11-2026)
     try:
         async with httpx.AsyncClient(timeout=outbound_http_timeout(default=15)) as c:
             r = await c.post(url, headers={
@@ -76,7 +77,8 @@ async def gitlab_create_issue(integration, project_id: str, title: str, descript
     token = _token_for(integration)
     if not token:
         return {"error": "GitLab no autenticado"}
-    url = f"https://gitlab.com/api/v4/projects/{project_id}/issues"
+    from app.core.comprobacion_de_produccion import gitlab_base
+    url = f"{gitlab_base(integration.config)}/api/v4/projects/{project_id}/issues"  # GitLab propio (19-11-2026)
     try:
         async with httpx.AsyncClient(timeout=outbound_http_timeout(default=15)) as c:
             r = await c.post(url, headers={"Authorization": f"Bearer {token}"},

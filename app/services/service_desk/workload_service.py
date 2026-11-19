@@ -6,6 +6,7 @@ from app.models.user import User
 from app.services.sla_service import log_history
 import logging
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -68,14 +69,14 @@ def get_ticket_for_auto_assign_or_404(db: Session, ticket_id: str) -> Ticket:
     if not ticket:
         raise ErrorDeDominio(404)
     if not ticket.assigned_group_id:
-        raise ErrorDeDominio(400, "El ticket no tiene grupo asignado. Asigna un grupo primero.")
+        raise error(400, "ticket_sin_grupo", detail="El ticket no tiene grupo asignado. Asigna un grupo primero.")
     return ticket
 
 
 def get_group_members_or_400(db: Session, group_id: str):
     members = db.query(AgentGroupMember).filter(AgentGroupMember.group_id == group_id).all()
     if not members:
-        raise ErrorDeDominio(400, "El grupo no tiene agentes")
+        raise error(400, "grupo_sin_agentes")
     return members
 
 
@@ -231,7 +232,7 @@ def auto_assign_ticket_ml_command(db: Session, ticket_id: str, current_user_id: 
     best_agent_id = predict_best_agent(db, ticket, members)
 
     if not best_agent_id:
-        raise ErrorDeDominio(400, "No hay agentes disponibles para este ticket")
+        raise error(400, "sin_agentes_disponibles")
 
     old_assignee = apply_auto_assignment(ticket, best_agent_id)
     log_history(db, ticket.id, "assigned_to_user_id", old_assignee, best_agent_id, current_user_id)

@@ -38,7 +38,7 @@ textarea.tkd-input { resize: vertical; }
 .tkd-panel { background: var(--surface-0); border: 1px solid var(--surface-4); border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; }
 .tkd-panel--embedded { height: calc(100vh - 210px); min-height: 520px; }
 .tkd-panel--floating { position: fixed; top: 12px; right: 12px; width: 560px; max-width: calc(100vw - 24px); max-height: calc(100vh - 24px); z-index: var(--z-dropdown); box-shadow: var(--shadow-lg); }
-.tkd-head { padding: 16px 20px; border-bottom: 1px solid var(--surface-4); background: var(--surface-1); position: sticky; top: 0; z-index: 10; }
+.tkd-head { padding: 16px 20px; border-bottom: 1px solid var(--surface-4); background: var(--surface-1); position: sticky; top: 0; z-index: calc(var(--z-content) + 9); }
 .tkd-head__top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .tkd-head__top > div:first-child { min-width: 0; }
 .tkd-head__meta { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }

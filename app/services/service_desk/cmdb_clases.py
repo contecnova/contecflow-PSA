@@ -14,7 +14,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import CIClassField, CIType
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 TIPOS_DE_CAMPO = ("text", "number", "date")
 CLAVE = re.compile(r"^[a-z][a-z0-9_]{0,49}$")
@@ -56,19 +56,19 @@ def campos(db: Session, org_id: Optional[str]) -> dict:
 
 def _validar(ci_type: str, lista: list[dict]) -> list[dict]:
     if ci_type not in {t.value for t in CIType}:
-        raise ErrorDeDominio(422, f"Clase de CI desconocida: {ci_type}")
+        raise error(422, "ci_clase_desconocida", clase=ci_type)
     vistas, limpias = set(), []
     for c in lista:
         clave = str(c.get("key") or "").strip()
         if not CLAVE.match(clave):
-            raise ErrorDeDominio(422, f"Clave no válida: «{clave}» (minúsculas, números y _; empieza por letra)")
+            raise error(422, "clave_no_valida", clave=clave)
         if clave in vistas:
-            raise ErrorDeDominio(422, f"Clave repetida: {clave}")
+            raise error(422, "clave_repetida", clave=clave)
         if clave in ("hostname", "ip_address", "version"):
-            raise ErrorDeDominio(422, f"«{clave}» ya es un dato común a todas las clases")
+            raise error(422, "ci_campo_comun", clave=clave)
         tipo = c.get("field_type") or "text"
         if tipo not in TIPOS_DE_CAMPO:
-            raise ErrorDeDominio(422, f"Tipo de campo no válido: {tipo}")
+            raise error(422, "tipo_no_valido_valor", detail=f"Tipo de campo no válido: {tipo}", tipo=tipo)
         etiqueta = (c.get("label") or "").strip()[:100] or None
         vistas.add(clave)
         limpias.append({"key": clave, "label": etiqueta, "field_type": tipo})

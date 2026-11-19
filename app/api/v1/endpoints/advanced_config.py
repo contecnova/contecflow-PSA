@@ -11,6 +11,7 @@ from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.core.config import settings
 import app.services.advanced_config_service as _svc
+from app.core.codigos_de_error import desde_valor
 
 router = APIRouter()
 
@@ -139,9 +140,9 @@ def update_role(role_id: str, payload: CustomRoleUpdate, db: Session = Depends(g
     try:
         return APIResponse.ok(data=_svc.update_role(role_id, payload.model_dump(exclude_unset=True), db))
     except _svc.NotFoundError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
 
 @router.delete("/roles/{role_id}", summary="Eliminar rol")
 def delete_role(role_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
@@ -149,9 +150,9 @@ def delete_role(role_id: str, db: Session = Depends(get_db), user: User = Depend
     try:
         return APIResponse.ok(data=_svc.delete_role(role_id, db))
     except _svc.NotFoundError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
 
 @router.get("/modules", summary="Lista de módulos disponibles")
 def get_modules(_: User = Depends(get_current_user)):
@@ -169,14 +170,14 @@ def create_task_type(payload: TaskTypeIn, db: Session = Depends(get_db), _: User
     try:
         return APIResponse.ok(data=jsonable_encoder(_svc.create_task_type(payload.model_dump(), db)))
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
 
 @router.patch("/task-types/{type_id}", summary="Actualizar tipo de tarea", deprecated=True)
 def update_task_type(type_id: str, payload: TaskTypeIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
     try:
         return APIResponse.ok(data=jsonable_encoder(_svc.update_task_type(type_id, payload.model_dump(), db)))
     except _svc.NotFoundError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
 
 @router.delete("/task-types/{type_id}", summary="Eliminar tipo de tarea", deprecated=True)
 def delete_task_type(type_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
@@ -184,7 +185,7 @@ def delete_task_type(type_id: str, db: Session = Depends(get_db), user: User = D
     try:
         return APIResponse.ok(data=_svc.delete_task_type(type_id, db))
     except _svc.NotFoundError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
 
 
 # ── Alert configs ─────────────────────────────────────────────────────────────
@@ -200,7 +201,7 @@ def update_alert_config(alert_type: str, payload: AlertConfigUpdate, db: Session
     try:
         return APIResponse.ok(data=jsonable_encoder(_svc.update_alert_config(alert_type, payload.model_dump(exclude_unset=True), db)))
     except _svc.NotFoundError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
 
 
 # ── Rate tables ───────────────────────────────────────────────────────────────
@@ -228,7 +229,7 @@ def update_rate_entry(table_id: str, entry_id: str, payload: RateEntryIn, db: Se
     try:
         return APIResponse.ok(data=_svc.update_rate_entry(table_id, entry_id, payload.model_dump(), db))
     except _svc.NotFoundError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
 
 @router.delete("/rate-tables/{table_id}/entries/{entry_id}", summary="Eliminar tarifa", deprecated=True)
 def delete_rate_entry(table_id: str, entry_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
@@ -236,7 +237,7 @@ def delete_rate_entry(table_id: str, entry_id: str, db: Session = Depends(get_db
     try:
         return APIResponse.ok(data=_svc.delete_rate_entry(table_id, entry_id, db))
     except _svc.NotFoundError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
 
 @router.delete("/rate-tables/{table_id}", summary="Eliminar tabla de tarifas", deprecated=True)
 def delete_rate_table(table_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
@@ -244,7 +245,7 @@ def delete_rate_table(table_id: str, db: Session = Depends(get_db), user: User =
     try:
         return APIResponse.ok(data=_svc.delete_rate_table(table_id, db))
     except _svc.NotFoundError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
 
 
 # ── Vacation policies ─────────────────────────────────────────────────────────
@@ -262,7 +263,7 @@ def update_vacation_policy(policy_id: str, payload: VacationPolicyIn, db: Sessio
     try:
         return APIResponse.ok(data=_svc.update_vacation_policy(policy_id, payload.model_dump(), db))
     except _svc.NotFoundError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
 
 @router.delete("/vacation-policies/{policy_id}", summary="Eliminar política", deprecated=True)
 def delete_vacation_policy(policy_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
@@ -270,7 +271,7 @@ def delete_vacation_policy(policy_id: str, db: Session = Depends(get_db), user: 
     try:
         return APIResponse.ok(data=_svc.delete_vacation_policy(policy_id, db))
     except _svc.NotFoundError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
 
 @router.get("/vacation-balances", summary="Saldos de vacaciones del equipo")
 def get_vacation_balances(year: int = Query(default=None), db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
@@ -296,7 +297,7 @@ def update_office(office_id: str, payload: OfficeIn, db: Session = Depends(get_d
     try:
         return APIResponse.ok(data=_svc.update_office(office_id, payload.model_dump(), db))
     except _svc.NotFoundError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
 
 @router.delete("/offices/{office_id}", summary="Eliminar sede")
 def delete_office(office_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
@@ -304,7 +305,7 @@ def delete_office(office_id: str, db: Session = Depends(get_db), user: User = De
     try:
         return APIResponse.ok(data=_svc.delete_office(office_id, db))
     except _svc.NotFoundError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
 
 
 # ── Numbering sequences ───────────────────────────────────────────────────────
@@ -322,7 +323,7 @@ def reset_numbering(entity: str, db: Session = Depends(get_db), _: User = Depend
     try:
         return APIResponse.ok(data=_svc.reset_numbering_seq(entity, db))
     except _svc.NotFoundError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
 
 
 # ── Custom fields ─────────────────────────────────────────────────────────────
@@ -336,14 +337,14 @@ def create_custom_field(payload: CustomFieldIn, db: Session = Depends(get_db), _
     try:
         return APIResponse.ok(data=_svc.create_custom_field(payload.model_dump(), db))
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
 
 @router.patch("/custom-fields/{field_id}", summary="Actualizar campo")
 def update_custom_field(field_id: str, payload: CustomFieldIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
     try:
         return APIResponse.ok(data=_svc.update_custom_field(field_id, payload.model_dump(), db))
     except _svc.NotFoundError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
 
 @router.delete("/custom-fields/{field_id}", summary="Eliminar campo")
 def delete_custom_field(field_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
@@ -351,7 +352,7 @@ def delete_custom_field(field_id: str, db: Session = Depends(get_db), user: User
     try:
         return APIResponse.ok(data=_svc.delete_custom_field(field_id, db))
     except _svc.NotFoundError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
 
 @router.get("/custom-fields/values/{entity_id}", summary="Valores de campos personalizados")
 def get_field_values(entity_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -389,7 +390,7 @@ def delete_template(template_id: str, db: Session = Depends(get_db), user: User 
     try:
         return APIResponse.ok(data=_svc.delete_template(template_id, db, user))
     except _svc.NotFoundError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
 
 @router.post("/templates/{template_id}/apply/{project_id}", summary="Aplicar plantilla a proyecto")
 def apply_template(template_id: str, project_id: str, start_date: Optional[str] = None,

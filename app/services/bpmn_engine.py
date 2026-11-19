@@ -57,7 +57,7 @@ from sqlalchemy.orm import Session, contains_eager, selectinload
 
 from app.models.bpmn_process import (BPMNInstance, BPMNInstanceStep, BPMNProcess, BPMNProcessStatus,
                                      BPMNProcessVersion)
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 _NS = "{http://www.omg.org/spec/BPMN/20100524/MODEL}"
 
@@ -378,12 +378,11 @@ def validar_variables(db: Session, org, variables: Optional[dict]) -> dict:
     variables = variables or {}
     malos = [k for k in variables if not isinstance(k, str) or not _NOMBRE_DE_VARIABLE.match(k)]
     if malos:
-        raise ErrorDeDominio(422, "Nombres de variable no válidos (letras, números, _ y .; empiezan por letra o _): "
-                                  + ", ".join(map(str, malos[:10])))
+        raise error(422, "bpm_variables_nombre_no_valido", nombres=", ".join(map(str, malos[:10])))
     tope = get_runtime_int(db, "BPMN_MAX_VARIABLES_BYTES", org)
     tamano = len(json.dumps(variables, default=str).encode("utf8"))
     if tope and tamano > tope:
-        raise ErrorDeDominio(413, f"Las variables ocupan {tamano} bytes; el máximo es {tope}")
+        raise error(413, "bpm_variables_demasiado_grandes", bytes=tamano, max=tope)
     return variables
 
 
@@ -399,7 +398,7 @@ def version_ejecutable(db: Session, proc: BPMNProcess) -> BPMNProcessVersion:
     v = q.filter(BPMNProcessVersion.is_published.is_(True)).order_by(BPMNProcessVersion.version.desc()).first() \
         or q.order_by(BPMNProcessVersion.version.desc()).first()
     if v is None:
-        raise ErrorDeDominio(422, "El proceso no tiene ningún diagrama guardado")
+        raise error(422, "bpm_sin_diagrama")
     return v
 
 
@@ -416,7 +415,7 @@ class _Grafos:
             v = self.db.query(BPMNProcessVersion).filter(BPMNProcessVersion.process_id == inst.process_id,
                                                          BPMNProcessVersion.version == inst.version).first()
             if v is None:
-                raise ErrorDeDominio(409, "La versión del diagrama de esta instancia ya no existe")
+                raise error(409, "bpm_version_diagrama_no_existe")
             self._cache[clave] = leer(v.bpmn_xml)
         return self._cache[clave]
 
@@ -526,12 +525,12 @@ def _avanzar(db: Session, inst: BPMNInstance, g: Grafo, entradas: list[tuple[str
 
 def iniciar(db: Session, proc: BPMNProcess, user, variables: Optional[dict] = None) -> BPMNInstance:
     if proc.status == BPMNProcessStatus.archived:
-        raise ErrorDeDominio(409, "El proceso está archivado: no se pueden iniciar instancias")
+        raise error(409, "bpm_proceso_archivado")
     variables = validar_variables(db, proc.organization_id, variables)
     v = version_ejecutable(db, proc)
     g = leer(v.bpmn_xml)
     if g.problemas:
-        raise ErrorDeDominio(422, "El diagrama no se puede ejecutar: " + "; ".join(map(str, g.problemas[:20])))
+        raise error(422, "bpm_diagrama_no_ejecutable", problemas="; ".join(map(str, g.problemas[:20])))
     inst = BPMNInstance(process_id=proc.id, version=v.version, organization_id=proc.organization_id,
                         status="running", variables=json.dumps(variables), started_by_user_id=user.id)
     db.add(inst)
@@ -564,19 +563,19 @@ def completar(db: Session, inst: BPMNInstance, paso_id: str, user, variables: Op
     paso = db.query(BPMNInstanceStep).filter(BPMNInstanceStep.id == paso_id,
                                              BPMNInstanceStep.instance_id == inst.id).first()
     if paso is None:
-        raise ErrorDeDominio(404, "Paso no encontrado")
+        raise error(404, "no_encontrado", detail="Paso no encontrado", que="paso")
     if inst.status != "running" or paso.status != "active" or not es_humano(paso):
-        raise ErrorDeDominio(409, "Ese paso no está pendiente de completar")
+        raise error(409, "bpm_paso_no_pendiente")
     if not puede_completar(paso, user):
-        raise ErrorDeDominio(403, f"Este paso es para el rol {paso.candidate_role}")
+        raise error(403, "bpm_paso_de_otro_rol", rol=paso.candidate_role)
     variables = validar_variables(db, inst.organization_id, variables)
     g = _grafo(db, inst)
     n = g.nodos.get(paso.element_id)
     if n is None:
-        raise ErrorDeDominio(409, "El paso ya no está en el diagrama de esta instancia")
+        raise error(409, "bpm_paso_fuera_de_diagrama")
     if paso.wait_kind == ESPERA_DECISION:
         if flow_id not in n.salidas:
-            raise ErrorDeDominio(422, "Elige una de las salidas de la decisión")
+            raise error(422, "bpm_elige_salida")
         salidas = [flow_id]
     else:
         salidas = list(n.salidas)
@@ -593,7 +592,7 @@ def completar(db: Session, inst: BPMNInstance, paso_id: str, user, variables: Op
 
 def cancelar(db: Session, inst: BPMNInstance, user=None) -> BPMNInstance:
     if inst.status != "running":
-        raise ErrorDeDominio(409, "La instancia ya ha terminado")
+        raise error(409, "bpm_instancia_terminada")
     for p in inst.steps:
         if p.status == "active":
             p.status = "cancelled"
@@ -696,7 +695,7 @@ def instancia(db: Session, instance_id: str, user, bloquear: bool = False) -> BP
         q = q.with_for_update()
     inst = q.first()
     if inst is None:
-        raise ErrorDeDominio(404, "Instancia no encontrada")
+        raise error(404, "no_encontrado", detail="Instancia no encontrada", que="instancia")
     return inst
 
 

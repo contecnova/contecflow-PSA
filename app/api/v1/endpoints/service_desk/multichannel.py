@@ -22,6 +22,7 @@ from app.services.service_desk.multichannel_service import (
     save_multichannel_config,
 )
 from app.services.service_desk.sms_service import urls_de_firma_de_twilio, validate_twilio_signature
+from app.core.codigos_de_error import error_http
 
 router = APIRouter(prefix="/multichannel", tags=["Multi-channel Portal"])
 
@@ -140,7 +141,7 @@ async def inbound_sms(
     urls = urls_de_firma_de_twilio(request)
     if not await run_db(validate_twilio_signature, urls, form, x_twilio_signature, db):
         from fastapi import HTTPException
-        raise HTTPException(403, "Firma de Twilio ausente o inválida")
+        raise error_http(403, "firma_no_valida", detail="Firma de Twilio ausente o inválida")
 
     return await run_db(procesar_sms_entrante, db, from_phone, body, to_phone)
 

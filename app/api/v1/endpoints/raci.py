@@ -24,15 +24,18 @@ from app.db.session import get_db
 from app.core.deps import get_current_user, require_any_manager
 from app.models.user import User
 import app.services.raci_service as _svc
+from app.core.codigos_de_error import desde_valor
 
 
 def _http(e: ValueError) -> HTTPException:
     msg = str(e)
     if msg.startswith("422:"):
-        return HTTPException(422, msg[4:])
+        from app.core.codigos_de_error import error_http
+        return error_http(422, getattr(e, "codigo", "valor_no_valido"), detail=msg[4:],
+                          **(getattr(e, "params", None) or {"valor": msg[4:]}))
     if "no encontrado" in msg.lower() or "not found" in msg.lower():
-        return HTTPException(404, msg)
-    return HTTPException(400, msg)
+        return desde_valor(404, e)
+    return desde_valor(400, e)
 
 router = APIRouter()
 

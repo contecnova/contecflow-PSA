@@ -11,6 +11,7 @@ import re
 from typing import Optional
 from app.services.olap.etl import DUCKDB_PATH as _DUCKDB_PATH
 from app.core import timeutil
+from app.core.codigos_de_error import ErrorConCodigo
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ def _safe_org_id(org_id: str) -> str:
     fallamos en vez de generar SQL con contenido arbitrario.
     """
     if not _SAFE_ORG_ID.match(org_id):
-        raise ValueError(f"organization_id con formato no admitido para OLAP: {org_id!r}")
+        raise ErrorConCodigo("error_interno", detail=f"organization_id con formato no admitido para OLAP: {org_id!r}")
     return org_id
 
 
@@ -110,7 +111,7 @@ def get_margin_evolution(org_id: Optional[str] = None, months: int = 12, p=None,
     if p is None:
         p = periodo_de_meses(months)
     if p.granularidad not in SIN_HORA or p.granularidad == HORA:
-        raise ValueError(f"margin_evolution no admite la granularidad {p.granularidad!r}")
+        raise ErrorConCodigo("granularidad_no_admitida", detail=f"margin_evolution no admite la granularidad {p.granularidad!r}", granularidad=p.granularidad)
     conn = _try_olap()
     if conn is None:
         return _pg_margin_evolution(org_id, p, db)

@@ -20,13 +20,15 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AlertTriangle, BatteryWarning, Check, ClipboardList, Clock, Gauge, Grid3x3, HardHat, Plus, RefreshCw, Search, ShieldCheck, Sparkles, Target, UserCheck, UserX, Users, Wallet, X } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { ROLE_LABELS, extractErr } from '../utils/helpers'
+import { extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
 import DateInput from '../components/ui/DateInput'
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
-import { useOrgSettings } from '../hooks/useOrgSettings'
+import { useOrgSettings, useTono, useUmbrales } from '../hooks/useOrgSettings'
+import { estadoDeCarga } from '../utils/umbrales'
 import { STALE_5_MIN_MS } from '../constants/timings'
 import './ResourcesPage.css'
+import { useRolesReales } from '../hooks/useRolesReales'
 
 type T = ReturnType<typeof useAppT>
 
@@ -44,6 +46,7 @@ type BurnoutMember = RiesgoDeAgotamiento
 
 function BurnoutRiskCard({ member }: { member: BurnoutMember }) {
   const t = useAppT()
+  const tonoDe = useTono()
   const nivel = nivelDeRiesgo(member.risk_level)
   return (
     <div className={`res-bo-card res-risk--${nivel}`}>
@@ -58,7 +61,7 @@ function BurnoutRiskCard({ member }: { member: BurnoutMember }) {
         </div>
         <div className="res-bo-stats">
           {[
-            { label: t('resources_page.carga_actual'), value: `${member.current_load_pct?.toFixed(0)}%`, tone: (member.current_load_pct ?? 0) > 100 ? 'danger' : 'text' },
+            { label: t('resources_page.carga_actual'), value: `${member.current_load_pct?.toFixed(0)}%`, tone: tonoDe('carga', member.current_load_pct ?? 0) === 'danger' ? 'danger' : 'text' },
             { label: t('resources_page.media_4sem'),   value: `${member.avg_load_4w?.toFixed(0)}%`,      tone: (member.avg_load_4w ?? 0) > 90 ? 'warning' : 'text' },
             { label: t('resources_page.racha_semanas'), value: member.overload_weeks_streak,             tone: (member.overload_weeks_streak ?? 0) >= 3 ? 'danger' : 'text' },
           ].map(s => (
@@ -75,7 +78,7 @@ function BurnoutRiskCard({ member }: { member: BurnoutMember }) {
               const carga = w.load_pct ?? 0
               const h = Math.min(100, carga)
               // El color sale de la carga real: con el valor ya topado a 100 nunca salía rojo.
-              const tone = carga > 100 ? 'danger' : carga > 85 ? 'warning' : 'success'
+              const tone = tonoDe('carga', carga)
               return (
                 <div key={i} title={t('resources_page.semana_menos', { n: i, pct: w.load_pct?.toFixed(0) ?? 0 })}
                   className={`res-spark__bar res-tone--${tone}`}
@@ -182,16 +185,18 @@ type Resource = {
   hourly_rate?: number | string | null
 }
 
-const tonoDeCarga = (load: number) => load > 100 ? 'danger' : load > 85 ? 'warning' : load > 60 ? 'accent' : 'success'
+/** 19-11-2026: bandas de carga de la empresa (`estadoDeCarga`, utils/umbrales); antes 100/85/60 aquí. */
+const TONO_DE_ESTADO = { sobrecargado: 'danger', alto: 'warning', ocupado: 'accent', disponible: 'success' } as const
 
 function ResourceCard({ resource, onEdit, showRates, canEdit }: { resource: Resource; onEdit: (r: Resource) => void; showRates: boolean; canEdit: boolean }) {
   const fmtMoneda = useFormatoMoneda()
   const t = useAppT()
+  const umbrales = useUmbrales()
   const load = resource.current_load_pct ?? 0
-  const tono = tonoDeCarga(load)
+  const tono = TONO_DE_ESTADO[estadoDeCarga(load, umbrales)]
   const nombre = resource.user?.full_name || resource.full_name
   return (
-    <div className={`res-card${load > 100 ? ' res-card--over' : ''}`}>
+    <div className={`res-card${tono === 'danger' ? ' res-card--over' : ''}`}>
       <div className="res-card__head">
         <div className="res-card__who">
           <Avatar name={nombre} size={40} url={undefined} />
@@ -207,7 +212,7 @@ function ResourceCard({ resource, onEdit, showRates, canEdit }: { resource: Reso
           </div>
         </div>
         <div className="res-card__actions">
-          {load > 100 && <span title={t('resources_page.sobrecarga')} role="img" aria-label={t('resources_page.sobrecarga')} className="res-card__warn"><AlertTriangle size={16} aria-hidden /></span>}
+          {tono === 'danger' && <span title={t('resources_page.sobrecarga')} role="img" aria-label={t('resources_page.sobrecarga')} className="res-card__warn"><AlertTriangle size={16} aria-hidden /></span>}
           {/* Sólo para administradores: el editor cambia capacidad semanal,
               departamento y tarifa, y `PATCH /users/{id}` reserva esos campos a
               un administrador. Antes el botón se mostraba a todo el mundo y
@@ -261,7 +266,8 @@ function EditUserModal({ user, open, onClose }: { user: Resource; open: boolean;
     weekly_capacity_hours: String(user?.user?.weekly_capacity_hours || capacidadEmpresa),
     hourly_rate:           String(user?.hourly_rate                 ?? user?.user?.hourly_rate     ?? ''),
   })
-  const { hasRole } = useAuth()
+  const { puede } = useAuth()
+  const rolesReales = useRolesReales()
   const userId = (user?.user?.id || user?.id) as string
   const { data: departments = [] } = useQuery<Array<{ name: string; is_active?: boolean }>>({
     queryKey: ['departments-select'],
@@ -284,9 +290,10 @@ function EditUserModal({ user, open, onClose }: { user: Resource; open: boolean;
     mutate(payload)
   }
   // «Externo» no se da desde aquí: el externo nace de un proveedor («Nuevo externo»).
-  const roles = Object.keys(ROLE_LABELS)
-    .filter(v => v !== 'subcontractor' || form.role === 'subcontractor')
-    .map(v => ({ value: v, label: nombreDeRol(t, v) }))
+  // 19-11-2026: roles reales del backend (`GET /auth/roles`).
+  const roles = rolesReales
+    .filter(r => r.interno || form.role === r.id)
+    .map(r => ({ value: r.id, label: nombreDeRol(t, r.id) }))
   return (
     <Modal open={open} onClose={onClose} title={t('resources_page.editar_titulo')}>
       <div className="u-stack-14">
@@ -297,7 +304,7 @@ function EditUserModal({ user, open, onClose }: { user: Resource; open: boolean;
           options={[{ value: '', label: t('resources_page.sin_departamento') }, ...departments.filter((d) => d.is_active !== false).map((d) => ({ value: d.name, label: d.name }))]} />
         <Select error={campos.de('role')} label={t('resources_page.rol')} value={form.role} onChange={set('role')} options={roles} />
         <Input error={campos.de('weekly_capacity_hours')} label={t('resources.weekly_capacity')} type="number" value={form.weekly_capacity_hours} onChange={set('weekly_capacity_hours')} placeholder={undefined} required={undefined} hint={undefined} />
-        {hasRole('admin') && <Input error={campos.de('hourly_rate')} label={t('resources.tarifa_por_hora')} type="number" value={form.hourly_rate} onChange={set('hourly_rate')} placeholder={undefined} required={undefined} hint={undefined} />}
+        {puede('org.administrar') && <Input error={campos.de('hourly_rate')} label={t('resources.tarifa_por_hora')} type="number" value={form.hourly_rate} onChange={set('hourly_rate')} placeholder={undefined} required={undefined} hint={undefined} />}
         <div className="res-form-actions">
           <Button variant="secondary" onClick={onClose}>{t('resources_page.cancelar')}</Button>
           <Button onClick={handleSave} disabled={isPending} loading={isPending}>{isPending ? t('resources_page.guardando') : t('resources_page.guardar_cambios')}</Button>
@@ -464,8 +471,10 @@ function SmartMatchTab() {
 export default function ResourcesPage() {
   const fmtMoneda = useFormatoMoneda()
   const t = useAppT()
+  const umbrales = useUmbrales()
+  const tonoDe = useTono()
   const [resTab, setResTab] = useState('team')
-  const { hasRole } = useAuth()
+  const { puede } = useAuth()
   const [deptFilter, setDeptFilter] = useState('')
   const [search, setSearch] = useState('')
   const [resSortBy] = useState('user.full_name')
@@ -473,7 +482,7 @@ export default function ResourcesPage() {
   const [view, setView] = useState('grid')
   const [altaExterno, setAltaExterno] = useState(false)
   // Alta de externos: quien gestiona proveedores (Subcontratistas: admin y pm).
-  const puedeAltaExterno = hasRole('admin', 'pm')
+  const puedeAltaExterno = puede('externos.alta')
 
   const { data: loadData = [], isLoading } = useQuery<Resource[]>({
     queryKey: ['resources'],
@@ -490,10 +499,10 @@ export default function ResourcesPage() {
   const { sort: resSort, setSort: setResSort, sortedData: sortedResources } = useSort<Resource>(filtered, resSortBy)
 
   const departments = [...new Set<string>(loadData.map(r => r.user?.department).filter((v): v is string => Boolean(v)))]
-  const overloaded  = loadData.filter(r => (r.current_load_pct ?? 0) > 100).length
-  const available   = loadData.filter(r => (r.current_load_pct ?? 0) < 60).length
+  const overloaded  = loadData.filter(r => tonoDe('carga', r.current_load_pct ?? 0) === 'danger').length
+  const available   = loadData.filter(r => estadoDeCarga(r.current_load_pct ?? 0, umbrales) === 'disponible').length
   const avgLoad     = loadData.length ? (loadData.reduce((s, r) => s + (r.current_load_pct ?? 0), 0) / loadData.length).toFixed(0) : 0
-  const conTarifas  = hasRole('admin', 'hr')
+  const conTarifas  = puede('costes.ver')
 
   const TABS = [
     { id: 'team',       label: t('resources_page.tab_equipo'),     icon: <Users size={14} /> },
@@ -513,7 +522,7 @@ export default function ResourcesPage() {
         <KpiCard icon={<Users size={16} />} label={t('resources_page.kpi_total')} value={loadData.length} />
         <KpiCard icon={<UserCheck size={16} />} label={t('resources_page.kpi_disponibles')} value={available} />
         <KpiCard icon={<UserX size={16} />} label={t('resources_page.kpi_sobrecargados')} value={overloaded} danger={overloaded > 0} />
-        <KpiCard icon={<Gauge size={16} />} label={t('resources_page.kpi_carga_media')} value={`${avgLoad}%`} warning={Number(avgLoad) > 85} />
+        <KpiCard icon={<Gauge size={16} />} label={t('resources_page.kpi_carga_media')} value={`${avgLoad}%`} warning={tonoDe('carga', Number(avgLoad)) !== 'success'} />
       </div>
 
       <Tabs items={TABS} active={resTab} onChange={setResTab} ariaLabel={t('resources.title')} />
@@ -541,7 +550,7 @@ export default function ResourcesPage() {
             <EmptyState icon={<Users size={28} />} title={t('resources.sin_recursos')} description={t('resources_page.sin_coincidencias')} />
           ) : view === 'grid' ? (
             <div className="res-grid">
-              {sortedResources.map(r => <ResourceCard key={r.user?.id} resource={r} onEdit={setEditTarget} showRates={conTarifas} canEdit={hasRole('admin')} />)}
+              {sortedResources.map(r => <ResourceCard key={r.user?.id} resource={r} onEdit={setEditTarget} showRates={conTarifas} canEdit={puede('org.administrar')} />)}
             </div>
           ) : (
             <div className={`res-table${conTarifas ? ' res-table--rates' : ''}`}>
@@ -571,10 +580,10 @@ export default function ResourcesPage() {
                     <span className="u-text2-sm">{r.user?.department || '—'}</span>
                     <span className="u-text2-sm">{nombreDeRol(t, r.user?.role)}</span>
                     <div className="u-row-center-6">
-                      <div className={`res-track res-tone--${carga > 100 ? 'danger' : carga > 80 ? 'warning' : 'success'}`} aria-hidden="true">
+                      <div className={`res-track res-tone--${tonoDe('carga', carga)}`} aria-hidden="true">
                         <div className="res-fill" style={varCss('--pct', `${Math.min(carga, 100)}%`)} />
                       </div>
-                      <span className={`res-pct${carga > 100 ? ' res-pct--over' : ''}`}>{r.current_load_pct}%</span>
+                      <span className={`res-pct${tonoDe('carga', carga) === 'danger' ? ' res-pct--over' : ''}`}>{r.current_load_pct}%</span>
                     </div>
                     <span className="res-mono">{r.hours_this_week || 0}h</span>
                     <span className="u-sm">{r.active_projects || 0}</span>

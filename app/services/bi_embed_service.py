@@ -21,8 +21,8 @@ import jwt
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.errores import ErrorDeDominio
 from app.services.formato_regional import IDIOMA_DE_RESPALDO, idioma as _idioma_de
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +78,7 @@ def create_embed_token(
         {"token": str, "expires_at": iso8601, "dashboard_id": str}
     """
     if ttl_minutes < 1 or ttl_minutes > 10080:  # max 1 week
-        raise ErrorDeDominio(400, "ttl_minutes debe estar entre 1 y 10080")
+        raise error(400, "bi_ttl_fuera_de_rango", detail="ttl_minutes debe estar entre 1 y 10080")
 
     now = datetime.now(tz=timezone.utc)
     exp = now + timedelta(minutes=ttl_minutes)
@@ -115,10 +115,10 @@ def validate_embed_token(db: Session, org_id: str, token: str) -> dict:
         claims = jwt.decode(token, _embed_secret(org_id), algorithms=[_EMBED_ALGO])
     # intentional: chained re-raise preserves context
     except jwt.PyJWTError as exc:
-        raise ErrorDeDominio(401, f"Token de embed inválido: {exc}") from exc
+        raise error(401, "token_no_valido", detail=f"Token de embed inválido: {exc}") from exc
 
     if claims.get("type") != "embed":
-        raise ErrorDeDominio(401, "Token no es de tipo embed")
+        raise error(401, "token_no_valido", detail="Token no es de tipo embed")
 
     # Check revocation list
     meta_key = f"bi.embed.tokens.{org_id}"
@@ -126,7 +126,7 @@ def validate_embed_token(db: Session, org_id: str, token: str) -> dict:
     jti = claims.get("jti")
     for t in meta.get("tokens", []):
         if t["jti"] == jti and t.get("revoked"):
-            raise ErrorDeDominio(401, "Token de embed revocado")
+            raise error(401, "oauth_token_revocado", detail="Token de embed revocado")
 
     return claims
 
@@ -199,7 +199,7 @@ def save_embed_config(db: Session, org_id: str, config: dict) -> dict:
     allowed_keys = set(_DEFAULT_EMBED_CONFIG.keys())
     unknown = set(config.keys()) - allowed_keys
     if unknown:
-        raise ErrorDeDominio(422, f"Campos no permitidos en embed config: {unknown}")
+        raise error(422, "campos_no_permitidos", detail=f"Campos no permitidos en embed config: {unknown}", campos=unknown)
     existing = get_embed_config(db, org_id)
     if "sso_trusted_issuers" in config:
         config = {**config, "sso_trusted_issuers": _conservar_secretos(
@@ -227,11 +227,11 @@ def sso_exchange_token(
     """
     cfg = get_embed_config(db, org_id)
     if not cfg.get("sso_enabled"):
-        raise ErrorDeDominio(403, "SSO embed no está habilitado para esta organización")
+        raise error(403, "bi_sso_embed_desactivado", detail="SSO embed no está habilitado para esta organización")
 
     trusted_issuers: list[dict] = cfg.get("sso_trusted_issuers", [])
     if not trusted_issuers:
-        raise ErrorDeDominio(403, "No hay emisores SSO configurados")
+        raise error(403, "bi_sin_emisores_sso")
 
     # Try each trusted issuer
     external_claims: dict | None = None
@@ -247,7 +247,7 @@ def sso_exchange_token(
             continue
 
     if external_claims is None:
-        raise ErrorDeDominio(401, "Token SSO externo inválido o expirado")
+        raise error(401, "token_no_valido", detail="Token SSO externo inválido o expirado")
 
     user_id = external_claims.get("sub") or external_claims.get("email")
     return create_embed_token(
@@ -322,7 +322,7 @@ def pagina(db: Session, org_id: str, dashboard_id: str, token: str, get_dashboar
     from app.services.settings_service import get_runtime_str
     claims = validate_embed_token(db, org_id, token)
     if claims.get("org") != org_id or claims.get("dash") != dashboard_id:
-        raise ErrorDeDominio(401, "El token no es de este panel")
+        raise error(401, "bi_token_otro_panel")
     # Petición sin usuario: la sesión se acota a la empresa del token.
     db.info.update(organization_id=org_id, is_superadmin=False)
     foto = get_dashboard_snapshot(db, organization_id=org_id, dashboard_id=dashboard_id)

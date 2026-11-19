@@ -18,6 +18,7 @@ from sqlalchemy.orm import joinedload
 from typing import TYPE_CHECKING
 from app.core.constantes import NOMBRE_DEL_PRODUCTO
 from app.services.settings_service import outbound_http_timeout
+from app.core.codigos_de_error import ErrorConCodigo
 if TYPE_CHECKING:
     from app.models.enterprise import (
         Webhook,
@@ -64,10 +65,10 @@ def _rechazar_si_es_interna(ip_str: str) -> None:
         return
 
     if ip.is_loopback or ip.is_link_local or ip.is_private or ip.is_reserved or ip.is_unspecified:
-        raise ValueError(f"Destino bloqueado — IP interna/reservada: {ip_str}")
+        raise ErrorConCodigo("url_red_no_permitida", detail=f"Destino bloqueado — IP interna/reservada: {ip_str}", campo="Webhook")
     for red in _BLOCKED_NETWORKS:
         if ip in red:
-            raise ValueError(f"Destino bloqueado — red interna {red}: {ip_str}")
+            raise ErrorConCodigo("url_red_no_permitida", detail=f"Destino bloqueado — red interna {red}: {ip_str}", campo="Webhook")
 
 
 def _validate_webhook_url(url: str) -> None:
@@ -88,21 +89,21 @@ def _validate_webhook_url(url: str) -> None:
     try:
         parsed = _urlparse.urlparse(url)
     except Exception as exc:
-        raise ValueError(f"URL malformada: {url!r}") from exc
+        raise ErrorConCodigo("url_no_valida", detail=f"URL malformada: {url!r}") from exc
 
     if parsed.scheme != "https":
-        raise ValueError("Solo se permiten destinos HTTPS en webhooks")
+        raise ErrorConCodigo("url_debe_ser_https", detail="Solo se permiten destinos HTTPS en webhooks", campo="Webhook")
 
     hostname = (parsed.hostname or "").lower()
     if not hostname:
-        raise ValueError("URL de webhook sin hostname")
+        raise ErrorConCodigo("url_sin_host", detail="URL de webhook sin hostname", campo="Webhook")
     if hostname in _BLOCKED_HOSTNAMES:
-        raise ValueError(f"Hostname de metadata bloqueado: {hostname!r}")
+        raise ErrorConCodigo("url_red_no_permitida", detail=f"Hostname de metadata bloqueado: {hostname!r}", campo="Webhook")
 
     try:
         direcciones = socket.getaddrinfo(hostname, None)
     except socket.gaierror as exc:
-        raise ValueError(f"No se pudo resolver el hostname {hostname!r}: {exc}") from exc
+        raise ErrorConCodigo("url_host_no_resuelto", detail=f"No se pudo resolver el hostname {hostname!r}: {exc}", host=hostname) from exc
 
     for *_ignorado, sockaddr in direcciones:
         _rechazar_si_es_interna(sockaddr[0])

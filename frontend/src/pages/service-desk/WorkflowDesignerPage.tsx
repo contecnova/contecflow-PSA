@@ -41,6 +41,7 @@ import type { StatusBadgeKind } from '../../components/ui/StatusBadge'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { fmtDateTime } from '../../utils/helpers'
 import { ANIMATION_NORMAL_MS, FIT_VIEW_DELAY_MS, LIVE_VALIDATION_DEBOUNCE_MS, POLL_RUN_DETAIL_MS, POLL_RUN_LIST_MS } from '../../constants/timings'
+import { ESTADOS_DE_TICKET } from '../../constants/catalogos'
 import './WorkflowDesignerPage.css'
 
 // ── Catálogo visual de los nodos (color + icono por tipo) ────────────────────
@@ -932,7 +933,7 @@ function Palette({ onAdd }: { onAdd: (type: string) => void }) {
 // Los mismos que `workflow_triggers.DISPARADORES` y `TicketStatus` del servidor.
 const DISPARADORES_DE_FLUJO = ['created', 'assigned', 'group_assigned', 'status_changed', 'priority_changed',
   'commented', 'sla_warning', 'sla_breached', 'ola_breached', 'uc_breached', 'escalated']
-const ESTADOS_DE_TICKET = ['new', 'assigned', 'in_progress', 'pending_client', 'pending_third', 'resolved', 'closed', 'cancelled']
+// 19-11-2026: `ESTADOS_DE_TICKET` viene de `constants/catalogos` (una sola fuente).
 // Clave de traduccion de cada estado (las mismas que SBadge, en `service_desk`).
 const TICKET_STATUS_KEY: Record<string, string> = {
   new: 'status_new', assigned: 'status_assigned', in_progress: 'status_in_progress',

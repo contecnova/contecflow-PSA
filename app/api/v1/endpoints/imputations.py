@@ -31,6 +31,7 @@ from app.services.imputation_service import (
     get_imputation_by_id,
     delete_imputation_record,
 )
+from app.core.codigos_de_error import error_http
 
 router = APIRouter()
 
@@ -91,7 +92,7 @@ def update_imputation(
 ):
     imp = get_imputation_by_id(db, imputation_id, current_user)
     if not imp:
-        raise HTTPException(status_code=404, detail="Imputación no encontrada")
+        raise error_http(404, "no_encontrado", detail="Imputación no encontrada", que="imputacion")
 
     validate_imputation_edit_allowed(imp, current_user, db)
     return APIResponse.ok(data=update_imputation_fields(imp, payload, db, current_user))
@@ -105,7 +106,7 @@ def delete_imputation(
 ):
     imp = get_imputation_by_id(db, imputation_id, current_user)
     if not imp:
-        raise HTTPException(status_code=404, detail="Imputación no encontrada")
+        raise error_http(404, "no_encontrado", detail="Imputación no encontrada", que="imputacion")
 
     validate_imputation_edit_allowed(imp, current_user, db)
     enforce_abac(db, current_user, "imputation", imputation_id, action="delete")

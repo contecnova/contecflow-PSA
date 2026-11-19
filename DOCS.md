@@ -1468,6 +1468,38 @@ horizonte `PLANNING_SCHEDULE_HORIZON_DAYS`, más allá el patrón con la jornada
 (`comprobar_capacidad` cuenta los días que trabaja), previsión (`_capacidad`),
 `ausencias/turnos.dias_que_cuentan`, cobertura (`parciales`), saldos y bolsa.
 
+### Semana laboral sin L-V fijo (19-11-2026)
+Medido: 9 sitios contaban `weekday() < 5` y capacidad/5. Ahora usan el horario
+efectivo (`efectivo.horas_por_persona`, nuevo atajo: suma de horas del periodo):
+métricas `productivity_by_person`, `load_by_person` y `burnout_index` (capacidad
+sin ausencias), escenarios (`_horas_reservadas_por_semana`: días que trabaja la
+persona reservada; sin persona, `calendario_de_empresa`), mapa de reservas
+(`_horas_en_semana` con sus días), horas de un externo en smartmatch
+(`horas_disponibles(..., horas_por_dia)`) y el recordatorio de imputaciones (horas
+de hoy de su horario, ausencias aprobadas incluidas). SLA: la pausa
+(`business_minutes_between(..., cal)`) mide en el calendario SLA del ticket
+(`sla_service.calendario_sla`: política o `SLA_BUSINESS_*`, festivos, zona) y corre
+el plazo en ese calendario. `absence_service.count_working_days` (sin llamadas)
+acepta los días ISO de la empresa. Worker: alertas, campaña de presupuestos e
+imputaciones corren cada 15 min y procesan solo las empresas cuya hora local
+(`DEFAULT_TIMEZONE` de la empresa) cae en el tramo de `NOTIFICATIONS_ALERTS_TIME`
+(08:00), `NOTIFICATIONS_BUDGET_CAMPAIGN_TIME` (08:30) o
+`NOTIFICATIONS_MISSING_IMPUTATIONS_TIME` (18:00) — grupo `automations`, HH:MM
+validado al guardar (`runtime.AJUSTES_DE_HORA`) —:
+`trabajos_de_fondo.organizaciones_a_su_hora`. Sin jornada especial, todo da lo de
+antes (L-V, capacidad/5, mismas horas). Tests: `tests/test_semana_laboral_2026_11_19.py`.
+Igual los recordatorios de evaluaciones (`perf-reminders-daily`, antes 09:00 fijas):
+`NOTIFICATIONS_PERF_REMINDERS_TIME` (09:00). Se quedan a hora fija del worker, a
+propósito, `externos-caducidad` (06:30: además de avisar quita accesos vencidos;
+no debe depender de que la zona o la hora de una empresa sean legibles) y las
+pasadas de mantenimiento (retención, ETL, purgas). Un solo envío al día: cada
+empresa coincide con su tramo de 15 min una vez al día; los recordatorios de
+desempeño además deduplican 20 h. Cambio de hora (DST): una hora configurada en
+el hueco del adelanto (p. ej. 02:00-02:59 en Europa/Madrid el último domingo de
+marzo) no se da ese día, y una en la hora repetida del retraso (02:00-02:59 el
+último domingo de octubre) se da dos veces; con las horas por defecto (06:30 en
+adelante) no pasa. Una empresa con zona u hora ilegibles se registra y se salta.
+
 ### Ausencias por horas
 `absences.modo` (dias|horas), `start_time`/`end_time` (franja de cada día) y
 `scheduled_hours`. `reglas.medida` mide sobre el horario: días equivalentes,
@@ -2340,3 +2372,179 @@ Stack final:
 2. Opción B (SaaS): Stream/Sendbird + proveedor WebRTC gestionado.
 
 Decidir en comité técnico con criterios de coste, soberanía de datos y esfuerzo de operación.
+
+## Auto-planificar sin IA, vista previa de horas extra y catálogo de equipos por defecto (19-11-2026)
+
+**Auto-planificar tareas sin fecha** (`POST /api/v1/ai-modules/smart-schedule`, ventana
+`SmartScheduleModal`). Ya no la decide un modelo de IA (tardaba ~25 s, no veía dependencias,
+festivos, ausencias ni carga, y devolvía un plan vacío sin avisar si el proveedor fallaba). La
+calcula `app/services/planificador/sin_fecha.py` en milisegundos: tareas sin inicio ni fin de los
+proyectos que el usuario ve; predecesoras antes que sucesoras y, entre libres, prioridad y
+antigüedad; horas = `estimated_hours` (lo que queda según avance), o puntos × jornada, o una
+jornada; cada tarea llena las horas libres del horario efectivo de su responsable (turnos,
+festivos, ausencias, contrato de externo), descontada su carga con fechas y la que el plan le va
+dando, con el tope `LEVELING_OVERALLOCATION_PCT`; sin responsable, calendario de la empresa. La
+respuesta trae `title`, `assignee_name` y `motivo` (datos que la pantalla traduce). No guarda nada:
+se aplica con `bulk-dates`. Queda en `AIActionLog` como antes. Tests:
+`tests/test_autoplanificar_sin_fecha.py`.
+
+**Vista previa de horas extra.** `POST /overtime/preview` con datos a medias (sin horas ni franja,
+tipo no válido) responde 200 con `decision: "incompleta"`, `errores` y `codigo_error`, en vez de
+422; pedir de verdad lo sigue rechazando. La pantalla pide la vista previa con la versión retrasada
+del formulario (antes salía la vieja, sin horas, y daba 422 en consola).
+
+**Equipos y licencias para operadores.** Los operadores piden desde «Mis equipos y licencias»
+(nunca por el portal, que es solo de clientes). Si la empresa no tiene ítems de ALM en el catálogo,
+`alm_integracion.catalogo.asegurar_items` crea al primer uso la categoría interna «Equipos y
+licencias» (no visible para clientes) con «Pedir equipo» y «Pedir licencia» en el idioma de la
+empresa, aprobación del motor común (`catalog_request`; sin flujo, aprobador del ítem o
+administración) y auditoría (`alm_item_de_catalogo`, `automatico: true`). La pestaña Peticiones
+vacía ofrece pedir. La petición sigue el camino de siempre: ticket interno, aprobación, alta desde
+stock o compra, acta de entrega.
+
+## Matriz de permisos (19-11-2026)
+
+**Antes** los permisos de la pantalla estaban escritos a mano en ~300 sitios: 62 rutas con
+`ProtectedRoute roles={[...]}` (App.tsx), 88 `roles: [...]` en el menú (Layout.tsx), 81
+apariciones de `hasRole(` en 49 ficheros y 26 comparaciones `role === 'admin'` / `is_superadmin`. Menú y rutas
+no coincidían (/lessons, /projects, /expenses, /documents…), `is_superadmin` no llegaba nunca a la
+pantalla (no estaba en `UserPublic`) y había 9 listas de roles, algunas con roles que no existen
+(designer, finance, developer, client_user).
+
+**Ahora**, una sola fuente en el backend:
+
+- `app/core/capacidades.py`: catálogo de **capacidades** (`proyectos.ver`, `sd.config`,
+  `ausencias.config`, `gastos.gestionar`, `org.administrar`, `plataforma.empresas`…), cada una con
+  los roles base que la tienen por defecto, el módulo que la cierra (`modulos.MODULOS`) y una
+  **sonda** (una llamada real de su pantalla). Superadmin: todas. Rol personalizado
+  (`custom_role_id` o fila de sistema del rol): solo quita (módulo cerrado → capacidad fuera).
+- `/auth/me` y el login traen `capacidades` (`modulos.con_rutas_cerradas`). `GET /auth/capacidades`
+  devuelve las propias y el catálogo; `GET /auth/roles` los roles reales con etiquetas es/en/zh.
+- Frontend: `permisos/navegacion.ts` es la **única** declaración ruta → capacidad; la leen
+  `ProtectedRoute` (App.tsx), el menú (Layout.tsx) y la página de inicio (`paginaDeInicio`, también
+  tras el login). Pestañas y botones preguntan `puede('x')` (`useAuth().puede`) o
+  `usePermiso('x')`; `hasRole` ya no existe. Los selectores de rol usan `hooks/useRolesReales`.
+  Configuración: cada sección de `catalogoDeAjustes.tsx` declara su `capacidad`.
+- Pruebas: `tests/test_capacidades.py` (cada sonda, con un usuario de cada rol: quien tiene la
+  capacidad no recibe 403; si la sonda es estricta, quien no la tiene sí; superadmin; rol
+  personalizado) y `frontend/src/__tests__/matrizDePermisos.test.tsx` (catálogo igual al del backend,
+  rutas y menú desde la misma declaración, hook, sin `hasRole` ni roles inexistentes).
+
+**Cambios de acceso al unificar menú y ruta** (la API ya servía a esos roles):
+el empleado y RRHH ven en el menú Proyectos, Sprints, RACI, Changelog, UAT, Gantt, Gantt de épicas,
+Épicas, Dependencias, Lecciones y Asistente de reuniones (antes abrían la ruta pero el menú los
+ocultaba); RRHH ve Tareas; el jefe de equipo ve Gastos, Habilidades, Formación e Informes y entra en
+Service desk (la ruta se lo negaba); el externo ve Proyectos (los suyos). Se cierran por ruta (antes
+abiertas por URL aunque el menú no las ofrecía): para el externo Chat, Calendario, Documentos, Wiki,
+Búsqueda (la API le daba 403), Gastos, Habilidades, Formación e Informes; para quien no es admin/PM
+Flujo acumulado y Sprint planning IA. Página de inicio tras el login: la misma que la raíz (antes el
+empleado iba a /imputar y el resto a /tasks).
+
+## Auditoría de hardcodeados: catálogos, integraciones, etiquetas y estilos (19-11-2026)
+
+**Catálogos editables por empresa.** `projects.project_type`, `clients.industry` y `expenses.category`
+eran enums de BD cerrados (`projecttype`, `clientindustry`, `expensecategory`); un tipo de proyecto creado
+en `custom_project_types` no se podía guardar en un proyecto. Revisión Alembic 186: las tres columnas pasan a
+VARCHAR(50) con la clave, se crean `custom_client_industries` y `custom_expense_categories` (mismo modelo que
+`CustomProjectType`: filas globales = valores del sistema, filas con empresa = propias) y se siembran los
+valores de siempre con las mismas claves (datos y API antiguos siguen valiendo). La clave se valida en un
+`before_flush` (`app/services/settings_service/catalogos_de_clave.py`): 422 `no_encontrado` si no existe en el
+catálogo de la empresa. API: `/settings/client-industries`, `/settings/expense-categories` (y la de siempre
+`/settings/project-types`). Pantalla: Configuración → Proyectos → Catálogos (`pages/settings/CatalogosDeClave.tsx`).
+Frontend: `hooks/useCatalogo` (una consulta por catálogo, etiqueta i18n por clave con la de la empresa de
+respaldo) y `constants/catalogos.ts` (estados de tarea/proyecto/ticket, tipos y prioridades ITSM, colores por
+token). Borradas por no tener referencias: `TIMEOUT`, `PAGINATION`, `REFETCH`, `LIMITS`, `AUTOMATION_*`,
+`EMAIL_PROVIDER_GUIDES`, `PROJECT_TYPES`, `TASK_STATUSES`, `TASK_PRIORITIES`, `TICKET_TYPES`, `SLA_LEVELS`
+(`constants/`) y `PRIORITY_LABELS`, `STATUS_LABELS`, `TYPE_LABELS` (`utils/helpers.ts`).
+
+**Integraciones.** GitHub Enterprise / GitLab propio: `GITHUB_WEB_BASE`, `GITHUB_API_BASE`, `GITLAB_BASE_URL`
+(y por integración `config.api_base`/`web_base`/`base_url`). DocuSign sin «demo» por defecto (`DOCUSIGN_DEMO`
+vacío = demo solo fuera de staging/producción) y URLs de autorización y API configurables; Adobe Sign sin región
+fija (`ADOBE_SIGN_BASE_URL` vacío = na1 solo en desarrollo). `app/core/comprobacion_de_produccion.py`: en
+staging/producción no arranca con APP_PUBLIC_URL/OpenSearch/Redis/NATS en localhost, remitente `.local` sin
+SMTP_FROM, VAPID de ejemplo, DocuSign demo (producción) o Adobe sin región. `APP_PUBLIC_URL` vacío = `FRONTEND_URL`
+(antes localhost:3000 frente al 5173 de FRONTEND_URL). Regiones AWS de la prueba de S3 y del descubrimiento CMDB:
+`AWS_REGION`. OLAP sin `DUCKDB_PATH`: aviso (ERROR en producción) en lugar de caer callado a /tmp. STT sin
+`es-ES` fijo (vacío = idioma del usuario o de la empresa). País por defecto: ajuste por empresa `DEFAULT_COUNTRY`.
+Frontend: `PREFIJO_API_SERVIDOR`/`sinPrefijoDelServidor` en `services/api/urls.ts` y cliente común
+`services/api/clienteBase.ts` (`crearClienteDeApi`, `apiPublica`, `TIMEOUT_API_MS`).
+
+**Etiquetas de la configuración dinámica.** Cada clave de `RUNTIME_FLAG_GROUPS` tiene etiqueta en es/en/zh
+(`ajuste_clave.<CLAVE>`); el texto inglés del backend queda de respaldo. Test:
+`tests/test_hardcodeados_2026_11_19.py`.
+
+**Estilos.** z-index, `font-size` y colores fuera del tema pasan a tokens (`--z-*`, `--text-*`, `var(--…)`);
+quedan como literales, a propósito, los colores que elige el usuario (selectores de color, marca) y el HTML de
+impresión.
+
+**Baja.** `max_tokens` por tamaño de respuesta (`AI_SHORT/BRIEF/MEDIUM/LONG_ANSWER_MAX_TOKENS`,
+`AI_CHAT_MAX_TOKENS`); tope y temperatura del proveedor del .env (`AI_PROVIDER_DEFAULT_MAX_TOKENS`,
+`AI_DEFAULT_TEMPERATURE`); modelos retirados en `app/core/ai_models.json` (`_retirados`); logos del marketplace
+con `CONNECTOR_LOGO_BASE_URL`; fuentes con `VITE_FONTS_CSS_URL` (`src/fuentes.ts`; vacía = sin llamar a Google);
+sin restos de demo (Acme, Alice Smith, hr@example.com).
+
+**GRC.** Las altas de catálogo quedan selladas con la empresa de quien las crea y las globales solo las toca el
+superadmin (`_exigir_propio`). Fuentes vacías evitan enviar la IP del usuario a Google (RGPD). DocuSign demo no
+puede quedar activo en producción (firmas sin validez legal).
+
+## Todos los errores con código traducible (19-11-2026)
+
+Antes: 2180 errores que ve el usuario salían con texto libre (castellano o inglés) y sin código (medido con `scripts/errores_sin_codigo.py`: 1134 `ErrorDeDominio` sin `code`, 773 `HTTPException` con texto, 273 `raise ValueError(texto)` en `app/services`/`app/api`, de ellos 137 `detail=str(e)`). Ahora: **0**.
+
+**Cómo lanzar un error** (`app/core/codigos_de_error.py`):
+
+- Servicios: `raise error(404, "no_encontrado", que="epica", detail="Épica no encontrada")` (`ErrorDeDominio` con `code` + `params`).
+- Capa API: `raise error_http(400, "fichero_vacio")`, un `HTTPException` con `code`/`params` (los `except HTTPException` y los tests que esperan `HTTPException` siguen igual).
+- Servicios que lanzan `ValueError`: `raise ErrorConCodigo("valor_no_valido", valor=x)`; el endpoint hace `raise desde_valor(400, e)` y conserva el código.
+- `detail=` conserva el texto de siempre cuando el código es genérico; sin él, `detail` es el castellano del catálogo. Los `params` se serializan solos (UUID, fechas → texto).
+- Genéricos que hay que reutilizar antes de crear uno: `no_encontrado` (`que=<entidad>`, la interfaz traduce `err_srv.que_<entidad>`; 157 entidades en `QUE`), `no_encontrado_generico`, `sin_permiso`, `solo_admin`, `solo_admin_o_pm`, `sin_empresa`, `no_autenticado`, `error_interno`, `conflicto_concurrente`, `valor_no_valido`, `campo_obligatorio`, `nombre_obligatorio`, `transicion_no_permitida`, `fecha_no_valida`, `servicio_externo_fallo` (`servicio`), `integracion_no_configurada` (`nombre`), `dependencia_no_instalada` (`paquete`), `bloqueado_por_politica` (`motivo`).
+- Nunca `detail=str(e)` de una excepción ajena: se registra en el log y se lanza un código (`error_interno`, `servicio_externo_fallo`...). Los mensajes de validación útiles (CSV, XML, cron) pueden seguir en `detail`.
+- Contraseñas: `security.codigo_de_politica_de_contrasena(mensaje)` da el código de cada regla (`contrasena_min_caracteres` con `n`, `contrasena_sin_mayuscula`...).
+
+**Catálogo generado.** Los códigos del operador nuevos (875) y las entidades viven en `scripts/codemods/errores_con_codigo/*.json` (`comun`, `api_varios`, `servicios_admin`, `servicios_usuario`, `manual`: `codigos` {es,en,zh}, `que`, `entidades`, `textos`). `python scripts/codemods/errores_con_codigo.py --sincronizar` regenera los bloques marcados `>>> errores_con_codigo` / `>>> que` de `codigos_de_error.py` (en `MENSAJES_DEL_OPERADOR` y `QUE`) y de `err_srv` en `frontend/src/i18n/langs/{es,en,zh}.mjs` (también `que_<entidad>`); no se editan a mano. Se niega a redefinir un código del portal (`MENSAJES`, 8 idiomas). `--aplicar <rutas>` reescribe las llamadas cuyo texto está en `textos` (o casa con «X no encontrado»), `--pendientes` lista lo que falta. Respeta CRLF/LF y pasa `py_compile`. El portal recibe además `err_srv.error_interno` en sus 8 diccionarios.
+
+**Interfaz.** `extractErr` → `utils/errorDelOperador.ts` traduce `code` + `params`; el dato `que` se traduce con `err_srv.que_<valor>`.
+
+**Cuota que solo baja.** `scripts/errores_sin_codigo.py` cuenta por fichero los tres patrones (no cuenta `detail` que ya es un código `snake_case` como `alm_*`/`trad_*`, ni dicts). `scripts/errores-sin-codigo.json` es la cuota por fichero (hoy `{}`); `tests/test_errores_sin_codigo.py` falla si un fichero la supera o aparece uno nuevo. `--encoger` la baja a lo medido y nunca la sube. El mismo test exige que cada código lanzado exista en el catálogo, que cada entidad `que` tenga texto en es/en/zh y prueba endpoints de muestra (proyecto, tarea y épica inexistentes: `code`, `params` y texto en en/zh).
+
+Corrección de paso: tres códigos del operador pisaban códigos del portal (`credenciales_incorrectas`, `contrasena_actual_incorrecta`, `servicio_no_disponible`) y cambiaban el `detail` del login del portal; ahora son `login_credenciales_incorrectas`, `contrasena_actual_no_coincide` y `servicio_no_disponible_temporal`.
+
+
+## Umbrales de semáforo: una definición por métrica (19-11-2026)
+
+**Medido antes.** Cada pantalla y servicio decidía sus cortes para la misma métrica: presupuesto consumido a 70/90 (ficha de proyecto, panel de proyectos, barra del portal), 75/90 (panel del portal, informe de proyectos), 85/100 (cartera, ficha de presupuesto, métrica de coste), >80 o >90 (salud del panel, listado de proyectos); carga de recursos a 85/100, 80 (recursos, escenarios, analítica) o 60/85/100 (capacidad); cumplimiento de SLA a 70/90 (agente), 75/90 (portal), 80/95 (métricas), 90/85 (informe de gobierno). Y servicios que contradecían su propio ajuste: el histórico de salud de proyecto a 70/45 fijo frente a `PROJECT_HEALTH_TRAFFIC_*`, el CPI de rentabilidad a 0,8/0,95 frente a `EVM_INDEX_*`, el riesgo de un cambio a 75/55/30 frente a `RISK_LEVEL_*` 75/50/25.
+
+**Ahora.** `app/core/umbrales.py` define cada métrica una vez (`METRICAS`: ajuste de aviso, ajuste crítico, sentido y si el corte incluye el valor) y `tono_de(metrica, valor, db, org_id)` devuelve `success`/`warning`/`danger` con los ajustes de la empresa. El frontend recibe los mismos cortes en `/settings/org-defaults` (campo `umbrales`, cualquier sesión) y el portal en `/portal/dashboard` (el cliente no tiene sesión de empleado); `useUmbrales()`/`useTono()` (`hooks/useOrgSettings.ts`) y `tonoDe` (`utils/umbrales.ts`) aplican la misma regla. Donde el servidor ya calcula el estado, la pantalla lo pinta: `budget_tone` en la salud del panel de proyectos y `sla_risk_tone`, `rejection_tone`, `is_critical` en los cuellos de botella de aprobaciones.
+
+Regla: «más es peor» (presupuesto, carga, aprobaciones, riesgo) → crítico si valor > crítico, aviso si valor > aviso (riesgo y aprobaciones con ≥, su ajuste dice «desde»); «menos es peor» (SLA, OKR, NPS, margen, sprint, salud, EVM, días que faltan) → crítico si valor < crítico, aviso si valor < aviso (días que faltan con ≤).
+
+| Métrica | Ajustes (grupo) | Por defecto | Por qué ese valor |
+|---|---|---|---|
+| presupuesto consumido (%) | `UMBRAL_PRESUPUESTO_AVISO_PCT` / `_CRITICO_PCT` (`semaforos`) | 70 / 90 | el par más repetido (3 pantallas) |
+| carga de una persona (% de capacidad) | `UMBRAL_CARGA_AVISO_PCT` / `_CRITICO_PCT`; infrautilizada `RESOURCE_UNDERUSE_PCT` (`proyectos`) | 85 / 100; 50 | 85/100 en 7 sitios; 50 en informe y analítica |
+| semana sobrecargada (burnout) | `UMBRAL_SOBRECARGA_HORAS_SEMANA` | 42 h | el del modelo y el oráculo |
+| cumplimiento de SLA (%) | `UMBRAL_SLA_AVISO_PCT` / `_CRITICO_PCT` | 90 / 75 | 90 en 3 de 4; 75 la mediana de 70/75/80/85 |
+| progreso de OKR (%) | `UMBRAL_OKR_*` | 60 / 30 | el único (OKRs) |
+| NPS | `UMBRAL_NPS_*` | 50 / 0 | el único (NPS) |
+| margen (%) | `UMBRAL_MARGEN_*` | 50 / 30 | el de tarifas (finanzas usaba 30/15) |
+| sprint: completitud / ratio de velocidad (%) | `UMBRAL_SPRINT_COMPLETITUD_*`, `UMBRAL_SPRINT_VELOCIDAD_*` | 80 / 50; 85 / 50 | aviso el de siempre; crítico nuevo (antes no había rojo) |
+| aprobaciones: riesgo de SLA del paso, rechazo (%) | `UMBRAL_APROBACION_RIESGO_SLA_*`, `UMBRAL_APROBACION_RECHAZO_*` | 50 / 80; 10 / 25 | los de siempre |
+| aprobaciones: pendientes, horas por decisión | `UMBRAL_APROBACION_PENDIENTES_CRITICO`, `UMBRAL_APROBACION_DECISION_HORAS` | 3; 24 | los de siempre |
+| días que faltan (contratos, licencias) | `UMBRAL_VENCIMIENTO_HORIZONTE_DIAS`, `_AVISO_DIAS`, `_CRITICO_DIAS` | 90; 30 / 14 | contratos; licencias usaba 30 y 7/30 |
+| hitos del portal | `UMBRAL_HITOS_HORIZONTE_DIAS`, `UMBRAL_HITOS_INMINENTE_DIAS` | 60; 7 | los de siempre |
+| riesgo (0-100) | `RISK_LEVEL_HIGH` / `_CRITICAL` (`risk`) | 50 / 75 | ya existía |
+| salud de proyecto | `PROJECT_HEALTH_TRAFFIC_GREEN` / `_YELLOW` (`health`) | 70 / 45 | ya existía |
+| salud de cliente | `HEALTH_THRESHOLD_GOOD` / `_AT_RISK` (`health`) | 60 / 40 | ya existía (NPS pintaba 75/50) |
+| índices EVM (CPI/SPI) | `EVM_INDEX_GREEN_MIN` / `_RED_BELOW` (`health`) | 0,90 / 0,85 | ya existía |
+
+Al guardar (`set_runtime_value`) cada umbral se valida: rango de su métrica (NPS −100..100, SLA 0..100…) y el par en orden (más es peor: aviso ≤ crítico; menos es peor: aviso ≥ crítico); si no, 400 `ajuste_valor_no_valido`. Se editan en Configuración › Configuración dinámica › **Semáforos** (y riesgo/salud/EVM en sus grupos).
+
+**Sitios que pasan a la definición común.** Servidor: `activity_service/salud.py` (histórico), `profitability_service._bandera_de_riesgo` (CPI), `service_desk/change_service._score_to_label` (`nivel_de_riesgo`), `governance_compliance_service` (SLA y cambio de riesgo alto), `ai_modules/_base.burnout_score` y `oracle.py` (sobrecarga y presupuesto), `bi_smart_alerts/metrics/recursos.py` (usuarios sobrecargados al mes = capacidad semanal de la empresa × 4 × carga crítica: 160 h por defecto, como antes), `billing_reports_service/informes.py`, `metrics/costs.py`, `bookings_service/reservas.py`, `resource_analytics.py`, `dashboard_service.py`, `approval_engine/analytics.py`. Frontend: ficha, panel y listado de proyectos, cartera, ficha de presupuesto, portal (panel y barra), recursos, previsión, capacidad, imputar, escenarios, agente y métricas de service desk, OKRs, NPS, tarifas, panel financiero, sprints, puntuaciones de riesgo, aprobaciones, contratos y licencias; `loadColor`, `budgetColor` y `marginColor` delegan en `tonoDe`. El formulario de una política de SLA nueva parte de los SLA de la empresa (`SLA_P*_*_HOURS`, `SLA_BUSINESS_*`) en vez de 1/4/8/24… y 9-18 escritos en la pantalla (el ajuste dice 8-18). Las horas máximas de un día en Imputar y Hojas de horas salen de `HORAS_MAXIMAS_POR_DIA` (el `le=24` del servidor); una asignación semanal en Capacidad, de dos semanas de la capacidad de la empresa (80 h por defecto, como antes).
+
+**Cambios de comportamiento con los valores por defecto** (medidos contra el código anterior): cartera y ficha de presupuesto avisan desde 70 % (antes 85) y marcan crítico desde 90 % (antes 100); el panel de proyectos y su puntuación de salud desde 70/90 (antes 80/100); la métrica de coste e informe de proyectos 70/90 (antes 85/100 y 75/90); el panel del portal avisa desde 70 % (antes 75); SLA crítico bajo 75 % en agente (antes 70), métricas (antes 80/95) e informe de gobierno (antes 85); margen del panel financiero 50/30 (antes 30/15); salud de cliente en NPS 60/40 (antes 75/50); CPI crítico bajo 0,85 y bien desde 0,90 (antes 0,8/0,95); riesgo de cambio «alto» desde 50 (antes 55); el aviso de sobrecoste del oráculo desde el 90 % (antes 85); reservas «libre» bajo el 50 % (antes 20); «al límite» en analítica de recursos y escenarios desde 85 % (antes 80); «disponible» en recursos y capacidad bajo 50 % (antes 60); licencias que vencen: crítico a 14 días (antes 7 en el panel de caducidades). Cada empresa puede volver a los anteriores en Semáforos.
+
+**Lo que no se tocó, a propósito.** Las escalas de probabilidad y correlación (`app/core/escalas.py`), las heurísticas que puntúan (pesos del modelo de abandono en `bi_anomaly_service`, nota A-F del informe de cumplimiento y la gravedad de cada hallazgo, plazos de `perf_reminder_service` para ciclos estancados): no son un semáforo sobre una métrica. Plantillas de formulario que no son umbrales (rampa canaria 1/5/25/50/100 y 30/45/60 min en `ChangeRolloutPanel`, 24 meses de retención propuestos en Chat, máximo de 60 días de vacaciones asignados) siguen en su pantalla: hacen falta ajustes propios.
+
+**GRC.** Los cambios de umbral pasan por `set_runtime_value`: quedan en el registro de cambios de ajustes (actor, IP, valor anterior y nuevo) y sólo los escribe `require_admin`, por empresa. Los umbrales no son datos personales ni sensibles, por eso salen a cualquier sesión (`Audiencia.SESION`) y al portal; no cambian retenciones ni privilegios.
+
+Tests: `tests/test_umbrales_por_metrica_2026_11_19.py` (regla, defectos, por empresa, validación, aprobaciones, CPI, burnout, `/settings/org-defaults`, y que `utils/umbrales.ts` tiene las mismas métricas y defectos) y `frontend/src/utils/umbrales.test.ts`.

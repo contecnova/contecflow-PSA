@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.core import timeutil
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 
 def _miembro(db: Session, a, worker, role, allocation_pct):
@@ -44,7 +45,7 @@ def crear(db: Session, sub, payload, actor) -> dict:
     role = datos.pop("member_role", None)
     allocation = datos.pop("allocation_pct", None)
     if not db.query(Project.id).filter(Project.id == datos["project_id"]).first():
-        raise ErrorDeDominio(404, "Proyecto no encontrado")
+        raise error(404, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")
     worker = None
     if datos.get("worker_id"):
         worker = db.query(SubcontractorWorker).filter(
@@ -126,7 +127,7 @@ def terminar_por_id(db: Session, sub_id: Optional[str], assignment_id: str, fech
         q = q.filter(SubcontractorAssignment.subcontractor_id == sub_id)
     a = q.first()
     if a is None:
-        raise ErrorDeDominio(404, "Asignación no encontrada")
+        raise error(404, "no_encontrado", detail="Asignación no encontrada", que="asignacion")
     if not a.is_active:
         raise ErrorDeDominio(409, "La asignación ya está terminada.", code="externo_asignacion_terminada")
     terminar(db, a, fecha, actor)

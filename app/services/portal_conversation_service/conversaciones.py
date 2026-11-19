@@ -114,7 +114,7 @@ def create_team_conversation(payload, current_user, db: Session) -> dict:
         if not client_org_id:
             client_org_id = project.client_id
     if not org_id:
-        raise ValueError("No se pudo resolver organization_id para la conversación")
+        raise ErrorConCodigo("error_interno", detail="No se pudo resolver organization_id para la conversación")
     if client_org_id and not db.query(Client).filter(Client.id == client_org_id).first():
         raise ErrorConCodigo("cliente_no_encontrado")
     policy = _get_or_create_policy(org_id, payload.topic_type, db)

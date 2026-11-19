@@ -46,6 +46,7 @@ from app.services.collaboration._integrations import (
 )
 from app.services.collaboration._permissions import _org
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 _log = logging.getLogger(__name__)
 
@@ -118,8 +119,7 @@ def guardar_suscripcion_push(db: Session, user, payload: dict) -> dict:
     p256dh = claves.get("p256dh")
     auth = claves.get("auth")
     if not (endpoint and p256dh and auth):
-        raise ErrorDeDominio(
-            400, "subscription.endpoint + keys.p256dh + keys.auth requeridos")
+        raise error(400, "suscripcion_push_incompleta", detail="subscription.endpoint + keys.p256dh + keys.auth requeridos")
 
     org = _org(user)
     existente = _suscripcion_por_endpoint(db, endpoint)
@@ -242,12 +242,12 @@ def url_de_oauth(db: Session, user, integration_id: str, vinculo: Optional[str] 
         .first()
     )
     if not fila:
-        raise ErrorDeDominio(404, "Integración no encontrada")
+        raise error(404, "no_encontrado", detail="Integración no encontrada", que="integracion")
     if fila.kind not in PROVIDERS:
-        raise ErrorDeDominio(400, "Proveedor sin OAuth")
+        raise error(400, "proveedor_sin_oauth")
     url = auth_url_for(fila.kind, fila.id, user_id=user.id, org_id=fila.organization_id, vinculo=vinculo)
     if not url:
-        raise ErrorDeDominio(503, f"Faltan credenciales OAuth para {fila.kind}")
+        raise error(503, "integracion_no_configurada", detail=f"Faltan credenciales OAuth para {fila.kind}", nombre=fila.kind)
     return url
 
 

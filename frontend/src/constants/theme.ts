@@ -33,6 +33,9 @@ export function getCSSVar(varName: string, fallback: string = ''): string {
 // activo y al acento del perfil. Sirve en style={{}} y en fill/stroke de SVG.
 // En canvas, o donde var() no se resuelva, getCSSVar('--x').
 // Para opacidad, alpha(COLOR.x, '20'): pegar '20' a un var() da CSS inválido.
+import { tonoDe, UMBRALES_POR_DEFECTO } from '../utils/umbrales'
+import type { Umbrales } from '../utils/umbrales'
+
 export const COLOR = {
   // Superficies (de más oscuro a más claro)
   surface0:    'var(--surface-0)',
@@ -145,14 +148,12 @@ export type ChartColorName = keyof typeof CHART
 // medidas en los tokens de index.css). Se retiran.
 
 // ── Helper: color semántico de un valor numérico ──────────────────────────────
-export function budgetColor(pct: number): string {
-  if (pct >= 100) return COLOR.danger
-  if (pct >= 85)  return COLOR.warning
-  return COLOR.success
+// 19-11-2026: los cortes son los de `utils/umbrales` (una definición por
+// métrica; los de la empresa con `useUmbrales()`), no unos propios.
+export function budgetColor(pct: number, umbrales: Umbrales = UMBRALES_POR_DEFECTO): string {
+  return `var(--${tonoDe('presupuesto', pct, umbrales) ?? 'success'})`
 }
 
-export function marginColor(pct: number): string {
-  if (pct < 0)  return COLOR.danger
-  if (pct < 15) return COLOR.warning
-  return COLOR.success
+export function marginColor(pct: number, umbrales: Umbrales = UMBRALES_POR_DEFECTO): string {
+  return `var(--${tonoDe('margen', pct, umbrales) ?? 'success'})`
 }

@@ -37,6 +37,7 @@ from app.core.abac_enforce import enforce_abac
 from app.services import m365_service
 from app.core import timeutil
 from app.services.settings_service import outbound_http_timeout
+from app.core.codigos_de_error import error_http
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -102,7 +103,7 @@ async def sync_calendar_events(
         return APIResponse.ok(data={"pulled": len(events), "events": events})
     except httpx.HTTPStatusError as e:
         logger.warning("Graph API sync failed: status=%s", e.response.status_code)
-        raise HTTPException(e.response.status_code, "Graph API request failed")
+        raise error_http(e.response.status_code, "servicio_externo_fallo", detail="Graph API request failed", servicio="Microsoft Graph")
 
 
 @router.post("/calendar/events")
@@ -132,7 +133,7 @@ async def create_calendar_event(
         return APIResponse.ok(data={"id": result.get("id"), "webLink": result.get("webLink"), "subject": result.get("subject")})
     except httpx.HTTPStatusError as e:
         logger.warning("Graph API create event failed: status=%s", e.response.status_code)
-        raise HTTPException(e.response.status_code, "Graph API request failed")
+        raise error_http(e.response.status_code, "servicio_externo_fallo", detail="Graph API request failed", servicio="Microsoft Graph")
 
 
 @router.delete("/calendar/events/{event_id}")
@@ -155,7 +156,7 @@ async def delete_calendar_event(
         await _graph_delete(f"/users/{buzon}/events/{quote(event_id, safe='')}")
     except httpx.HTTPStatusError as e:
         logger.warning("Graph API delete event failed: status=%s", e.response.status_code)
-        raise HTTPException(e.response.status_code, "Graph API request failed")
+        raise error_http(e.response.status_code, "servicio_externo_fallo", detail="Graph API request failed", servicio="Microsoft Graph")
     return APIResponse.ok(data={"ok": True})
 
 
@@ -208,7 +209,7 @@ async def send_teams_notification(
     from app.core.outbound_url import cliente_httpx, validate_outbound_url
     webhook_url = body.webhook_url or settings.TEAMS_WEBHOOK_URL
     if not webhook_url:
-        raise HTTPException(503, "TEAMS_WEBHOOK_URL not configured")
+        raise error_http(503, "integracion_no_configurada", detail="TEAMS_WEBHOOK_URL not configured", nombre="Teams")
     # Auditoria 2026-11 (#25): la URL llegaba del cuerpo sin validar (SSRF).
     webhook_url = validate_outbound_url(webhook_url, field="webhook_url", require_https=True)
 
@@ -236,7 +237,7 @@ async def send_teams_notification(
     estado = await run_db(_enviar)
     if estado not in (200, 202):
         logger.warning("Teams webhook notify failed: status=%s", estado)
-        raise HTTPException(502, "Teams webhook delivery failed")
+        raise error_http(502, "webhook_entrega_fallida", detail="Teams webhook delivery failed", servicio="Teams")
     return APIResponse.ok(data={"ok": True, "status": estado})
 
 
@@ -251,7 +252,7 @@ async def notify_project_milestone(
     """Send a formatted Teams notification about an upcoming milestone."""
     webhook_url = settings.TEAMS_WEBHOOK_URL
     if not webhook_url:
-        raise HTTPException(503, "TEAMS_WEBHOOK_URL not configured")
+        raise error_http(503, "integracion_no_configurada", detail="TEAMS_WEBHOOK_URL not configured", nombre="Teams")
 
     card = {
         "@type": "MessageCard",
@@ -269,7 +270,7 @@ async def notify_project_milestone(
 
     if resp.status_code not in (200, 202):
         logger.warning("Teams milestone webhook notify failed: status=%s", resp.status_code)
-        raise HTTPException(502, "Teams webhook delivery failed")
+        raise error_http(502, "webhook_entrega_fallida", detail="Teams webhook delivery failed", servicio="Teams")
     return APIResponse.ok(data={"ok": True})
 
 
@@ -324,9 +325,9 @@ async def get_users_presence(
     _require_m365()
     upn_list = [u.strip() for u in upns.split(",") if u.strip()]
     if not upn_list:
-        raise HTTPException(400, detail="No UPNs provided")
+        raise error_http(400, "upn_ninguno", detail="No UPNs provided")
     if len(upn_list) > 650:
-        raise HTTPException(400, detail="Maximum 650 UPNs per request")
+        raise error_http(400, "upn_demasiados", detail="Maximum 650 UPNs per request", max=650)
     # Auditoria 2026-11 (#15): solo la presencia de usuarios de la organizacion;
     # los demas UPN se omiten.
     from app.core.async_db import run_db

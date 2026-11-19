@@ -18,6 +18,7 @@ from app.services.traffic_control_service import consume_quota
 from app.core.responses import APIListResponse, APIResponse
 import logging
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.core.codigos_de_error import error_http
 
 logger = logging.getLogger(__name__)
 
@@ -61,10 +62,7 @@ def send_message(payload: MessageCreate, current_user: User = Depends(get_curren
         window_seconds=60,
     )
     if not user_quota["allowed"]:
-        raise HTTPException(
-            status_code=429,
-            detail=f"Message rate limit exceeded. Retry in {user_quota['retry_after']}s",
-        )
+        raise error_http(429, "limite_mensajes", detail=f"Message rate limit exceeded. Retry in {user_quota['retry_after']}s", segundos=user_quota['retry_after'])
 
     conv_subject = payload.conversation_id or payload.channel_id or payload.direct_id or payload.group_id or "unknown"
     conv_quota = consume_quota(
@@ -76,10 +74,7 @@ def send_message(payload: MessageCreate, current_user: User = Depends(get_curren
         window_seconds=60,
     )
     if not conv_quota["allowed"]:
-        raise HTTPException(
-            status_code=429,
-            detail=f"Channel traffic limit exceeded. Retry in {conv_quota['retry_after']}s",
-        )
+        raise error_http(429, "limite_canal", detail=f"Channel traffic limit exceeded. Retry in {conv_quota['retry_after']}s", segundos=conv_quota['retry_after'])
     msg = msg_svc.send_message(
         db, current_user,
         body=payload.body,

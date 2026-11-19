@@ -70,6 +70,19 @@ class AISettingsMixin:
     # Tope de las preguntas de respuesta corta (clasificar, elegir un id): el
     # razonamiento de los modelos 2.5 / o-series tambien cuenta.
     AI_SHORT_ANSWER_MAX_TOKENS: int = Field(default=256, env="AI_SHORT_ANSWER_MAX_TOKENS")
+    # 19-11-2026 (auditoría de hardcodeados): 23 llamadas llevaban su `max_tokens`
+    # escrito (200…4096). Ahora usan uno de estos topes según el tamaño de la
+    # respuesta esperada: breve (un JSON, una clasificación con motivo), media
+    # (un resumen, una narrativa), larga (artículo, respuesta del asistente) y
+    # chat (conversación con herramientas). Incluyen el razonamiento de los
+    # modelos que piensan (2.5 / o-series).
+    AI_BRIEF_ANSWER_MAX_TOKENS: int = Field(default=500, env="AI_BRIEF_ANSWER_MAX_TOKENS")
+    AI_MEDIUM_ANSWER_MAX_TOKENS: int = Field(default=800, env="AI_MEDIUM_ANSWER_MAX_TOKENS")
+    AI_LONG_ANSWER_MAX_TOKENS: int = Field(default=1500, env="AI_LONG_ANSWER_MAX_TOKENS")
+    AI_CHAT_MAX_TOKENS: int = Field(default=4000, env="AI_CHAT_MAX_TOKENS")
+    # Proveedor configurado solo por .env (sin fila en la base): tope y temperatura por defecto.
+    AI_PROVIDER_DEFAULT_MAX_TOKENS: int = Field(default=2000, env="AI_PROVIDER_DEFAULT_MAX_TOKENS")
+    AI_DEFAULT_TEMPERATURE: float = Field(default=0.7, env="AI_DEFAULT_TEMPERATURE")
     AI_AGENT_TURN_TIMEOUT_SECONDS: int = Field(default=90, env="AI_AGENT_TURN_TIMEOUT_SECONDS")
     AI_MODELS_LIST_TIMEOUT_SECONDS: int = Field(default=30, env="AI_MODELS_LIST_TIMEOUT_SECONDS")
 

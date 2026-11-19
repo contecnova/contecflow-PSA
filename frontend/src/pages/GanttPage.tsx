@@ -55,7 +55,7 @@ export default function GanttPage({ projectId: proyectoFijo }: { projectId?: str
   const [autoPlanOpen, setAutoPlanOpen] = useState(false)
   // Mover fechas y crear dependencias exige admin o pm en el servidor: para el
   // resto el Gantt es de consulta (revisión 2026-11; antes arrastraban y les daba 403).
-  const puedeEditar = useAuth().hasRole('admin', 'pm')
+  const puedeEditar = useAuth().puede('proyectos.gestionar')
 
   // ── data ────────────────────────────────────────────────────────────────────
   const { data: projects = [] } = useQuery({

@@ -1,0 +1,2469 @@
+{
+ "codigos": {
+  "campo_obligatorio": {
+   "es": "Falta el campo obligatorio: {campo}",
+   "en": "Required field missing: {campo}",
+   "zh": "缺少必填字段：{campo}"
+  },
+  "campos_obligatorios": {
+   "es": "Faltan campos obligatorios: {campos}",
+   "en": "Required fields missing: {campos}",
+   "zh": "缺少必填字段：{campos}"
+  },
+  "campo_obligatorio_si": {
+   "es": "{campo} es obligatorio cuando {condicion}",
+   "en": "{campo} is required when {condicion}",
+   "zh": "当 {condicion} 时，{campo} 为必填"
+  },
+  "campo_no_valido_opciones": {
+   "es": "Valor no válido para {campo}. Opciones: {opciones}",
+   "en": "Invalid value for {campo}. Options: {opciones}",
+   "zh": "{campo} 的值无效。可选值：{opciones}"
+  },
+  "token_no_valido": {
+   "es": "El token no es válido o ha caducado",
+   "en": "The token is invalid or has expired",
+   "zh": "令牌无效或已过期"
+  },
+  "token_requerido": {
+   "es": "Falta el token de acceso",
+   "en": "An access token is required",
+   "zh": "需要访问令牌"
+  },
+  "token_caducado": {
+   "es": "El token ha caducado",
+   "en": "The token has expired",
+   "zh": "令牌已过期"
+  },
+  "solo_admin_o_soporte": {
+   "es": "Solo administración o soporte puede hacer esto",
+   "en": "Only administrators or support staff can do this",
+   "zh": "只有管理员或支持人员可以执行此操作"
+  },
+  "solo_admin_o_pm": {
+   "es": "Solo administración o gestión de proyectos puede hacer esto",
+   "en": "Only administrators or project managers can do this",
+   "zh": "只有管理员或项目经理可以执行此操作"
+  },
+  "solo_gestores": {
+   "es": "Solo los gestores pueden ver todas las solicitudes",
+   "en": "Only managers can see all requests",
+   "zh": "只有经理可以查看所有请求"
+  },
+  "no_puedes_contigo": {
+   "es": "No puedes hacerlo contigo mismo",
+   "en": "You cannot do this to yourself",
+   "zh": "您不能对自己执行此操作"
+  },
+  "fichero_demasiado_grande": {
+   "es": "El fichero es demasiado grande (máximo {max} MB)",
+   "en": "The file is too large (maximum {max} MB)",
+   "zh": "文件过大（最大 {max} MB）"
+  },
+  "fichero_no_utf8": {
+   "es": "El fichero debe estar codificado en UTF-8",
+   "en": "The file must be UTF-8 encoded",
+   "zh": "文件必须使用 UTF-8 编码"
+  },
+  "proveedor_no_soportado": {
+   "es": "Proveedor no soportado: {proveedor}",
+   "en": "Unsupported provider: {proveedor}",
+   "zh": "不支持的提供商：{proveedor}"
+  },
+  "entidad_no_soportada": {
+   "es": "Entidad no soportada",
+   "en": "Unsupported entity",
+   "zh": "不支持的实体"
+  },
+  "entidad_desconocida": {
+   "es": "Entidad desconocida: {entidad}",
+   "en": "Unknown entity: {entidad}",
+   "zh": "未知实体：{entidad}"
+  },
+  "tipo_desconocido": {
+   "es": "Tipo desconocido: {tipo}",
+   "en": "Unknown type: {tipo}",
+   "zh": "未知类型：{tipo}"
+  },
+  "estado_no_valido": {
+   "es": "Estado no válido",
+   "en": "Invalid status",
+   "zh": "状态无效"
+  },
+  "estado_no_valido_valor": {
+   "es": "Estado no válido: {estado}",
+   "en": "Invalid status: {estado}",
+   "zh": "状态无效：{estado}"
+  },
+  "webhook_no_autorizado": {
+   "es": "Webhook no autorizado",
+   "en": "Unauthorized webhook",
+   "zh": "Webhook 未授权"
+  },
+  "webhook_cuerpo_ilegible": {
+   "es": "No se ha podido leer el cuerpo de la petición",
+   "en": "The request body could not be read",
+   "zh": "无法读取请求内容"
+  },
+  "webhook_error_procesando": {
+   "es": "No se ha podido procesar el webhook de {servicio}",
+   "en": "The {servicio} webhook could not be processed",
+   "zh": "无法处理 {servicio} 的 Webhook"
+  },
+  "webhook_secreto_no_configurado": {
+   "es": "La empresa no tiene configurado el secreto de {servicio}",
+   "en": "No {servicio} secret is configured for this company",
+   "zh": "公司未配置 {servicio} 的密钥"
+  },
+  "webhook_url_no_configurada": {
+   "es": "No hay URL de webhook configurada",
+   "en": "No webhook URL is configured",
+   "zh": "未配置 Webhook 地址"
+  },
+  "webhook_entrega_fallida": {
+   "es": "No se ha podido entregar el mensaje a {servicio}",
+   "en": "The message could not be delivered to {servicio}",
+   "zh": "无法将消息发送到 {servicio}"
+  },
+  "pagina_no_implementada": {
+   "es": "Esta función todavía no está disponible",
+   "en": "This feature is not available yet",
+   "zh": "此功能暂不可用"
+  },
+  "fecha_no_valida_formato": {
+   "es": "Fecha no válida: usa el formato AAAA-MM-DD",
+   "en": "Invalid date: use the YYYY-MM-DD format",
+   "zh": "日期无效：请使用 YYYY-MM-DD 格式"
+  },
+  "operacion_no_permitida_sistema": {
+   "es": "Este elemento es del sistema y no se puede modificar",
+   "en": "This is a system item and cannot be modified",
+   "zh": "这是系统项，无法修改"
+  },
+  "elemento_sistema_no_eliminable": {
+   "es": "Este elemento es del sistema y no se puede eliminar",
+   "en": "This is a system item and cannot be deleted",
+   "zh": "这是系统项，无法删除"
+  },
+  "ia_peticion_rechazada": {
+   "es": "Petición rechazada: el contenido parece intentar manipular el sistema de IA",
+   "en": "Request rejected: the content looks like an attempt to manipulate the AI system",
+   "zh": "请求被拒绝：内容疑似试图操纵 AI 系统"
+  },
+  "ia_error_datos": {
+   "es": "El proveedor de IA no ha podido procesar los datos",
+   "en": "The AI provider could not process the data",
+   "zh": "AI 提供商无法处理这些数据"
+  },
+  "ia_proveedor_sin_conexion": {
+   "es": "No se ha podido conectar con el proveedor de IA",
+   "en": "Could not connect to the AI provider",
+   "zh": "无法连接到 AI 提供商"
+  },
+  "ia_proveedor_error_inesperado": {
+   "es": "El proveedor de IA ha fallado de forma inesperada",
+   "en": "The AI provider failed unexpectedly",
+   "zh": "AI 提供商发生意外错误"
+  },
+  "ia_proveedor_error": {
+   "es": "El proveedor de IA ha devuelto un error",
+   "en": "The AI provider returned an error",
+   "zh": "AI 提供商返回了错误"
+  },
+  "ia_modelos_no_sincronizados": {
+   "es": "No se han podido sincronizar los modelos",
+   "en": "Models could not be synchronised",
+   "zh": "无法同步模型"
+  },
+  "ia_sin_proveedor": {
+   "es": "No hay ningún proveedor de IA configurado",
+   "en": "No AI provider is configured",
+   "zh": "未配置 AI 提供商"
+  },
+  "ia_proveedor_ajeno": {
+   "es": "Ese proveedor no es de tu empresa",
+   "en": "That provider does not belong to your company",
+   "zh": "该提供商不属于您的公司"
+  },
+  "ia_sin_proveedor_stt": {
+   "es": "No hay un proveedor de transcripción configurado",
+   "en": "No speech-to-text provider is configured",
+   "zh": "未配置语音转文字提供商"
+  },
+  "ia_transcripcion_vacia": {
+   "es": "No se ha podido transcribir el audio (resultado vacío)",
+   "en": "The audio could not be transcribed (empty result)",
+   "zh": "无法转写音频（结果为空）"
+  },
+  "ia_transcripcion_error": {
+   "es": "Error inesperado al transcribir",
+   "en": "Unexpected transcription error",
+   "zh": "转写时发生意外错误"
+  },
+  "ia_audio_demasiado_grande": {
+   "es": "El archivo de audio no puede superar {max} MB",
+   "en": "The audio file cannot exceed {max} MB",
+   "zh": "音频文件不能超过 {max} MB"
+  },
+  "pdf_sin_texto": {
+   "es": "No se ha podido extraer texto del PDF (¿es un escaneado sin OCR?)",
+   "en": "No text could be extracted from the PDF (is it a scan without OCR?)",
+   "zh": "无法从 PDF 中提取文本（是否为未经 OCR 的扫描件？）"
+  },
+  "fecha_reunion_no_valida": {
+   "es": "Formato de fecha de reunión no válido: se espera AAAA-MM-DDTHH:MM:SS",
+   "en": "Invalid meeting date format: expected YYYY-MM-DDTHH:MM:SS",
+   "zh": "会议日期格式无效：应为 YYYY-MM-DDTHH:MM:SS"
+  },
+  "proyecto_sin_tareas_prediccion": {
+   "es": "El proyecto no tiene tareas: no hay datos suficientes para predecir",
+   "en": "The project has no tasks: not enough data to predict",
+   "zh": "项目没有任务：数据不足，无法预测"
+  },
+  "ia_sugerencias_gantt_fallo": {
+   "es": "No se han podido generar las sugerencias del Gantt",
+   "en": "Gantt suggestions could not be generated",
+   "zh": "无法生成甘特图建议"
+  },
+  "ia_anomalias_horas_fallo": {
+   "es": "No se han podido analizar las anomalías de horas",
+   "en": "Timesheet anomalies could not be analysed",
+   "zh": "无法分析工时异常"
+  },
+  "ia_resumen_no_disponible": {
+   "es": "El resumen con IA no está disponible",
+   "en": "The AI summary is not available",
+   "zh": "AI 摘要不可用"
+  },
+  "anomalias_pocos_datos": {
+   "es": "Se necesitan al menos 4 datos para detectar anomalías",
+   "en": "At least 4 data points are required to detect anomalies",
+   "zh": "检测异常至少需要 4 个数据点"
+  },
+  "prevision_pocos_datos": {
+   "es": "Se necesitan al menos 2 valores históricos",
+   "en": "At least 2 historical values are required",
+   "zh": "至少需要 2 个历史值"
+  },
+  "ia_gobierno_pii_desconocido": {
+   "es": "Tipo de dato personal desconocido: {tipo}",
+   "en": "Unknown personal data type: {tipo}",
+   "zh": "未知的个人数据类型：{tipo}"
+  },
+  "consulta_vacia": {
+   "es": "Escribe una consulta",
+   "en": "A query is required",
+   "zh": "请输入查询内容"
+  },
+  "metrica_no_encontrada": {
+   "es": "Métrica no encontrada: {metrica}",
+   "en": "Metric not found: {metrica}",
+   "zh": "未找到指标：{metrica}"
+  },
+  "sql_no_permitido": {
+   "es": "Consulta no permitida",
+   "en": "Query not allowed",
+   "zh": "不允许的查询"
+  },
+  "rgpd_no_es_borrado": {
+   "es": "La solicitud no es de supresión de datos",
+   "en": "The request is not a data erasure request",
+   "zh": "该请求不是数据删除请求"
+  },
+  "rgpd_no_es_portabilidad": {
+   "es": "La solicitud no es de portabilidad de datos",
+   "en": "The request is not a data portability request",
+   "zh": "该请求不是数据可携带请求"
+  },
+  "rgpd_borrado_error": {
+   "es": "No se ha podido ejecutar el borrado de datos",
+   "en": "The data erasure could not be executed",
+   "zh": "无法执行数据删除"
+  },
+  "color_hex_no_valido": {
+   "es": "El color debe ser un valor hexadecimal válido, como #RRGGBB",
+   "en": "The colour must be a valid hex value such as #RRGGBB",
+   "zh": "颜色必须是有效的十六进制值，例如 #RRGGBB"
+  },
+  "dominio_no_valido": {
+   "es": "El dominio debe ser solo un nombre de host, p. ej. pm.empresa.com",
+   "en": "The domain must be a bare hostname, e.g. pm.company.com",
+   "zh": "域名只能是主机名，例如 pm.company.com"
+  },
+  "proceso_semilla_no_eliminable": {
+   "es": "Los procesos predefinidos no se pueden eliminar: archívalos",
+   "en": "Built-in processes cannot be deleted: archive them instead",
+   "zh": "预置流程无法删除：请改为归档"
+  },
+  "cab_firma_requerida": {
+   "es": "Falta la cabecera de firma X-Contecflow-Signature",
+   "en": "The X-Contecflow-Signature header is required",
+   "zh": "缺少签名头 X-Contecflow-Signature"
+  },
+  "indica_persona_o_correo": {
+   "es": "Indica la persona o su correo",
+   "en": "Specify the person or their email",
+   "zh": "请指定人员或其邮箱"
+  },
+  "capacidad_datos_no_validos": {
+   "es": "La semana (AAAA-MM-DD) o las horas planificadas no son válidas",
+   "en": "The week (YYYY-MM-DD) or planned hours are not valid",
+   "zh": "周（YYYY-MM-DD）或计划工时无效"
+  },
+  "criterio_sin_nombre": {
+   "es": "El criterio necesita un nombre",
+   "en": "The criterion needs a name",
+   "zh": "标准需要名称"
+  },
+  "fase_sin_nombre": {
+   "es": "La fase necesita un nombre",
+   "en": "The phase needs a name",
+   "zh": "阶段需要名称"
+  },
+  "propuesta_sin_titulo": {
+   "es": "La propuesta necesita un título",
+   "en": "The proposal needs a title",
+   "zh": "提案需要标题"
+  },
+  "cr_solo_borrador_o_enviada": {
+   "es": "Solo se pueden editar solicitudes de cambio en borrador o enviadas",
+   "en": "Only draft or submitted change requests can be edited",
+   "zh": "只能编辑草稿或已提交的变更请求"
+  },
+  "cr_solo_borrador": {
+   "es": "Solo se pueden enviar solicitudes de cambio en borrador",
+   "en": "Only draft change requests can be submitted",
+   "zh": "只能提交草稿状态的变更请求"
+  },
+  "cr_solo_enviada": {
+   "es": "Solo se pueden revisar solicitudes de cambio enviadas",
+   "en": "Only submitted change requests can be reviewed",
+   "zh": "只能审核已提交的变更请求"
+  },
+  "cr_solo_aprobada": {
+   "es": "Solo se pueden implementar solicitudes de cambio aprobadas",
+   "en": "Only approved change requests can be implemented",
+   "zh": "只能实施已批准的变更请求"
+  },
+  "usar_post_uat": {
+   "es": "Usa POST /uat/{project_id}",
+   "en": "Use POST /uat/{project_id}",
+   "zh": "请使用 POST /uat/{project_id}"
+  },
+  "clientes_error_proyectos": {
+   "es": "No se han podido cargar los proyectos",
+   "en": "Projects could not be loaded",
+   "zh": "无法加载项目"
+  },
+  "jornada_fin_antes_inicio": {
+   "es": "La jornada tiene que acabar después de empezar",
+   "en": "The working day must end after it starts",
+   "zh": "工作日的结束时间必须晚于开始时间"
+  },
+  "zona_horaria_desconocida": {
+   "es": "Zona horaria desconocida: {zona}",
+   "en": "Unknown time zone: {zona}",
+   "zh": "未知时区：{zona}"
+  },
+  "content_type_no_valido": {
+   "es": "Content-Type no válido",
+   "en": "Invalid Content-Type",
+   "zh": "Content-Type 无效"
+  },
+  "conector_desconocido": {
+   "es": "Conector desconocido: {conector}",
+   "en": "Unknown connector: {conector}",
+   "zh": "未知连接器：{conector}"
+  },
+  "ficha_sin_documentos_mind": {
+   "es": "Esta ficha todavía no tiene documentos en contecmind",
+   "en": "This record has no documents in contecmind yet",
+   "zh": "此记录在 contecmind 中还没有文档"
+  },
+  "contrato_proyecto_otra_org": {
+   "es": "No puedes crear contratos para proyectos de fuera de tu organización",
+   "en": "You cannot create contracts for projects outside your organisation",
+   "zh": "您不能为组织以外的项目创建合同"
+  },
+  "contrato_codigo_duplicado": {
+   "es": "Código de contrato duplicado: inténtalo de nuevo",
+   "en": "Duplicate contract code: please try again",
+   "zh": "合同编号重复：请重试"
+  },
+  "moneda_codigo_no_valido": {
+   "es": "Los códigos de moneda deben ser de 3 letras (ISO)",
+   "en": "Currency codes must be 3-letter ISO values",
+   "zh": "货币代码必须是 3 位 ISO 字母"
+  },
+  "tipo_cambio_no_positivo": {
+   "es": "El tipo de cambio debe ser positivo",
+   "en": "The exchange rate must be positive",
+   "zh": "汇率必须为正数"
+  },
+  "importe_negativo": {
+   "es": "El importe no puede ser negativo",
+   "en": "The amount cannot be negative",
+   "zh": "金额不能为负数"
+  },
+  "tipo_cambio_no_encontrado": {
+   "es": "No hay tipo de cambio de {origen} a {destino}",
+   "en": "No exchange rate found for {origen}->{destino}",
+   "zh": "未找到 {origen} 到 {destino} 的汇率"
+  },
+  "entregable_solo_entregado": {
+   "es": "Solo se pueden aceptar o rechazar entregables ya entregados",
+   "en": "Only delivered deliverables can be accepted or rejected",
+   "zh": "只能接受或拒绝已交付的交付物"
+  },
+  "oauth_grant_no_soportado": {
+   "es": "Tipo de concesión no soportado: {grant}",
+   "en": "Unsupported grant type: {grant}",
+   "zh": "不支持的授权类型：{grant}"
+  },
+  "oauth_alcances_no_validos": {
+   "es": "Alcances no válidos: {alcances}. Válidos: {validos}",
+   "en": "Invalid scopes: {alcances}. Valid: {validos}",
+   "zh": "无效的权限范围：{alcances}。有效值：{validos}"
+  },
+  "oauth_alcances_no_permitidos": {
+   "es": "Alcances no permitidos: {alcances}",
+   "en": "Scopes not allowed: {alcances}",
+   "zh": "不允许的权限范围：{alcances}"
+  },
+  "oauth_limite_apps": {
+   "es": "Has alcanzado el máximo de {max} aplicaciones por usuario",
+   "en": "You have reached the maximum of {max} applications per user",
+   "zh": "您已达到每位用户最多 {max} 个应用的上限"
+  },
+  "oauth_credenciales_no_validas": {
+   "es": "client_id o client_secret no válidos",
+   "en": "Invalid client_id or client_secret",
+   "zh": "client_id 或 client_secret 无效"
+  },
+  "oauth_app_sin_propietario": {
+   "es": "Esta aplicación no tiene propietario configurado",
+   "en": "This application has no owner configured",
+   "zh": "此应用未配置所有者"
+  },
+  "oauth_token_revocado": {
+   "es": "El token no es válido o ha sido revocado",
+   "en": "The token is invalid or has been revoked",
+   "zh": "令牌无效或已被撤销"
+  },
+  "oauth_token_bearer_requerido": {
+   "es": "Falta el token en la cabecera Authorization: Bearer",
+   "en": "A token is required in the Authorization: Bearer header",
+   "zh": "需要在 Authorization: Bearer 头中提供令牌"
+  },
+  "documentos_demasiado_grande": {
+   "es": "El archivo es demasiado grande (máximo {max} MB)",
+   "en": "The file is too large (maximum {max} MB)",
+   "zh": "文件过大（最大 {max} MB）"
+  },
+  "documentos_solo_local": {
+   "es": "El acceso directo al archivo solo está disponible con almacenamiento local",
+   "en": "Direct file access is only available with local storage",
+   "zh": "仅本地存储模式支持直接访问文件"
+  },
+  "etiqueta_ya_existe": {
+   "es": "Esa etiqueta ya existe",
+   "en": "That tag already exists",
+   "zh": "该标签已存在"
+  },
+  "almacenamiento_rechaza_archivo": {
+   "es": "El sistema de almacenamiento ha rechazado el archivo",
+   "en": "The storage system rejected the file",
+   "zh": "存储系统拒绝了该文件"
+  },
+  "almacenamiento_no_disponible": {
+   "es": "El servicio de almacenamiento no está disponible temporalmente. Inténtalo de nuevo en unos minutos",
+   "en": "The storage service is temporarily unavailable. Please try again in a few minutes",
+   "zh": "存储服务暂时不可用，请几分钟后重试"
+  },
+  "snapshot_sin_cuerpo": {
+   "es": "Falta el contenido de la instantánea",
+   "en": "The snapshot content is missing",
+   "zh": "缺少快照内容"
+  },
+  "mes_no_valido": {
+   "es": "Mes no válido (1-12)",
+   "en": "Invalid month (1-12)",
+   "zh": "月份无效（1-12）"
+  },
+  "esign_solo_creador": {
+   "es": "Solo quien creó la solicitud de firma, o un gestor, puede anularla",
+   "en": "Only the person who created the signature request, or a manager, can cancel it",
+   "zh": "只有签名请求的创建者或经理可以取消"
+  },
+  "esign_sin_firmantes": {
+   "es": "Hace falta al menos un firmante",
+   "en": "At least one signer is required",
+   "zh": "至少需要一位签署人"
+  },
+  "esign_ya_completada": {
+   "es": "No se puede anular una solicitud ya completada",
+   "en": "A completed request cannot be cancelled",
+   "zh": "已完成的请求无法取消"
+  },
+  "esign_payload_incompleto": {
+   "es": "La notificación de {servicio} está incompleta",
+   "en": "The {servicio} notification is incomplete",
+   "zh": "{servicio} 的通知不完整"
+  },
+  "esign_client_id_no_valido": {
+   "es": "El client id de Adobe Sign no es válido",
+   "en": "The Adobe Sign client id is not valid",
+   "zh": "Adobe Sign 的 client id 无效"
+  },
+  "esign_estado_no_confirmado": {
+   "es": "No se ha podido confirmar el estado con {servicio}",
+   "en": "The status could not be confirmed with {servicio}",
+   "zh": "无法与 {servicio} 确认状态"
+  },
+  "esign_credenciales_incompletas": {
+   "es": "Faltan credenciales de {servicio} por configurar",
+   "en": "{servicio} credentials are not fully configured",
+   "zh": "{servicio} 的凭据未配置完整"
+  },
+  "esign_guardar_config_primero": {
+   "es": "{servicio} no está configurado: guarda primero la configuración de firma",
+   "en": "{servicio} is not configured: save the e-signature configuration first",
+   "zh": "{servicio} 未配置：请先保存电子签名配置"
+  },
+  "esign_intercambio_codigo_fallo": {
+   "es": "No se ha podido completar la autorización con {servicio}",
+   "en": "The authorisation with {servicio} could not be completed",
+   "zh": "无法完成与 {servicio} 的授权"
+  },
+  "git_firma_no_valida": {
+   "es": "La firma del webhook de {servicio} no es válida",
+   "en": "The {servicio} webhook signature is invalid",
+   "zh": "{servicio} Webhook 签名无效"
+  },
+  "webhook_auth_no_valida": {
+   "es": "La autenticación del webhook de {servicio} no es válida",
+   "en": "The {servicio} webhook authentication is invalid",
+   "zh": "{servicio} Webhook 认证无效"
+  },
+  "framework_no_soportado": {
+   "es": "Marco no soportado. Usa {opciones}",
+   "en": "Unsupported framework. Use {opciones}",
+   "zh": "不支持的框架。请使用 {opciones}"
+  },
+  "control_desconocido": {
+   "es": "Control desconocido en {marco}: {control}",
+   "en": "Unknown control in {marco}: {control}",
+   "zh": "{marco} 中的控制项未知：{control}"
+  },
+  "grc_permiso_no_valido": {
+   "es": "'{rol}/{recurso}/{operacion}' no corresponde a ningún rol y operación de la API",
+   "en": "'{rol}/{recurso}/{operacion}' does not match any API role and operation",
+   "zh": "'{rol}/{recurso}/{operacion}' 与任何 API 角色和操作都不匹配"
+  },
+  "violacion_ya_resuelta": {
+   "es": "La violación ya está resuelta",
+   "en": "The violation is already resolved",
+   "zh": "该违规已解决"
+  },
+  "jwks_uri_ausente": {
+   "es": "Los metadatos del servicio no declaran jwks_uri",
+   "en": "The service metadata does not declare jwks_uri",
+   "zh": "服务元数据未声明 jwks_uri"
+  },
+  "slack_comandos_no_configurados": {
+   "es": "Los comandos entrantes de {servicio} no están configurados",
+   "en": "{servicio} inbound commands are not configured",
+   "zh": "未配置 {servicio} 入站命令"
+  },
+  "slack_marca_tiempo_antigua": {
+   "es": "La marca de tiempo de la petición es demasiado antigua",
+   "en": "The request timestamp is too old",
+   "zh": "请求时间戳过旧"
+  },
+  "slack_marca_tiempo_no_valida": {
+   "es": "Falta la marca de tiempo de Slack o no es válida",
+   "en": "The Slack timestamp is missing or invalid",
+   "zh": "缺少 Slack 时间戳或其无效"
+  },
+  "slack_espacio_en_varias_orgs": {
+   "es": "El espacio de trabajo de Slack está vinculado a varias organizaciones",
+   "en": "The Slack workspace is linked to several organisations",
+   "zh": "该 Slack 工作区关联了多个组织"
+  },
+  "teams_token_ausente": {
+   "es": "Falta el token de Teams",
+   "en": "The Teams bearer token is missing",
+   "zh": "缺少 Teams 令牌"
+  },
+  "teams_token_no_valido": {
+   "es": "El token de Teams no es válido",
+   "en": "The Teams bearer token is invalid",
+   "zh": "Teams 令牌无效"
+  },
+  "jira_indica_clave": {
+   "es": "Indica la clave del proyecto de Jira (project_key)",
+   "en": "Provide the Jira project key (project_key)",
+   "zh": "请提供 Jira 项目键 (project_key)"
+  },
+  "jira_indica_clave_o_jql": {
+   "es": "Indica project_key o una consulta JQL propia",
+   "en": "Provide project_key or a custom JQL query",
+   "zh": "请提供 project_key 或自定义 JQL 查询"
+  },
+  "upn_ninguno": {
+   "es": "No se ha indicado ningún usuario (UPN)",
+   "en": "No UPNs provided",
+   "zh": "未提供任何 UPN"
+  },
+  "upn_demasiados": {
+   "es": "Máximo {max} usuarios (UPN) por petición",
+   "en": "Maximum {max} UPNs per request",
+   "zh": "每次请求最多 {max} 个 UPN"
+  },
+  "hito_facturado_no_eliminable": {
+   "es": "No se puede eliminar un hito ya facturado",
+   "en": "An invoiced milestone cannot be deleted",
+   "zh": "已开票的里程碑无法删除"
+  },
+  "okr_solo_responsable": {
+   "es": "Solo el responsable del resultado clave o de su objetivo registra su avance",
+   "en": "Only the owner of the key result or its objective can log its progress",
+   "zh": "只有关键结果或其目标的负责人可以记录进度"
+  },
+  "suspension_requiere_motivo": {
+   "es": "Para suspender una empresa hay que indicar el motivo",
+   "en": "A reason is required to suspend a company",
+   "zh": "暂停公司必须说明原因"
+  },
+  "ciclo_solo_borrador": {
+   "es": "Solo se puede activar un ciclo en borrador (estado actual: {estado})",
+   "en": "Only a draft cycle can be activated (current status: {estado})",
+   "zh": "只能激活草稿状态的周期（当前状态：{estado}）"
+  },
+  "ciclo_solo_activo": {
+   "es": "Solo se puede cerrar un ciclo activo (estado actual: {estado})",
+   "en": "Only an active cycle can be closed (current status: {estado})",
+   "zh": "只能关闭进行中的周期（当前状态：{estado}）"
+  },
+  "evaluacion_solo_evaluador": {
+   "es": "Solo el evaluador puede modificar esta evaluación",
+   "en": "Only the reviewer can modify this review",
+   "zh": "只有评估人可以修改此评估"
+  },
+  "ciclo_evaluacion_cerrado": {
+   "es": "El ciclo de evaluación ya está cerrado",
+   "en": "The review cycle is already closed",
+   "zh": "评估周期已关闭"
+  },
+  "valor_ganado_financiero": {
+   "es": "El valor ganado es información financiera",
+   "en": "Earned value is financial information",
+   "zh": "挣值属于财务信息"
+  },
+  "fichero_supera_mb": {
+   "es": "El fichero supera {max} MB",
+   "en": "The file exceeds {max} MB",
+   "zh": "文件超过 {max} MB"
+  },
+  "proyecto_ya_en_cartera": {
+   "es": "El proyecto ya pertenece a esta cartera",
+   "en": "The project already belongs to this portfolio",
+   "zh": "该项目已在此项目组合中"
+  },
+  "proyecto_no_en_cartera": {
+   "es": "El proyecto no está en esta cartera",
+   "en": "The project is not in this portfolio",
+   "zh": "该项目不在此项目组合中"
+  },
+  "hito_se_factura_por_hitos": {
+   "es": "Se factura desde Facturación por hitos, que genera la factura",
+   "en": "Billing is done from Milestone billing, which generates the invoice",
+   "zh": "请通过里程碑开票功能开票，该功能会生成发票"
+  },
+  "hito_importe_no_editable": {
+   "es": "El importe no se cambia con el hito en «{estado}»",
+   "en": "The amount cannot be changed while the milestone is «{estado}»",
+   "zh": "里程碑处于「{estado}」状态时无法更改金额"
+  },
+  "max_operaciones_bulk": {
+   "es": "Máximo {max} operaciones por petición masiva",
+   "en": "Maximum {max} operations per bulk request",
+   "zh": "每次批量请求最多 {max} 个操作"
+  },
+  "metodo_canal_verify_token": {
+   "es": "El token de verificación no es válido",
+   "en": "The verify token is not valid",
+   "zh": "验证令牌无效"
+  },
+  "rollback_plan_no_generado": {
+   "es": "No hay plan de rollback: genéralo primero con POST",
+   "en": "No rollback plan found: generate it first with POST",
+   "zh": "未找到回滚计划：请先使用 POST 生成"
+  },
+  "testing_plan_no_generado": {
+   "es": "No hay plan de pruebas: genéralo primero con POST /testing-plan",
+   "en": "No test plan found: generate it first with POST /testing-plan",
+   "zh": "未找到测试计划：请先使用 POST /testing-plan 生成"
+  },
+  "comms_plan_no_generado": {
+   "es": "No hay plan de comunicaciones: genéralo primero con POST /comms-plan",
+   "en": "No communications plan found: generate it first with POST /comms-plan",
+   "zh": "未找到沟通计划：请先使用 POST /comms-plan 生成"
+  },
+  "cabecera_authorization_mal_formada": {
+   "es": "Falta la cabecera Authorization o es incorrecta",
+   "en": "The Authorization header is missing or malformed",
+   "zh": "缺少 Authorization 头或格式错误"
+  },
+  "bearer_vacio": {
+   "es": "El token Bearer está vacío",
+   "en": "The bearer token is empty",
+   "zh": "Bearer 令牌为空"
+  },
+  "hosts_obligatorios": {
+   "es": "Hace falta la lista de equipos (hosts)",
+   "en": "The hosts list is required",
+   "zh": "需要主机列表"
+  },
+  "snapshots_no_validos": {
+   "es": "Las instantáneas no son válidas",
+   "en": "The snapshots are not valid",
+   "zh": "快照无效"
+  },
+  "csv_sin_cabeceras": {
+   "es": "El CSV no tiene cabeceras",
+   "en": "The CSV has no headers",
+   "zh": "CSV 没有表头"
+  },
+  "csv_no_valido": {
+   "es": "El CSV no es válido",
+   "en": "The CSV is not valid",
+   "zh": "CSV 无效"
+  },
+  "kb_solo_publicadores": {
+   "es": "Solo quien puede publicar en la base de conocimiento puede gestionar correcciones",
+   "en": "Only people who can publish to the knowledge base can manage corrections",
+   "zh": "只有可在知识库发布内容的人员才能管理更正"
+  },
+  "rollout_sin_ejecucion": {
+   "es": "No hay ejecución de rollout para este cambio",
+   "en": "There is no rollout run for this change",
+   "zh": "此变更没有发布执行记录"
+  },
+  "pasos_json_no_vacio": {
+   "es": "Los pasos deben ser una lista JSON no vacía",
+   "en": "Steps must be a non-empty JSON array",
+   "zh": "步骤必须是非空的 JSON 数组"
+  },
+  "pasos_json_no_valido": {
+   "es": "Los pasos no son un JSON válido",
+   "en": "The steps are not valid JSON",
+   "zh": "步骤不是有效的 JSON"
+  },
+  "rca_wizard_fallo": {
+   "es": "No se ha podido finalizar el asistente de RCA",
+   "en": "The RCA wizard could not be finished",
+   "zh": "无法完成 RCA 向导"
+  },
+  "ajustes_solo_generales": {
+   "es": "Solo se pueden cambiar los ajustes generales",
+   "en": "Only general settings can be changed",
+   "zh": "只能更改常规设置"
+  },
+  "ajuste_solo_superadmin": {
+   "es": "Es un ajuste de la plataforma: solo lo cambia el superadministrador",
+   "en": "This is a platform setting: only the superadmin can change it",
+   "zh": "这是平台设置：只有超级管理员可以更改"
+  },
+  "skill_nombre_duplicado": {
+   "es": "Ya existe una habilidad con ese nombre",
+   "en": "A skill with that name already exists",
+   "zh": "已存在同名技能"
+  },
+  "sprint_ya_activo": {
+   "es": "Ya hay un sprint activo: {sprint}",
+   "en": "There is already an active sprint: {sprint}",
+   "zh": "已有进行中的冲刺：{sprint}"
+  },
+  "sprint_solo_planificacion": {
+   "es": "Solo se inicia un sprint en planificación; este está «{estado}»",
+   "en": "Only a sprint in planning can be started; this one is «{estado}»",
+   "zh": "只能启动处于规划状态的冲刺；当前为「{estado}」"
+  },
+  "tarea_sin_campos": {
+   "es": "Indica al menos un campo que actualizar",
+   "en": "Specify at least one field to update",
+   "zh": "请至少指定一个要更新的字段"
+  },
+  "slack_sin_webhook": {
+   "es": "No hay URL de webhook de Slack configurada. Configúrala en Ajustes → Integraciones → Slack",
+   "en": "No Slack webhook URL configured. Set it in Settings → Integrations → Slack",
+   "zh": "未配置 Slack Webhook 地址。请在 设置 → 集成 → Slack 中配置"
+  },
+  "limite_mensajes": {
+   "es": "Has enviado demasiados mensajes. Inténtalo de nuevo en {segundos} s",
+   "en": "Message rate limit exceeded. Retry in {segundos} s",
+   "zh": "消息发送过于频繁，请在 {segundos} 秒后重试"
+  },
+  "limite_canal": {
+   "es": "El canal tiene demasiado tráfico. Inténtalo de nuevo en {segundos} s",
+   "en": "Channel traffic limit exceeded. Retry in {segundos} s",
+   "zh": "频道流量过大，请在 {segundos} 秒后重试"
+  },
+  "currency_sin_app_id": {
+   "es": "Falta configurar OPEN_EXCHANGE_RATES_APP_ID (Ajustes → Sistema → Credenciales → OpenExchangeRates)",
+   "en": "OPEN_EXCHANGE_RATES_APP_ID is not configured (Settings → System → Credentials → OpenExchangeRates)",
+   "zh": "未配置 OPEN_EXCHANGE_RATES_APP_ID（设置 → 系统 → 凭据 → OpenExchangeRates）"
+  },
+  "factura_sin_permiso_descarga": {
+   "es": "No tienes permiso para descargar facturas",
+   "en": "You do not have permission to download invoices",
+   "zh": "您无权下载发票"
+  },
+  "tipo_no_valido": {
+   "es": "Tipo no válido",
+   "en": "Invalid type",
+   "zh": "类型无效"
+  },
+  "policy_pack_no_reconocido": {
+   "es": "Paquete de políticas no reconocido",
+   "en": "Policy pack not recognised",
+   "zh": "无法识别策略包"
+  },
+  "modulo_no_reconocido": {
+   "es": "Módulo no reconocido",
+   "en": "Module not recognised",
+   "zh": "无法识别模块"
+  },
+  "tiene_dependencias": {
+   "es": "No se puede eliminar: tiene elementos dependientes",
+   "en": "Cannot delete: it has dependent items",
+   "zh": "无法删除：存在依赖项"
+  },
+  "login_bloqueado": {
+   "es": "Demasiados intentos fallidos. Inténtalo de nuevo en {segundos} s",
+   "en": "Too many failed attempts. Try again in {segundos} s",
+   "zh": "失败次数过多，请在 {segundos} 秒后重试"
+  },
+  "varias_empresas": {
+   "es": "Hay varias empresas: indica cuál en la dirección",
+   "en": "There are several companies: specify which one in the URL",
+   "zh": "存在多家公司：请在地址中指明"
+  },
+  "solicitud_no_financiera": {
+   "es": "Esta solicitud no es de una entidad financiera",
+   "en": "This request is not for a financial entity",
+   "zh": "此请求不属于财务实体"
+  },
+  "elemento_duplicado": {
+   "es": "Ya existe un elemento igual",
+   "en": "An identical item already exists",
+   "zh": "已存在相同的项目"
+  },
+  "mfa_configuracion_error": {
+   "es": "No se ha podido configurar la verificación en dos pasos",
+   "en": "Two-factor setup could not be completed",
+   "zh": "无法完成双重验证设置"
+  },
+  "mfa_obligatorio_org": {
+   "es": "Tu organización requiere verificación en dos pasos. Configura un autenticador (TOTP o passkey) antes de iniciar sesión",
+   "en": "Your organisation requires MFA. Set up an authenticator (TOTP or passkey) before signing in",
+   "zh": "您的组织要求多重身份验证。登录前请先设置验证器（TOTP 或通行密钥）"
+  },
+  "usuario_no_encontrado_o_inactivo": {
+   "es": "Usuario no encontrado o desactivado",
+   "en": "User not found or deactivated",
+   "zh": "未找到用户或用户已停用"
+  },
+  "empresa_fijada_por_acceso": {
+   "es": "En este despliegue la empresa la fija el acceso y no se cambia en la sesión",
+   "en": "In this deployment the company is set by the sign-in and cannot be changed during the session",
+   "zh": "在此部署中，公司由登录入口决定，会话中无法更改"
+  },
+  "refresh_token_requerido": {
+   "es": "Falta el token de renovación",
+   "en": "A refresh token is required",
+   "zh": "需要刷新令牌"
+  },
+  "refresh_token_no_valido": {
+   "es": "El token de renovación no es válido",
+   "en": "The refresh token is invalid",
+   "zh": "刷新令牌无效"
+  },
+  "refresh_token_reutilizado": {
+   "es": "El token de renovación ya se usó o no es válido. Por seguridad, inicia sesión de nuevo",
+   "en": "The refresh token was already used or is invalid. For security, please sign in again",
+   "zh": "刷新令牌已被使用或无效。出于安全考虑，请重新登录"
+  },
+  "reset_token_no_valido": {
+   "es": "El enlace de restablecimiento no es válido o ha caducado",
+   "en": "The reset link is invalid or has expired",
+   "zh": "重置链接无效或已过期"
+  },
+  "contrasenas_obligatorias": {
+   "es": "Indica la contraseña actual y la nueva",
+   "en": "The current and new passwords are required",
+   "zh": "请提供当前密码和新密码"
+  },
+  "cuenta_sso_sin_contrasena": {
+   "es": "Tu cuenta usa inicio de sesión único: la contraseña se gestiona fuera de la aplicación",
+   "en": "Your account uses SSO: the password is managed externally",
+   "zh": "您的账户使用单点登录：密码由外部管理"
+  },
+  "login_error": {
+   "es": "No se ha podido iniciar sesión. Inténtalo de nuevo",
+   "en": "Sign-in failed. Please try again",
+   "zh": "登录失败，请重试"
+  },
+  "ya_no_perteneces_org": {
+   "es": "Ya no perteneces a esa organización: vuelve a entrar",
+   "en": "You no longer belong to that organisation: sign in again",
+   "zh": "您已不属于该组织：请重新登录"
+  },
+  "recuperacion_demasiadas_solicitudes": {
+   "es": "Demasiadas solicitudes de recuperación. Inténtalo de nuevo en {segundos} s",
+   "en": "Too many recovery requests. Try again in {segundos} s",
+   "zh": "恢复请求过多，请在 {segundos} 秒后重试"
+  },
+  "mfa_requerido_cambio_contrasena": {
+   "es": "Debes completar la verificación en dos pasos para cambiar la contraseña",
+   "en": "You must complete an MFA challenge to change your password",
+   "zh": "更改密码前必须完成多重身份验证"
+  },
+  "mfa_no_valido": {
+   "es": "La verificación en dos pasos no es válida",
+   "en": "The MFA verification is not valid",
+   "zh": "多重身份验证无效"
+  },
+  "mfa_iniciar_configuracion": {
+   "es": "Primero inicia la configuración de la verificación en dos pasos",
+   "en": "Start the two-factor setup first",
+   "zh": "请先开始设置双重验证"
+  },
+  "mfa_codigo_requerido": {
+   "es": "Introduce el código",
+   "en": "The code is required",
+   "zh": "请输入验证码"
+  },
+  "mfa_codigo_incorrecto_hora": {
+   "es": "Código incorrecto o caducado. Comprueba que la hora del dispositivo es correcta",
+   "en": "Incorrect or expired code. Check that your device clock is correct",
+   "zh": "验证码错误或已过期。请确认设备时间正确"
+  },
+  "mfa_challenge_requerido": {
+   "es": "Falta el desafío de verificación en dos pasos",
+   "en": "The MFA challenge token is required",
+   "zh": "缺少多重身份验证挑战令牌"
+  },
+  "mfa_sin_totp": {
+   "es": "Este usuario no tiene TOTP activo. Usa una passkey (WebAuthn)",
+   "en": "This user has no active TOTP. Use a passkey (WebAuthn)",
+   "zh": "此用户未启用 TOTP。请使用通行密钥 (WebAuthn)"
+  },
+  "mfa_codigo_incorrecto": {
+   "es": "Código de verificación incorrecto",
+   "en": "Incorrect verification code",
+   "zh": "验证码不正确"
+  },
+  "mfa_no_activado": {
+   "es": "La verificación en dos pasos no estaba activada",
+   "en": "Two-factor authentication was not enabled",
+   "zh": "双重验证未启用"
+  },
+  "webauthn_datos_obligatorios": {
+   "es": "Faltan datos de la passkey: {campos}",
+   "en": "Passkey data is missing: {campos}",
+   "zh": "缺少通行密钥数据：{campos}"
+  },
+  "webauthn_challenge_ajeno": {
+   "es": "El desafío no pertenece al usuario autenticado",
+   "en": "The challenge does not belong to the authenticated user",
+   "zh": "该挑战不属于当前已登录用户"
+  },
+  "nombre_vacio": {
+   "es": "El nombre no puede estar vacío",
+   "en": "The name cannot be empty",
+   "zh": "名称不能为空"
+  },
+  "sin_passkeys": {
+   "es": "El usuario no tiene passkeys registradas",
+   "en": "The user has no registered passkeys",
+   "zh": "该用户没有已注册的通行密钥"
+  },
+  "webauthn_challenge_no_valido": {
+   "es": "El desafío de la passkey no es válido",
+   "en": "The passkey challenge is not valid",
+   "zh": "通行密钥挑战无效"
+  },
+  "webauthn_credencial_no_valida": {
+   "es": "Credencial no válida",
+   "en": "Invalid credential",
+   "zh": "凭据无效"
+  },
+  "passkey_no_reconocida": {
+   "es": "Passkey no reconocida",
+   "en": "Passkey not recognised",
+   "zh": "无法识别通行密钥"
+  },
+  "passkey_sin_contrasena_desactivado": {
+   "es": "El acceso con passkey sin contraseña está desactivado",
+   "en": "Passwordless passkey sign-in is disabled",
+   "zh": "已禁用无密码通行密钥登录"
+  },
+  "mfa_demasiados_intentos": {
+   "es": "Demasiados intentos. Vuelve a iniciar sesión",
+   "en": "Too many attempts. Please sign in again",
+   "zh": "尝试次数过多，请重新登录"
+  },
+  "webauthn_registro_no_valido": {
+   "es": "El registro de la passkey no es válido",
+   "en": "The passkey registration is not valid",
+   "zh": "通行密钥注册无效"
+  },
+  "webauthn_autenticacion_no_valida": {
+   "es": "La autenticación con passkey no es válida",
+   "en": "The passkey authentication is not valid",
+   "zh": "通行密钥认证无效"
+  },
+  "sso_falta_discovery": {
+   "es": "Falta la URL de descubrimiento OIDC",
+   "en": "The OIDC discovery URL is missing",
+   "zh": "缺少 OIDC 发现地址"
+  },
+  "sso_redirect_no_permitido": {
+   "es": "La dirección de redirección no está en la lista de orígenes permitidos",
+   "en": "The redirect URI is not in the list of allowed origins",
+   "zh": "重定向地址不在允许的来源列表中"
+  },
+  "sso_state_no_valido": {
+   "es": "El estado de la sesión SSO no es válido o falta",
+   "en": "The SSO state is invalid or missing",
+   "zh": "SSO 状态无效或缺失"
+  },
+  "sso_state_csrf": {
+   "es": "El estado de la sesión SSO no es válido: posible ataque CSRF",
+   "en": "Invalid SSO state: possible CSRF attack",
+   "zh": "SSO 状态无效：可能存在 CSRF 攻击"
+  },
+  "sso_state_caducado": {
+   "es": "El estado de la sesión SSO ha caducado o ya se usó",
+   "en": "The SSO state has expired or was already used",
+   "zh": "SSO 状态已过期或已被使用"
+  },
+  "sso_sin_email": {
+   "es": "No se ha podido obtener el email del token de SSO",
+   "en": "The email could not be obtained from the SSO token",
+   "zh": "无法从 SSO 令牌中获取邮箱"
+  },
+  "sso_email_no_verificado": {
+   "es": "El proveedor SSO indica que este email no está verificado: no se puede autenticar",
+   "en": "The SSO provider reports this email as unverified: sign-in is not possible",
+   "zh": "SSO 提供商表示此邮箱未验证：无法登录"
+  },
+  "sso_sin_id_token": {
+   "es": "El proveedor SSO no devolvió el id_token",
+   "en": "The SSO provider did not return an id_token",
+   "zh": "SSO 提供商未返回 id_token"
+  },
+  "sso_discovery_no_valido": {
+   "es": "El documento de descubrimiento del proveedor SSO no es válido",
+   "en": "The SSO provider discovery document is not valid",
+   "zh": "SSO 提供商的发现文档无效"
+  },
+  "sso_discovery_no_obtenido": {
+   "es": "No se ha podido obtener el documento de descubrimiento del proveedor SSO",
+   "en": "The SSO provider discovery document could not be fetched",
+   "zh": "无法获取 SSO 提供商的发现文档"
+  },
+  "sso_sin_authorization_endpoint": {
+   "es": "El documento de descubrimiento no incluye el endpoint de autorización",
+   "en": "The discovery document has no authorization endpoint",
+   "zh": "发现文档中没有授权端点"
+  },
+  "sso_inicio_error": {
+   "es": "No se ha podido iniciar el acceso SSO. Comprueba la configuración del proveedor",
+   "en": "The SSO sign-in could not be started. Check the provider configuration",
+   "zh": "无法开始 SSO 登录。请检查提供商配置"
+  },
+  "sso_token_respuesta_no_valida": {
+   "es": "El proveedor SSO devolvió una respuesta de token no válida",
+   "en": "The SSO provider returned an invalid token response",
+   "zh": "SSO 提供商返回的令牌响应无效"
+  },
+  "sso_red_error": {
+   "es": "Error de red al obtener los tokens del proveedor SSO",
+   "en": "Network error while fetching tokens from the SSO provider",
+   "zh": "从 SSO 提供商获取令牌时发生网络错误"
+  },
+  "sso_sin_jwks": {
+   "es": "No se ha podido obtener la clave pública del proveedor SSO: no se puede verificar el id_token",
+   "en": "The SSO provider JWKS URI could not be obtained: the id_token cannot be verified",
+   "zh": "无法获取 SSO 提供商的 JWKS 地址：无法验证 id_token"
+  },
+  "sso_id_token_no_valido": {
+   "es": "El id_token no es válido o su firma es incorrecta",
+   "en": "The id_token is invalid or its signature is wrong",
+   "zh": "id_token 无效或签名错误"
+  },
+  "sso_nonce_no_valido": {
+   "es": "Nonce no válido: posible reutilización del id_token",
+   "en": "Invalid nonce: possible id_token reuse",
+   "zh": "Nonce 无效：可能重复使用了 id_token"
+  },
+  "sso_login_error": {
+   "es": "No se ha podido completar el inicio de sesión SSO",
+   "en": "The SSO sign-in could not be completed",
+   "zh": "无法完成 SSO 登录"
+  },
+  "sso_sin_token_endpoint": {
+   "es": "No se ha podido obtener el endpoint de tokens del proveedor SSO",
+   "en": "The SSO provider token endpoint could not be obtained",
+   "zh": "无法获取 SSO 提供商的令牌端点"
+  },
+  "sso_faltan_code_redirect": {
+   "es": "Faltan code o redirect_uri",
+   "en": "code or redirect_uri is missing",
+   "zh": "缺少 code 或 redirect_uri"
+  },
+  "login_credenciales_incorrectas": {
+   "es": "Credenciales incorrectas",
+   "en": "Incorrect credentials",
+   "zh": "凭据不正确"
+  },
+  "contrasena_actual_no_coincide": {
+   "es": "La contraseña actual es incorrecta",
+   "en": "The current password is incorrect",
+   "zh": "当前密码不正确"
+  },
+  "servicio_no_disponible_temporal": {
+   "es": "El servicio no está disponible temporalmente",
+   "en": "The service is temporarily unavailable",
+   "zh": "服务暂时不可用"
+  }
+ },
+ "que": {
+  "metrica": {
+   "es": "la métrica",
+   "en": "the metric",
+   "zh": "指标"
+  },
+  "acuerdo": {
+   "es": "el acuerdo",
+   "en": "the agreement",
+   "zh": "协议"
+  },
+  "sobre_de_firma": {
+   "es": "el sobre de firma",
+   "en": "the envelope",
+   "zh": "签名信封"
+  },
+  "tipo_de_incidencia": {
+   "es": "el tipo de incidencia",
+   "en": "the issue type",
+   "zh": "问题类型"
+  }
+ },
+ "textos": {
+  "Cannot view other user's attributes": {
+   "code": "sin_permiso"
+  },
+  "Integración '{}' no configurada o inactiva. Configúrala en Enterprise → Integraciones.": {
+   "code": "integracion_no_configurada",
+   "vars": [
+    "nombre"
+   ]
+  },
+  "Error Xero: {}": {
+   "code": "servicio_externo_fallo",
+   "params": {
+    "servicio": "Xero"
+   },
+   "ignora_huecos": true
+  },
+  "Error QuickBooks: {}": {
+   "code": "servicio_externo_fallo",
+   "params": {
+    "servicio": "QuickBooks"
+   },
+   "ignora_huecos": true
+  },
+  "Error al sincronizar: {}": {
+   "code": "servicio_externo_fallo",
+   "params": {
+    "servicio": "contabilidad"
+   },
+   "ignora_huecos": true
+  },
+  "Proveedor '{}' no soportado. Usa 'xero' o 'quickbooks'.": {
+   "code": "proveedor_no_soportado",
+   "vars": [
+    "proveedor"
+   ]
+  },
+  "Petición rechazada: el contenido parece intentar manipular el sistema de IA.": {
+   "code": "ia_peticion_rechazada"
+  },
+  "Petición rechazada: el mensaje contiene patrones que intentan manipular el sistema de IA.": {
+   "code": "ia_peticion_rechazada"
+  },
+  "Instrucción rechazada: el contenido parece intentar manipular el sistema de IA.": {
+   "code": "ia_peticion_rechazada"
+  },
+  "Error de datos: {}": {
+   "code": "ia_error_datos",
+   "ignora_huecos": true
+  },
+  "No se pudo conectar con el proveedor IA: {}": {
+   "code": "ia_proveedor_sin_conexion",
+   "ignora_huecos": true
+  },
+  "Error inesperado en el proveedor IA: {}": {
+   "code": "ia_proveedor_error_inesperado",
+   "ignora_huecos": true
+  },
+  "No se pudo conectar con el proveedor: {}": {
+   "code": "ia_proveedor_sin_conexion",
+   "ignora_huecos": true
+  },
+  "El proveedor devolvió un error: {}": {
+   "code": "ia_proveedor_error",
+   "ignora_huecos": true
+  },
+  "No se pudieron sincronizar modelos: {}": {
+   "code": "ia_modelos_no_sincronizados",
+   "ignora_huecos": true
+  },
+  "No hay proveedor de IA en el .env": {
+   "code": "ia_sin_proveedor"
+  },
+  "Ese proveedor no es de esta empresa": {
+   "code": "ia_proveedor_ajeno"
+  },
+  "messages requerido": {
+   "code": "campo_obligatorio",
+   "params": {
+    "campo": "messages"
+   }
+  },
+  "scope must be one of {}": {
+   "code": "campo_no_valido_opciones",
+   "params": {
+    "campo": "scope"
+   },
+   "vars": [
+    "opciones"
+   ]
+  },
+  "action must be one of {}": {
+   "code": "campo_no_valido_opciones",
+   "params": {
+    "campo": "action"
+   },
+   "vars": [
+    "opciones"
+   ]
+  },
+  "redact_strategy must be one of {}": {
+   "code": "campo_no_valido_opciones",
+   "params": {
+    "campo": "redact_strategy"
+   },
+   "vars": [
+    "opciones"
+   ]
+  },
+  "Unknown PII entity type: '{}'": {
+   "code": "ia_gobierno_pii_desconocido",
+   "vars": [
+    "tipo"
+   ]
+  },
+  "Contrato no encontrado o sin permisos": {
+   "code": "no_encontrado",
+   "params": {
+    "que": "contrato"
+   }
+  },
+  "El archivo está vacío.": {
+   "code": "fichero_vacio"
+  },
+  "No se pudo extraer texto del PDF (¿es un PDF escaneado sin OCR?).": {
+   "code": "pdf_sin_texto"
+  },
+  "query required": {
+   "code": "consulta_vacia"
+  },
+  "No hay un proveedor STT configurado. Activa OPENAI_API_KEY o configura otro proveedor de transcripción.": {
+   "code": "ia_sin_proveedor_stt"
+  },
+  "El archivo de audio está vacío.": {
+   "code": "fichero_vacio"
+  },
+  "El archivo de audio no puede superar 25 MB.": {
+   "code": "ia_audio_demasiado_grande",
+   "params": {
+    "max": 25
+   }
+  },
+  "El proveedor STT no pudo transcribir el audio (resultado vacío).": {
+   "code": "ia_transcripcion_vacia"
+  },
+  "Error inesperado de transcripción.": {
+   "code": "ia_transcripcion_error"
+  },
+  "Formato de meeting_date inválido, se espera YYYY-MM-DD[T]HH:MM:SS": {
+   "code": "fecha_reunion_no_valida"
+  },
+  "Se requiere project_id para crear tareas": {
+   "code": "campo_obligatorio",
+   "params": {
+    "campo": "project_id"
+   }
+  },
+  "El proyecto no tiene tareas; sin datos suficientes para predicción.": {
+   "code": "proyecto_sin_tareas_prediccion"
+  },
+  "Error generating gantt suggestions": {
+   "code": "ia_sugerencias_gantt_fallo"
+  },
+  "Error analysing timesheet anomalies": {
+   "code": "ia_anomalias_horas_fallo"
+  },
+  "Métrica '{}' no encontrada": {
+   "code": "metrica_no_encontrada",
+   "vars": [
+    "metrica"
+   ]
+  },
+  "No existe": {
+   "code": "no_encontrado_generico"
+  },
+  "SQL no permitido: {}": {
+   "code": "sql_no_permitido",
+   "ignora_huecos": true
+  },
+  "template_id es obligatorio": {
+   "code": "campo_obligatorio",
+   "params": {
+    "campo": "template_id"
+   }
+  },
+  "entity_type es obligatorio": {
+   "code": "campo_obligatorio",
+   "params": {
+    "campo": "entity_type"
+   }
+  },
+  "Acceso denegado: solo managers pueden ver todas las solicitudes": {
+   "code": "solo_gestores"
+  },
+  "No puedes darte plaza a ti": {
+   "code": "no_puedes_contigo"
+  },
+  "At least 4 data points required for anomaly detection": {
+   "code": "anomalias_pocos_datos"
+  },
+  "At least 2 historical values required": {
+   "code": "prevision_pocos_datos"
+  },
+  "Admin role required to execute GDPR erasure": {
+   "code": "solo_admin"
+  },
+  "Admin role required for erasure execution": {
+   "code": "solo_admin"
+  },
+  "DSR is not a portability request": {
+   "code": "rgpd_no_es_portabilidad"
+  },
+  "DSR is not an erasure request": {
+   "code": "rgpd_no_es_borrado"
+  },
+  "Error executing erasure pipeline": {
+   "code": "rgpd_borrado_error"
+  },
+  "sensitivity_level invalido": {
+   "code": "campo_no_valido_opciones",
+   "params": {
+    "campo": "sensitivity_level",
+    "opciones": "public, internal, confidential, restricted"
+   }
+  },
+  "Entidad no soportada": {
+   "code": "entidad_no_soportada"
+  },
+  "Report '{}' not supported. Available: {}": {
+   "code": "campo_no_valido_opciones",
+   "params": {
+    "campo": "report"
+   },
+   "vars": [
+    "valor",
+    "opciones"
+   ]
+  },
+  "Token BI inválido o caducado": {
+   "code": "token_no_valido"
+  },
+  "Token BI inválido": {
+   "code": "token_no_valido"
+  },
+  "Tipo no válido. Opciones: {}": {
+   "code": "campo_no_valido_opciones",
+   "params": {
+    "campo": "tipo"
+   },
+   "vars": [
+    "opciones"
+   ]
+  },
+  "Error al finalizar la importación": {
+   "code": "error_interno"
+  },
+  "Fichero demasiado grande (máx 5 MB)": {
+   "code": "fichero_demasiado_grande",
+   "params": {
+    "max": 5
+   }
+  },
+  "El fichero debe ser UTF-8": {
+   "code": "fichero_no_utf8"
+  },
+  "Tipo no válido": {
+   "code": "tipo_no_valido"
+  },
+  "Seeded processes cannot be deleted; archive instead.": {
+   "code": "proceso_semilla_no_eliminable"
+  },
+  "Color must be a valid hex value like #RRGGBB": {
+   "code": "color_hex_no_valido"
+  },
+  "custom_domain must be a bare hostname, e.g. pm.company.com": {
+   "code": "dominio_no_valido"
+  },
+  "window_id es obligatorio": {
+   "code": "campo_obligatorio",
+   "params": {
+    "campo": "window_id"
+   }
+  },
+  "Webhook trigger no autorizado": {
+   "code": "webhook_no_autorizado"
+  },
+  "Se requiere cabecera X-Contecflow-Signature": {
+   "code": "cab_firma_requerida"
+  },
+  "Firma HMAC inválida": {
+   "code": "firma_no_valida"
+  },
+  "Indica la persona o su correo": {
+   "code": "indica_persona_o_correo"
+  },
+  "week_start es obligatorio": {
+   "code": "campo_obligatorio",
+   "params": {
+    "campo": "week_start"
+   }
+  },
+  "week_start (AAAA-MM-DD) o planned_hours no válidos": {
+   "code": "capacidad_datos_no_validos"
+  },
+  "El criterio necesita un nombre": {
+   "code": "criterio_sin_nombre"
+  },
+  "La fase necesita un nombre": {
+   "code": "fase_sin_nombre"
+  },
+  "La propuesta necesita un título": {
+   "code": "propuesta_sin_titulo"
+  },
+  "Solo se pueden editar CRs en borrador o enviadas": {
+   "code": "cr_solo_borrador_o_enviada"
+  },
+  "Solo se pueden enviar CRs en borrador": {
+   "code": "cr_solo_borrador"
+  },
+  "Solo se pueden revisar CRs enviadas": {
+   "code": "cr_solo_enviada"
+  },
+  "Solo se pueden implementar CRs aprobadas": {
+   "code": "cr_solo_aprobada"
+  },
+  "Usa POST /uat/{project_id}": {
+   "code": "usar_post_uat"
+  },
+  "Error al cargar proyectos: {}": {
+   "code": "clientes_error_proyectos",
+   "ignora_huecos": true
+  },
+  "la jornada tiene que acabar después de empezar": {
+   "code": "jornada_fin_antes_inicio"
+  },
+  "zona horaria desconocida: {}": {
+   "code": "zona_horaria_desconocida",
+   "vars": [
+    "zona"
+   ]
+  },
+  "fecha inválida: usa AAAA-MM-DD": {
+   "code": "fecha_no_valida_formato"
+  },
+  "Token inválido o caducado": {
+   "code": "token_no_valido"
+  },
+  "Message rate limit exceeded. Retry in {}s": {
+   "code": "limite_mensajes",
+   "vars": [
+    "segundos"
+   ]
+  },
+  "Channel traffic limit exceeded. Retry in {}s": {
+   "code": "limite_canal",
+   "vars": [
+    "segundos"
+   ]
+  },
+  "Content-Type inválido": {
+   "code": "content_type_no_valido"
+  },
+  "Conector desconocido: {}": {
+   "code": "conector_desconocido",
+   "vars": [
+    "conector"
+   ]
+  },
+  "Esta ficha todavía no tiene documentos en contecmind": {
+   "code": "ficha_sin_documentos_mind"
+  },
+  "No puedes crear contratos para proyectos fuera de tu organización": {
+   "code": "contrato_proyecto_otra_org"
+  },
+  "Código de contrato duplicado. Inténtalo de nuevo.": {
+   "code": "contrato_codigo_duplicado"
+  },
+  "Currency codes must be 3-letter ISO values": {
+   "code": "moneda_codigo_no_valido"
+  },
+  "Rate must be positive": {
+   "code": "tipo_cambio_no_positivo"
+  },
+  "Amount must be non-negative": {
+   "code": "importe_negativo"
+  },
+  "No exchange rate found for {}->{}": {
+   "code": "tipo_cambio_no_encontrado",
+   "vars": [
+    "origen",
+    "destino"
+   ]
+  },
+  "OPEN_EXCHANGE_RATES_APP_ID no configurado. Edita en Settings → Sistema → Credenciales → OpenExchangeRates, o defínelo en .env.": {
+   "code": "currency_sin_app_id"
+  },
+  "Solo administradores y PMs pueden actualizar entreables": {
+   "code": "solo_admin_o_pm"
+  },
+  "Sólo se acepta o rechaza un entregable entregado": {
+   "code": "entregable_solo_entregado"
+  },
+  "Solo se pueden aceptar entregables entregados": {
+   "code": "entregable_solo_entregado"
+  },
+  "Solo se pueden rechazar entregables entregados": {
+   "code": "entregable_solo_entregado"
+  },
+  "grant_type '{}' no soportado": {
+   "code": "oauth_grant_no_soportado",
+   "vars": [
+    "grant"
+   ]
+  },
+  "Alcances no válidos: {}. Válidos: {}": {
+   "code": "oauth_alcances_no_validos",
+   "vars": [
+    "alcances",
+    "validos"
+   ]
+  },
+  "Límite máximo de {} aplicaciones por usuario alcanzado": {
+   "code": "oauth_limite_apps",
+   "vars": [
+    "max"
+   ]
+  },
+  "client_id o client_secret inválido": {
+   "code": "oauth_credenciales_no_validas"
+  },
+  "Token requerido en cabecera Authorization: Bearer <token>": {
+   "code": "oauth_token_bearer_requerido"
+  },
+  "Token requerido": {
+   "code": "token_requerido"
+  },
+  "Token inválido o revocado": {
+   "code": "oauth_token_revocado"
+  },
+  "Token expirado": {
+   "code": "token_caducado"
+  },
+  "Scopes no permitidos: {}": {
+   "code": "oauth_alcances_no_permitidos",
+   "vars": [
+    "alcances"
+   ]
+  },
+  "Esta app no tiene propietario configurado": {
+   "code": "oauth_app_sin_propietario"
+  },
+  "File too large (max {}MB)": {
+   "code": "documentos_demasiado_grande",
+   "vars": [
+    "max"
+   ]
+  },
+  "File exceeds maximum size of {} MB": {
+   "code": "documentos_demasiado_grande",
+   "vars": [
+    "max"
+   ]
+  },
+  "Direct file serving only available in local-storage mode": {
+   "code": "documentos_solo_local"
+  },
+  "tag required": {
+   "code": "campo_obligatorio",
+   "params": {
+    "campo": "tag"
+   }
+  },
+  "Tag already exists": {
+   "code": "etiqueta_ya_existe"
+  },
+  "Archivo rechazado por el sistema de almacenamiento: {}": {
+   "code": "almacenamiento_rechaza_archivo",
+   "ignora_huecos": true
+  },
+  "El servicio de almacenamiento no está disponible temporalmente. Inténtalo de nuevo en unos minutos.": {
+   "code": "almacenamiento_no_disponible"
+  },
+  "AI summary unavailable": {
+   "code": "ia_resumen_no_disponible"
+  },
+  "Missing snapshot body": {
+   "code": "snapshot_sin_cuerpo"
+  },
+  "Mes inválido (1-12)": {
+   "code": "mes_no_valido"
+  },
+  "Solo quien creo la solicitud de firma, o un gestor, puede anularla": {
+   "code": "esign_solo_creador"
+  },
+  "Al menos un firmante es obligatorio": {
+   "code": "esign_sin_firmantes"
+  },
+  "No se puede anular una solicitud ya completada": {
+   "code": "esign_ya_completada"
+  },
+  "Firma de webhook DocuSign inválida": {
+   "code": "git_firma_no_valida",
+   "params": {
+    "servicio": "DocuSign"
+   }
+  },
+  "Payload DocuSign sin EnvelopeID/Status": {
+   "code": "esign_payload_incompleto",
+   "params": {
+    "servicio": "DocuSign"
+   }
+  },
+  "Adobe Sign client id inválido": {
+   "code": "esign_client_id_no_valido"
+  },
+  "Payload Adobe sin agreement.id": {
+   "code": "esign_payload_incompleto",
+   "params": {
+    "servicio": "Adobe Sign"
+   }
+  },
+  "Agreement {} no encontrado": {
+   "code": "no_encontrado",
+   "params": {
+    "que": "acuerdo"
+   },
+   "ignora_huecos": true
+  },
+  "No se pudo confirmar el estado con Adobe Sign": {
+   "code": "esign_estado_no_confirmado",
+   "params": {
+    "servicio": "Adobe Sign"
+   }
+  },
+  "DocuSign integration_key no configurado. Guárdalo en /esign/config primero.": {
+   "code": "esign_guardar_config_primero",
+   "params": {
+    "servicio": "DocuSign"
+   }
+  },
+  "DocuSign integration_key o secret_key no configurados.": {
+   "code": "esign_credenciales_incompletas",
+   "params": {
+    "servicio": "DocuSign"
+   }
+  },
+  "Error en intercambio de código DocuSign: {}": {
+   "code": "esign_intercambio_codigo_fallo",
+   "params": {
+    "servicio": "DocuSign"
+   },
+   "ignora_huecos": true
+  },
+  "Adobe Sign client_id no configurado. Guárdalo en /esign/config primero.": {
+   "code": "esign_guardar_config_primero",
+   "params": {
+    "servicio": "Adobe Sign"
+   }
+  },
+  "Adobe Sign client_id o client_secret no configurados.": {
+   "code": "esign_credenciales_incompletas",
+   "params": {
+    "servicio": "Adobe Sign"
+   }
+  },
+  "Error en intercambio de código Adobe Sign: {}": {
+   "code": "esign_intercambio_codigo_fallo",
+   "params": {
+    "servicio": "Adobe Sign"
+   },
+   "ignora_huecos": true
+  },
+  "access_token requerido": {
+   "code": "campo_obligatorio",
+   "params": {
+    "campo": "access_token"
+   }
+  },
+  "Estado inválido: {}": {
+   "code": "estado_no_valido_valor",
+   "vars": [
+    "estado"
+   ]
+  },
+  "Cuerpo del webhook ilegible": {
+   "code": "webhook_cuerpo_ilegible"
+  },
+  "Envelope {} no encontrado": {
+   "code": "no_encontrado",
+   "params": {
+    "que": "sobre_de_firma"
+   },
+   "ignora_huecos": true
+  },
+  "Error procesando webhook DocuSign": {
+   "code": "webhook_error_procesando",
+   "params": {
+    "servicio": "DocuSign"
+   }
+  },
+  "Error procesando webhook Adobe": {
+   "code": "webhook_error_procesando",
+   "params": {
+    "servicio": "Adobe Sign"
+   }
+  },
+  "JSON inválido": {
+   "code": "json_no_valido"
+  },
+  "La empresa no tiene secreto de GitHub (Credenciales → Inbound webhooks)": {
+   "code": "webhook_secreto_no_configurado",
+   "params": {
+    "servicio": "GitHub"
+   }
+  },
+  "Invalid GitHub webhook signature": {
+   "code": "git_firma_no_valida",
+   "params": {
+    "servicio": "GitHub"
+   }
+  },
+  "La empresa no tiene secreto de GitLab (Credenciales → Inbound webhooks)": {
+   "code": "webhook_secreto_no_configurado",
+   "params": {
+    "servicio": "GitLab"
+   }
+  },
+  "Invalid GitLab webhook token": {
+   "code": "git_firma_no_valida",
+   "params": {
+    "servicio": "GitLab"
+   }
+  },
+  "Error procesando webhook GitHub": {
+   "code": "webhook_error_procesando",
+   "params": {
+    "servicio": "GitHub"
+   }
+  },
+  "Error procesando webhook GitLab": {
+   "code": "webhook_error_procesando",
+   "params": {
+    "servicio": "GitLab"
+   }
+  },
+  "Policy pack no reconocido": {
+   "code": "policy_pack_no_reconocido"
+  },
+  "Módulo no reconocido": {
+   "code": "modulo_no_reconocido"
+  },
+  "Framework no soportado. Usa {}": {
+   "code": "framework_no_soportado",
+   "vars": [
+    "opciones"
+   ]
+  },
+  "Control desconocido en {}: {}": {
+   "code": "control_desconocido",
+   "vars": [
+    "marco",
+    "control"
+   ]
+  },
+  "Tipo desconocido: {}": {
+   "code": "tipo_desconocido",
+   "vars": [
+    "tipo"
+   ]
+  },
+  "'{}/{}/{}' no corresponde a ningún rol y operación de la API": {
+   "code": "grc_permiso_no_valido",
+   "vars": [
+    "rol",
+    "recurso",
+    "operacion"
+   ]
+  },
+  "La violación ya está resuelta": {
+   "code": "violacion_ya_resuelta"
+  },
+  "connector_slug is required": {
+   "code": "campo_obligatorio",
+   "params": {
+    "campo": "connector_slug"
+   }
+  },
+  "Error Slack: {}": {
+   "code": "servicio_externo_fallo",
+   "params": {
+    "servicio": "Slack"
+   },
+   "ignora_huecos": true
+  },
+  "Webhook URL no configurada": {
+   "code": "webhook_url_no_configurada"
+  },
+  "Error Teams: {}": {
+   "code": "servicio_externo_fallo",
+   "params": {
+    "servicio": "Teams"
+   },
+   "ignora_huecos": true
+  },
+  "Jira no está configurado en esta organización": {
+   "code": "integracion_no_configurada",
+   "params": {
+    "nombre": "Jira"
+   }
+  },
+  "Error Jira: {}": {
+   "code": "servicio_externo_fallo",
+   "params": {
+    "servicio": "Jira"
+   },
+   "ignora_huecos": true
+  },
+  "Los metadatos de Bot Framework no declaran `jwks_uri`": {
+   "code": "jwks_uri_ausente"
+  },
+  "Missing Teams bearer token": {
+   "code": "teams_token_ausente"
+  },
+  "Slack inbound commands are not configured": {
+   "code": "slack_comandos_no_configurados",
+   "params": {
+    "servicio": "Slack"
+   }
+  },
+  "Request timestamp too old": {
+   "code": "slack_marca_tiempo_antigua"
+  },
+  "Missing or invalid X-Slack-Request-Timestamp": {
+   "code": "slack_marca_tiempo_no_valida"
+  },
+  "Teams inbound commands are not configured": {
+   "code": "slack_comandos_no_configurados",
+   "params": {
+    "servicio": "Teams"
+   }
+  },
+  "Invalid Teams bearer token": {
+   "code": "teams_token_no_valido"
+  },
+  "Slack workspace linked to several organizations": {
+   "code": "slack_espacio_en_varias_orgs"
+  },
+  "No tienes permiso para descargar facturas": {
+   "code": "factura_sin_permiso_descarga"
+  },
+  "{} no encontrado": {
+   "code": "no_encontrado",
+   "params": {
+    "que": "tipo_de_incidencia"
+   },
+   "ignora_huecos": true
+  },
+  "Proporciona project_key o un jql personalizado.": {
+   "code": "jira_indica_clave_o_jql"
+  },
+  "Proporciona project_key.": {
+   "code": "jira_indica_clave"
+  },
+  "Proporciona jira_project_key.": {
+   "code": "jira_indica_clave"
+  },
+  "Invalid Jira webhook authentication": {
+   "code": "webhook_auth_no_valida",
+   "params": {
+    "servicio": "Jira"
+   }
+  },
+  "Labels endpoint is not implemented yet": {
+   "code": "pagina_no_implementada"
+  },
+  "TEAMS_WEBHOOK_URL not configured": {
+   "code": "integracion_no_configurada",
+   "params": {
+    "nombre": "Teams"
+   }
+  },
+  "Teams webhook delivery failed": {
+   "code": "webhook_entrega_fallida",
+   "params": {
+    "servicio": "Teams"
+   }
+  },
+  "No UPNs provided": {
+   "code": "upn_ninguno"
+  },
+  "Maximum 650 UPNs per request": {
+   "code": "upn_demasiados",
+   "params": {
+    "max": 650
+   }
+  },
+  "user_upn requerido cuando upload_to_onedrive=True": {
+   "code": "campo_obligatorio_si",
+   "params": {
+    "campo": "user_upn",
+    "condicion": "upload_to_onedrive=True"
+   }
+  },
+  "No se puede eliminar un milestone ya facturado": {
+   "code": "hito_facturado_no_eliminable"
+  },
+  "Solo admins/PMs pueden crear snapshots": {
+   "code": "solo_admin_o_pm"
+  },
+  "Solo admins/PMs pueden computar salud": {
+   "code": "solo_admin_o_pm"
+  },
+  "Sólo el responsable del KR o de su objetivo registra su avance": {
+   "code": "okr_solo_responsable"
+  },
+  "Para suspender una empresa hay que indicar el motivo": {
+   "code": "suspension_requiere_motivo"
+  },
+  "Solo se puede activar un ciclo en estado 'draft', actual: '{}'": {
+   "code": "ciclo_solo_borrador",
+   "vars": [
+    "estado"
+   ]
+  },
+  "Solo se puede cerrar un ciclo activo, actual: '{}'": {
+   "code": "ciclo_solo_activo",
+   "vars": [
+    "estado"
+   ]
+  },
+  "review_type debe ser self|manager|peer|upward": {
+   "code": "campo_no_valido_opciones",
+   "params": {
+    "campo": "review_type",
+    "opciones": "self, manager, peer, upward"
+   }
+  },
+  "reviewee_id y reviewer_id son obligatorios": {
+   "code": "campos_obligatorios",
+   "params": {
+    "campos": "reviewee_id, reviewer_id"
+   }
+  },
+  "Solo el evaluador puede modificar esta evaluación": {
+   "code": "evaluacion_solo_evaluador"
+  },
+  "El ciclo de evaluación ya está cerrado": {
+   "code": "ciclo_evaluacion_cerrado"
+  },
+  "Solo puedes lanzar campañas para tus reportes directos": {
+   "code": "sin_permiso"
+  },
+  "Solo puedes consultar tu propio histórico": {
+   "code": "sin_permiso"
+  },
+  "Sin permisos para ver este plan": {
+   "code": "sin_permiso"
+  },
+  "Solo puedes crear planes propios o de tus reportes directos": {
+   "code": "sin_permiso"
+  },
+  "Sin permisos para editar este plan": {
+   "code": "sin_permiso"
+  },
+  "No tienes acceso a estos planes": {
+   "code": "sin_permiso"
+  },
+  "Solo responsables o la propia persona": {
+   "code": "sin_permiso"
+  },
+  "Solo puedes editar tus proyectos": {
+   "code": "sin_permiso"
+  },
+  "Solo puedes editar tus propios skills": {
+   "code": "sin_permiso"
+  },
+  "Solo puedes editar tus propias certificaciones": {
+   "code": "sin_permiso"
+  },
+  "Solo puedes eliminar tus propias certificaciones": {
+   "code": "sin_permiso"
+  },
+  "El valor ganado es información financiera": {
+   "code": "valor_ganado_financiero"
+  },
+  "El fichero supera 5 MB": {
+   "code": "fichero_supera_mb",
+   "params": {
+    "max": 5
+   }
+  },
+  "El proyecto ya pertenece a esta cartera": {
+   "code": "proyecto_ya_en_cartera"
+  },
+  "El proyecto no está en esta cartera": {
+   "code": "proyecto_no_en_cartera"
+  },
+  "Se factura desde Facturación por hitos, que genera la factura": {
+   "code": "hito_se_factura_por_hitos"
+  },
+  "El importe no se cambia con el hito en «{}»": {
+   "code": "hito_importe_no_editable",
+   "vars": [
+    "estado"
+   ]
+  },
+  "Formulario no encontrado o inactivo": {
+   "code": "no_encontrado",
+   "params": {
+    "que": "formulario"
+   }
+  },
+  "Entidad '{}' desconocida": {
+   "code": "entidad_desconocida",
+   "vars": [
+    "entidad"
+   ]
+  },
+  "Se requieren year y month": {
+   "code": "campos_obligatorios",
+   "params": {
+    "campos": "year, month"
+   }
+  },
+  "Maximum 100 operations per Bulk request": {
+   "code": "max_operaciones_bulk",
+   "params": {
+    "max": 100
+   }
+  },
+  "Invalid status: {}": {
+   "code": "estado_no_valido_valor",
+   "vars": [
+    "estado"
+   ]
+  },
+  "title requerido": {
+   "code": "campo_obligatorio",
+   "params": {
+    "campo": "title"
+   }
+  },
+  "user_id requerido": {
+   "code": "campo_obligatorio",
+   "params": {
+    "campo": "user_id"
+   }
+  },
+  "item_text y correct_user_id requeridos": {
+   "code": "campos_obligatorios",
+   "params": {
+    "campos": "item_text, correct_user_id"
+   }
+  },
+  "engine_mode inválido. Use uno de: {}": {
+   "code": "campo_no_valido_opciones",
+   "params": {
+    "campo": "engine_mode"
+   },
+   "vars": [
+    "opciones"
+   ]
+  },
+  "Only admins/support can apply auto-resolution": {
+   "code": "solo_admin_o_soporte"
+  },
+  "Only admins can run this job": {
+   "code": "solo_admin"
+  },
+  "Only admin/support can merge clusters": {
+   "code": "solo_admin_o_soporte"
+  },
+  "Solo un administrador cambia el panel de la empresa": {
+   "code": "solo_admin"
+  },
+  "Verify token no válido": {
+   "code": "metodo_canal_verify_token"
+  },
+  "Cuerpo ilegible": {
+   "code": "webhook_cuerpo_ilegible"
+  },
+  "Rollback plan no encontrado. Ejecuta POST primero.": {
+   "code": "rollback_plan_no_generado"
+  },
+  "Plan de pruebas no encontrado. Ejecuta POST /testing-plan primero.": {
+   "code": "testing_plan_no_generado"
+  },
+  "Plan de comunicaciones no encontrado. Ejecuta POST /comms-plan primero.": {
+   "code": "comms_plan_no_generado"
+  },
+  "Missing or malformed Authorization header": {
+   "code": "cabecera_authorization_mal_formada"
+  },
+  "Empty bearer token": {
+   "code": "bearer_vacio"
+  },
+  "hosts list is required": {
+   "code": "hosts_obligatorios"
+  },
+  "Snapshots inválidos para diff": {
+   "code": "snapshots_no_validos"
+  },
+  "Snapshot is invalid": {
+   "code": "snapshots_no_validos"
+  },
+  "CSV sin cabeceras": {
+   "code": "csv_sin_cabeceras"
+  },
+  "CSV inválido: {}": {
+   "code": "csv_no_valido",
+   "ignora_huecos": true
+  },
+  "Solo quien puede publicar en la base deja correcciones": {
+   "code": "kb_solo_publicadores"
+  },
+  "Solo quien puede publicar en la base cambia correcciones": {
+   "code": "kb_solo_publicadores"
+  },
+  "Estado no válido": {
+   "code": "estado_no_valido"
+  },
+  "No hay ejecución de rollout para este cambio": {
+   "code": "rollout_sin_ejecucion"
+  },
+  "Firma de Twilio ausente o inválida": {
+   "code": "firma_no_valida"
+  },
+  "Only admin/support can approve RCA": {
+   "code": "solo_admin_o_soporte"
+  },
+  "steps_json must be a non-empty JSON array": {
+   "code": "pasos_json_no_vacio"
+  },
+  "System templates cannot be modified": {
+   "code": "operacion_no_permitida_sistema"
+  },
+  "System templates cannot be deleted": {
+   "code": "elemento_sistema_no_eliminable"
+  },
+  "Invalid steps_json: {}": {
+   "code": "pasos_json_no_valido",
+   "ignora_huecos": true
+  },
+  "Error finalizing RCA wizard": {
+   "code": "rca_wizard_fallo"
+  },
+  "Solo se pueden cambiar los ajustes generales": {
+   "code": "ajustes_solo_generales"
+  },
+  "Es un ajuste de la plataforma: sólo lo cambia el superadmin": {
+   "code": "ajuste_solo_superadmin"
+  },
+  "Nivel inválido. Use uno de: {}": {
+   "code": "campo_no_valido_opciones",
+   "params": {
+    "campo": "level"
+   },
+   "vars": [
+    "opciones"
+   ]
+  },
+  "Ya existe un skill con ese nombre": {
+   "code": "skill_nombre_duplicado"
+  },
+  "skill_id y new_level son obligatorios": {
+   "code": "campos_obligatorios",
+   "params": {
+    "campos": "skill_id, new_level"
+   }
+  },
+  "No Slack webhook URL configured. Set it in Settings -> Integrations -> Slack.": {
+   "code": "slack_sin_webhook"
+  },
+  "Slack delivery failed": {
+   "code": "webhook_entrega_fallida",
+   "params": {
+    "servicio": "Slack"
+   }
+  },
+  "Sólo se inicia un sprint en planificación; este está «{}»": {
+   "code": "sprint_solo_planificacion",
+   "vars": [
+    "estado"
+   ]
+  },
+  "Ya hay un sprint activo: {}": {
+   "code": "sprint_ya_activo",
+   "vars": [
+    "sprint"
+   ]
+  },
+  "title es obligatorio": {
+   "code": "campo_obligatorio",
+   "params": {
+    "campo": "title"
+   }
+  },
+  "Debe especificar al menos un campo a actualizar": {
+   "code": "tarea_sin_campos"
+  },
+  "No puedes eliminarte a ti mismo": {
+   "code": "no_puedes_contigo"
+  },
+  "Autenticación requerida": {
+   "code": "no_autenticado"
+  },
+  "Servicio no disponible temporalmente": {
+   "code": "servicio_no_disponible_temporal"
+  },
+  "Token de cliente inválido": {
+   "code": "token_no_valido"
+  },
+  "Tu organización requiere MFA. Configura un autenticador (TOTP o passkey) antes de poder iniciar sesión.": {
+   "code": "mfa_obligatorio_org"
+  },
+  "Usuario no encontrado o desactivado": {
+   "code": "usuario_no_encontrado_o_inactivo"
+  },
+  "En este despliegue la empresa la fija el acceso, no se cambia en la sesión": {
+   "code": "empresa_fijada_por_acceso"
+  },
+  "Refresh token requerido": {
+   "code": "refresh_token_requerido"
+  },
+  "Refresh token inválido": {
+   "code": "refresh_token_no_valido"
+  },
+  "Refresh token ya fue utilizado o es inválido. Por seguridad, debes iniciar sesión de nuevo.": {
+   "code": "refresh_token_reutilizado"
+  },
+  "Token de restablecimiento inválido o expirado": {
+   "code": "reset_token_no_valido"
+  },
+  "current_password y new_password son obligatorios": {
+   "code": "contrasenas_obligatorias"
+  },
+  "Tu cuenta usa SSO — la contraseña se gestiona externamente": {
+   "code": "cuenta_sso_sin_contrasena"
+  },
+  "Contraseña actual incorrecta": {
+   "code": "contrasena_actual_no_coincide"
+  },
+  "Error al iniciar sesión. Inténtalo de nuevo.": {
+   "code": "login_error"
+  },
+  "Ya no perteneces a esa organización: vuelve a entrar": {
+   "code": "ya_no_perteneces_org"
+  },
+  "Demasiadas solicitudes de recuperación. Intenta de nuevo en {}s.": {
+   "code": "recuperacion_demasiadas_solicitudes",
+   "vars": [
+    "segundos"
+   ]
+  },
+  "Debes completar un challenge MFA para cambiar la contraseña": {
+   "code": "mfa_requerido_cambio_contrasena"
+  },
+  "MFA inválido: {}": {
+   "code": "mfa_no_valido",
+   "ignora_huecos": true
+  },
+  "Primero inicia la configuración con /mfa/setup": {
+   "code": "mfa_iniciar_configuracion"
+  },
+  "Código requerido": {
+   "code": "mfa_codigo_requerido"
+  },
+  "Código incorrecto o expirado. Asegúrate de que la hora del dispositivo es correcta.": {
+   "code": "mfa_codigo_incorrecto_hora"
+  },
+  "mfa_challenge_token requerido": {
+   "code": "mfa_challenge_requerido"
+  },
+  "Este usuario no tiene TOTP activo. Usa autenticación WebAuthn/passkey.": {
+   "code": "mfa_sin_totp"
+  },
+  "Código 2FA incorrecto": {
+   "code": "mfa_codigo_incorrecto"
+  },
+  "2FA no estaba activado": {
+   "code": "mfa_no_activado"
+  },
+  "Código incorrecto": {
+   "code": "mfa_codigo_incorrecto"
+  },
+  "webauthn_challenge_token y credential son obligatorios": {
+   "code": "webauthn_datos_obligatorios",
+   "params": {
+    "campos": "webauthn_challenge_token, credential"
+   }
+  },
+  "El challenge no pertenece al usuario autenticado": {
+   "code": "webauthn_challenge_ajeno"
+  },
+  "El nombre no puede estar vacío": {
+   "code": "nombre_vacio"
+  },
+  "El usuario no tiene passkeys registradas": {
+   "code": "sin_passkeys"
+  },
+  "mfa_challenge_token, webauthn_challenge_token y credential son obligatorios": {
+   "code": "webauthn_datos_obligatorios",
+   "params": {
+    "campos": "mfa_challenge_token, webauthn_challenge_token, credential"
+   }
+  },
+  "webauthn_challenge_token inválido": {
+   "code": "webauthn_challenge_no_valido"
+  },
+  "Credential inválida": {
+   "code": "webauthn_credencial_no_valida"
+  },
+  "Passkey no reconocida": {
+   "code": "passkey_no_reconocida"
+  },
+  "El acceso con passkey sin contraseña está desactivado": {
+   "code": "passkey_sin_contrasena_desactivado"
+  },
+  "Dependencia faltante en 2FA: {}": {
+   "code": "dependencia_no_instalada",
+   "params": {
+    "paquete": "2FA"
+   },
+   "ignora_huecos": true
+  },
+  "Demasiados intentos. Vuelve a iniciar sesión.": {
+   "code": "mfa_demasiados_intentos"
+  },
+  "Registro WebAuthn inválido: {}": {
+   "code": "webauthn_registro_no_valido",
+   "ignora_huecos": true
+  },
+  "Autenticación WebAuthn inválida: {}": {
+   "code": "webauthn_autenticacion_no_valida",
+   "ignora_huecos": true
+  },
+  "Falta oidc_discovery_url": {
+   "code": "sso_falta_discovery"
+  },
+  "Faltan code o redirect_uri": {
+   "code": "sso_faltan_code_redirect"
+  },
+  "redirect_uri no está en la lista de orígenes permitidos": {
+   "code": "sso_redirect_no_permitido"
+  },
+  "State inválido o ausente": {
+   "code": "sso_state_no_valido"
+  },
+  "State inválido: posible ataque CSRF": {
+   "code": "sso_state_csrf"
+  },
+  "State expirado o ya utilizado": {
+   "code": "sso_state_caducado"
+  },
+  "No se pudo obtener el email del token SSO": {
+   "code": "sso_sin_email"
+  },
+  "El proveedor SSO indica que este email no está verificado. No se puede autenticar.": {
+   "code": "sso_email_no_verificado"
+  },
+  "El proveedor no devolvió id_token": {
+   "code": "sso_sin_id_token"
+  },
+  "El discovery document del proveedor no es JSON válido": {
+   "code": "sso_discovery_no_valido"
+  },
+  "No se pudo obtener el discovery document": {
+   "code": "sso_discovery_no_obtenido"
+  },
+  "El discovery document no trae authorization_endpoint": {
+   "code": "sso_sin_authorization_endpoint"
+  },
+  "Error al iniciar el flujo SSO. Comprueba la configuración del proveedor.": {
+   "code": "sso_inicio_error"
+  },
+  "El proveedor devolvió una respuesta de token no válida": {
+   "code": "sso_token_respuesta_no_valida"
+  },
+  "Error de red al obtener tokens del proveedor SSO: {}": {
+   "code": "sso_red_error",
+   "ignora_huecos": true
+  },
+  "No se pudo obtener JWKS URI del proveedor SSO. Imposible verificar la firma del id_token.": {
+   "code": "sso_sin_jwks"
+  },
+  "id_token inválido o firma incorrecta: {}": {
+   "code": "sso_id_token_no_valido",
+   "ignora_huecos": true
+  },
+  "Nonce inválido: posible reutilización del id_token": {
+   "code": "sso_nonce_no_valido"
+  },
+  "Error al completar el inicio de sesión SSO.": {
+   "code": "sso_login_error"
+  },
+  "No se pudo obtener el token_endpoint": {
+   "code": "sso_sin_token_endpoint"
+  }
+ },
+ "entidades": {
+  "Métrica": "metrica",
+  "Metric": "metrica"
+ }
+}

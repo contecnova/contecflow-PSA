@@ -11,9 +11,9 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.cab import WebhookTrigger, WebhookTriggerLog
 from app.db.session import SessionLocal
 from app.models.bookings import WorkflowQueueItem
-from app.core.errores import ErrorDeDominio
 
 from app.services.cab_service._comun import logger
+from app.core.codigos_de_error import error, ErrorConCodigo
 
 
 def trigger_out(t: WebhookTrigger) -> dict:
@@ -67,7 +67,7 @@ def create_webhook_trigger(payload, current_user_id: str, db: Session) -> dict:
     import secrets as _secrets
     existing = db.query(WebhookTrigger).filter(WebhookTrigger.slug == payload.slug).first()
     if existing:
-        raise ValueError(f"Slug '{payload.slug}' ya está en uso")
+        raise ErrorConCodigo("slug_en_uso", detail=f"Slug '{payload.slug}' ya está en uso", slug=payload.slug)
     secret = payload.secret or _secrets.token_hex(32)
     t = WebhookTrigger(
         name=payload.name, slug=payload.slug,
@@ -102,12 +102,12 @@ def get_active_webhook_trigger_by_slug(db: Session, slug: str) -> WebhookTrigger
         WebhookTrigger.is_active == True,
     ).first()
     if not trigger:
-        raise ErrorDeDominio(404, "Webhook trigger no encontrado")
+        raise error(404, "no_encontrado", detail="Webhook trigger no encontrado", que="disparador")
     # Una empresa desactivada no recibe webhooks (revision multitenant 2026-11b).
     from app.db.session import exigir_organizacion_activa
     exigir_organizacion_activa(db, trigger.organization_id)
     if trigger.slug_expires_at and trigger.slug_expires_at < datetime.now(timezone.utc):
-        raise ErrorDeDominio(410, "Webhook trigger slug expirado — rota el slug para reactivarlo")
+        raise error(410, "webhook_slug_caducado", detail="Webhook trigger slug expirado — rota el slug para reactivarlo")
     return trigger
 
 
@@ -120,7 +120,7 @@ def rotate_webhook_trigger_slug(trigger_id: str, expires_in_days: int | None, db
     import secrets as _secrets
     t = db.query(WebhookTrigger).filter(WebhookTrigger.id == trigger_id).first()
     if not t:
-        raise ValueError("Trigger no encontrado")
+        raise ErrorConCodigo("no_encontrado", detail="Trigger no encontrado", que="disparador")
     new_slug = _secrets.token_urlsafe(16)
     # Ensure uniqueness (collision extremely unlikely but guard anyway)
     while db.query(WebhookTrigger).filter(WebhookTrigger.slug == new_slug).first():
@@ -155,6 +155,6 @@ def get_webhook_logs(trigger_id: str, db: Session) -> list:
 def delete_webhook_trigger(trigger_id: str, db: Session) -> dict:
     t = db.query(WebhookTrigger).filter(WebhookTrigger.id == trigger_id).first()
     if not t:
-        raise ValueError("Trigger no encontrado")
+        raise ErrorConCodigo("no_encontrado", detail="Trigger no encontrado", que="disparador")
     db.delete(t); db.commit()
     return {"ok": True}

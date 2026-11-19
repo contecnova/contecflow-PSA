@@ -71,7 +71,9 @@ def _oracle_project_delay(db: Session, projects: list, now: datetime) -> list:
             risk_score += min(overdue / max(len(tasks), 1) * 50, 40)
         if pct_done < 0.3 and p.end_date_planned and p.end_date_planned < (now + timedelta(days=14)).date():
             risk_score += 35
-        if budget_consumed_pct > 0.9:
+        # 19-11-2026: «presupuesto crítico» de la empresa (antes 0,9 fijo).
+        from app.core.umbrales import tono_de as _tono_de
+        if _tono_de("presupuesto", budget_consumed_pct * 100, db, registro=p) == "danger":
             risk_score += 25
 
         probability = min(round(risk_score / 100, 2), 0.99)
@@ -196,7 +198,9 @@ def _oracle_burnout(db: Session, active_users: list, now: datetime) -> list:
                 Imputation.date >= ws, Imputation.date <= we,
             ).scalar() or 0
             weekly.append(h)
-        probability = burnout_score(weekly)
+        from app.core.umbrales import umbral as _umbral
+        sobrecarga = _umbral("UMBRAL_SOBRECARGA_HORAS_SEMANA", db, registro=u)
+        probability = burnout_score(weekly, sobrecarga)
         if probability < 0.25:
             continue
         avg   = sum(weekly) / max(len(weekly), 1)
@@ -223,7 +227,7 @@ def _oracle_burnout(db: Session, active_users: list, now: datetime) -> list:
                 severity=severity,
                 title=texto("oracle.burnout.titulo", idioma, persona=u.full_name),
                 explanation=texto("oracle.burnout.explicacion", idioma, media=round(avg, 1), pico=round(max_w, 1),
-                                  tendencia=trend_txt, semanas=sum(1 for h in weekly if h > 42)),
+                                  tendencia=trend_txt, semanas=sum(1 for h in weekly if h > sobrecarga)),
                 recommended_action=texto("oracle.burnout.accion", idioma),
             ))
             generated.append({"type": "burnout", "entity": u.full_name, "probability": probability})
@@ -256,7 +260,10 @@ def _oracle_budget_overrun(db: Session, projects: list) -> list:
         cost_ratio = cost_spent / p.budget_amount if p.budget_amount else 0.0
         # Decisión: la peor de las dos manda
         worst_ratio = max(revenue_ratio, cost_ratio)
-        if worst_ratio < 0.85:
+        # 19-11-2026: se avisa desde el «presupuesto crítico» de la empresa
+        # (UMBRAL_PRESUPUESTO_CRITICO_PCT, 90 %); antes 0,85 fijo aquí.
+        from app.core.umbrales import tono_de as _tono_de
+        if _tono_de("presupuesto", worst_ratio * 100, db, registro=p) != "danger":
             continue
         margin_eroded = cost_ratio > revenue_ratio + 0.10  # >10pp de gap = mal margen
         existing = db.query(AIPrediction).filter(

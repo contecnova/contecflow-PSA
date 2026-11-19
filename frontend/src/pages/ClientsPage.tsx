@@ -24,6 +24,7 @@ import {
 } from './clients/ClientsPageTabs'
 import { ModalEditarContacto } from './clients/ModalEditarContacto'
 import { SelectorContactoPrincipal, datosDeContactoPrincipal, NUEVO_CONTACTO_VACIO, type NuevoContacto } from './clients/SelectorContactoPrincipal'
+import { useCatalogo } from '../hooks/useCatalogo'
 import './ClientsPage.css'
 
 type Traductor = ReturnType<typeof useAppT>
@@ -46,7 +47,7 @@ const SLA_COLOR: Record<string, string> = {
   silver: 'var(--text-2)',
   bronze: 'var(--warning)',
 }
-const INDUSTRIES = ['technology', 'finance', 'healthcare', 'retail', 'manufacturing', 'education', 'consulting', 'real_estate', 'media', 'other']
+// 19-11-2026: los sectores son el catálogo de la empresa (`/settings/client-industries`).
 
 /** Tamaño de página de la lista de clientes (#22: el backend pagina con page/page_size). */
 const CLIENTS_PAGE_SIZE = 25
@@ -204,7 +205,8 @@ export default function ClientsPage(): JSX.Element {
   const camposEdit = useErroresDeCampo()
 
   const statusLabel = (s: string | undefined) => (s && STATUS_COLOR[s] ? t(`clientspage.estado_${s}`) : s)
-  const industryLabel = (i: string) => (INDUSTRIES.includes(i) ? t(`clientspage.sector_${i}`) : i)
+  const sectores = useCatalogo('client-industries')
+  const industryLabel = (i: string) => sectores.etiqueta(i)
 
   // Lista paginada en el servidor (page/page_size; total en meta.total).
   const { data: paginaClientes, isLoading } = useQuery<{ items: Client[]; total: number }>({
@@ -306,7 +308,7 @@ export default function ClientsPage(): JSX.Element {
 
   const selectClient = (c: Client) => { setSelected(c); setActiveTab('contacts') }
   const statusOptions = STATUS_KEYS.map(k => <option key={k} value={k}>{statusLabel(k)}</option>)
-  const industryOptions = INDUSTRIES.map(i => <option key={i} value={i}>{industryLabel(i)}</option>)
+  const industryOptions = sectores.opciones.map(o => <option key={o.value} value={o.value}>{o.label}</option>)
 
   return (
     <PageShell>

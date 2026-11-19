@@ -1,0 +1,3834 @@
+{
+  "codigos": {
+    "acceso_externo_caducado": {
+      "es": "El acceso de externo ha caducado o se ha retirado",
+      "en": "The external access has expired or been revoked",
+      "zh": "外部访问权限已过期或已被撤销"
+    },
+    "accion_desconocida_valor": {
+      "es": "Acción desconocida: {accion}",
+      "en": "Unknown action: {accion}",
+      "zh": "未知操作：{accion}"
+    },
+    "adjunto_demasiado_grande": {
+      "es": "El adjunto es demasiado grande",
+      "en": "The attachment is too large",
+      "zh": "附件过大"
+    },
+    "ajuste_clave_fuera_de_grupo": {
+      "es": "El ajuste {clave} no pertenece al grupo {grupo}",
+      "en": "Setting {clave} is not part of group {grupo}",
+      "zh": "设置 {clave} 不属于组 {grupo}"
+    },
+    "ajuste_grupo_desconocido": {
+      "es": "Grupo de ajustes desconocido: {grupo}",
+      "en": "Unknown settings group: {grupo}",
+      "zh": "未知的设置组：{grupo}"
+    },
+    "ajuste_hora_no_valida": {
+      "es": "Valor no válido para {clave}: {valor} (se espera HH:MM, 00:00-23:59)",
+      "en": "Invalid value for {clave}: {valor} (expected HH:MM, 00:00-23:59)",
+      "zh": "{clave} 的值无效：{valor}（应为 HH:MM，00:00-23:59）"
+    },
+    "ajuste_valor_no_valido": {
+      "es": "Valor no válido para {clave} (se espera {esperado})",
+      "en": "Invalid value for {clave} (expected {esperado})",
+      "zh": "{clave} 的值无效（应为 {esperado}）"
+    },
+    "alm_no_eliminable_asignaciones_instalaciones": {
+      "es": "No se puede eliminar: tiene {asignaciones} asignación(es) y {instalaciones} instalación(es)",
+      "en": "Cannot delete: it has {asignaciones} assignment(s) and {instalaciones} installation(s)",
+      "zh": "无法删除：存在 {asignaciones} 个分配和 {instalaciones} 个安装"
+    },
+    "alm_no_eliminable_contratos_licencias": {
+      "es": "No se puede eliminar: tiene {contratos} contrato(s) y {licencias} licencia(s)",
+      "en": "Cannot delete: it has {contratos} contract(s) and {licencias} licence(s)",
+      "zh": "无法删除：存在 {contratos} 个合同和 {licencias} 个许可证"
+    },
+    "alm_no_eliminable_contratos_licencias_activos": {
+      "es": "No se puede eliminar: tiene {contratos} contrato(s), {licencias} licencia(s) y {activos} activo(s)",
+      "en": "Cannot delete: it has {contratos} contract(s), {licencias} licence(s) and {activos} asset(s)",
+      "zh": "无法删除：存在 {contratos} 个合同、{licencias} 个许可证和 {activos} 个资产"
+    },
+    "alm_no_eliminable_licencias": {
+      "es": "No se puede eliminar: tiene {licencias} licencia(s) activa(s) asociada(s)",
+      "en": "Cannot delete: it has {licencias} active licence(s) linked",
+      "zh": "无法删除：关联了 {licencias} 个有效许可证"
+    },
+    "alm_proveedor_uso_sin_clave": {
+      "es": "Un proveedor de uso necesita una clave",
+      "en": "A usage provider needs a key",
+      "zh": "使用量提供商需要一个键"
+    },
+    "aprobacion_enlace_caducado": {
+      "es": "El enlace ha caducado o no es válido: decide desde la bandeja de aprobaciones",
+      "en": "The link has expired or is not valid: decide from the approvals inbox",
+      "zh": "链接已过期或无效：请在审批收件箱中处理"
+    },
+    "aprobacion_ya_decidida_o_cambio_paso": {
+      "es": "Esta solicitud ya se decidió o cambió de paso",
+      "en": "This request has already been decided or moved to another step",
+      "zh": "该申请已被处理或已进入其他步骤"
+    },
+    "aprobador_no_valido": {
+      "es": "El aprobador no existe o no está activo",
+      "en": "The approver does not exist or is not active",
+      "zh": "审批人不存在或未启用"
+    },
+    "asunto_y_texto_obligatorios": {
+      "es": "El asunto y el texto no pueden quedar vacíos",
+      "en": "The subject and text cannot be empty",
+      "zh": "主题和正文不能为空"
+    },
+    "automatizacion_accion_falta": {
+      "es": "Acción {n} ({tipo}): falta {faltan}",
+      "en": "Action {n} ({tipo}): missing {faltan}",
+      "zh": "动作 {n} ({tipo})：缺少 {faltan}"
+    },
+    "automatizacion_accion_tipo_desconocido": {
+      "es": "Acción {n}: tipo desconocido «{tipo}»",
+      "en": "Action {n}: unknown type “{tipo}”",
+      "zh": "动作 {n}：未知类型“{tipo}”"
+    },
+    "automatizacion_condicion_mal_formada": {
+      "es": "Condición mal formada",
+      "en": "Malformed condition",
+      "zh": "条件格式错误"
+    },
+    "automatizacion_condicion_sin_campo": {
+      "es": "La condición necesita un campo",
+      "en": "The condition needs a field",
+      "zh": "条件需要一个字段"
+    },
+    "automatizacion_grupo_desconocido": {
+      "es": "Grupo de condiciones desconocido: {grupo} (all | any)",
+      "en": "Unknown condition group: {grupo} (all | any)",
+      "zh": "未知条件组：{grupo} (all | any)"
+    },
+    "automatizacion_grupo_vacio": {
+      "es": "Un grupo de condiciones necesita al menos una",
+      "en": "A condition group needs at least one condition",
+      "zh": "条件组至少需要一个条件"
+    },
+    "automatizacion_sin_acciones": {
+      "es": "La regla necesita al menos una acción",
+      "en": "The rule needs at least one action",
+      "zh": "规则至少需要一个动作"
+    },
+    "aviso_desconocido": {
+      "es": "Aviso desconocido",
+      "en": "Unknown notification",
+      "zh": "未知通知"
+    },
+    "baja_requiere_motivo": {
+      "es": "Para dar de baja una empresa hay que indicar el motivo",
+      "en": "A reason is required to close a company",
+      "zh": "注销公司必须填写原因"
+    },
+    "bi_campos_desconocidos": {
+      "es": "Campos desconocidos en el conjunto de datos «{dataset}»: {campos}",
+      "en": "Unknown fields for dataset “{dataset}”: {campos}",
+      "zh": "数据集“{dataset}”中的未知字段：{campos}"
+    },
+    "bi_dataset_clave_no_valida": {
+      "es": "La clave del conjunto de datos solo puede contener letras, números, _ - .",
+      "en": "The dataset key may only contain letters, numbers, _ - .",
+      "zh": "数据集键只能包含字母、数字、_ - ."
+    },
+    "bi_fuente_sin_nombre": {
+      "es": "Pon un nombre a la fuente",
+      "en": "Give the source a name",
+      "zh": "请为数据源命名"
+    },
+    "bi_fuente_ya_existe": {
+      "es": "Ya hay una fuente «{nombre}»",
+      "en": "There is already a source “{nombre}”",
+      "zh": "已存在数据源“{nombre}”"
+    },
+    "bi_sin_emisores_sso": {
+      "es": "No hay emisores SSO configurados",
+      "en": "No SSO issuers are configured",
+      "zh": "未配置 SSO 签发方"
+    },
+    "bi_sso_embed_desactivado": {
+      "es": "El acceso SSO a paneles incrustados no está activado en esta empresa",
+      "en": "SSO for embedded dashboards is not enabled for this company",
+      "zh": "此公司未启用嵌入式仪表板的 SSO"
+    },
+    "bi_token_otro_panel": {
+      "es": "El token no es de este panel",
+      "en": "The token does not belong to this dashboard",
+      "zh": "该令牌不属于此仪表板"
+    },
+    "bi_ttl_fuera_de_rango": {
+      "es": "La caducidad debe estar entre 1 y 10080 minutos",
+      "en": "The expiry must be between 1 and 10080 minutes",
+      "zh": "有效期必须在 1 到 10080 分钟之间"
+    },
+    "bloqueado_por_politica": {
+      "es": "Lo impide una política: {motivo}",
+      "en": "A policy prevents this: {motivo}",
+      "zh": "策略禁止此操作：{motivo}"
+    },
+    "blueprint_sin_inicio": {
+      "es": "La plantilla no tiene nodo de inicio",
+      "en": "The blueprint has no start node",
+      "zh": "该蓝图没有起始节点"
+    },
+    "blueprint_sin_publicar": {
+      "es": "La plantilla no tiene versión publicada: publica una versión antes de ejecutarla",
+      "en": "The blueprint has no published version: publish a version before running it",
+      "zh": "该蓝图没有已发布的版本：请先发布再运行"
+    },
+    "blueprint_sin_versiones": {
+      "es": "La plantilla no tiene versiones que clonar",
+      "en": "The blueprint has no versions to clone",
+      "zh": "该蓝图没有可克隆的版本"
+    },
+    "bot_sin_mensaje_cliente": {
+      "es": "No hay mensaje del cliente para que el bot responda",
+      "en": "There is no client message for the bot to answer",
+      "zh": "没有可供机器人回复的客户消息"
+    },
+    "bpm_clave_proceso_duplicada": {
+      "es": "Ya existe un proceso con la clave «{clave}». Reintenta la operación.",
+      "en": "A process with key “{clave}” already exists. Retry the operation.",
+      "zh": "已存在键为“{clave}”的流程。请重试。"
+    },
+    "bpm_diagrama_demasiado_grande": {
+      "es": "El diagrama ocupa {bytes} bytes; el máximo es {max}",
+      "en": "The diagram takes up {bytes} bytes; the maximum is {max}",
+      "zh": "图占用 {bytes} 字节；上限为 {max}"
+    },
+    "bpm_diagrama_no_ejecutable": {
+      "es": "El diagrama no se puede ejecutar: {problemas}",
+      "en": "The diagram cannot be run: {problemas}",
+      "zh": "该图无法运行：{problemas}"
+    },
+    "bpm_elige_salida": {
+      "es": "Elige una de las salidas de la decisión",
+      "en": "Choose one of the decision's outcomes",
+      "zh": "请选择决策的一个出口"
+    },
+    "bpm_instancia_terminada": {
+      "es": "La instancia ya ha terminado",
+      "en": "The instance has already finished",
+      "zh": "该实例已结束"
+    },
+    "bpm_no_es_bpmn": {
+      "es": "El diagrama no es BPMN 2.0 (falta bpmn:definitions)",
+      "en": "The diagram is not BPMN 2.0 (bpmn:definitions is missing)",
+      "zh": "该图不是 BPMN 2.0（缺少 bpmn:definitions）"
+    },
+    "bpm_paso_de_otro_rol": {
+      "es": "Este paso es para el rol {rol}",
+      "en": "This step is for the {rol} role",
+      "zh": "此步骤属于角色 {rol}"
+    },
+    "bpm_paso_fuera_de_diagrama": {
+      "es": "El paso ya no está en el diagrama de esta instancia",
+      "en": "The step is no longer in this instance's diagram",
+      "zh": "该步骤已不在此实例的图中"
+    },
+    "bpm_paso_no_pendiente": {
+      "es": "Ese paso no está pendiente de completar",
+      "en": "That step is not pending completion",
+      "zh": "该步骤不在待完成状态"
+    },
+    "bpm_proceso_archivado": {
+      "es": "El proceso está archivado: no se pueden iniciar instancias",
+      "en": "The process is archived: instances cannot be started",
+      "zh": "流程已归档：无法启动实例"
+    },
+    "bpm_sin_diagrama": {
+      "es": "El proceso no tiene ningún diagrama guardado",
+      "en": "The process has no saved diagram",
+      "zh": "该流程没有已保存的图"
+    },
+    "bpm_sin_procesos": {
+      "es": "El diagrama no contiene ningún proceso",
+      "en": "The diagram contains no process",
+      "zh": "该图不包含任何流程"
+    },
+    "bpm_variables_demasiado_grandes": {
+      "es": "Las variables ocupan {bytes} bytes; el máximo es {max}",
+      "en": "The variables take up {bytes} bytes; the maximum is {max}",
+      "zh": "变量占用 {bytes} 字节；上限为 {max}"
+    },
+    "bpm_variables_nombre_no_valido": {
+      "es": "Nombres de variable no válidos (letras, números, _ y .; empiezan por letra o _): {nombres}",
+      "en": "Invalid variable names (letters, numbers, _ and .; must start with a letter or _): {nombres}",
+      "zh": "无效的变量名（字母、数字、_ 和 .；须以字母或 _ 开头）：{nombres}"
+    },
+    "bpm_version_diagrama_no_existe": {
+      "es": "La versión del diagrama de esta instancia ya no existe",
+      "en": "This instance's diagram version no longer exists",
+      "zh": "此实例的图版本已不存在"
+    },
+    "bpm_xml_no_valido": {
+      "es": "El diagrama no es un XML válido",
+      "en": "The diagram is not valid XML",
+      "zh": "该图不是有效的 XML"
+    },
+    "buzon_de_otra_empresa": {
+      "es": "Ese buzón no es de un usuario de tu empresa",
+      "en": "That mailbox does not belong to a user in your company",
+      "zh": "该邮箱不属于贵公司的用户"
+    },
+    "cab_decision_contra_votacion": {
+      "es": "La decisión no sigue la votación ({a_favor} a favor, {en_contra} en contra): indica el motivo",
+      "en": "The decision does not follow the vote ({a_favor} for, {en_contra} against): give the reason",
+      "zh": "该决定与投票结果不一致（{a_favor} 票赞成，{en_contra} 票反对）：请说明原因"
+    },
+    "cab_no_configurado": {
+      "es": "No hay comité de cambios (CAB) configurado: un cambio normal o de emergencia necesita su aprobación",
+      "en": "No change advisory board (CAB) is configured: a normal or emergency change needs its approval",
+      "zh": "未配置变更咨询委员会 (CAB)：常规或紧急变更需要其批准"
+    },
+    "cab_no_se_puede_votar": {
+      "es": "No se puede votar en estado «{estado}»",
+      "en": "Voting is not possible in status “{estado}”",
+      "zh": "在“{estado}”状态下无法投票"
+    },
+    "cab_solo_miembros": {
+      "es": "Solo vota un miembro del CAB",
+      "en": "Only a CAB member can vote",
+      "zh": "只有 CAB 成员可以投票"
+    },
+    "cab_votacion_no_abierta": {
+      "es": "Solo se cierra una votación abierta; esta solicitud de cambio está «{estado}»",
+      "en": "Only an open vote can be closed; this change request is “{estado}”",
+      "zh": "只能关闭进行中的投票；此变更请求处于“{estado}”状态"
+    },
+    "cab_voto_no_valido": {
+      "es": "El voto debe ser: approve, reject o abstain",
+      "en": "The vote must be: approve, reject or abstain",
+      "zh": "投票必须为：approve、reject 或 abstain"
+    },
+    "calendario_con_festivos": {
+      "es": "No se puede eliminar: el calendario tiene {n} festivo(s) activo(s)",
+      "en": "Cannot delete: the calendar has {n} active holiday(s)",
+      "zh": "无法删除：该日历有 {n} 个有效节假日"
+    },
+    "calendario_sin_dias_laborables": {
+      "es": "Un calendario necesita al menos un día laborable",
+      "en": "A calendar needs at least one working day",
+      "zh": "日历至少需要一个工作日"
+    },
+    "cambio_aprobar_por_cab": {
+      "es": "Un cambio se aprueba votando en el CAB, no editándolo",
+      "en": "A change is approved by voting in the CAB, not by editing it",
+      "zh": "变更须通过 CAB 投票批准，而不是通过编辑"
+    },
+    "cambio_emergencia_sin_aprobador": {
+      "es": "Un cambio de emergencia por vía rápida necesita al menos un aprobador",
+      "en": "An emergency fast-track change needs at least one approver",
+      "zh": "紧急快速变更至少需要一位审批人"
+    },
+    "cambio_emergencia_sin_justificacion": {
+      "es": "Los cambios de emergencia necesitan una justificación de negocio",
+      "en": "Emergency changes need a business justification",
+      "zh": "紧急变更需要业务理由"
+    },
+    "cambio_en_congelacion": {
+      "es": "El cambio cae en una ventana de congelación: {ventanas}",
+      "en": "The change falls within a freeze window: {ventanas}",
+      "zh": "该变更落在冻结窗口内：{ventanas}"
+    },
+    "cambio_no_cancelable": {
+      "es": "No se puede cancelar un cambio en estado {estado}: ya se ha ejecutado",
+      "en": "A change in status {estado} cannot be cancelled: it has already been carried out",
+      "zh": "状态为 {estado} 的变更无法取消：已执行"
+    },
+    "cambio_sin_fechas_planificadas": {
+      "es": "Para programar un cambio hacen falta inicio y fin planificados",
+      "en": "Scheduling a change requires a planned start and end",
+      "zh": "安排变更需要计划的开始和结束时间"
+    },
+    "cambio_solo_aprobado_programable": {
+      "es": "Solo se programa un cambio aprobado",
+      "en": "Only an approved change can be scheduled",
+      "zh": "只能安排已批准的变更"
+    },
+    "campo_clave_ya_existe": {
+      "es": "Ya existe un campo con esa clave para esa entidad",
+      "en": "A field with that key already exists for that entity",
+      "zh": "该实体已存在使用此键的字段"
+    },
+    "campos_no_editables": {
+      "es": "No se pueden cambiar: {campos}",
+      "en": "These cannot be changed: {campos}",
+      "zh": "以下内容不可修改：{campos}"
+    },
+    "campos_no_permitidos": {
+      "es": "Campos no permitidos: {campos}",
+      "en": "Fields not allowed: {campos}",
+      "zh": "不允许的字段：{campos}"
+    },
+    "canales_no_validos": {
+      "es": "Canales no válidos: {canales}. Admitidos: {opciones}",
+      "en": "Invalid channels: {canales}. Supported: {opciones}",
+      "zh": "无效的渠道：{canales}。支持：{opciones}"
+    },
+    "catalogo_modo_aprobacion_no_valido": {
+      "es": "El modo de aprobación es single o engine",
+      "en": "The approval mode is single or engine",
+      "zh": "审批模式为 single 或 engine"
+    },
+    "catalogo_servicio_sin_aprobador": {
+      "es": "Un servicio que requiere aprobación necesita un aprobador",
+      "en": "A service that requires approval needs an approver",
+      "zh": "需要审批的服务必须指定审批人"
+    },
+    "catalogo_sin_flujo_activo": {
+      "es": "No hay ningún flujo activo para las peticiones del catálogo: créalo en Aprobaciones o elige uno",
+      "en": "There is no active workflow for catalogue requests: create one in Approvals or choose one",
+      "zh": "目录请求没有启用的流程：请在“审批”中创建或选择一个"
+    },
+    "ci_campo_comun": {
+      "es": "«{clave}» ya es un dato común a todas las clases",
+      "en": "“{clave}” is already a field shared by all classes",
+      "zh": "“{clave}”已是所有类别的通用字段"
+    },
+    "ci_clase_base_no_valida": {
+      "es": "Clase base no válida",
+      "en": "Invalid base class",
+      "zh": "无效的基础类别"
+    },
+    "ci_clase_desconocida": {
+      "es": "Clase de CI desconocida: {clase}",
+      "en": "Unknown CI class: {clase}",
+      "zh": "未知的配置项类别：{clase}"
+    },
+    "ci_clase_ya_existe": {
+      "es": "Ya hay una clase con esa clave",
+      "en": "There is already a class with that key",
+      "zh": "已存在使用该键的类别"
+    },
+    "ci_clave_de_clase_base": {
+      "es": "La clave coincide con una clase base",
+      "en": "The key matches a base class",
+      "zh": "该键与基础类别相同"
+    },
+    "ci_consigo_mismo": {
+      "es": "Un CI no se relaciona consigo mismo",
+      "en": "A CI cannot be related to itself",
+      "zh": "配置项不能与自身关联"
+    },
+    "ciclo_vida_clave_unica": {
+      "es": "Cada estado necesita una clave única",
+      "en": "Each status needs a unique key",
+      "zh": "每个状态都需要唯一的键"
+    },
+    "ciclo_vida_estado_sin_nombre": {
+      "es": "Cada estado necesita un nombre",
+      "en": "Each status needs a name",
+      "zh": "每个状态都需要名称"
+    },
+    "ciclo_vida_paso_no_permitido": {
+      "es": "El ciclo de vida no permite ese paso",
+      "en": "The lifecycle does not allow that transition",
+      "zh": "生命周期不允许该转换"
+    },
+    "ciclo_vida_sin_estados": {
+      "es": "Un ciclo de vida necesita al menos un estado",
+      "en": "A lifecycle needs at least one status",
+      "zh": "生命周期至少需要一个状态"
+    },
+    "ciclo_vida_transicion_estado_inexistente": {
+      "es": "Una transición usa un estado que no existe",
+      "en": "A transition uses a status that does not exist",
+      "zh": "某个转换使用了不存在的状态"
+    },
+    "clave_no_valida": {
+      "es": "Clave no válida: «{clave}» (minúsculas, números y _; empieza por letra)",
+      "en": "Invalid key: “{clave}” (lowercase letters, numbers and _; must start with a letter)",
+      "zh": "无效的键：“{clave}”（小写字母、数字和 _；须以字母开头）"
+    },
+    "clave_repetida": {
+      "es": "Clave repetida: {clave}",
+      "en": "Duplicate key: {clave}",
+      "zh": "重复的键：{clave}"
+    },
+    "cmdb_no_disponible_rol": {
+      "es": "La CMDB no está disponible para tu rol",
+      "en": "The CMDB is not available for your role",
+      "zh": "你的角色无法使用 CMDB"
+    },
+    "conector_desactivado": {
+      "es": "El conector está desactivado",
+      "en": "The connector is disabled",
+      "zh": "连接器已停用"
+    },
+    "confianza_insuficiente": {
+      "es": "La confianza es demasiado baja ({confianza} %)",
+      "en": "Confidence too low ({confianza}%)",
+      "zh": "置信度过低（{confianza}%）"
+    },
+    "confirma_identidad": {
+      "es": "Confirma tu identidad: contraseña actual o código 2FA",
+      "en": "Confirm your identity: current password or 2FA code",
+      "zh": "请确认身份：当前密码或双重验证码"
+    },
+    "conflicto_ausencia": {
+      "es": "Conflicto de ausencia: el usuario tiene una ausencia aprobada del {desde} al {hasta}.",
+      "en": "Absence conflict: the user has an approved absence from {desde} to {hasta}.",
+      "zh": "缺勤冲突：该用户在 {desde} 至 {hasta} 有已批准的缺勤。"
+    },
+    "consulta_minimo_2": {
+      "es": "La consulta debe tener al menos 2 caracteres",
+      "en": "The query must be at least 2 characters long",
+      "zh": "查询至少需要 2 个字符"
+    },
+    "contrato_sin_uc": {
+      "es": "El contrato no existe o no tiene plazo del proveedor (UC)",
+      "en": "The contract does not exist or has no supplier deadline (UC)",
+      "zh": "合同不存在或没有供应商时限 (UC)"
+    },
+    "contratos_solo_responsables": {
+      "es": "Los contratos solo los abren los responsables",
+      "en": "Only managers can open contracts",
+      "zh": "只有负责人可以打开合同"
+    },
+    "correo_de_otra_empresa": {
+      "es": "Este correo pertenece a otra empresa",
+      "en": "This email belongs to another company",
+      "zh": "该邮箱属于其他公司"
+    },
+    "credencial_dueno_fuera_de_empresa": {
+      "es": "El dueño de la credencial ya no pertenece a su empresa",
+      "en": "The credential owner no longer belongs to their company",
+      "zh": "凭据所有者已不属于其公司"
+    },
+    "credencial_no_descifrable": {
+      "es": "No se ha podido descifrar «{campo}»: vuelve a introducirlo",
+      "en": "Could not decrypt “{campo}”: enter it again",
+      "zh": "无法解密“{campo}”：请重新输入"
+    },
+    "cron_no_valido": {
+      "es": "Expresión cron no válida «{expresion}»",
+      "en": "Invalid cron expression “{expresion}”",
+      "zh": "无效的 cron 表达式“{expresion}”"
+    },
+    "decision_aprobada_o_rechazada": {
+      "es": "La decisión debe ser approved o rejected",
+      "en": "The decision must be approved or rejected",
+      "zh": "决定必须为 approved 或 rejected"
+    },
+    "decision_no_valida": {
+      "es": "Decisión no válida",
+      "en": "Invalid decision",
+      "zh": "无效的决定"
+    },
+    "departamento_ya_existe": {
+      "es": "Ya existe un departamento con ese nombre",
+      "en": "A department with that name already exists",
+      "zh": "已存在同名部门"
+    },
+    "dependencia_ya_existe": {
+      "es": "Esta dependencia ya existe",
+      "en": "This dependency already exists",
+      "zh": "该依赖已存在"
+    },
+    "disparador_desconocido": {
+      "es": "Disparador desconocido: {disparador}",
+      "en": "Unknown trigger: {disparador}",
+      "zh": "未知触发器：{disparador}"
+    },
+    "dominio_de_otra_empresa": {
+      "es": "El dominio {dominio} ya es de otra empresa",
+      "en": "The domain {dominio} already belongs to another company",
+      "zh": "域名 {dominio} 已属于其他公司"
+    },
+    "ejecucion_no_en_espera": {
+      "es": "La ejecución no está en espera (estado actual: {estado})",
+      "en": "The run is not waiting (current status: {estado})",
+      "zh": "该运行不在等待状态（当前状态：{estado}）"
+    },
+    "empresa_limite_plan": {
+      "es": "La empresa ha llegado al límite de su plan ({max})",
+      "en": "The company has reached its plan limit ({max})",
+      "zh": "公司已达到其套餐上限（{max}）"
+    },
+    "empresa_sin_baja_pedida": {
+      "es": "Esta empresa no tiene una baja pedida",
+      "en": "This company has no pending closure request",
+      "zh": "该公司没有待处理的注销申请"
+    },
+    "empresa_ultimo_usuario": {
+      "es": "No puedes quitar el último usuario de la empresa",
+      "en": "You cannot remove the company's last user",
+      "zh": "不能移除公司的最后一个用户"
+    },
+    "empresa_unica_no_borrable": {
+      "es": "Es la única empresa y en ella está el superadministrador: no se puede borrar",
+      "en": "It is the only company and the super administrator belongs to it: it cannot be deleted",
+      "zh": "这是唯一的公司，且超级管理员属于该公司：无法删除"
+    },
+    "en_uso_por_politicas": {
+      "es": "No se puede eliminar: lo usan estas políticas: {politicas}",
+      "en": "Cannot delete: these policies use it: {politicas}",
+      "zh": "无法删除：以下策略正在使用：{politicas}"
+    },
+    "enlace_ya_no_valido": {
+      "es": "El enlace ya no es válido",
+      "en": "The link is no longer valid",
+      "zh": "该链接已失效"
+    },
+    "epica_depende_de_si_misma": {
+      "es": "Una épica no puede depender de sí misma",
+      "en": "An epic cannot depend on itself",
+      "zh": "史诗不能依赖自身"
+    },
+    "error_conocido_sin_solucion_temporal": {
+      "es": "Para pasar un problema a error conocido hace falta una solución temporal",
+      "en": "A workaround is required to promote a problem to Known Error",
+      "zh": "将问题升级为已知错误需要临时解决方案"
+    },
+    "escalado_sin_cola": {
+      "es": "Falta la cola de destino",
+      "en": "The target queue is missing",
+      "zh": "缺少目标队列"
+    },
+    "escalado_sin_destinatario": {
+      "es": "Falta a quién avisar",
+      "en": "Who to notify is missing",
+      "zh": "缺少通知对象"
+    },
+    "escalado_sin_horas": {
+      "es": "La regla de inactividad necesita las horas",
+      "en": "The inactivity rule needs the number of hours",
+      "zh": "不活动规则需要设置小时数"
+    },
+    "escalado_sin_prioridad": {
+      "es": "Falta la prioridad nueva",
+      "en": "The new priority is missing",
+      "zh": "缺少新的优先级"
+    },
+    "estado_ya_existe": {
+      "es": "Ya existe un estado con ese valor",
+      "en": "A status with that value already exists",
+      "zh": "已存在具有该值的状态"
+    },
+    "etapa_empieza_en_1": {
+      "es": "La etapa empieza en 1",
+      "en": "The stage starts at 1",
+      "zh": "阶段从 1 开始"
+    },
+    "etiqueta_en_uso": {
+      "es": "No se puede eliminar: la etiqueta está asociada a {n} página(s)",
+      "en": "Cannot delete: the tag is linked to {n} page(s)",
+      "zh": "无法删除：该标签关联了 {n} 个页面"
+    },
+    "fechas_inicio_fin_obligatorias": {
+      "es": "Indica las fechas de inicio y fin (AAAA-MM-DD)",
+      "en": "Enter the start and end dates (YYYY-MM-DD)",
+      "zh": "请填写开始和结束日期 (YYYY-MM-DD)"
+    },
+    "flujo_aprobacion_no_valido": {
+      "es": "El flujo de aprobación no existe o no está activo",
+      "en": "The approval workflow does not exist or is not active",
+      "zh": "审批流程不存在或未启用"
+    },
+    "formato_no_valido": {
+      "es": "Formato no válido: {formato}. Admitidos: {opciones}",
+      "en": "Invalid format: {formato}. Supported: {opciones}",
+      "zh": "无效的格式：{formato}。支持：{opciones}"
+    },
+    "frecuencia_no_valida": {
+      "es": "Frecuencia no válida: {frecuencia}. Admitidas: {opciones}",
+      "en": "Invalid frequency: {frecuencia}. Supported: {opciones}",
+      "zh": "无效的频率：{frecuencia}。支持：{opciones}"
+    },
+    "funcion_agregacion_no_soportada": {
+      "es": "Función de agregación no admitida: {funcion}",
+      "en": "Unsupported aggregation function: {funcion}",
+      "zh": "不支持的聚合函数：{funcion}"
+    },
+    "granularidad_no_admitida": {
+      "es": "Granularidad no admitida: {granularidad}",
+      "en": "Unsupported granularity: {granularidad}",
+      "zh": "不支持的粒度：{granularidad}"
+    },
+    "grc_politica_deniega": {
+      "es": "La política de gobierno de tu empresa no permite «{accion}» en el módulo «{modulo}» para el rol «{rol}»",
+      "en": "Your company's governance policy does not allow “{accion}” in module “{modulo}” for role “{rol}”",
+      "zh": "贵公司的治理策略不允许角色“{rol}”在模块“{modulo}”中执行“{accion}”"
+    },
+    "grupo_sin_agentes": {
+      "es": "El grupo no tiene agentes",
+      "en": "The group has no agents",
+      "zh": "该组没有坐席"
+    },
+    "horas_mayor_que_cero": {
+      "es": "Las horas tienen que ser mayores que cero",
+      "en": "Hours must be greater than zero",
+      "zh": "小时数必须大于零"
+    },
+    "ia_credenciales_no_validas": {
+      "es": "Las credenciales del proveedor de IA no son válidas",
+      "en": "The AI provider credentials are not valid",
+      "zh": "AI 提供商的凭据无效"
+    },
+    "ia_falta_api_key": {
+      "es": "Falta la clave de API de {proveedor}",
+      "en": "The {proveedor} API key is missing",
+      "zh": "缺少 {proveedor} 的 API 密钥"
+    },
+    "ia_limite_de_uso": {
+      "es": "Se ha alcanzado el límite de uso del proveedor de IA",
+      "en": "The AI provider usage limit has been reached",
+      "zh": "已达到 AI 提供商的使用上限"
+    },
+    "ia_modelo_no_encontrado": {
+      "es": "El proveedor de IA no encuentra el modelo o el endpoint",
+      "en": "The AI provider cannot find the model or endpoint",
+      "zh": "AI 提供商找不到该模型或端点"
+    },
+    "ia_ollama_sin_pdf": {
+      "es": "Ollama no lee PDF: sube una imagen o usa otro proveedor",
+      "en": "Ollama cannot read PDFs: upload an image or use another provider",
+      "zh": "Ollama 无法读取 PDF：请上传图片或使用其他提供商"
+    },
+    "ia_proveedor_sin_adjuntos": {
+      "es": "El proveedor {proveedor} no admite adjuntos",
+      "en": "The {proveedor} provider does not accept attachments",
+      "zh": "提供商 {proveedor} 不支持附件"
+    },
+    "ia_proveedor_sin_herramientas": {
+      "es": "El proveedor «{proveedor}» no admite herramientas",
+      "en": "The “{proveedor}” provider does not support tools",
+      "zh": "提供商“{proveedor}”不支持工具"
+    },
+    "ia_proveedor_ya_existe": {
+      "es": "Ya hay un proveedor {tipo} en la aplicación: «{nombre}»",
+      "en": "There is already a {tipo} provider in the application: “{nombre}”",
+      "zh": "应用中已存在 {tipo} 提供商：“{nombre}”"
+    },
+    "ia_sin_texto_tokens": {
+      "es": "El proveedor de IA no devolvió texto: sube el máximo de tokens del proveedor",
+      "en": "The AI provider returned no text: increase the provider's maximum tokens",
+      "zh": "AI 提供商未返回文本：请提高该提供商的最大令牌数"
+    },
+    "ia_transcripcion_fallo": {
+      "es": "No se ha podido transcribir el audio",
+      "en": "The audio could not be transcribed",
+      "zh": "无法转录音频"
+    },
+    "ia_transcripcion_timeout": {
+      "es": "El servicio de transcripción ha tardado demasiado en responder",
+      "en": "The transcription service took too long to respond",
+      "zh": "转录服务响应超时"
+    },
+    "idioma_sin_textos": {
+      "es": "Idioma sin textos: {idioma}",
+      "en": "Language without texts: {idioma}",
+      "zh": "该语言没有文本：{idioma}"
+    },
+    "imputacion_devolver_solo_enviadas": {
+      "es": "Solo se pueden devolver imputaciones enviadas",
+      "en": "Only submitted timesheets can be returned",
+      "zh": "只能退回已提交的工时表"
+    },
+    "imputacion_sin_permiso_revisar": {
+      "es": "No tienes permiso para revisar esta imputación",
+      "en": "You are not allowed to review this time entry",
+      "zh": "你无权审核此工时记录"
+    },
+    "imputacion_solo_borrador_o_rechazada": {
+      "es": "Solo se pueden enviar imputaciones en borrador o rechazadas",
+      "en": "Only draft or rejected timesheets can be submitted",
+      "zh": "只能提交草稿或已驳回的工时表"
+    },
+    "imputacion_solo_enviadas": {
+      "es": "Solo se pueden revisar imputaciones enviadas",
+      "en": "Only submitted timesheets can be reviewed",
+      "zh": "只能审核已提交的工时表"
+    },
+    "imputacion_vacia": {
+      "es": "No puedes enviar una imputación vacía",
+      "en": "You cannot submit an empty timesheet",
+      "zh": "不能提交空的工时表"
+    },
+    "informe_columna_filtro_no_permitida": {
+      "es": "Columna de filtro «{columna}» no permitida",
+      "en": "Filter column “{columna}” is not allowed",
+      "zh": "不允许的筛选列“{columna}”"
+    },
+    "informe_columna_no_permitida": {
+      "es": "Columna «{columna}» no permitida para la entidad «{entidad}»",
+      "en": "Column “{columna}” is not allowed for entity “{entidad}”",
+      "zh": "实体“{entidad}”不允许列“{columna}”"
+    },
+    "informe_desconocido": {
+      "es": "Informe desconocido: {informe}",
+      "en": "Unknown report: {informe}",
+      "zh": "未知报表：{informe}"
+    },
+    "informe_filtro_financiero": {
+      "es": "No puedes filtrar por tarifas o costes que no puedes ver",
+      "en": "You cannot filter by rates or costs you are not allowed to see",
+      "zh": "不能按你无权查看的费率或成本进行筛选"
+    },
+    "instalacion_ya_existe": {
+      "es": "La instalación ya existe",
+      "en": "The installation already exists",
+      "zh": "该安装已存在"
+    },
+    "integracion_campo_desconocido": {
+      "es": "Campo de integración desconocido: {proveedor}.{campo}",
+      "en": "Unknown integration field: {proveedor}.{campo}",
+      "zh": "未知的集成字段：{proveedor}.{campo}"
+    },
+    "integracion_inactiva": {
+      "es": "Integración inactiva",
+      "en": "Integration inactive",
+      "zh": "集成未启用"
+    },
+    "integracion_no_es_salesforce": {
+      "es": "Esta integración no es un conector de Salesforce",
+      "en": "This integration is not a Salesforce connector",
+      "zh": "此集成不是 Salesforce 连接器"
+    },
+    "integracion_sin_sincronizacion": {
+      "es": "La integración «{nombre}» no tiene sincronización; usa «Probar».",
+      "en": "The “{nombre}” integration has no synchronisation; use “Test”.",
+      "zh": "集成“{nombre}”不支持同步；请使用“测试”。"
+    },
+    "integracion_valor_no_valido": {
+      "es": "Valor no válido para {proveedor}.{campo} (se espera {esperado})",
+      "en": "Invalid value for {proveedor}.{campo} (expected {esperado})",
+      "zh": "{proveedor}.{campo} 的值无效（应为 {esperado}）"
+    },
+    "jira_config_de_empresa": {
+      "es": "La configuración de Jira es de una empresa",
+      "en": "The Jira configuration belongs to a company",
+      "zh": "Jira 配置属于某个公司"
+    },
+    "jira_falta_token": {
+      "es": "Falta el token de API de Jira",
+      "en": "The Jira API token is missing",
+      "zh": "缺少 Jira API 令牌"
+    },
+    "jornada_mayor_que_cero": {
+      "es": "La jornada tiene que ser mayor que cero",
+      "en": "The working day must be longer than zero",
+      "zh": "工作时长必须大于零"
+    },
+    "kanban_columna_en_uso": {
+      "es": "No se puede eliminar: {n} tarea(s) usan esta columna",
+      "en": "Cannot delete: {n} task(s) use this column",
+      "zh": "无法删除：有 {n} 个任务使用此列"
+    },
+    "kanban_estado_con_columna": {
+      "es": "El estado «{estado}» ya tiene columna",
+      "en": "Status “{estado}” already has a column",
+      "zh": "状态“{estado}”已有对应列"
+    },
+    "kanban_sin_configurar": {
+      "es": "Configura el tablero Kanban primero",
+      "en": "Set up the Kanban board first",
+      "zh": "请先配置看板"
+    },
+    "kb_devolver_sin_motivo": {
+      "es": "Para devolver un artículo indica qué hay que cambiar",
+      "en": "To return an article, say what needs to change",
+      "zh": "退回文章时请说明需要修改的内容"
+    },
+    "kb_no_en_revision": {
+      "es": "El artículo no está en revisión",
+      "en": "The article is not under review",
+      "zh": "该文章不在审核中"
+    },
+    "kb_requiere_revision": {
+      "es": "Este artículo necesita revisión: envíalo a revisar",
+      "en": "This article needs review: send it for review",
+      "zh": "此文章需要审核：请提交审核"
+    },
+    "kb_solo_borrador_a_revision": {
+      "es": "Solo se envía a revisión un borrador",
+      "en": "Only a draft can be sent for review",
+      "zh": "只能提交草稿进行审核"
+    },
+    "kb_solo_revisor_publica": {
+      "es": "Solo un revisor puede publicar",
+      "en": "Only a reviewer can publish",
+      "zh": "只有审核人可以发布"
+    },
+    "limite_webhook": {
+      "es": "Demasiadas llamadas al webhook. Inténtalo de nuevo en {segundos} s",
+      "en": "Webhook rate limit exceeded. Try again in {segundos} s",
+      "zh": "Webhook 调用过于频繁。请在 {segundos} 秒后重试"
+    },
+    "mensaje_no_pendiente_revision": {
+      "es": "El mensaje no está pendiente de revisión",
+      "en": "The message is not pending review",
+      "zh": "该消息不在待审核状态"
+    },
+    "metodo_no_soportado": {
+      "es": "Método no admitido: {metodo}. Admitidos: {opciones}",
+      "en": "Unsupported method: {metodo}. Supported: {opciones}",
+      "zh": "不支持的方法：{metodo}。支持：{opciones}"
+    },
+    "metrica_no_soportada": {
+      "es": "Métrica no admitida: {metrica}. Admitidas: {opciones}",
+      "en": "Unsupported metric: {metrica}. Supported: {opciones}",
+      "zh": "不支持的指标：{metrica}。支持：{opciones}"
+    },
+    "mfa_challenge_usado": {
+      "es": "El desafío de verificación en dos pasos ya se ha usado",
+      "en": "The two-step verification challenge has already been used",
+      "zh": "双重验证质询已被使用"
+    },
+    "modo_no_valido": {
+      "es": "Modo no válido",
+      "en": "Invalid mode",
+      "zh": "无效的模式"
+    },
+    "modulo_desconocido": {
+      "es": "Módulo desconocido: {modulo}",
+      "en": "Unknown module: {modulo}",
+      "zh": "未知模块：{modulo}"
+    },
+    "modulo_sin_acceso_rol": {
+      "es": "Tu rol no tiene acceso al módulo «{modulo}»",
+      "en": "Your role does not have access to the “{modulo}” module",
+      "zh": "你的角色无权访问“{modulo}”模块"
+    },
+    "modulos_desconocidos": {
+      "es": "Módulos desconocidos: {modulos}",
+      "en": "Unknown modules: {modulos}",
+      "zh": "未知模块：{modulos}"
+    },
+    "monitorizacion_token_global_varias_empresas": {
+      "es": "Token de monitorización global con varias empresas: configúralo en la empresa que recibe las alertas",
+      "en": "Global monitoring token with several companies: configure it in the company that receives the alerts",
+      "zh": "全局监控令牌对应多家公司：请在接收告警的公司中配置"
+    },
+    "mover_fuera_de_empresa": {
+      "es": "No puedes moverlo fuera de tu empresa",
+      "en": "You cannot move it outside your company",
+      "zh": "不能将其移出贵公司"
+    },
+    "oauth_state_caducado": {
+      "es": "El estado de la autorización OAuth ha caducado o ya se usó",
+      "en": "The OAuth state has expired or was already used",
+      "zh": "OAuth state 已过期或已被使用"
+    },
+    "oauth_state_no_valido": {
+      "es": "El estado de la autorización OAuth falta o no es válido",
+      "en": "The OAuth state is missing or invalid",
+      "zh": "OAuth state 缺失或无效"
+    },
+    "oauth_state_otra_empresa": {
+      "es": "La autorización OAuth es de otra empresa",
+      "en": "The OAuth authorization belongs to another company",
+      "zh": "该 OAuth 授权属于其他公司"
+    },
+    "oauth_state_otro_usuario": {
+      "es": "La autorización OAuth es de otro usuario",
+      "en": "The OAuth authorization belongs to another user",
+      "zh": "该 OAuth 授权属于其他用户"
+    },
+    "operacion_masiva_no_soportada": {
+      "es": "Operación masiva no admitida: {metodo} {ruta}",
+      "en": "Unsupported bulk operation: {metodo} {ruta}",
+      "zh": "不支持的批量操作：{metodo} {ruta}"
+    },
+    "operador_desconocido": {
+      "es": "Operador desconocido: {operador}",
+      "en": "Unknown operator: {operador}",
+      "zh": "未知运算符：{operador}"
+    },
+    "operador_no_admitido": {
+      "es": "El operador {operador} no vale para {tipo}",
+      "en": "Operator {operador} is not valid for {tipo}",
+      "zh": "运算符 {operador} 不适用于 {tipo}"
+    },
+    "pagina_estado_sin_empresa": {
+      "es": "Indica la empresa en la dirección (?org=<slug>)",
+      "en": "Specify the company in the address (?org=<slug>)",
+      "zh": "请在地址中指定公司 (?org=<slug>)"
+    },
+    "panel_sin_widgets": {
+      "es": "El panel necesita al menos un widget",
+      "en": "The dashboard needs at least one widget",
+      "zh": "仪表板至少需要一个小组件"
+    },
+    "paso_requiere_documento": {
+      "es": "Este paso requiere adjuntar un documento para emitir la decisión",
+      "en": "This step requires attaching a document to record the decision",
+      "zh": "此步骤需要附上文档才能作出决定"
+    },
+    "passkey_de_otro_usuario": {
+      "es": "La passkey ya está registrada para otro usuario",
+      "en": "The passkey is already registered to another user",
+      "zh": "该通行密钥已注册给其他用户"
+    },
+    "pdf_no_generado": {
+      "es": "No se ha podido generar el PDF",
+      "en": "The PDF could not be generated",
+      "zh": "无法生成 PDF"
+    },
+    "persona_no_existe_en_empresa_rgpd": {
+      "es": "La persona no existe en esta empresa",
+      "en": "The person does not exist in this company",
+      "zh": "此公司中不存在该人员"
+    },
+    "plan_aceptado_no_eliminable": {
+      "es": "No se puede eliminar un plan aceptado",
+      "en": "An accepted plan cannot be deleted",
+      "zh": "无法删除已接受的计划"
+    },
+    "plan_estado_no_valido": {
+      "es": "Estado válido: draft, accepted, rejected",
+      "en": "Valid status: draft, accepted, rejected",
+      "zh": "有效状态：draft、accepted、rejected"
+    },
+    "plan_limite_usuarios": {
+      "es": "Límite de {max} usuarios alcanzado para este plan",
+      "en": "Limit of {max} users reached for this plan",
+      "zh": "已达到此套餐的 {max} 个用户上限"
+    },
+    "plan_sin_sprint": {
+      "es": "El plan no tiene sprint: genéralo eligiendo el sprint para poder aceptarlo",
+      "en": "The plan has no sprint: generate it choosing a sprint so it can be accepted",
+      "zh": "该计划没有冲刺：请选择冲刺重新生成后才能接受"
+    },
+    "politica_dominio_desconocido": {
+      "es": "Dominio de políticas desconocido: {dominio}",
+      "en": "Unknown policy domain: {dominio}",
+      "zh": "未知的策略领域：{dominio}"
+    },
+    "politica_dominio_sin_ejemplos": {
+      "es": "Este dominio no tiene ejemplos",
+      "en": "This domain has no examples",
+      "zh": "此领域没有示例"
+    },
+    "politica_reglas_solo_borrador": {
+      "es": "Solo se editan las reglas de un borrador",
+      "en": "Only a draft's rules can be edited",
+      "zh": "只能编辑草稿的规则"
+    },
+    "politica_sin_permiso_explicacion": {
+      "es": "No puedes ver por qué se decidió esto",
+      "en": "You cannot see why this was decided",
+      "zh": "你无权查看作出此决定的原因"
+    },
+    "politica_solo_borrador_editable": {
+      "es": "Solo se edita un borrador: crea una versión nueva",
+      "en": "Only a draft can be edited: create a new version",
+      "zh": "只能编辑草稿：请创建新版本"
+    },
+    "politica_solo_borrador_publicable": {
+      "es": "Solo se publica un borrador",
+      "en": "Only a draft can be published",
+      "zh": "只能发布草稿"
+    },
+    "politica_ya_hay_borrador": {
+      "es": "Ya hay un borrador de esta política: edítalo",
+      "en": "There is already a draft of this policy: edit it",
+      "zh": "此策略已有草稿：请编辑该草稿"
+    },
+    "portal_limite_usuarios": {
+      "es": "Límite de usuarios de portal alcanzado ({max})",
+      "en": "Client portal user limit reached ({max})",
+      "zh": "已达到门户用户上限（{max}）"
+    },
+    "portal_usuario_sin_alcance": {
+      "es": "Indica al menos un proyecto o una empresa cliente",
+      "en": "Specify at least one project or client company",
+      "zh": "请至少指定一个项目或一家客户公司"
+    },
+    "prioridad_no_valida": {
+      "es": "Prioridad no válida",
+      "en": "Invalid priority",
+      "zh": "无效的优先级"
+    },
+    "problema_relacionado_fuera_de_empresa": {
+      "es": "El problema relacionado es de fuera de tu empresa",
+      "en": "The related problem is outside your company",
+      "zh": "关联的问题不属于贵公司"
+    },
+    "propuesta_ya_decidida": {
+      "es": "La propuesta ya está decidida",
+      "en": "The proposal has already been decided",
+      "zh": "该提议已作出决定"
+    },
+    "proyecto_fuera_de_empresa": {
+      "es": "No puedes usar proyectos de fuera de tu empresa",
+      "en": "You cannot use projects outside your company",
+      "zh": "不能使用公司外部的项目"
+    },
+    "proyecto_sin_tareas_pendientes": {
+      "es": "No hay tareas pendientes en este proyecto",
+      "en": "There are no to-do tasks in this project",
+      "zh": "此项目中没有待办任务"
+    },
+    "rca_no_iniciado": {
+      "es": "El asistente de RCA no se ha iniciado para este problema",
+      "en": "The RCA wizard has not been started for this problem",
+      "zh": "尚未为此问题启动 RCA 向导"
+    },
+    "rca_paso_fuera_de_rango": {
+      "es": "El paso debe estar entre 1 y {max}",
+      "en": "The step must be between 1 and {max}",
+      "zh": "步骤必须介于 1 和 {max} 之间"
+    },
+    "rca_pasos_sin_responder": {
+      "es": "Faltan pasos por responder: {pasos}. Complétalos antes de terminar.",
+      "en": "Steps not yet answered: {pasos}. Complete all steps before finishing.",
+      "zh": "尚有未回答的步骤：{pasos}。请在完成前全部回答。"
+    },
+    "rca_plantilla_desconocida": {
+      "es": "Plantilla desconocida «{plantilla}». Opciones: {opciones}, o el UUID de una plantilla propia.",
+      "en": "Unknown template “{plantilla}”. Options: {opciones}, or the UUID of a custom template.",
+      "zh": "未知模板“{plantilla}”。可选：{opciones}，或自定义模板的 UUID。"
+    },
+    "rca_ya_completado": {
+      "es": "El asistente de RCA ya está completado",
+      "en": "The RCA wizard is already completed",
+      "zh": "RCA 向导已完成"
+    },
+    "reglas_autoaprobacion_no_validas": {
+      "es": "Las reglas de aprobación automática no son válidas",
+      "en": "The automatic approval rules are not valid",
+      "zh": "自动审批规则无效"
+    },
+    "responsable_fuera_de_empresa": {
+      "es": "No puedes asignar un responsable de fuera de tu empresa",
+      "en": "You cannot assign an owner from outside your company",
+      "zh": "不能指派公司外部的负责人"
+    },
+    "retencion_campo_no_valido": {
+      "es": "Campo no válido para {entidad}: {campo}. Válidos: {validos}",
+      "en": "Invalid field for {entidad}: {campo}. Valid: {validos}",
+      "zh": "{entidad} 的字段无效：{campo}。有效值：{validos}"
+    },
+    "retencion_minimo_dias": {
+      "es": "La retención mínima es de {dias} días",
+      "en": "The minimum retention is {dias} days",
+      "zh": "最短保留期为 {dias} 天"
+    },
+    "rgpd_persona_ya_no_existe": {
+      "es": "La persona de la solicitud ya no existe en esta empresa",
+      "en": "The person in the request no longer exists in this company",
+      "zh": "申请中的人员已不在此公司"
+    },
+    "rgpd_sin_copia": {
+      "es": "Esta solicitud no tiene copia de datos",
+      "en": "This request has no data copy",
+      "zh": "该申请没有数据副本"
+    },
+    "rgpd_sin_persona": {
+      "es": "Sin persona registrada no hay datos que copiar: recházala o tramítala a mano",
+      "en": "With no registered person there is no data to copy: reject it or handle it manually",
+      "zh": "没有登记的人员就没有可复制的数据：请拒绝或手动处理"
+    },
+    "rol_nombre_base": {
+      "es": "Ese nombre es el de un rol base",
+      "en": "That name belongs to a built-in role",
+      "zh": "该名称属于内置角色"
+    },
+    "rol_sistema_no_eliminable": {
+      "es": "No se pueden eliminar roles del sistema",
+      "en": "System roles cannot be deleted",
+      "zh": "无法删除系统角色"
+    },
+    "rol_sistema_no_renombrable": {
+      "es": "No se puede renombrar un rol del sistema",
+      "en": "A system role cannot be renamed",
+      "zh": "无法重命名系统角色"
+    },
+    "roles_desconocidos": {
+      "es": "Roles desconocidos: {roles}",
+      "en": "Unknown roles: {roles}",
+      "zh": "未知角色：{roles}"
+    },
+    "roles_requeridos": {
+      "es": "Acceso denegado. Hace falta uno de estos roles: {roles}",
+      "en": "Access denied. One of these roles is required: {roles}",
+      "zh": "访问被拒绝。需要以下角色之一：{roles}"
+    },
+    "rollout_plan_no_aprobado": {
+      "es": "El plan tiene que estar aprobado para avanzar de fase. Estado: {estado}",
+      "en": "The plan must be approved to advance phases. Status: {estado}",
+      "zh": "计划必须获批才能推进阶段。状态：{estado}"
+    },
+    "rollout_sin_ejecucion_cambio": {
+      "es": "No hay ejecución de rollout para este cambio",
+      "en": "There is no rollout run for this change",
+      "zh": "此变更没有发布执行记录"
+    },
+    "servicio_externo_respuesta_no_valida": {
+      "es": "{servicio} ha devuelto una respuesta no válida",
+      "en": "{servicio} returned an invalid response",
+      "zh": "{servicio} 返回了无效的响应"
+    },
+    "servicio_externo_sin_conexion": {
+      "es": "No se ha podido conectar con {servicio}",
+      "en": "Could not connect to {servicio}",
+      "zh": "无法连接到 {servicio}"
+    },
+    "simulacion_intento_escribir": {
+      "es": "La simulación intentó escribir datos: se ha deshecho",
+      "en": "The simulation tried to write data: it has been rolled back",
+      "zh": "模拟尝试写入数据：已回滚"
+    },
+    "simulacion_sin_politica": {
+      "es": "Indica la política que se simula",
+      "en": "Specify the policy to simulate",
+      "zh": "请指定要模拟的策略"
+    },
+    "sin_agentes_disponibles": {
+      "es": "No hay agentes disponibles para este ticket",
+      "en": "No agents are available for this ticket",
+      "zh": "没有可处理此工单的坐席"
+    },
+    "sin_flujo_aprobacion": {
+      "es": "No hay flujo de aprobación configurado para «{entidad}»",
+      "en": "There is no approval workflow set up for “{entidad}”",
+      "zh": "未为“{entidad}”配置审批流程"
+    },
+    "sin_permiso_aprobar_paso": {
+      "es": "No tienes permiso para aprobar este paso",
+      "en": "You are not allowed to approve this step",
+      "zh": "你无权审批此步骤"
+    },
+    "sin_tickets_para_correlacion": {
+      "es": "No se han encontrado tickets para correlacionar",
+      "en": "No tickets were found to correlate",
+      "zh": "未找到可关联的工单"
+    },
+    "sincronizacion_fallida": {
+      "es": "La sincronización no se ha podido completar",
+      "en": "The synchronisation could not be completed",
+      "zh": "同步未能完成"
+    },
+    "sla_no_pausado": {
+      "es": "El SLA no está pausado",
+      "en": "The SLA is not paused",
+      "zh": "SLA 未暂停"
+    },
+    "sla_regla_sin_objetivo": {
+      "es": "Una regla fija al menos un objetivo",
+      "en": "A rule sets at least one target",
+      "zh": "规则至少需要设置一个目标"
+    },
+    "sla_tipo_destino_no_valido": {
+      "es": "Tipo de destino no válido",
+      "en": "Invalid target type",
+      "zh": "无效的目标类型"
+    },
+    "sla_ya_pausado": {
+      "es": "El SLA ya está pausado",
+      "en": "The SLA is already paused",
+      "zh": "SLA 已暂停"
+    },
+    "slug_en_uso": {
+      "es": "El identificador «{slug}» ya está en uso",
+      "en": "The identifier “{slug}” is already in use",
+      "zh": "标识符“{slug}”已被使用"
+    },
+    "sobreasignacion_semana": {
+      "es": "Sobreasignación: el usuario ya tiene {planificadas} h planificadas esta semana y añadir {nuevas} h supera la capacidad de {capacidad} h.",
+      "en": "Over-allocation: the user already has {planificadas} h planned this week and adding {nuevas} h exceeds the capacity of {capacidad} h.",
+      "zh": "超额分配：该用户本周已计划 {planificadas} 小时，再增加 {nuevas} 小时将超过 {capacidad} 小时的容量。"
+    },
+    "sod_dos_operaciones": {
+      "es": "Una regla de segregación de funciones necesita dos operaciones distintas",
+      "en": "A segregation-of-duties rule needs two different operations",
+      "zh": "职责分离规则需要两个不同的操作"
+    },
+    "solicitud_ya_cerrada": {
+      "es": "Solicitud ya cerrada",
+      "en": "Request already closed",
+      "zh": "申请已关闭"
+    },
+    "solicitud_ya_en_estado": {
+      "es": "La solicitud ya está en estado «{estado}»",
+      "en": "The request is already in status “{estado}”",
+      "zh": "该申请已处于“{estado}”状态"
+    },
+    "solo_aprobador_decide": {
+      "es": "Solo el aprobador puede decidir",
+      "en": "Only the approver can decide",
+      "zh": "只有审批人可以作出决定"
+    },
+    "solo_superadmin": {
+      "es": "Solo el superadministrador de la plataforma puede hacer esto",
+      "en": "Only the platform super administrator can do this",
+      "zh": "仅平台超级管理员可执行此操作"
+    },
+    "sprint_solo_activo": {
+      "es": "Solo se cierra un sprint activo; este está «{estado}»",
+      "en": "Only an active sprint can be closed; this one is “{estado}”",
+      "zh": "只能关闭进行中的冲刺；此冲刺处于“{estado}”状态"
+    },
+    "sso_dominio_no_permitido": {
+      "es": "El dominio de este correo no está permitido en este proveedor SSO",
+      "en": "This email domain is not allowed for this SSO provider",
+      "zh": "此 SSO 提供商不允许该邮箱域名"
+    },
+    "sso_empresa_inactiva": {
+      "es": "La empresa asignada al proveedor SSO no existe o está desactivada",
+      "en": "The company assigned to the SSO provider does not exist or is deactivated",
+      "zh": "分配给 SSO 提供商的公司不存在或已停用"
+    },
+    "sso_identidad_distinta": {
+      "es": "Esta cuenta está vinculada a otra identidad del proveedor SSO",
+      "en": "This account is linked to a different identity at the SSO provider",
+      "zh": "此账户已关联到 SSO 提供商的其他身份"
+    },
+    "sso_otra_empresa": {
+      "es": "No puedes configurar SSO para otra empresa",
+      "en": "You cannot configure SSO for another company",
+      "zh": "你不能为其他公司配置 SSO"
+    },
+    "sso_sin_autoalta": {
+      "es": "El proveedor SSO no permite crear usuarios automáticamente",
+      "en": "The SSO provider does not allow users to be created automatically",
+      "zh": "SSO 提供商不允许自动创建用户"
+    },
+    "sso_sin_empresa": {
+      "es": "El proveedor SSO no tiene empresa asignada: no se pueden crear usuarios automáticamente",
+      "en": "The SSO provider has no company assigned: users cannot be created automatically",
+      "zh": "SSO 提供商未分配公司：无法自动创建用户"
+    },
+    "sso_superadmin_no_permitido": {
+      "es": "El superadministrador no puede entrar por SSO",
+      "en": "The super administrator cannot sign in with SSO",
+      "zh": "超级管理员不能通过 SSO 登录"
+    },
+    "subida_comprimido_bloqueada": {
+      "es": "Por seguridad no se admiten archivos comprimidos",
+      "en": "Compressed files are blocked for security reasons",
+      "zh": "出于安全原因，不允许上传压缩文件"
+    },
+    "subida_ejecutable": {
+      "es": "El archivo parece un ejecutable o un script: se rechaza por seguridad",
+      "en": "The file looks like an executable or script: rejected for security reasons",
+      "zh": "该文件疑似可执行文件或脚本：出于安全原因已拒绝"
+    },
+    "subida_extension_no_permitida": {
+      "es": "Tipo de archivo no permitido (extensión: {extension}). Formatos aceptados aquí: {aceptados}.",
+      "en": "File type not allowed (extension: {extension}). Accepted formats here: {aceptados}.",
+      "zh": "不允许的文件类型（扩展名：{extension}）。此处接受的格式：{aceptados}。"
+    },
+    "subida_sin_extension": {
+      "es": "Archivo sin extensión y de tipo no reconocido: añade la extensión.",
+      "en": "File without an extension and of unrecognised type: add the extension.",
+      "zh": "文件没有扩展名且类型无法识别：请添加扩展名。"
+    },
+    "subida_tipo_no_coincide": {
+      "es": "El tipo real del archivo ({real}) no coincide con el declarado ({declarado})",
+      "en": "The actual file type ({real}) does not match the declared one ({declarado})",
+      "zh": "文件的实际类型（{real}）与声明的类型（{declarado}）不一致"
+    },
+    "subida_tipo_no_permitido": {
+      "es": "Tipo de archivo no permitido: {tipo}",
+      "en": "File type not allowed: {tipo}",
+      "zh": "不允许的文件类型：{tipo}"
+    },
+    "tabla_falta_columna_valor": {
+      "es": "Falta la columna «valor»",
+      "en": "The “valor” column is missing",
+      "zh": "缺少“valor”列"
+    },
+    "tabla_sin_nombre": {
+      "es": "La tabla necesita nombre",
+      "en": "The table needs a name",
+      "zh": "表需要名称"
+    },
+    "tabla_tipo_valor_no_valido": {
+      "es": "Tipo de valor: importe o número",
+      "en": "Value type: amount or number",
+      "zh": "值类型：金额或数字"
+    },
+    "tabla_uso_no_existe": {
+      "es": "Ese uso no existe en el dominio de la tabla",
+      "en": "That use does not exist in the table's domain",
+      "zh": "表所属领域中不存在该用途"
+    },
+    "tarea_cola_no_existe": {
+      "es": "La cola de la tarea «{tarea}» no existe",
+      "en": "The queue for task “{tarea}” does not exist",
+      "zh": "任务“{tarea}”的队列不存在"
+    },
+    "tarea_horas_no_validas": {
+      "es": "Las horas de la tarea «{tarea}» no son válidas",
+      "en": "The hours for task “{tarea}” are not valid",
+      "zh": "任务“{tarea}”的小时数无效"
+    },
+    "tarea_persona_no_valida": {
+      "es": "La persona de la tarea «{tarea}» no existe o no está activa",
+      "en": "The person for task “{tarea}” does not exist or is not active",
+      "zh": "任务“{tarea}”的人员不存在或未启用"
+    },
+    "tarea_sin_titulo_o_cola": {
+      "es": "Cada tarea necesita título y cola",
+      "en": "Each task needs a title and a queue",
+      "zh": "每个任务都需要标题和队列"
+    },
+    "ticket_fusionar_consigo_mismo": {
+      "es": "No se puede fusionar un ticket consigo mismo",
+      "en": "A ticket cannot be merged with itself",
+      "zh": "工单不能与自身合并"
+    },
+    "ticket_pendiente_aprobacion": {
+      "es": "El ticket está pendiente de aprobación",
+      "en": "The ticket is pending approval",
+      "zh": "工单正在等待审批"
+    },
+    "ticket_relacionado_fuera_de_empresa": {
+      "es": "El ticket relacionado es de fuera de tu empresa",
+      "en": "The related ticket is outside your company",
+      "zh": "关联的工单不属于贵公司"
+    },
+    "ticket_sin_aprobacion_pendiente": {
+      "es": "El ticket no tiene ninguna aprobación pendiente",
+      "en": "The ticket has no pending approval",
+      "zh": "工单没有待处理的审批"
+    },
+    "ticket_sin_ciclo_vida": {
+      "es": "Este tipo de ticket no tiene ciclo de vida propio",
+      "en": "This ticket type has no lifecycle of its own",
+      "zh": "此工单类型没有自己的生命周期"
+    },
+    "ticket_sin_grupo": {
+      "es": "El ticket no tiene grupo asignado",
+      "en": "The ticket has no assigned group",
+      "zh": "工单未分配组"
+    },
+    "ticket_sin_resolucion": {
+      "es": "El ticket no tiene resolución",
+      "en": "The ticket has no resolution",
+      "zh": "工单没有解决方案"
+    },
+    "ticket_vincular_consigo_mismo": {
+      "es": "No se puede vincular un ticket consigo mismo",
+      "en": "A ticket cannot be linked to itself",
+      "zh": "工单不能与自身关联"
+    },
+    "ticket_vinculo_ya_existe": {
+      "es": "Ya existe un vínculo entre estos tickets",
+      "en": "These tickets are already linked",
+      "zh": "这些工单之间已存在关联"
+    },
+    "ticket_ya_no_abierto": {
+      "es": "El ticket ya no está abierto",
+      "en": "The ticket is no longer open",
+      "zh": "工单已不再处于打开状态"
+    },
+    "ticket_ya_resuelto": {
+      "es": "El ticket ya está resuelto o cerrado",
+      "en": "The ticket is already resolved or closed",
+      "zh": "工单已解决或已关闭"
+    },
+    "tipo_documento_al_menos_uno": {
+      "es": "Hace falta al menos un tipo de documento",
+      "en": "At least one document type is required",
+      "zh": "至少需要一种文档类型"
+    },
+    "tipo_documento_no_valido": {
+      "es": "Tipo de documento no válido (letras, números, _ o -): {tipo}",
+      "en": "Invalid document type (letters, numbers, _ or -): {tipo}",
+      "zh": "无效的文档类型（字母、数字、_ 或 -）：{tipo}"
+    },
+    "tipo_incidencia_en_uso": {
+      "es": "No se puede eliminar: {n} tareas usan este tipo. Reasígnalas primero",
+      "en": "Cannot delete: {n} tasks use this type. Reassign them first",
+      "zh": "无法删除：有 {n} 个任务使用此类型。请先重新分配"
+    },
+    "tipo_incidencia_no_valido": {
+      "es": "El tipo de incidencia «{tipo}» no existe en el proyecto. Válidos: {validos}",
+      "en": "Issue type “{tipo}” does not exist in the project. Valid: {validos}",
+      "zh": "项目中不存在问题类型“{tipo}”。有效值：{validos}"
+    },
+    "tipo_incidencia_ya_existe": {
+      "es": "Ya existe el tipo «{tipo}» en este proyecto",
+      "en": "Type “{tipo}” already exists in this project",
+      "zh": "此项目中已存在类型“{tipo}”"
+    },
+    "tipo_no_valido_valor": {
+      "es": "Tipo no válido: {tipo}",
+      "en": "Invalid type: {tipo}",
+      "zh": "无效的类型：{tipo}"
+    },
+    "tipo_relacion_desconocido": {
+      "es": "Tipo de relación desconocido: {tipo}",
+      "en": "Unknown relationship type: {tipo}",
+      "zh": "未知的关系类型：{tipo}"
+    },
+    "tipo_ticket_no_valido": {
+      "es": "Tipo de ticket no válido",
+      "en": "Invalid ticket type",
+      "zh": "无效的工单类型"
+    },
+    "tipo_ya_existe": {
+      "es": "Ya existe un tipo con ese valor",
+      "en": "A type with that value already exists",
+      "zh": "已存在具有该值的类型"
+    },
+    "tipos_documento_en_uso": {
+      "es": "Están en uso (políticas o justificantes): {tipos}",
+      "en": "They are in use (policies or supporting documents): {tipos}",
+      "zh": "以下类型正在使用中（策略或凭证）：{tipos}"
+    },
+    "tipos_incidencia_ya_definidos": {
+      "es": "Este proyecto ya tiene tipos de incidencia definidos",
+      "en": "This project already has issue types defined",
+      "zh": "此项目已定义问题类型"
+    },
+    "token_uso_restringido": {
+      "es": "Este token solo vale para su uso concreto",
+      "en": "This token is only valid for its specific purpose",
+      "zh": "此令牌仅限其特定用途使用"
+    },
+    "uc_plazos_no_validos": {
+      "es": "Los plazos del proveedor (UC) son horas mayores que cero, o vacío",
+      "en": "Supplier deadlines (UC) must be hours greater than zero, or empty",
+      "zh": "供应商时限 (UC) 必须是大于零的小时数，或留空"
+    },
+    "umbral_0_a_1": {
+      "es": "El umbral va de 0 a 1",
+      "en": "The threshold ranges from 0 to 1",
+      "zh": "阈值范围为 0 到 1"
+    },
+    "url_debe_ser_https": {
+      "es": "{campo} debe ser una URL HTTPS válida",
+      "en": "{campo} must be a valid HTTPS URL",
+      "zh": "{campo} 必须是有效的 HTTPS 地址"
+    },
+    "url_esquema_no_valido": {
+      "es": "{campo} debe usar http o https, no {esquema}",
+      "en": "{campo} must use http or https, not {esquema}",
+      "zh": "{campo} 必须使用 http 或 https，而不是 {esquema}"
+    },
+    "url_host_local": {
+      "es": "{campo} no puede apuntar a equipos locales",
+      "en": "{campo} cannot point to local hosts",
+      "zh": "{campo} 不能指向本地主机"
+    },
+    "url_host_no_resuelto": {
+      "es": "No se ha podido resolver el servidor {host}",
+      "en": "Could not resolve the host {host}",
+      "zh": "无法解析主机 {host}"
+    },
+    "url_no_valida": {
+      "es": "La URL no es válida",
+      "en": "The URL is not valid",
+      "zh": "URL 无效"
+    },
+    "url_red_no_permitida": {
+      "es": "{campo} apunta a una red no permitida",
+      "en": "{campo} points to a network that is not allowed",
+      "zh": "{campo} 指向不允许的网络"
+    },
+    "url_sin_host": {
+      "es": "{campo} debe incluir el nombre del servidor",
+      "en": "{campo} must include a host name",
+      "zh": "{campo} 必须包含主机名"
+    },
+    "usuario_correo_ya_existe": {
+      "es": "Ya existe un usuario con el correo {correo}: asígnalo a la empresa desde su ficha",
+      "en": "A user with the email {correo} already exists: assign them to the company from their profile",
+      "zh": "已存在邮箱为 {correo} 的用户：请在其资料页将其分配到公司"
+    },
+    "usuario_desactivado": {
+      "es": "Usuario desactivado",
+      "en": "User deactivated",
+      "zh": "用户已停用"
+    },
+    "usuario_inactivo_no_asignable": {
+      "es": "No puedes asignar usuarios inactivos",
+      "en": "You cannot assign inactive users",
+      "zh": "不能分配已停用的用户"
+    },
+    "usuario_ultima_empresa": {
+      "es": "No puedes quitar al usuario de su última empresa",
+      "en": "You cannot remove the user from their last company",
+      "zh": "不能将用户从其最后一家公司移除"
+    },
+    "usuario_ya_en_empresa": {
+      "es": "El usuario ya está asignado a esta empresa",
+      "en": "The user is already assigned to this company",
+      "zh": "该用户已分配到此公司"
+    },
+    "usuario_ya_existe": {
+      "es": "El usuario ya existe",
+      "en": "The user already exists",
+      "zh": "该用户已存在"
+    },
+    "valor_clave_ya_existe": {
+      "es": "Ya existe un valor con esa clave",
+      "en": "A value with that key already exists",
+      "zh": "已存在使用该键的值"
+    },
+    "valor_no_en_catalogo": {
+      "es": "El valor «{valor}» no existe en el catálogo de la empresa (Configuración)",
+      "en": "The value “{valor}” does not exist in the company catalogue (Settings)",
+      "zh": "公司目录（设置）中不存在值“{valor}”"
+    },
+    "valor_sistema_no_editable": {
+      "es": "Es un valor del sistema, común a todas las empresas: crea uno propio en lugar de cambiarlo",
+      "en": "This is a system value shared by all companies: create your own instead of changing it",
+      "zh": "这是所有公司共用的系统值：请新建自己的值，而不是修改它"
+    },
+    "version_cambios_pendientes": {
+      "es": "Faltan cambios por implementar: {cambios}",
+      "en": "Changes still to be implemented: {cambios}",
+      "zh": "仍有待实施的变更：{cambios}"
+    },
+    "version_sin_nombre": {
+      "es": "La versión necesita nombre",
+      "en": "The release needs a name",
+      "zh": "版本需要名称"
+    },
+    "voto_ya_emitido": {
+      "es": "Ya has emitido tu voto en este paso",
+      "en": "You have already voted on this step",
+      "zh": "你已在此步骤投票"
+    },
+    "webhook_slug_caducado": {
+      "es": "El identificador del webhook ha caducado: rótalo para reactivarlo",
+      "en": "The webhook identifier has expired: rotate it to reactivate it",
+      "zh": "Webhook 标识符已过期：请轮换以重新启用"
+    },
+    "whatsapp_numero_sin_empresa": {
+      "es": "El número de WhatsApp no está vinculado a ninguna empresa",
+      "en": "The WhatsApp number is not linked to any company",
+      "zh": "该 WhatsApp 号码未关联任何公司"
+    },
+    "widgets_desconocidos": {
+      "es": "Widgets desconocidos: {widgets}",
+      "en": "Unknown widgets: {widgets}",
+      "zh": "未知的小组件：{widgets}"
+    },
+    "ya_es_miembro": {
+      "es": "Ya es miembro",
+      "en": "Already a member",
+      "zh": "已是成员"
+    }
+  },
+  "que": {
+    "agente": {
+      "es": "Agente",
+      "en": "Agent",
+      "zh": "代理"
+    },
+    "analisis_de_impacto": {
+      "es": "Análisis de impacto",
+      "en": "Impact analysis",
+      "zh": "影响分析"
+    },
+    "calendario": {
+      "es": "Calendario",
+      "en": "Calendar",
+      "zh": "日历"
+    },
+    "cambio": {
+      "es": "Cambio",
+      "en": "Change",
+      "zh": "变更"
+    },
+    "ci": {
+      "es": "Elemento de configuración (CI)",
+      "en": "Configuration item (CI)",
+      "zh": "配置项 (CI)"
+    },
+    "consulta": {
+      "es": "Consulta",
+      "en": "Query",
+      "zh": "查询"
+    },
+    "dataset": {
+      "es": "Conjunto de datos",
+      "en": "Dataset",
+      "zh": "数据集"
+    },
+    "flujo_de_mitigacion": {
+      "es": "Flujo de mitigación",
+      "en": "Mitigation workflow",
+      "zh": "缓解流程"
+    },
+    "paso_de_aprobacion": {
+      "es": "Paso actual del flujo de aprobación",
+      "en": "Current approval workflow step",
+      "zh": "审批流程的当前步骤"
+    }
+  },
+  "entidades": {
+    "Change": "cambio",
+    "Cambio": "cambio",
+    "Rule": "regla",
+    "Comment": "comentario",
+    "Query": "consulta",
+    "Agent": "agente",
+    "Step": "paso"
+  },
+  "textos": {
+    "404:Proyecto no encontrado": {
+      "code": "no_encontrado",
+      "params": {
+        "que": "proyecto"
+      }
+    },
+    "404:Tipo de issue no encontrado": {
+      "code": "no_encontrado",
+      "params": {
+        "que": "tipo_de_incidencia"
+      }
+    },
+    "404:Dependencia no encontrada": {
+      "code": "no_encontrado",
+      "params": {
+        "que": "dependencia"
+      }
+    },
+    "404:Épica {} no encontrada": {
+      "code": "no_encontrado",
+      "params": {
+        "que": "epica"
+      },
+      "ignora_huecos": true
+    },
+    "404:Organización no encontrada": {
+      "code": "no_encontrado",
+      "params": {
+        "que": "organizacion"
+      }
+    },
+    "404:Usuario no encontrado": {
+      "code": "no_encontrado",
+      "params": {
+        "que": "usuario"
+      }
+    },
+    "404:Usuario no encontrado en esta organización": {
+      "code": "no_encontrado",
+      "params": {
+        "que": "usuario"
+      }
+    },
+    "Versión {} no encontrada para dataset {}": {
+      "code": "no_encontrado",
+      "params": {
+        "que": "version"
+      },
+      "ignora_huecos": true
+    },
+    "Dataset '{}' not found. Available: {}": {
+      "code": "no_encontrado",
+      "params": {
+        "que": "dataset"
+      },
+      "ignora_huecos": true
+    },
+    "Fase {} no encontrada en el plan de rollout": {
+      "code": "no_encontrado",
+      "params": {
+        "que": "fase"
+      },
+      "ignora_huecos": true
+    },
+    "Connector '{}' not found in marketplace": {
+      "code": "no_encontrado",
+      "params": {
+        "que": "conector"
+      },
+      "ignora_huecos": true
+    },
+    "Salesforce integration instance not found or disabled": {
+      "code": "no_encontrado",
+      "params": {
+        "que": "integracion"
+      }
+    },
+    "El CI no existe": {
+      "code": "no_encontrado",
+      "params": {
+        "que": "ci"
+      }
+    },
+    "El flujo de mitigación no existe": {
+      "code": "no_encontrado",
+      "params": {
+        "que": "flujo_de_mitigacion"
+      }
+    },
+    "El playbook ya no existe": {
+      "code": "no_encontrado",
+      "params": {
+        "que": "playbook"
+      }
+    },
+    "Step '{}' no existe": {
+      "code": "no_encontrado",
+      "params": {
+        "que": "paso"
+      },
+      "ignora_huecos": true
+    },
+    "El calendario elegido no existe": {
+      "code": "no_encontrado",
+      "params": {
+        "que": "calendario"
+      }
+    },
+    "No se encontró el paso actual del flujo de aprobación": {
+      "code": "no_encontrado",
+      "params": {
+        "que": "paso_de_aprobacion"
+      }
+    },
+    "No encuentro el ticket {}": {
+      "code": "no_encontrado",
+      "params": {
+        "que": "ticket"
+      },
+      "ignora_huecos": true
+    },
+    "Análisis de impacto no encontrado. Ejecuta POST /impact-analysis primero.": {
+      "code": "no_encontrado",
+      "params": {
+        "que": "analisis_de_impacto"
+      }
+    },
+    "license_id es obligatorio": {
+      "code": "campo_obligatorio",
+      "params": {
+        "campo": "license_id"
+      }
+    },
+    "name es obligatorio": {
+      "code": "campo_obligatorio",
+      "params": {
+        "campo": "name"
+      }
+    },
+    "Falta endpoint_url": {
+      "code": "campo_obligatorio",
+      "params": {
+        "campo": "endpoint_url"
+      }
+    },
+    "userName requerido": {
+      "code": "campo_obligatorio",
+      "params": {
+        "campo": "userName"
+      }
+    },
+    "userName required": {
+      "code": "campo_obligatorio",
+      "params": {
+        "campo": "userName"
+      }
+    },
+    "answer cannot be empty": {
+      "code": "campo_obligatorio",
+      "params": {
+        "campo": "answer"
+      }
+    },
+    "pm_response es obligatorio para presupuestar una solicitud": {
+      "code": "campo_obligatorio",
+      "params": {
+        "campo": "pm_response"
+      }
+    },
+    "Debes indicar delegate_to para delegar la aprobación": {
+      "code": "campo_obligatorio",
+      "params": {
+        "campo": "delegate_to"
+      }
+    },
+    "title y description son obligatorios": {
+      "code": "campos_obligatorios",
+      "params": {
+        "campos": "title, description"
+      }
+    },
+    "name y ticket_type son obligatorios": {
+      "code": "campos_obligatorios",
+      "params": {
+        "campos": "name, ticket_type"
+      }
+    },
+    "source_ci_id y target_ci_id son obligatorios": {
+      "code": "campos_obligatorios",
+      "params": {
+        "campos": "source_ci_id, target_ci_id"
+      }
+    },
+    "Cada alerta necesita key y title": {
+      "code": "campos_obligatorios",
+      "params": {
+        "campos": "key, title"
+      }
+    },
+    "Proveedor no soportado: {}": {
+      "code": "proveedor_no_soportado",
+      "vars": [
+        "proveedor"
+      ]
+    },
+    "Proveedor no soportado para list models: {}": {
+      "code": "proveedor_no_soportado",
+      "vars": [
+        "proveedor"
+      ]
+    },
+    "unknown provider: {}": {
+      "code": "proveedor_no_soportado",
+      "vars": [
+        "proveedor"
+      ]
+    },
+    "STT provider desconocido: '{}'. Opciones: {}": {
+      "code": "proveedor_no_soportado",
+      "vars": [
+        "proveedor"
+      ],
+      "ignora_huecos": true
+    },
+    "Tipo de ficha desconocido: {}": {
+      "code": "tipo_desconocido",
+      "vars": [
+        "tipo"
+      ]
+    },
+    "tipo de campo desconocido: {}": {
+      "code": "tipo_desconocido",
+      "vars": [
+        "tipo"
+      ]
+    },
+    "tipo de nodo no soportado por el motor: {}": {
+      "code": "tipo_desconocido",
+      "vars": [
+        "tipo"
+      ]
+    },
+    "Estado de versión inválido: {}": {
+      "code": "estado_no_valido_valor",
+      "vars": [
+        "estado"
+      ]
+    },
+    "Estado de fase inválido: {}": {
+      "code": "estado_no_valido_valor",
+      "vars": [
+        "estado"
+      ]
+    },
+    "Estado desconocido: {}": {
+      "code": "estado_no_valido_valor",
+      "vars": [
+        "estado"
+      ]
+    },
+    "Estado base no válido: {}": {
+      "code": "estado_no_valido_valor",
+      "vars": [
+        "estado"
+      ]
+    },
+    "estado": {
+      "code": "estado_no_valido"
+    },
+    "campo {}: entidad desconocida {}": {
+      "code": "entidad_desconocida",
+      "vars": [
+        "campo",
+        "entidad"
+      ],
+      "ignora_huecos": true
+    },
+    "Entidad «{}» no soportada: {}": {
+      "code": "entidad_desconocida",
+      "vars": [
+        "entidad"
+      ],
+      "ignora_huecos": true
+    },
+    "Entidad '{}' no soportada en este entorno": {
+      "code": "entidad_desconocida",
+      "vars": [
+        "entidad"
+      ]
+    },
+    "Formato de fecha inválido. Usa YYYY-MM-DD": {
+      "code": "fecha_no_valida_formato"
+    },
+    "Fecha no válida: {}": {
+      "code": "fecha_no_valida_formato",
+      "ignora_huecos": true
+    },
+    "La fecha de fin es anterior a la de inicio": {
+      "code": "fecha_fin_anterior_a_inicio"
+    },
+    "El fin planificado tiene que ser posterior al inicio": {
+      "code": "fecha_fin_anterior_a_inicio"
+    },
+    "La congelación tiene que acabar después de empezar": {
+      "code": "fecha_fin_anterior_a_inicio"
+    },
+    "start_dt must be before end_dt": {
+      "code": "fecha_fin_anterior_a_inicio"
+    },
+    "No puedes delegar en ti mismo": {
+      "code": "no_puedes_contigo"
+    },
+    "El usuario no pertenece a una organización/tenant": {
+      "code": "sin_empresa"
+    },
+    "User has no associated organization": {
+      "code": "sin_empresa"
+    },
+    "organization_id no disponible": {
+      "code": "sin_empresa"
+    },
+    "SoD: el solicitante no puede aprobar su propia solicitud (Segregación de Funciones — crear ≠ aprobar)": {
+      "code": "sod_no_puedes_aprobar_lo_tuyo"
+    },
+    "Para rechazar indica el motivo": {
+      "code": "motivo_de_rechazo_obligatorio"
+    },
+    "Rechazar pide el motivo: es lo que recibe el solicitante": {
+      "code": "motivo_de_rechazo_obligatorio"
+    },
+    "Token inválido o expirado": {
+      "code": "token_no_valido"
+    },
+    "Token de challenge inválido o expirado": {
+      "code": "token_no_valido"
+    },
+    "Token de challenge inválido": {
+      "code": "token_no_valido"
+    },
+    "mfa_challenge_token inválido o expirado": {
+      "code": "token_no_valido"
+    },
+    "mfa_challenge_token inválido": {
+      "code": "token_no_valido"
+    },
+    "Token SCIM inválido": {
+      "code": "token_no_valido"
+    },
+    "Token SCIM inválido para esta organización": {
+      "code": "token_no_valido"
+    },
+    "Token de monitorización inválido": {
+      "code": "token_no_valido"
+    },
+    "Token SSO externo inválido o expirado": {
+      "code": "token_no_valido"
+    },
+    "Token de embed inválido: {}": {
+      "code": "token_no_valido",
+      "ignora_huecos": true
+    },
+    "Token no es de tipo embed": {
+      "code": "token_no_valido"
+    },
+    "unauthorized": {
+      "code": "token_no_valido"
+    },
+    "Unauthorized": {
+      "code": "token_no_valido"
+    },
+    "Token de embed revocado": {
+      "code": "oauth_token_revocado"
+    },
+    "Invalid or revoked agent token": {
+      "code": "oauth_token_revocado"
+    },
+    "Token de restablecimiento inválido o reemplazado": {
+      "code": "reset_token_no_valido"
+    },
+    "Token de cliente requerido": {
+      "code": "token_requerido"
+    },
+    "Token SCIM requerido": {
+      "code": "token_requerido"
+    },
+    "Falta X-Contecflow-Event-Token": {
+      "code": "token_requerido"
+    },
+    "Admin role required": {
+      "code": "solo_admin"
+    },
+    "Usuario no encontrado o inactivo": {
+      "code": "usuario_no_encontrado_o_inactivo"
+    },
+    "Ese usuario no existe en tu empresa o no está activo": {
+      "code": "usuario_no_encontrado_o_inactivo"
+    },
+    "El dueño de la credencial no existe o está inactivo": {
+      "code": "usuario_no_encontrado_o_inactivo"
+    },
+    "La organización de este usuario está desactivada": {
+      "code": "empresa_desactivada"
+    },
+    "No está instalado: {}": {
+      "code": "dependencia_no_instalada",
+      "vars": [
+        "paquete"
+      ]
+    },
+    "openpyxl no instalado: {}": {
+      "code": "dependencia_no_instalada",
+      "params": {
+        "paquete": "openpyxl"
+      },
+      "ignora_huecos": true
+    },
+    "openpyxl no instalado": {
+      "code": "dependencia_no_instalada",
+      "params": {
+        "paquete": "openpyxl"
+      }
+    },
+    "python-pptx no instalado: {}": {
+      "code": "dependencia_no_instalada",
+      "params": {
+        "paquete": "python-pptx"
+      },
+      "ignora_huecos": true
+    },
+    "JSON invalido": {
+      "code": "json_no_valido"
+    },
+    "Payload de Slack ilegible": {
+      "code": "webhook_cuerpo_ilegible"
+    },
+    "Cuerpo de Slack ilegible": {
+      "code": "webhook_cuerpo_ilegible"
+    },
+    "Firma inválida": {
+      "code": "firma_no_valida"
+    },
+    "Firma de Stripe invalida": {
+      "code": "firma_no_valida"
+    },
+    "Firma de WhatsApp no válida": {
+      "code": "firma_no_valida"
+    },
+    "Webhook inválido": {
+      "code": "webhook_no_autorizado"
+    },
+    "Webhook de Stripe no configurado (STRIPE_WEBHOOK_SECRET).": {
+      "code": "webhook_secreto_no_configurado",
+      "params": {
+        "servicio": "Stripe"
+      }
+    },
+    "Email inbound deshabilitado: configura el secreto de la pasarela": {
+      "code": "webhook_secreto_no_configurado",
+      "params": {
+        "servicio": "Email"
+      }
+    },
+    "Teams webhook error: {}": {
+      "code": "webhook_entrega_fallida",
+      "params": {
+        "servicio": "Microsoft Teams"
+      },
+      "ignora_huecos": true
+    },
+    "El fichero pasa del máximo ({} MB)": {
+      "code": "fichero_demasiado_grande",
+      "vars": [
+        "max"
+      ]
+    },
+    "El archivo supera el tamaño máximo permitido ({} MB).": {
+      "code": "fichero_demasiado_grande",
+      "vars": [
+        "max"
+      ]
+    },
+    "Ya existe un usuario de portal con ese email": {
+      "code": "email_ya_registrado"
+    },
+    "Access temporarily unavailable — please try again or contact support": {
+      "code": "servicio_no_disponible"
+    },
+    "Salesforce credentials incomplete. Configure instance_url and access_token in the integration settings.": {
+      "code": "esign_credenciales_incompletas",
+      "params": {
+        "servicio": "Salesforce"
+      }
+    },
+    "Jira no configurado. Ve a /jira/config primero.": {
+      "code": "integracion_no_configurada",
+      "params": {
+        "nombre": "Jira"
+      }
+    },
+    "S3 not configured. Check AWS credentials in settings.": {
+      "code": "integracion_no_configurada",
+      "params": {
+        "nombre": "S3"
+      }
+    },
+    "S3 not configured": {
+      "code": "integracion_no_configurada",
+      "params": {
+        "nombre": "S3"
+      }
+    },
+    "SCIM no configurado": {
+      "code": "integracion_no_configurada",
+      "params": {
+        "nombre": "SCIM"
+      }
+    },
+    "M365 Graph no configurado y TEAMS_WEBHOOK_URL no está definido": {
+      "code": "integracion_no_configurada",
+      "params": {
+        "nombre": "Microsoft Teams"
+      }
+    },
+    "METRICS_AUTH_TOKEN no configurado": {
+      "code": "integracion_no_configurada",
+      "params": {
+        "nombre": "Métricas"
+      }
+    },
+    "Base URL vacía para proveedor compatible OpenAI": {
+      "code": "integracion_no_configurada",
+      "params": {
+        "nombre": "OpenAI"
+      }
+    },
+    "Base URL vacía para Ollama": {
+      "code": "integracion_no_configurada",
+      "params": {
+        "nombre": "Ollama"
+      }
+    },
+    "Base URL vacía para Azure OpenAI": {
+      "code": "integracion_no_configurada",
+      "params": {
+        "nombre": "Azure OpenAI"
+      }
+    },
+    "No hay integración Slack/Teams activa": {
+      "code": "integracion_no_configurada",
+      "params": {
+        "nombre": "Slack/Teams"
+      }
+    },
+    "GCP discovery requiere project_id en provider config": {
+      "code": "integracion_no_configurada",
+      "params": {
+        "nombre": "GCP"
+      }
+    },
+    "Slack workspace not linked to an organization (SLACK_TEAM_ID)": {
+      "code": "integracion_no_configurada",
+      "params": {
+        "nombre": "Slack"
+      }
+    },
+    "S3 upload failed: {}": {
+      "code": "servicio_externo_fallo",
+      "params": {
+        "servicio": "S3"
+      },
+      "ignora_huecos": true
+    },
+    "Failed to generate presigned URL: {}": {
+      "code": "servicio_externo_fallo",
+      "params": {
+        "servicio": "S3"
+      },
+      "ignora_huecos": true
+    },
+    "OneDrive upload error: {}": {
+      "code": "servicio_externo_fallo",
+      "params": {
+        "servicio": "OneDrive"
+      },
+      "ignora_huecos": true
+    },
+    "Graph Sites API error: {}": {
+      "code": "servicio_externo_fallo",
+      "params": {
+        "servicio": "Microsoft Graph"
+      },
+      "ignora_huecos": true
+    },
+    "Jira devolvió HTTP {}": {
+      "code": "servicio_externo_fallo",
+      "params": {
+        "servicio": "Jira"
+      },
+      "ignora_huecos": true
+    },
+    "Jira push failed: {}": {
+      "code": "servicio_externo_fallo",
+      "params": {
+        "servicio": "Jira"
+      },
+      "ignora_huecos": true
+    },
+    "Error obteniendo token de Azure AD": {
+      "code": "servicio_externo_fallo",
+      "params": {
+        "servicio": "Azure AD"
+      }
+    },
+    "Failed to decrypt enc: JWT key material": {
+      "code": "error_interno"
+    },
+    "Invalid key material reference format": {
+      "code": "error_interno"
+    },
+    "ML model integrity check failed — model bytes may have been tampered with": {
+      "code": "error_interno"
+    },
+    "ML model integrity check failed — unsigned legacy models are not allowed in non-development environments. Retrain the model to apply HMAC protection.": {
+      "code": "error_interno"
+    },
+    "Catálogo de informes incoherente: la columna '{}' no existe en {}": {
+      "code": "error_interno",
+      "ignora_huecos": true
+    },
+    "Catálogo de informes incoherente: el operador '{}' no tiene traducción a SQL": {
+      "code": "error_interno",
+      "ignora_huecos": true
+    },
+    "PLANNING_WORKDAYS no tiene ningún día laborable válido (1-7)": {
+      "code": "error_interno"
+    },
+    "Proyecto sin organization_id": {
+      "code": "error_interno"
+    },
+    "No se pudo resolver organization_id para la conversación": {
+      "code": "error_interno"
+    },
+    "No se pudo resolver organization_id": {
+      "code": "error_interno"
+    },
+    "dominio {}: claves de campo repetidas": {
+      "code": "error_interno",
+      "ignora_huecos": true
+    },
+    "organization_id con formato no admitido para OLAP: {}": {
+      "code": "error_interno",
+      "ignora_huecos": true
+    },
+    "Error generando PDF: {}": {
+      "code": "pdf_no_generado",
+      "ignora_huecos": true
+    },
+    "No se pudo conectar con Jira": {
+      "code": "servicio_externo_sin_conexion",
+      "params": {
+        "servicio": "Jira"
+      }
+    },
+    "Respuesta de Jira no válida": {
+      "code": "servicio_externo_respuesta_no_valida",
+      "params": {
+        "servicio": "Jira"
+      }
+    },
+    "Ya existe un campo con esa clave para esa entidad": {
+      "code": "campo_clave_ya_existe"
+    },
+    "No se puede renombrar un rol del sistema": {
+      "code": "rol_sistema_no_renombrable"
+    },
+    "Ese nombre es el de un rol base": {
+      "code": "rol_nombre_base"
+    },
+    "No se pueden eliminar roles del sistema": {
+      "code": "rol_sistema_no_eliminable"
+    },
+    "Ya existe un tipo con ese valor": {
+      "code": "tipo_ya_existe"
+    },
+    "Ya existe un estado con ese valor": {
+      "code": "estado_ya_existe"
+    },
+    "Ya existe un departamento con ese nombre": {
+      "code": "departamento_ya_existe"
+    },
+    "Ya existe un valor con esa clave": {
+      "code": "valor_clave_ya_existe"
+    },
+    "Es un valor del sistema, común a todas las empresas: crea uno propio en lugar de cambiarlo": {
+      "code": "valor_sistema_no_editable"
+    },
+    "El {} «{}» no existe en el catálogo de la empresa (Configuración)": {
+      "code": "valor_no_en_catalogo",
+      "vars": [
+        "campo",
+        "valor"
+      ]
+    },
+    "Gemini no devolvió texto ({}; {} tokens de razonamiento de {}): sube el máximo de tokens del proveedor": {
+      "code": "ia_sin_texto_tokens",
+      "ignora_huecos": true
+    },
+    "Falta API key para listar modelos de Anthropic": {
+      "code": "ia_falta_api_key",
+      "params": {
+        "proveedor": "Anthropic"
+      }
+    },
+    "Falta API key para listar modelos de Gemini": {
+      "code": "ia_falta_api_key",
+      "params": {
+        "proveedor": "Gemini"
+      }
+    },
+    "Falta API key para listar modelos de Azure": {
+      "code": "ia_falta_api_key",
+      "params": {
+        "proveedor": "Azure"
+      }
+    },
+    "Falta API key para listar modelos de {}": {
+      "code": "ia_falta_api_key",
+      "vars": [
+        "proveedor"
+      ]
+    },
+    "El proveedor {} no admite adjuntos": {
+      "code": "ia_proveedor_sin_adjuntos",
+      "vars": [
+        "proveedor"
+      ]
+    },
+    "Ollama no lee PDF: sube una imagen o usa otro proveedor": {
+      "code": "ia_ollama_sin_pdf"
+    },
+    "Ya hay un proveedor {} en la aplicación: «{}»": {
+      "code": "ia_proveedor_ya_existe",
+      "vars": [
+        "tipo",
+        "nombre"
+      ]
+    },
+    "No se pueden cambiar: {}": {
+      "code": "campos_no_editables",
+      "vars": [
+        "campos"
+      ]
+    },
+    "El proveedor '{}' no soporta herramientas": {
+      "code": "ia_proveedor_sin_herramientas",
+      "vars": [
+        "proveedor"
+      ]
+    },
+    "No se puede eliminar: contratos={}, licencias={}, activos={}": {
+      "code": "alm_no_eliminable_contratos_licencias_activos",
+      "vars": [
+        "contratos",
+        "licencias",
+        "activos"
+      ]
+    },
+    "No se puede eliminar: {} licencia(s) activas asociadas": {
+      "code": "alm_no_eliminable_licencias",
+      "vars": [
+        "licencias"
+      ]
+    },
+    "No se puede eliminar: asignaciones={}, instalaciones={}": {
+      "code": "alm_no_eliminable_asignaciones_instalaciones",
+      "vars": [
+        "asignaciones",
+        "instalaciones"
+      ]
+    },
+    "No se puede eliminar: instalaciones={}, asignaciones={}": {
+      "code": "alm_no_eliminable_asignaciones_instalaciones",
+      "vars": [
+        "instalaciones",
+        "asignaciones"
+      ]
+    },
+    "No se puede eliminar: contratos={}, licencias={}": {
+      "code": "alm_no_eliminable_contratos_licencias",
+      "vars": [
+        "contratos",
+        "licencias"
+      ]
+    },
+    "La instalacion ya existe": {
+      "code": "instalacion_ya_existe"
+    },
+    "Los plazos del proveedor (UC) son horas mayores que cero, o vacío": {
+      "code": "uc_plazos_no_validos"
+    },
+    "un proveedor de uso necesita clave": {
+      "code": "alm_proveedor_uso_sin_clave"
+    },
+    "La simulación intentó escribir datos: se ha deshecho": {
+      "code": "simulacion_intento_escribir"
+    },
+    "Indica las fechas de inicio y fin (AAAA-MM-DD)": {
+      "code": "fechas_inicio_fin_obligatorias"
+    },
+    "El enlace ha caducado o no es válido: decide desde la bandeja de aprobaciones": {
+      "code": "aprobacion_enlace_caducado"
+    },
+    "El enlace ya no es válido": {
+      "code": "enlace_ya_no_valido"
+    },
+    "Esta solicitud ya se decidió o cambió de paso": {
+      "code": "aprobacion_ya_decidida_o_cambio_paso"
+    },
+    "Decisión no válida": {
+      "code": "decision_no_valida"
+    },
+    "La solicitud ya está en estado '{}'": {
+      "code": "solicitud_ya_en_estado",
+      "vars": [
+        "estado"
+      ]
+    },
+    "No tienes permiso para aprobar este paso": {
+      "code": "sin_permiso_aprobar_paso"
+    },
+    "Este paso requiere adjuntar un documento para emitir la decisión": {
+      "code": "paso_requiere_documento"
+    },
+    "Ya has emitido tu voto en este paso": {
+      "code": "voto_ya_emitido"
+    },
+    "No hay flujo de aprobación configurado para '{}'": {
+      "code": "sin_flujo_aprobacion",
+      "vars": [
+        "entidad"
+      ]
+    },
+    "auto_approval_rules inválido: {}": {
+      "code": "reglas_autoaprobacion_no_validas",
+      "ignora_huecos": true
+    },
+    "Confirma tu identidad: contraseña actual o código 2FA": {
+      "code": "confirma_identidad"
+    },
+    "mfa_challenge_token ya utilizado": {
+      "code": "mfa_challenge_usado"
+    },
+    "La configuración SSO no tiene organization_id asignado; no se pueden autocrear usuarios sin tenant": {
+      "code": "sso_sin_empresa"
+    },
+    "La organización asignada al proveedor SSO no existe o está inactiva": {
+      "code": "sso_empresa_inactiva"
+    },
+    "oidc_discovery_url debe ser una URL HTTPS válida": {
+      "code": "url_debe_ser_https",
+      "params": {
+        "campo": "oidc_discovery_url"
+      }
+    },
+    "oidc_discovery_url debe incluir hostname": {
+      "code": "url_sin_host",
+      "params": {
+        "campo": "oidc_discovery_url"
+      }
+    },
+    "oidc_discovery_url no puede apuntar a hosts locales": {
+      "code": "url_host_local",
+      "params": {
+        "campo": "oidc_discovery_url"
+      }
+    },
+    "oidc_discovery_url apunta a una red no permitida": {
+      "code": "url_red_no_permitida",
+      "params": {
+        "campo": "oidc_discovery_url"
+      }
+    },
+    "oidc_discovery_url resuelve a una red no permitida": {
+      "code": "url_red_no_permitida",
+      "params": {
+        "campo": "oidc_discovery_url"
+      }
+    },
+    "{} debe ser una URL HTTPS": {
+      "code": "url_debe_ser_https",
+      "vars": [
+        "campo"
+      ]
+    },
+    "{} debe incluir hostname": {
+      "code": "url_sin_host",
+      "vars": [
+        "campo"
+      ]
+    },
+    "{} no puede apuntar a hosts locales": {
+      "code": "url_host_local",
+      "vars": [
+        "campo"
+      ]
+    },
+    "{} apunta a una red no permitida": {
+      "code": "url_red_no_permitida",
+      "vars": [
+        "campo"
+      ]
+    },
+    "{} debe usar http o https, no {}": {
+      "code": "url_esquema_no_valido",
+      "vars": [
+        "campo",
+        "esquema"
+      ]
+    },
+    "Solo se permiten destinos HTTPS en webhooks": {
+      "code": "url_debe_ser_https",
+      "params": {
+        "campo": "Webhook"
+      }
+    },
+    "URL de webhook sin hostname": {
+      "code": "url_sin_host",
+      "params": {
+        "campo": "Webhook"
+      }
+    },
+    "URL malformada: {}": {
+      "code": "url_no_valida",
+      "ignora_huecos": true
+    },
+    "Destino bloqueado — IP interna/reservada: {}": {
+      "code": "url_red_no_permitida",
+      "params": {
+        "campo": "Webhook"
+      },
+      "ignora_huecos": true
+    },
+    "Destino bloqueado — red interna {}: {}": {
+      "code": "url_red_no_permitida",
+      "params": {
+        "campo": "Webhook"
+      },
+      "ignora_huecos": true
+    },
+    "Hostname de metadata bloqueado: {}": {
+      "code": "url_red_no_permitida",
+      "params": {
+        "campo": "Webhook"
+      },
+      "ignora_huecos": true
+    },
+    "No se pudo resolver el hostname {}: {}": {
+      "code": "url_host_no_resuelto",
+      "vars": [
+        "host"
+      ],
+      "ignora_huecos": true
+    },
+    "El dominio de este correo no está permitido en este proveedor SSO": {
+      "code": "sso_dominio_no_permitido"
+    },
+    "Este correo pertenece a otra organización": {
+      "code": "correo_de_otra_empresa"
+    },
+    "Usuario desactivado": {
+      "code": "usuario_desactivado"
+    },
+    "El superadministrador no puede entrar por SSO": {
+      "code": "sso_superadmin_no_permitido"
+    },
+    "Esta cuenta está vinculada a otra identidad del proveedor SSO": {
+      "code": "sso_identidad_distinta"
+    },
+    "El proveedor SSO no permite autocrear usuarios": {
+      "code": "sso_sin_autoalta"
+    },
+    "La passkey ya está registrada para otro usuario": {
+      "code": "passkey_de_otro_usuario"
+    },
+    "Acceso denegado. Requiere superadministrador de plataforma.": {
+      "code": "solo_superadmin"
+    },
+    "Este token solo vale para su uso concreto": {
+      "code": "token_uso_restringido"
+    },
+    "Acceso de externo caducado o retirado": {
+      "code": "acceso_externo_caducado"
+    },
+    "El dueño de la credencial ya no pertenece a su organización": {
+      "code": "credencial_dueno_fuera_de_empresa"
+    },
+    "Acceso denegado. Roles requeridos: {}": {
+      "code": "roles_requeridos",
+      "vars": [
+        "roles"
+      ]
+    },
+    "La política de gobierno de tu organización no permite '{}' en el módulo '{}' para el rol '{}'.": {
+      "code": "grc_politica_deniega",
+      "vars": [
+        "accion",
+        "modulo",
+        "rol"
+      ]
+    },
+    "Tu rol no tiene acceso al módulo «{}»": {
+      "code": "modulo_sin_acceso_rol",
+      "vars": [
+        "modulo"
+      ]
+    },
+    "Módulos desconocidos: {}": {
+      "code": "modulos_desconocidos",
+      "vars": [
+        "modulos"
+      ]
+    },
+    "state OAuth ausente o inválido": {
+      "code": "oauth_state_no_valido"
+    },
+    "state OAuth caducado o ya utilizado": {
+      "code": "oauth_state_caducado"
+    },
+    "state OAuth de otro usuario": {
+      "code": "oauth_state_otro_usuario"
+    },
+    "state OAuth de otra organización": {
+      "code": "oauth_state_otra_empresa"
+    },
+    "Condición mal formada": {
+      "code": "automatizacion_condicion_mal_formada"
+    },
+    "La condicion necesita un campo": {
+      "code": "automatizacion_condicion_sin_campo"
+    },
+    "Operador desconocido: {}": {
+      "code": "operador_desconocido",
+      "vars": [
+        "operador"
+      ]
+    },
+    "Operador '{}' no soportado": {
+      "code": "operador_desconocido",
+      "vars": [
+        "operador"
+      ]
+    },
+    "Disparador desconocido: {}": {
+      "code": "disparador_desconocido",
+      "vars": [
+        "disparador"
+      ]
+    },
+    "Grupo desconocido: {} (all | any)": {
+      "code": "automatizacion_grupo_desconocido",
+      "vars": [
+        "grupo"
+      ]
+    },
+    "Un grupo de condiciones necesita al menos una": {
+      "code": "automatizacion_grupo_vacio"
+    },
+    "Expresión cron no válida «{}»: {}": {
+      "code": "cron_no_valido",
+      "vars": [
+        "expresion"
+      ],
+      "ignora_huecos": true
+    },
+    "La regla necesita al menos una accion": {
+      "code": "automatizacion_sin_acciones"
+    },
+    "Accion {}: tipo desconocido «{}»": {
+      "code": "automatizacion_accion_tipo_desconocido",
+      "vars": [
+        "n",
+        "tipo"
+      ]
+    },
+    "Accion {} ({}): falta {}": {
+      "code": "automatizacion_accion_falta",
+      "vars": [
+        "n",
+        "tipo",
+        "faltan"
+      ]
+    },
+    "Es la única empresa y en ella vive el superadmin: no se puede borrar": {
+      "code": "empresa_unica_no_borrable"
+    },
+    "Para dar de baja una empresa hay que indicar el motivo": {
+      "code": "baja_requiere_motivo"
+    },
+    "Esta empresa no tiene una baja pedida": {
+      "code": "empresa_sin_baja_pedida"
+    },
+    "dataset_key solo puede contener letras, números, _ - .": {
+      "code": "bi_dataset_clave_no_valida"
+    },
+    "ttl_minutes debe estar entre 1 y 10080": {
+      "code": "bi_ttl_fuera_de_rango"
+    },
+    "Campos no permitidos en embed config: {}": {
+      "code": "campos_no_permitidos",
+      "vars": [
+        "campos"
+      ]
+    },
+    "Campos que {} no usa: {}": {
+      "code": "campos_no_permitidos",
+      "vars": [
+        "tipo",
+        "campos"
+      ]
+    },
+    "SSO embed no está habilitado para esta organización": {
+      "code": "bi_sso_embed_desactivado"
+    },
+    "No hay emisores SSO configurados": {
+      "code": "bi_sin_emisores_sso"
+    },
+    "El token no es de este panel": {
+      "code": "bi_token_otro_panel"
+    },
+    "Pon un nombre a la fuente": {
+      "code": "bi_fuente_sin_nombre"
+    },
+    "Ya hay una fuente «{}»": {
+      "code": "bi_fuente_ya_existe",
+      "vars": [
+        "nombre"
+      ]
+    },
+    "El conector está desactivado": {
+      "code": "conector_desactivado"
+    },
+    "No se pudo descifrar «{}»: vuelve a introducirlo": {
+      "code": "credencial_no_descifrable",
+      "vars": [
+        "campo"
+      ]
+    },
+    "Unsupported metric '{}'. Supported: {}": {
+      "code": "metrica_no_soportada",
+      "vars": [
+        "metrica",
+        "opciones"
+      ]
+    },
+    "Unsupported method '{}'. Supported: {}": {
+      "code": "metodo_no_soportado",
+      "vars": [
+        "metodo",
+        "opciones"
+      ]
+    },
+    "Informe desconocido: {}": {
+      "code": "informe_desconocido",
+      "vars": [
+        "informe"
+      ]
+    },
+    "Unknown report: {}": {
+      "code": "informe_desconocido",
+      "vars": [
+        "informe"
+      ]
+    },
+    "Informes desconocidos: {}": {
+      "code": "informe_desconocido",
+      "vars": [
+        "informe"
+      ]
+    },
+    "Unsupported aggregation function: {}": {
+      "code": "funcion_agregacion_no_soportada",
+      "vars": [
+        "funcion"
+      ]
+    },
+    "Unknown fields for dataset '{}': {}": {
+      "code": "bi_campos_desconocidos",
+      "vars": [
+        "dataset",
+        "campos"
+      ]
+    },
+    "Invalid channels: {}. Supported: {}": {
+      "code": "canales_no_validos",
+      "vars": [
+        "canales",
+        "opciones"
+      ]
+    },
+    "Invalid format: {}. Supported: {}": {
+      "code": "formato_no_valido",
+      "vars": [
+        "formato",
+        "opciones"
+      ]
+    },
+    "Invalid frequency: {}. Supported: {}": {
+      "code": "frecuencia_no_valida",
+      "vars": [
+        "frecuencia",
+        "opciones"
+      ]
+    },
+    "Invalid sync_frequency. Allowed: {}": {
+      "code": "campo_no_valido_opciones",
+      "params": {
+        "campo": "sync_frequency"
+      },
+      "vars": [
+        "opciones"
+      ]
+    },
+    "Invalid sync_direction. Allowed: {}": {
+      "code": "campo_no_valido_opciones",
+      "params": {
+        "campo": "sync_direction"
+      },
+      "vars": [
+        "opciones"
+      ]
+    },
+    "Las variables ocupan {} bytes; el máximo es {}": {
+      "code": "bpm_variables_demasiado_grandes",
+      "vars": [
+        "bytes",
+        "max"
+      ]
+    },
+    "El proceso no tiene ningún diagrama guardado": {
+      "code": "bpm_sin_diagrama"
+    },
+    "El proceso está archivado: no se pueden iniciar instancias": {
+      "code": "bpm_proceso_archivado"
+    },
+    "Ese paso no está pendiente de completar": {
+      "code": "bpm_paso_no_pendiente"
+    },
+    "Este paso es para el rol {}": {
+      "code": "bpm_paso_de_otro_rol",
+      "vars": [
+        "rol"
+      ]
+    },
+    "El paso ya no está en el diagrama de esta instancia": {
+      "code": "bpm_paso_fuera_de_diagrama"
+    },
+    "La instancia ya ha terminado": {
+      "code": "bpm_instancia_terminada"
+    },
+    "Elige una de las salidas de la decisión": {
+      "code": "bpm_elige_salida"
+    },
+    "La versión del diagrama de esta instancia ya no existe": {
+      "code": "bpm_version_diagrama_no_existe"
+    },
+    "El diagrama ocupa {} bytes; el máximo es {}": {
+      "code": "bpm_diagrama_demasiado_grande",
+      "vars": [
+        "bytes",
+        "max"
+      ]
+    },
+    "El diagrama no es BPMN 2.0 (falta bpmn:definitions)": {
+      "code": "bpm_no_es_bpmn"
+    },
+    "El diagrama no contiene ningún proceso": {
+      "code": "bpm_sin_procesos"
+    },
+    "El diagrama no es un XML válido: {}": {
+      "code": "bpm_xml_no_valido",
+      "ignora_huecos": true
+    },
+    "Ya existe un proceso con la clave '{}'. Reintenta la operación.": {
+      "code": "bpm_clave_proceso_duplicada",
+      "vars": [
+        "clave"
+      ]
+    },
+    "No se puede votar en estado '{}'": {
+      "code": "cab_no_se_puede_votar",
+      "vars": [
+        "estado"
+      ]
+    },
+    "Voto debe ser: approve, reject o abstain": {
+      "code": "cab_voto_no_valido"
+    },
+    "decision debe ser approved o rejected": {
+      "code": "decision_aprobada_o_rechazada"
+    },
+    "La decisión es approved o rejected": {
+      "code": "decision_aprobada_o_rechazada"
+    },
+    "Sólo se cierra una votación abierta; esta CR está «{}»": {
+      "code": "cab_votacion_no_abierta",
+      "vars": [
+        "estado"
+      ]
+    },
+    "La decisión no sigue la votación ({} a favor, {} en contra): indica el motivo": {
+      "code": "cab_decision_contra_votacion",
+      "vars": [
+        "a_favor",
+        "en_contra"
+      ]
+    },
+    "La persona no existe en esta empresa": {
+      "code": "persona_no_existe_en_empresa_rgpd"
+    },
+    "Solicitud ya cerrada": {
+      "code": "solicitud_ya_cerrada"
+    },
+    "La persona de la solicitud ya no existe en esta empresa": {
+      "code": "rgpd_persona_ya_no_existe"
+    },
+    "Sin persona registrada no hay datos que copiar: recházala o tramítala a mano": {
+      "code": "rgpd_sin_persona"
+    },
+    "Esta solicitud no tiene copia de datos": {
+      "code": "rgpd_sin_copia"
+    },
+    "Integración inactiva": {
+      "code": "integracion_inactiva"
+    },
+    "La integración «{}» no tiene sincronización; usa «Probar».": {
+      "code": "integracion_sin_sincronizacion",
+      "vars": [
+        "nombre"
+      ]
+    },
+    "Slug '{}' ya está en uso": {
+      "code": "slug_en_uso",
+      "vars": [
+        "slug"
+      ]
+    },
+    "Webhook trigger slug expirado — rota el slug para reactivarlo": {
+      "code": "webhook_slug_caducado"
+    },
+    "unknown integration field: {}.{}": {
+      "code": "integracion_campo_desconocido",
+      "vars": [
+        "proveedor",
+        "campo"
+      ]
+    },
+    "invalid value for {}.{} (expected {}): {}": {
+      "code": "integracion_valor_no_valido",
+      "vars": [
+        "proveedor",
+        "campo",
+        "esperado"
+      ],
+      "ignora_huecos": true
+    },
+    "This instance is not a Salesforce connector": {
+      "code": "integracion_no_es_salesforce"
+    },
+    "Debe especificar al menos un proyecto o una empresa cliente": {
+      "code": "portal_usuario_sin_alcance"
+    },
+    "Límite de usuarios de portal alcanzado ({})": {
+      "code": "portal_limite_usuarios",
+      "vars": [
+        "max"
+      ]
+    },
+    "No se puede eliminar: la etiqueta esta asociada a {} pagina(s)": {
+      "code": "etiqueta_en_uso",
+      "vars": [
+        "n"
+      ]
+    },
+    "Configura el tablero Kanban primero": {
+      "code": "kanban_sin_configurar"
+    },
+    "El estado '{}' ya tiene columna": {
+      "code": "kanban_estado_con_columna",
+      "vars": [
+        "estado"
+      ]
+    },
+    "No se puede eliminar: {} tarea(s) usan esta columna": {
+      "code": "kanban_columna_en_uso",
+      "vars": [
+        "n"
+      ]
+    },
+    "No hay tareas en estado 'todo' en este proyecto": {
+      "code": "proyecto_sin_tareas_pendientes"
+    },
+    "Estado válido: draft, accepted, rejected": {
+      "code": "plan_estado_no_valido"
+    },
+    "No se puede eliminar un plan aceptado": {
+      "code": "plan_aceptado_no_eliminable"
+    },
+    "No se puede eliminar: el calendario tiene {} festivo(s) activos": {
+      "code": "calendario_con_festivos",
+      "vars": [
+        "n"
+      ]
+    },
+    "El plan no tiene sprint: genéralo eligiendo el sprint para poder aceptarlo": {
+      "code": "plan_sin_sprint"
+    },
+    "Webhook rate limit exceeded. Retry in {}s": {
+      "code": "limite_webhook",
+      "vars": [
+        "segundos"
+      ]
+    },
+    "Los contratos sólo los abren los responsables": {
+      "code": "contratos_solo_responsables"
+    },
+    "No puedes configurar SSO para otra organización": {
+      "code": "sso_otra_empresa"
+    },
+    "Una regla SoD necesita dos operaciones distintas": {
+      "code": "sod_dos_operaciones"
+    },
+    "Roles desconocidos: {}": {
+      "code": "roles_desconocidos",
+      "vars": [
+        "roles"
+      ]
+    },
+    "Módulo desconocido: {}": {
+      "code": "modulo_desconocido",
+      "vars": [
+        "modulo"
+      ]
+    },
+    "Acción desconocida: {}": {
+      "code": "accion_desconocida_valor",
+      "vars": [
+        "accion"
+      ]
+    },
+    "Este proyecto ya tiene tipos de issue definidos": {
+      "code": "tipos_incidencia_ya_definidos"
+    },
+    "Ya existe el tipo '{}' en este proyecto": {
+      "code": "tipo_incidencia_ya_existe",
+      "vars": [
+        "tipo"
+      ]
+    },
+    "No se puede eliminar: {} tareas usan este tipo. Reasígnalas primero": {
+      "code": "tipo_incidencia_en_uso",
+      "vars": [
+        "n"
+      ]
+    },
+    "Una épica no puede depender de sí misma": {
+      "code": "epica_depende_de_si_misma"
+    },
+    "Esta dependencia ya existe": {
+      "code": "dependencia_ya_existe"
+    },
+    "La consulta debe tener al menos 2 caracteres": {
+      "code": "consulta_minimo_2"
+    },
+    "Tipo de incidencia «{}» no existe en el proyecto. Válidos: {}": {
+      "code": "tipo_incidencia_no_valido",
+      "vars": [
+        "tipo",
+        "validos"
+      ]
+    },
+    "Tipo inválido: {}": {
+      "code": "tipo_no_valido_valor",
+      "vars": [
+        "tipo"
+      ]
+    },
+    "Tipo de paso no válido: {}": {
+      "code": "tipo_no_valido_valor",
+      "vars": [
+        "tipo"
+      ]
+    },
+    "Tipo de campo no válido: {}": {
+      "code": "tipo_no_valido_valor",
+      "vars": [
+        "tipo"
+      ]
+    },
+    "El secreto del webhook de Jira es de una organización": {
+      "code": "jira_config_de_empresa"
+    },
+    "La configuración de Jira es de una organización": {
+      "code": "jira_config_de_empresa"
+    },
+    "Falta el API token de Jira": {
+      "code": "jira_falta_token"
+    },
+    "Ese buzón no es de un usuario de tu organización": {
+      "code": "buzon_de_otra_empresa"
+    },
+    "margin_evolution no admite la granularidad {}": {
+      "code": "granularidad_no_admitida",
+      "vars": [
+        "granularidad"
+      ]
+    },
+    "Límite de {} usuarios alcanzado para este plan": {
+      "code": "plan_limite_usuarios",
+      "vars": [
+        "max"
+      ]
+    },
+    "El dominio {} ya es de otra empresa": {
+      "code": "dominio_de_otra_empresa",
+      "vars": [
+        "dominio"
+      ]
+    },
+    "No puedes asignar usuarios inactivos": {
+      "code": "usuario_inactivo_no_asignable"
+    },
+    "El usuario ya está asignado a esta organización": {
+      "code": "usuario_ya_en_empresa"
+    },
+    "No puedes quitar el último usuario de la organización": {
+      "code": "empresa_ultimo_usuario"
+    },
+    "No puedes quitar al usuario de su última organización": {
+      "code": "usuario_ultima_empresa"
+    },
+    "Ya existe un usuario con el correo {}: asígnalo a la empresa desde su ficha": {
+      "code": "usuario_correo_ya_existe",
+      "vars": [
+        "correo"
+      ]
+    },
+    "La empresa ha llegado al límite de {} {} de su plan": {
+      "code": "empresa_limite_plan",
+      "vars": [
+        "max"
+      ],
+      "ignora_huecos": true
+    },
+    "Un calendario necesita al menos un día laborable": {
+      "code": "calendario_sin_dias_laborables"
+    },
+    "La jornada tiene que ser mayor que cero": {
+      "code": "jornada_mayor_que_cero"
+    },
+    "Dominio de políticas desconocido: {}": {
+      "code": "politica_dominio_desconocido",
+      "vars": [
+        "dominio"
+      ]
+    },
+    "operador {} no vale para {}": {
+      "code": "operador_no_admitido",
+      "vars": [
+        "operador",
+        "tipo"
+      ]
+    },
+    "operador {} no vale para un periodo": {
+      "code": "operador_no_admitido",
+      "params": {
+        "tipo": "periodo"
+      },
+      "vars": [
+        "operador"
+      ]
+    },
+    "operador {} no vale para una lista": {
+      "code": "operador_no_admitido",
+      "params": {
+        "tipo": "lista"
+      },
+      "vars": [
+        "operador"
+      ]
+    },
+    "Tipo de documento no válido (letras, números, _ o -): {}": {
+      "code": "tipo_documento_no_valido",
+      "vars": [
+        "tipo"
+      ]
+    },
+    "Hace falta al menos un tipo de documento": {
+      "code": "tipo_documento_al_menos_uno"
+    },
+    "Están en uso (políticas o justificantes): {}": {
+      "code": "tipos_documento_en_uso",
+      "vars": [
+        "tipos"
+      ]
+    },
+    "Solo se edita un borrador: crea una versión nueva": {
+      "code": "politica_solo_borrador_editable"
+    },
+    "Solo se publica un borrador": {
+      "code": "politica_solo_borrador_publicable"
+    },
+    "Ya hay un borrador de esta política: edítalo": {
+      "code": "politica_ya_hay_borrador"
+    },
+    "Solo se editan las reglas de un borrador": {
+      "code": "politica_reglas_solo_borrador"
+    },
+    "La tabla necesita nombre": {
+      "code": "tabla_sin_nombre"
+    },
+    "Tipo de valor: importe o número": {
+      "code": "tabla_tipo_valor_no_valido"
+    },
+    "Falta la columna «valor»": {
+      "code": "tabla_falta_columna_valor"
+    },
+    "No puedes ver por qué se decidió esto": {
+      "code": "politica_sin_permiso_explicacion"
+    },
+    "Este dominio no tiene ejemplos": {
+      "code": "politica_dominio_sin_ejemplos"
+    },
+    "Ese uso no existe en el dominio de la tabla": {
+      "code": "tabla_uso_no_existe"
+    },
+    "Indica la política que se simula": {
+      "code": "simulacion_sin_politica"
+    },
+    "No hay mensaje de cliente para que el bot responda": {
+      "code": "bot_sin_mensaje_cliente"
+    },
+    "El mensaje no está pendiente de revisión": {
+      "code": "mensaje_no_pendiente_revision"
+    },
+    "No tienes permiso para revisar esta imputacion": {
+      "code": "imputacion_sin_permiso_revisar"
+    },
+    "Solo se pueden revisar timesheets enviados": {
+      "code": "imputacion_solo_enviadas"
+    },
+    "Solo se pueden enviar timesheets en borrador o rechazados": {
+      "code": "imputacion_solo_borrador_o_rechazada"
+    },
+    "No puedes enviar un timesheet vacío": {
+      "code": "imputacion_vacia"
+    },
+    "Solo se pueden devolver timesheets en estado enviado": {
+      "code": "imputacion_devolver_solo_enviadas"
+    },
+    "Sólo se cierra un sprint activo; este está «{}»": {
+      "code": "sprint_solo_activo",
+      "vars": [
+        "estado"
+      ]
+    },
+    "Sobreasignacion: el usuario ya tiene {}h planificadas esta semana y anadir {}h supera la capacidad de {}h.": {
+      "code": "sobreasignacion_semana",
+      "vars": [
+        "planificadas",
+        "nuevas",
+        "capacidad"
+      ]
+    },
+    "Conflicto de ausencia: el usuario tiene una ausencia aprobada del {} al {}.": {
+      "code": "conflicto_ausencia",
+      "vars": [
+        "desde",
+        "hasta"
+      ]
+    },
+    "No puedes filtrar por tarifas o costes que no puedes ver": {
+      "code": "informe_filtro_financiero"
+    },
+    "Columna '{}' no permitida para la entidad '{}'": {
+      "code": "informe_columna_no_permitida",
+      "vars": [
+        "columna",
+        "entidad"
+      ]
+    },
+    "Columna de filtro '{}' no permitida": {
+      "code": "informe_columna_filtro_no_permitida",
+      "vars": [
+        "columna"
+      ]
+    },
+    "Métrica desconocida: {}": {
+      "code": "metrica_no_encontrada",
+      "vars": [
+        "metrica"
+      ]
+    },
+    "Campo no válido para {}: {}. Válidos: {}": {
+      "code": "retencion_campo_no_valido",
+      "vars": [
+        "entidad",
+        "campo",
+        "validos"
+      ]
+    },
+    "Mínimo {} días (RETENTION_MIN_DAYS)": {
+      "code": "retencion_minimo_dias",
+      "vars": [
+        "dias"
+      ]
+    },
+    "Usuario ya existe": {
+      "code": "usuario_ya_existe"
+    },
+    "User '{}' already exists": {
+      "code": "usuario_ya_existe",
+      "ignora_huecos": true
+    },
+    "Unsupported bulk operation: {} {}": {
+      "code": "operacion_masiva_no_soportada",
+      "vars": [
+        "metodo",
+        "ruta"
+      ]
+    },
+    "adjunto demasiado grande": {
+      "code": "adjunto_demasiado_grande"
+    },
+    "Ya es miembro": {
+      "code": "ya_es_miembro"
+    },
+    "No se encontraron tickets para el cluster": {
+      "code": "sin_tickets_para_correlacion"
+    },
+    "No tickets found for correlation": {
+      "code": "sin_tickets_para_correlacion"
+    },
+    "Ticket already resolved/closed": {
+      "code": "ticket_ya_resuelto"
+    },
+    "Confidence too low ({}%). Use ?force=true to override.": {
+      "code": "confianza_insuficiente",
+      "vars": [
+        "confianza"
+      ]
+    },
+    "La propuesta ya está decidida": {
+      "code": "propuesta_ya_decidida"
+    },
+    "El ticket ya no está abierto": {
+      "code": "ticket_ya_no_abierto"
+    },
+    "Modo no válido": {
+      "code": "modo_no_valido"
+    },
+    "El umbral va de 0 a 1": {
+      "code": "umbral_0_a_1"
+    },
+    "Número de WhatsApp no vinculado a ninguna empresa": {
+      "code": "whatsapp_numero_sin_empresa"
+    },
+    "Un servicio que requiere aprobación necesita un aprobador": {
+      "code": "catalogo_servicio_sin_aprobador"
+    },
+    "El aprobador no existe o no está activo": {
+      "code": "aprobador_no_valido"
+    },
+    "No hay ningún flujo activo para las peticiones del catálogo: créalo en Aprobaciones o elige uno": {
+      "code": "catalogo_sin_flujo_activo"
+    },
+    "El ticket está pendiente de aprobación": {
+      "code": "ticket_pendiente_aprobacion"
+    },
+    "El ticket no tiene ninguna aprobación pendiente": {
+      "code": "ticket_sin_aprobacion_pendiente"
+    },
+    "Solo el aprobador puede decidir": {
+      "code": "solo_aprobador_decide"
+    },
+    "El flujo de aprobación no existe o no está activo": {
+      "code": "flujo_aprobacion_no_valido"
+    },
+    "El modo de aprobación es single o engine": {
+      "code": "catalogo_modo_aprobacion_no_valido"
+    },
+    "Para programar un cambio hacen falta inicio y fin planificados": {
+      "code": "cambio_sin_fechas_planificadas"
+    },
+    "La versión necesita nombre": {
+      "code": "version_sin_nombre"
+    },
+    "No hay ejecución de rollout para el cambio {}": {
+      "code": "rollout_sin_ejecucion_cambio",
+      "ignora_huecos": true
+    },
+    "Se requiere al menos un aprobador para fast-track de emergencia": {
+      "code": "cambio_emergencia_sin_aprobador"
+    },
+    "Se requiere justificación de negocio para cambios de emergencia": {
+      "code": "cambio_emergencia_sin_justificacion"
+    },
+    "Plan must be approved to advance phases. Status: {}": {
+      "code": "rollout_plan_no_aprobado",
+      "vars": [
+        "estado"
+      ]
+    },
+    "No se puede cancelar un cambio en estado {}: ya se ha ejecutado": {
+      "code": "cambio_no_cancelable",
+      "vars": [
+        "estado"
+      ]
+    },
+    "Un cambio se aprueba votando en el CAB, no editándolo": {
+      "code": "cambio_aprobar_por_cab"
+    },
+    "No hay comité de cambios configurado (Service Desk → ajustes, SD_CAB_GROUP_ID): un cambio normal o de emergencia necesita su aprobación": {
+      "code": "cab_no_configurado"
+    },
+    "Solo se programa un cambio aprobado": {
+      "code": "cambio_solo_aprobado_programable"
+    },
+    "No puedes asignar owner fuera de tu organización": {
+      "code": "responsable_fuera_de_empresa"
+    },
+    "No puedes asignar un owner fuera de tu organización": {
+      "code": "responsable_fuera_de_empresa"
+    },
+    "Ticket relacionado fuera de tu organización": {
+      "code": "ticket_relacionado_fuera_de_empresa"
+    },
+    "Problema relacionado fuera de tu organización": {
+      "code": "problema_relacionado_fuera_de_empresa"
+    },
+    "Solo vota un miembro del CAB": {
+      "code": "cab_solo_miembros"
+    },
+    "Tipo de ticket no válido": {
+      "code": "tipo_ticket_no_valido"
+    },
+    "Un ciclo de vida necesita al menos un estado": {
+      "code": "ciclo_vida_sin_estados"
+    },
+    "Cada estado necesita una clave única": {
+      "code": "ciclo_vida_clave_unica"
+    },
+    "Este tipo de ticket no tiene ciclo de vida propio": {
+      "code": "ticket_sin_ciclo_vida"
+    },
+    "El ciclo de vida no permite ese paso": {
+      "code": "ciclo_vida_paso_no_permitido"
+    },
+    "Cada estado necesita un nombre": {
+      "code": "ciclo_vida_estado_sin_nombre"
+    },
+    "Una transición usa un estado que no existe": {
+      "code": "ciclo_vida_transicion_estado_inexistente"
+    },
+    "Clase de CI desconocida: {}": {
+      "code": "ci_clase_desconocida",
+      "vars": [
+        "clase"
+      ]
+    },
+    "Clave no válida: «{}» (minúsculas, números y _; empieza por letra)": {
+      "code": "clave_no_valida",
+      "vars": [
+        "clave"
+      ]
+    },
+    "Clave repetida: {}": {
+      "code": "clave_repetida",
+      "vars": [
+        "clave"
+      ]
+    },
+    "«{}» ya es un dato común a todas las clases": {
+      "code": "ci_campo_comun",
+      "vars": [
+        "clave"
+      ]
+    },
+    "Clase base no válida": {
+      "code": "ci_clase_base_no_valida"
+    },
+    "La clave coincide con una clase base": {
+      "code": "ci_clave_de_clase_base"
+    },
+    "Ya hay una clase con esa clave": {
+      "code": "ci_clase_ya_existe"
+    },
+    "Un CI no se relaciona consigo mismo": {
+      "code": "ci_consigo_mismo"
+    },
+    "Tipo de relación desconocido: {}": {
+      "code": "tipo_relacion_desconocido",
+      "vars": [
+        "tipo"
+      ]
+    },
+    "No puedes crear CIs para proyectos fuera de tu organización": {
+      "code": "proyecto_fuera_de_empresa"
+    },
+    "No puedes crear problemas para proyectos fuera de tu organización": {
+      "code": "proyecto_fuera_de_empresa"
+    },
+    "No puedes mover CIs fuera de tu organización": {
+      "code": "mover_fuera_de_empresa"
+    },
+    "No puedes mover problemas fuera de tu organización": {
+      "code": "mover_fuera_de_empresa"
+    },
+    "El panel necesita al menos un widget": {
+      "code": "panel_sin_widgets"
+    },
+    "Widgets desconocidos: {}": {
+      "code": "widgets_desconocidos",
+      "vars": [
+        "widgets"
+      ]
+    },
+    "La regla de inactividad necesita las horas": {
+      "code": "escalado_sin_horas"
+    },
+    "Falta la cola de destino": {
+      "code": "escalado_sin_cola"
+    },
+    "Falta a quién avisar": {
+      "code": "escalado_sin_destinatario"
+    },
+    "Falta la prioridad nueva": {
+      "code": "escalado_sin_prioridad"
+    },
+    "Prioridades inválidas": {
+      "code": "prioridad_no_valida"
+    },
+    "Prioridad no válida": {
+      "code": "prioridad_no_valida"
+    },
+    "Cada tarea necesita título y cola": {
+      "code": "tarea_sin_titulo_o_cola"
+    },
+    "La cola de la tarea «{}» no existe": {
+      "code": "tarea_cola_no_existe",
+      "vars": [
+        "tarea"
+      ]
+    },
+    "La persona de la tarea «{}» no existe o no está activa": {
+      "code": "tarea_persona_no_valida",
+      "vars": [
+        "tarea"
+      ]
+    },
+    "La etapa empieza en 1": {
+      "code": "etapa_empieza_en_1"
+    },
+    "Las horas de la tarea «{}» no son válidas": {
+      "code": "tarea_horas_no_validas",
+      "vars": [
+        "tarea"
+      ]
+    },
+    "El ticket no tiene resolución": {
+      "code": "ticket_sin_resolucion"
+    },
+    "Este artículo necesita revisión: envíalo a revisar": {
+      "code": "kb_requiere_revision"
+    },
+    "Solo se envía a revisión un borrador": {
+      "code": "kb_solo_borrador_a_revision"
+    },
+    "El artículo no está en revisión": {
+      "code": "kb_no_en_revision"
+    },
+    "Solo un revisor puede publicar": {
+      "code": "kb_solo_revisor_publica"
+    },
+    "Devolver un artículo pide decir qué cambiar": {
+      "code": "kb_devolver_sin_motivo"
+    },
+    "A workaround is required to promote a problem to Known Error": {
+      "code": "error_conocido_sin_solucion_temporal"
+    },
+    "No se puede vincular un ticket consigo mismo": {
+      "code": "ticket_vincular_consigo_mismo"
+    },
+    "Ya existe un vínculo entre estos tickets": {
+      "code": "ticket_vinculo_ya_existe"
+    },
+    "No se puede fusionar un ticket consigo mismo": {
+      "code": "ticket_fusionar_consigo_mismo"
+    },
+    "Token de monitorización global con varias empresas: configúralo en la empresa que recibe las alertas": {
+      "code": "monitorizacion_token_global_varias_empresas"
+    },
+    "Aviso desconocido": {
+      "code": "aviso_desconocido"
+    },
+    "Idioma sin textos: {}": {
+      "code": "idioma_sin_textos",
+      "vars": [
+        "idioma"
+      ]
+    },
+    "El asunto y el texto no pueden quedar vacíos": {
+      "code": "asunto_y_texto_obligatorios"
+    },
+    "Unknown template '{}'. Built-in options: {}. You may also pass the UUID of a custom template.": {
+      "code": "rca_plantilla_desconocida",
+      "vars": [
+        "plantilla",
+        "opciones"
+      ]
+    },
+    "RCA wizard not started for this problem": {
+      "code": "rca_no_iniciado"
+    },
+    "RCA wizard already completed": {
+      "code": "rca_ya_completado"
+    },
+    "step_num must be between 1 and {}": {
+      "code": "rca_paso_fuera_de_rango",
+      "vars": [
+        "max"
+      ]
+    },
+    "Steps not yet answered: {}. Complete all steps before finishing.": {
+      "code": "rca_pasos_sin_responder",
+      "vars": [
+        "pasos"
+      ]
+    },
+    "Una regla fija al menos un objetivo": {
+      "code": "sla_regla_sin_objetivo"
+    },
+    "Las horas tienen que ser mayores que cero": {
+      "code": "horas_mayor_que_cero"
+    },
+    "target_type inválido": {
+      "code": "sla_tipo_destino_no_valido"
+    },
+    "SLA ya está pausado": {
+      "code": "sla_ya_pausado"
+    },
+    "SLA no está pausado": {
+      "code": "sla_no_pausado"
+    },
+    "Indica la organización: ?org=<slug>": {
+      "code": "pagina_estado_sin_empresa"
+    },
+    "La CMDB no está disponible para tu rol": {
+      "code": "cmdb_no_disponible_rol"
+    },
+    "El ticket no tiene grupo asignado": {
+      "code": "ticket_sin_grupo"
+    },
+    "El ticket no tiene grupo asignado. Asigna un grupo primero.": {
+      "code": "ticket_sin_grupo"
+    },
+    "El grupo no tiene agentes": {
+      "code": "grupo_sin_agentes"
+    },
+    "No hay agentes disponibles para este ticket": {
+      "code": "sin_agentes_disponibles"
+    },
+    "El contrato no existe o no tiene plazo del proveedor (UC)": {
+      "code": "contrato_sin_uc"
+    },
+    "Blueprint sin versiones para clonar": {
+      "code": "blueprint_sin_versiones"
+    },
+    "run no está en waiting (estado actual: {})": {
+      "code": "ejecucion_no_en_espera",
+      "vars": [
+        "estado"
+      ]
+    },
+    "blueprint sin versión publicada — publica una versión antes de ejecutar": {
+      "code": "blueprint_sin_publicar"
+    },
+    "blueprint sin nodo 'start'": {
+      "code": "blueprint_sin_inicio"
+    },
+    "invalid value for {}: {} (expected HH:MM, 00:00-23:59)": {
+      "code": "ajuste_hora_no_valida",
+      "vars": [
+        "clave",
+        "valor"
+      ]
+    },
+    "invalid value for {}: {} (expected HH:MM)": {
+      "code": "ajuste_hora_no_valida",
+      "vars": [
+        "clave",
+        "valor"
+      ]
+    },
+    "unknown runtime-flag group: {}": {
+      "code": "ajuste_grupo_desconocido",
+      "vars": [
+        "grupo"
+      ]
+    },
+    "key {} is not part of group {}": {
+      "code": "ajuste_clave_fuera_de_grupo",
+      "vars": [
+        "clave",
+        "grupo"
+      ]
+    },
+    "invalid value for {} (expected {}): {}": {
+      "code": "ajuste_valor_no_valido",
+      "vars": [
+        "clave",
+        "esperado"
+      ],
+      "ignora_huecos": true
+    },
+    "Subida de archivos comprimidos bloqueada por seguridad (riesgo de fuga de secretos y payloads ocultos).": {
+      "code": "subida_comprimido_bloqueada"
+    },
+    "Contenedor ZIP detectado. Este tipo de archivo está bloqueado por seguridad.": {
+      "code": "subida_comprimido_bloqueada"
+    },
+    "Tipo de archivo no permitido (extensión: {}). Formatos aceptados aquí: {}.": {
+      "code": "subida_extension_no_permitida",
+      "vars": [
+        "extension",
+        "aceptados"
+      ]
+    },
+    "Tipo de archivo detectado no permitido: {}": {
+      "code": "subida_tipo_no_permitido",
+      "vars": [
+        "tipo"
+      ]
+    },
+    "Tipo de contenido no permitido: {}.": {
+      "code": "subida_tipo_no_permitido",
+      "vars": [
+        "tipo"
+      ]
+    },
+    "El tipo real del archivo ({}) no coincide con el Content-Type enviado ({}).": {
+      "code": "subida_tipo_no_coincide",
+      "vars": [
+        "real",
+        "declarado"
+      ]
+    },
+    "Archivo sin extensión y de tipo no reconocido: añade la extensión.": {
+      "code": "subida_sin_extension"
+    },
+    "El contenido del archivo parece ser un ejecutable o script. Subida rechazada por seguridad.": {
+      "code": "subida_ejecutable"
+    }
+  }
+}

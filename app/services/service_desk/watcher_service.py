@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.service_desk import Ticket, TicketWatcher
 import logging
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ def watchers_para(db: Session, viewer, ticket_id: str) -> list[dict]:
     from app.services import politica_de_visibilidad
     from app.services.service_desk.scoping import scope_ticket_query
     if not scope_ticket_query(db.query(Ticket.id), db, viewer).filter(Ticket.id == ticket_id).first():
-        raise ErrorDeDominio(404, "Ticket no encontrado")
+        raise error(404, "no_encontrado", detail="Ticket no encontrado", que="ticket")
     filas = [serialize_ticket_watcher(w) for w in list_ticket_watchers(db, ticket_id)]
     if not politica_de_visibilidad.ve_contacto_ajeno(viewer):
         for fila in filas:

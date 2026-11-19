@@ -44,6 +44,8 @@ export { leccionesApi } from './lecciones'
 export { almApi } from './alm'  // licencias y hardware, fases 1 y 3
 export type { Asignacion as AsignacionUniversal, EventoAlm, Acta as ActaAlm, ResumenDeCostes, Renovacion as RenovacionAlm, FacturaDeProveedor } from './alm'
 export { gastosApi } from './gastos'
+export { catalogosApi } from './catalogos'  // tipos de proyecto, sectores, categorías de gasto (19-11-2026)
+export type { NombreDeCatalogo, ValorDeCatalogo, ValorDeCatalogoIn } from './catalogos'
 export { presupuestosApi } from './presupuestos'
 export { politicasApi } from './politicas'
 export type { ParametrosDeSimulacion } from './politicas'

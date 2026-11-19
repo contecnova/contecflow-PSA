@@ -33,6 +33,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import useMediaQuery from '../hooks/useMediaQuery'
 import type { CSSProperties } from 'react'
 import { formateadorDeFecha } from '../utils/helpers'
+import { useTono } from '../hooks/useOrgSettings'
 import { POLL_DEFAULT_MS } from '../constants/timings'
 import './NPSPage.css'
 import { ETIQUETA_TEXTO_1, TOOLTIP_SUPERFICIE_2_BORDE_5 } from '../constants/estilosGrafico'
@@ -51,10 +52,15 @@ type NpsSummary = ResumenNps
 type HealthSnapshot = FotoDeSalud
 
 
-const HEALTH_COLOR = (score: number) => score >= 75 ? 'var(--success)' : score >= 50 ? 'var(--orange)' : 'var(--danger)'
+/** 19-11-2026: salud de cliente con HEALTH_THRESHOLD_GOOD/AT_RISK de la empresa (antes 75/50 aquí). */
+const COLOR_DE_TONO = { success: 'var(--success)', warning: 'var(--orange)', danger: 'var(--danger)' } as const
+const useColorDeSalud = () => {
+  const tono = useTono()
+  return (score: number) => COLOR_DE_TONO[tono('salud_cliente', score) ?? 'danger']
+}
 
 function HealthBadge({ score }: { score: number }) {
-  const c = HEALTH_COLOR(score)
+  const c = useColorDeSalud()(score)
   return (
     <span className="nps-salud" style={{ '--nps-color': c } as CSSProperties}>{Math.round(score)}</span>
   )
@@ -115,8 +121,10 @@ function HealthChart({ data }: { data?: HealthSnapshot[] }) {
 
 function NPSGauge({ nps }: { nps?: number | null }) {
   const t = useAppT()
+  const tono = useTono()
   if (nps === null || nps === undefined) return <div className="nps-gauge nps-gauge--vacio">{t('nps.no_data')}</div>
-  const color = nps >= 50 ? 'var(--success)' : nps >= 0 ? 'var(--orange)' : 'var(--danger)'
+  // 19-11-2026: UMBRAL_NPS_* de la empresa (antes 50/0 aquí).
+  const color = COLOR_DE_TONO[tono('nps', nps) ?? 'danger']
   return (
     <div className="nps-gauge">
       <div className="nps-gauge__valor" style={{ '--nps-color': color } as CSSProperties}>{nps > 0 ? `+${nps}` : nps}</div>
@@ -127,6 +135,7 @@ function NPSGauge({ nps }: { nps?: number | null }) {
 
 export default function NPSPage() {
   const t = useAppT()
+  const colorDeSalud = useColorDeSalud()
   const narrow = useMediaQuery('(max-width: 900px)')
   const [clientId,    setClientId]    = useState<string | number | null>(null)
   // Periodo libre (16-11-2026): antes 30/60/90/180/365 días propios y tendencia mensual fija.
@@ -247,7 +256,7 @@ export default function NPSPage() {
                 </div>
                 {latestHealth !== undefined && (
                   <div className="nps-cliente__salud">
-                    <div className="nps-cliente__salud-valor" style={{ '--nps-color': HEALTH_COLOR(latestHealth) } as CSSProperties}>{Math.round(latestHealth)}</div>
+                    <div className="nps-cliente__salud-valor" style={{ '--nps-color': colorDeSalud(latestHealth) } as CSSProperties}>{Math.round(latestHealth)}</div>
                     <div className="nps-cliente__salud-etiqueta">{t('nps.current_health')}</div>
                   </div>
                 )}

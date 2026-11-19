@@ -34,6 +34,7 @@ from app.services.collaboration import audit_log
 from app.services.collaboration._permissions import _org, assert_conversation_access
 from app.services.traffic_control_service import consume_quota
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 #: Ventana de los topes de frecuencia, en segundos. Un minuto: es la unidad en
 #: la que estan expresados los dos limites.
@@ -62,11 +63,8 @@ def _exigir_cuota(db: Session, org: str, user_id: str, *, ambito: str,
         limit=limite, window_seconds=VENTANA_DE_CUOTA_SEGUNDOS,
     )
     if not cuota["allowed"]:
-        raise ErrorDeDominio(
-            status_code=429,
-            detail=f"Call {accion} rate limit exceeded. "
-                   f"Retry in {cuota['retry_after']}s",
-        )
+        raise error(429, "limite_llamadas", detail=f"Call {accion} rate limit exceeded. "
+                   f"Retry in {cuota['retry_after']}s", llamada=accion, segundos=cuota['retry_after'])
 
 
 def _llamada_de_la_org(db: Session, call_id: str, org: str) -> CollaborationCall:
@@ -79,7 +77,7 @@ def _llamada_de_la_org(db: Session, call_id: str, org: str) -> CollaborationCall
         .first()
     )
     if not call:
-        raise ErrorDeDominio(404, "Llamada no encontrada")
+        raise error(404, "no_encontrado", detail="Llamada no encontrada", que="llamada")
     return call
 
 

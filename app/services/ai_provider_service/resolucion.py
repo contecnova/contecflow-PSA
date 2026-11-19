@@ -50,8 +50,9 @@ class ProveedorDeEntorno:
         self.api_key = encrypt_value(api_key) if api_key else None
         self.api_base_url = base_url or None
         self.default_model = modelo or None
-        self.max_tokens = 2000
-        self.temperature = 0.7
+        # 19-11-2026: ajustes, no literales (proveedor del .env sin fila en la base).
+        self.max_tokens = settings.AI_PROVIDER_DEFAULT_MAX_TOKENS
+        self.temperature = settings.AI_DEFAULT_TEMPERATURE
         self.total_requests = 0
         self.total_tokens_in = 0
         self.total_tokens_out = 0

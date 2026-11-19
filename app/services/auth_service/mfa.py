@@ -13,7 +13,7 @@ from app.core.security import (
 from app.db.session import is_postgres
 from app.models.mfa import MFAChallenge
 from app.models.user import User
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 
 # ── SOC helper ────────────────────────────────────────────────────────────────
@@ -78,7 +78,7 @@ def exigir_reautenticacion(db, user, password: Optional[str] = None, code: Optio
                         user.mfa_last_timestep = paso
                         return
                     break
-    raise ErrorDeDominio(401, "Confirma tu identidad: contraseña actual o código 2FA")
+    raise error(401, "confirma_identidad")
 
 
 def guardar_secreto_de_mfa(db, user, secreto_cifrado: str) -> None:
@@ -190,12 +190,12 @@ def issue_mfa_challenge(db: Session, user: User, org: Optional[str] = None) -> s
 def read_mfa_challenge(db: Session, challenge_token: str) -> tuple[dict, MFAChallenge]:
     challenge_data = decode_token(challenge_token)
     if not challenge_data or challenge_data.get("type") != "mfa_challenge":
-        raise ErrorDeDominio(401, "mfa_challenge_token inválido o expirado")
+        raise error(401, "token_no_valido", detail="mfa_challenge_token inválido o expirado")
 
     challenge_jti = challenge_data.get("jti")
     user_id = challenge_data.get("sub")
     if not challenge_jti or not user_id:
-        raise ErrorDeDominio(401, "mfa_challenge_token inválido")
+        raise error(401, "token_no_valido", detail="mfa_challenge_token inválido")
 
     row = mfa_challenge_query(db).filter(
         MFAChallenge.user_id == user_id,
@@ -205,9 +205,9 @@ def read_mfa_challenge(db: Session, challenge_token: str) -> tuple[dict, MFAChal
     if expires_at and expires_at.tzinfo is None:
         expires_at = expires_at.replace(tzinfo=timezone.utc)
     if not row or not expires_at or expires_at <= datetime.now(timezone.utc):
-        raise ErrorDeDominio(401, "mfa_challenge_token inválido o expirado")
+        raise error(401, "token_no_valido", detail="mfa_challenge_token inválido o expirado")
     if row.consumed_at is not None:
-        raise ErrorDeDominio(401, "mfa_challenge_token ya utilizado")
+        raise error(401, "mfa_challenge_usado", detail="mfa_challenge_token ya utilizado")
     return challenge_data, row
 
 

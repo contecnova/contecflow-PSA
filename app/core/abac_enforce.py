@@ -45,6 +45,7 @@ from sqlalchemy.orm import Session
 
 from app.models.user import User
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger("contecflow.abac.enforce")
 
@@ -83,7 +84,7 @@ def _denegar(user: User, resource_type: str, resource_id, action: str,
         ).inc()
     except Exception:
         logger.debug("enforce_abac: fallo best-effort ignorado", exc_info=True)
-    raise ErrorDeDominio(status_code=403, detail="Access denied")
+    raise error(403, "sin_permiso", detail="Access denied")
 
 
 def evaluar(db: Session, user: User, org_id, resource_type: str, resource_id, action: str,
@@ -148,7 +149,4 @@ def enforce_abac(
             "ABAC evaluation error for %s/%s — denying by default: %s",
             resource_type, resource_id, exc, exc_info=True,
         )
-        raise ErrorDeDominio(
-            status_code=403,
-            detail="Access temporarily unavailable — please try again or contact support",
-        )
+        raise error(403, "servicio_no_disponible_temporal", detail="Access temporarily unavailable — please try again or contact support")

@@ -1,0 +1,3 @@
+/* Configuración → Catálogos (19-11-2026). El color de cada valor es un dato:
+   llega como propiedad personalizada (--cat-color) desde el componente. */
+.cat-punto { color: var(--cat-color, var(--text-3)); }

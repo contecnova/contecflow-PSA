@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings as _env_settings
 from app.core.encryption import decrypt_value, encrypt_value
 from app.models.settings import IntegrationCredential
+from app.core.codigos_de_error import ErrorConCodigo
 
 logger = logging.getLogger("contecflow.integrations")
 
@@ -319,7 +320,7 @@ def get_credential(db: Session, provider: str, key: str, org_id: Optional[str] =
     """Return the effective value (DB row → env fallback). Cached per (provider,key,org)."""
     field = _field_spec(provider, key)
     if field is None:
-        raise ValueError(f"unknown integration field: {provider}.{key}")
+        raise ErrorConCodigo("integracion_campo_desconocido", detail=f"unknown integration field: {provider}.{key}", proveedor=provider, campo=key)
 
     ck = (provider, key, org_id)
     now = time.time()
@@ -372,7 +373,7 @@ def get_provider_config(db: Session, provider: str, org_id: Optional[str] = None
     """Bulk-load every key of a provider as ``{key: value}``."""
     spec = PROVIDER_REGISTRY.get(provider)
     if spec is None:
-        raise ValueError(f"unknown provider: {provider}")
+        raise ErrorConCodigo("proveedor_no_soportado", detail=f"unknown provider: {provider}", proveedor=provider)
     return {f[0]: get_credential(db, provider, f[0], org_id) for f in spec["fields"]}
 
 
@@ -381,7 +382,7 @@ def get_provider_config(db: Session, provider: str, org_id: Optional[str] = None
 def describe_provider(db: Session, provider: str, org_id: Optional[str] = None) -> dict[str, Any]:
     spec = PROVIDER_REGISTRY.get(provider)
     if spec is None:
-        raise ValueError(f"unknown provider: {provider}")
+        raise ErrorConCodigo("proveedor_no_soportado", detail=f"unknown provider: {provider}", proveedor=provider)
 
     items: list[dict[str, Any]] = []
     for key, type_, is_secret, label, env_name in spec["fields"]:
@@ -420,7 +421,7 @@ def _upsert_credential(
 ) -> IntegrationCredential:
     field = _field_spec(provider, key)
     if field is None:
-        raise ValueError(f"unknown integration field: {provider}.{key}")
+        raise ErrorConCodigo("integracion_campo_desconocido", detail=f"unknown integration field: {provider}.{key}", proveedor=provider, campo=key)
     _, type_, is_secret, _, _ = field
 
     # Validate type by attempting a coercion (raises ValueError on bad input).
@@ -428,7 +429,7 @@ def _upsert_credential(
         try:
             _coerce(value, type_)
         except (TypeError, ValueError) as exc:
-            raise ValueError(f"invalid value for {provider}.{key} (expected {type_}): {exc}") from exc
+            raise ErrorConCodigo("integracion_valor_no_valido", detail=f"invalid value for {provider}.{key} (expected {type_}): {exc}", proveedor=provider, campo=key, esperado=type_) from exc
 
     row = (
         db.query(IntegrationCredential)
@@ -492,7 +493,7 @@ def set_credential(
 ) -> dict[str, Any]:
     field = _field_spec(provider, key)
     if field is None:
-        raise ValueError(f"unknown integration field: {provider}.{key}")
+        raise ErrorConCodigo("integracion_campo_desconocido", detail=f"unknown integration field: {provider}.{key}", proveedor=provider, campo=key)
     _, type_, is_secret, _, _ = field
 
     # Capture old value pre-write (raw — encrypted form for secrets).

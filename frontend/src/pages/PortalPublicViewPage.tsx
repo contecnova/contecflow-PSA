@@ -2,18 +2,17 @@ import type { CSSProperties } from 'react'
 import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useParams } from 'react-router-dom'
-import axios from 'axios'
 import { LangContext, TextosDeInterfazDelPortal, useLang, useEtiquetaEstado } from './portal-client/portalClientContext'
 import { PORTAL_LANGUAGES } from '../i18n/portalTranslations'
 import { fmtDate, fijarIdiomaDeFormato } from '../utils/helpers'
 import { EmptyState } from '../components/ui'
 import { Flag, Package } from 'lucide-react'
-import { API_BASE_URL } from '../services/api/urls'
+import { apiPublica } from '../services/api/clienteBase'
 import './PortalPublicViewPage.css'
 
 // Instancia propia y no el cliente de la app: vista pública por enlace, sin
 // cookies de sesión ni refresco.
-const API = axios.create({ baseURL: API_BASE_URL, timeout: 30000 })
+const API = apiPublica  // base y límite comunes (19-11-2026)
 
 // TODO type: backend portal/view response shape — currently consumed as unknown
 interface PortalPublicView {

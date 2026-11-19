@@ -6,6 +6,7 @@ from app.services.numbering import next_numbered_code
 from app.services.risk_scoring import risk_score
 from app.services.risk_scoring import risk_level
 import logging
+from app.core.codigos_de_error import ErrorConCodigo
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +94,7 @@ def update_risk(db: Session, risk: Risk, updates: dict) -> Risk:
             if new_status == old_status:
                 continue
             if new_status not in allowed_status_transitions.get(old_status, []):
-                raise ValueError(f"Transición de estado no permitida: {old_status} → {new_status}")
+                raise ErrorConCodigo("transicion_no_permitida", detail=f"Transición de estado no permitida: {old_status} → {new_status}", desde=old_status, hasta=new_status)
         setattr(risk, k, v)
     risk.risk_score = risk_score(risk.probability, risk.impact)
     db.commit()

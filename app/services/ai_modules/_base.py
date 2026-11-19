@@ -42,7 +42,7 @@ def _default_model(db=None, org_id: Optional[str] = None) -> str:
 
 
 
-def call_ai_unified(db, messages, system=None, module="v16", user_id=None, max_tokens=1000):
+def call_ai_unified(db, messages, system=None, module="v16", user_id=None, max_tokens=None):
     """La puerta común de la IA (`call_ai`): proveedor, gobernanza y tope de gasto.
 
     Revisión 2026-11: si `call_ai` no tenía proveedor o fallaba, esto llamaba a
@@ -51,6 +51,8 @@ def call_ai_unified(db, messages, system=None, module="v16", user_id=None, max_t
     devuelve un aviso, el aviso sube como error y cada módulo lo trata.
     """
     from app.services.ai_provider_service import es_aviso_de_ia
+    if max_tokens is None:  # 19-11-2026: antes 1000 fijo
+        max_tokens = settings.AI_LONG_ANSWER_MAX_TOKENS
     texto = call_ai(db, messages, system=system, module=module, user_id=user_id, max_tokens=max_tokens)
     if es_aviso_de_ia(texto):
         raise RuntimeError(texto)
@@ -125,7 +127,7 @@ def log_action(db, user_id, module, action_type, input_s=None, output_s=None,
     ))
 
 
-def burnout_score(weekly_hours: list) -> float:
+def burnout_score(weekly_hours: list, sobrecarga: float = 42.0) -> float:
     """
     Multi-factor burnout probability (0–0.99):
       - Weighted average (most recent 2 weeks weighted 2×)
@@ -155,7 +157,8 @@ def burnout_score(weekly_hours: list) -> float:
     cv  = std / max(mean, 1)
     cv_factor = min(cv * 0.05, 0.08)
 
-    consecutive = sum(1 for h in weekly_hours if h > 42)
+    # 19-11-2026: `sobrecarga` = UMBRAL_SOBRECARGA_HORAS_SEMANA de la empresa (por defecto 42).
+    consecutive = sum(1 for h in weekly_hours if h > sobrecarga)
     consec_factor = consecutive * 0.08
 
     return min(base + trend_factor + cv_factor + consec_factor, 0.99)

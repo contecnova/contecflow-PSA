@@ -9,6 +9,8 @@ from app.models.performance import ReviewCycle, ReviewCycleStatus, ReviewQuestio
 from app.core.errores import ErrorDeDominio
 
 from app.services.performance_service.guardas import pregunta_propia
+from app.core.codigos_de_error import error
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 # Plantilla por defecto que se siembra al crear un ciclo (clonable después).
@@ -123,7 +125,7 @@ def clone_questions(db: Session, *, source_cycle_id: str, dest_cycle: ReviewCycl
 
 def add_question(db: Session, cycle: ReviewCycle, data: dict) -> ReviewQuestion:
     if cycle.status != ReviewCycleStatus.draft:
-        raise ValueError("Las preguntas solo se pueden modificar en ciclos en borrador")
+        raise ErrorConCodigo("preguntas_solo_borrador", detail="Las preguntas solo se pueden modificar en ciclos en borrador")
     # Asignamos un order incremental si no llega
     if data.get("order") is None:
         max_order = max((q.order for q in cycle.questions), default=-1)
@@ -139,7 +141,7 @@ def add_question(db: Session, cycle: ReviewCycle, data: dict) -> ReviewQuestion:
 def update_question(db: Session, question: ReviewQuestion, updates: dict) -> ReviewQuestion:
     cycle = question.cycle
     if cycle.status != ReviewCycleStatus.draft:
-        raise ValueError("Las preguntas solo se pueden modificar en ciclos en borrador")
+        raise ErrorConCodigo("preguntas_solo_borrador", detail="Las preguntas solo se pueden modificar en ciclos en borrador")
     for k, v in updates.items():
         setattr(question, k, v)
     db.flush()
@@ -149,7 +151,7 @@ def update_question(db: Session, question: ReviewQuestion, updates: dict) -> Rev
 def delete_question(db: Session, question: ReviewQuestion) -> None:
     cycle = question.cycle
     if cycle.status != ReviewCycleStatus.draft:
-        raise ValueError("Las preguntas solo se pueden modificar en ciclos en borrador")
+        raise ErrorConCodigo("preguntas_solo_borrador", detail="Las preguntas solo se pueden modificar en ciclos en borrador")
     db.delete(question)
     db.flush()
 
@@ -159,11 +161,12 @@ def delete_question(db: Session, question: ReviewQuestion) -> None:
 def anadir_pregunta(db: Session, cycle_id: str, data: dict) -> ReviewQuestion:
     c = get_cycle(db, cycle_id)
     if not c:
-        raise ErrorDeDominio(404, "Ciclo no encontrado")
+        raise error(404, "no_encontrado", detail="Ciclo no encontrado", que="ciclo")
     try:
         q = add_question(db, c, data)
     except ValueError as e:
-        raise ErrorDeDominio(400, str(e))
+        from app.core.codigos_de_error import desde_valor
+        raise desde_valor(400, e)
     db.commit()
     db.refresh(q)
     return q
@@ -174,7 +177,8 @@ def actualizar_pregunta(db: Session, user, question_id: str, updates: dict) -> R
     try:
         q = update_question(db, q, updates)
     except ValueError as e:
-        raise ErrorDeDominio(400, str(e))
+        from app.core.codigos_de_error import desde_valor
+        raise desde_valor(400, e)
     db.commit()
     db.refresh(q)
     return q
@@ -185,16 +189,17 @@ def borrar_pregunta(db: Session, user, question_id: str) -> None:
     try:
         delete_question(db, q)
     except ValueError as e:
-        raise ErrorDeDominio(400, str(e))
+        from app.core.codigos_de_error import desde_valor
+        raise desde_valor(400, e)
     db.commit()
 
 
 def sembrar_preguntas_por_defecto(db: Session, cycle_id: str) -> None:
     c = get_cycle(db, cycle_id)
     if not c:
-        raise ErrorDeDominio(404, "Ciclo no encontrado")
+        raise error(404, "no_encontrado", detail="Ciclo no encontrado", que="ciclo")
     if c.status != ReviewCycleStatus.draft:
-        raise ErrorDeDominio(400, "Solo se pueden añadir preguntas a ciclos en borrador")
+        raise error(400, "preguntas_solo_borrador", detail="Solo se pueden añadir preguntas a ciclos en borrador")
     seed_default_questions_for_cycle(db, c)
     db.commit()
 
@@ -202,12 +207,12 @@ def sembrar_preguntas_por_defecto(db: Session, cycle_id: str) -> None:
 def clonar_preguntas(db: Session, cycle_id: str, source_cycle_id: str) -> int:
     dest = get_cycle(db, cycle_id)
     if not dest:
-        raise ErrorDeDominio(404, "Ciclo destino no encontrado")
+        raise error(404, "no_encontrado", detail="Ciclo destino no encontrado", que="ciclo_destino")
     if dest.status != ReviewCycleStatus.draft:
-        raise ErrorDeDominio(400, "Solo se pueden añadir preguntas a ciclos en borrador")
+        raise error(400, "preguntas_solo_borrador", detail="Solo se pueden añadir preguntas a ciclos en borrador")
     src = get_cycle(db, source_cycle_id)
     if not src:
-        raise ErrorDeDominio(404, "Ciclo origen no encontrado")
+        raise error(404, "no_encontrado", detail="Ciclo origen no encontrado", que="ciclo_origen")
     n = clone_questions(db, source_cycle_id=source_cycle_id, dest_cycle=dest)
     db.commit()
     return n

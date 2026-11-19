@@ -16,6 +16,7 @@ from app.models.task import Task
 from app.models.pipeline import Risk
 from app.models.cab import ProjectRiskScore
 from app.core import timeutil
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 # ─── Project risk scoring ─────────────────────────────────────────────────────
@@ -235,7 +236,7 @@ def get_risk_scores(refresh: bool, db: Session) -> dict:
 def get_project_risk_score(project_id: str, db: Session) -> dict:
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
-        raise ValueError("Proyecto no encontrado")
+        raise ErrorConCodigo("no_encontrado", detail="Proyecto no encontrado", que="proyecto")
     score_data = compute_risk_score(db, project)
     aj = _ajustes_de_riesgo(db, project.organization_id)
     previas = db.query(ProjectRiskScore).filter(

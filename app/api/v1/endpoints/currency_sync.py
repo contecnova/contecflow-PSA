@@ -1,9 +1,11 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_db, require_admin
 from app.core.responses import APIResponse
 from app.models.user import User
+from app.core.codigos_de_error import error_http
 
 router = APIRouter(tags=["Currency"])
 
@@ -24,7 +26,8 @@ def sync_ecb_exchange_rates(
     if result is EN_COLA:
         return respuesta_en_cola()
     if not result.get("ok"):
-        raise HTTPException(status_code=502, detail=result.get("error", "ECB fetch failed"))
+        logging.getLogger(__name__).warning("Sync ECB: %s", result.get("error"))
+        raise error_http(502, "servicio_externo_fallo", servicio="ECB")
     return APIResponse.ok(data=result)
 
 
@@ -37,14 +40,12 @@ def sync_openexchangerates(
     from app.services.integration_credentials_service import get_credential
     app_id = get_credential(db, "open_exchange_rates", "app_id", org_id=getattr(current_user, "organization_id", None))
     if not app_id:
-        raise HTTPException(
-            status_code=503,
-            detail="OPEN_EXCHANGE_RATES_APP_ID no configurado. Edita en Settings → Sistema → Credenciales → OpenExchangeRates, o defínelo en .env.",
-        )
+        raise error_http(503, "currency_sin_app_id", detail="OPEN_EXCHANGE_RATES_APP_ID no configurado. Edita en Settings → Sistema → Credenciales → OpenExchangeRates, o defínelo en .env.")
 
     from app.services.exchange_rate_service import sync_openexchangerates as _sync
 
     result = _sync(db, app_id=app_id, base=base.upper())
     if not result.get("ok"):
-        raise HTTPException(status_code=502, detail=result.get("error", "Sync failed"))
+        logging.getLogger(__name__).warning("Sync OpenExchangeRates: %s", result.get("error"))
+        raise error_http(502, "servicio_externo_fallo", servicio="OpenExchangeRates")
     return APIResponse.ok(data=result)

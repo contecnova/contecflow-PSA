@@ -24,6 +24,7 @@ from app.core.encryption import decrypt_value, encrypt_value
 from app.models.ai_providers import AIProvider
 from app.models.cab import IntegrationConfig
 from app.models.enterprise import SSOConfig, Webhook
+from app.core.codigos_de_error import ErrorConCodigo
 
 logger = logging.getLogger("contecflow.key_management")
 
@@ -99,13 +100,13 @@ def _resolve_material(ref: str) -> str:
     if ref.startswith("enc:"):
         plaintext = decrypt_value(ref.split(":", 1)[1])
         if plaintext is None:
-            raise ValueError("Failed to decrypt enc: JWT key material")
+            raise ErrorConCodigo("error_interno", detail="Failed to decrypt enc: JWT key material")
         return plaintext
     if ref.startswith("plain:"):
         # Legacy plaintext keys (pre-encryption). Still resolvable for backward
         # compatibility; migrated to enc: by _upgrade_plaintext_keys on load.
         return ref.split(":", 1)[1]
-    raise ValueError("Invalid key material reference format")
+    raise ErrorConCodigo("error_interno", detail="Invalid key material reference format")
 
 
 def _get_setting(db, key: str) -> Optional[AppSetting]:

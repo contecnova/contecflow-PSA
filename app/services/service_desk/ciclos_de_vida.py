@@ -19,10 +19,10 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from app.core.errores import ErrorDeDominio
 from app.models.service_desk import (
     TicketLifecycle, TicketLifecycleState, TicketLifecycleTransition, TicketStatus,
 )
+from app.core.codigos_de_error import error
 
 ESTADOS_BASE = tuple(s.value for s in TicketStatus)
 TIPOS = ("incident", "service_request", "change", "problem", "question")
@@ -65,15 +65,15 @@ def resolver_estado(db: Session, ticket, estado_propio: Optional[str],
     ciclo = ciclo_del_tipo(db, ticket.organization_id, ticket.ticket_type)
     if ciclo is None:
         if estado_propio:
-            raise ErrorDeDominio(422, "Este tipo de ticket no tiene ciclo de vida propio")
+            raise error(422, "ticket_sin_ciclo_vida")
         return None, estado_base
     estados = _estados(db, ciclo)
     if estado_propio:
         destino = next((e for e in estados if e.key == estado_propio), None)
         if destino is None:
-            raise ErrorDeDominio(422, f"Estado desconocido: {estado_propio}")
+            raise error(422, "estado_no_valido_valor", detail=f"Estado desconocido: {estado_propio}", estado=estado_propio)
         if not _permitida(db, ciclo, ticket.lifecycle_state, destino.key):
-            raise ErrorDeDominio(409, "El ciclo de vida no permite ese paso")
+            raise error(409, "ciclo_vida_paso_no_permitido")
         return destino.key, destino.base_status
     if estado_base:
         destino = next((e for e in estados if e.base_status == estado_base), None)
@@ -127,24 +127,24 @@ def guardar(db: Session, org_id, datos: dict) -> dict:
     """Crea o sustituye el ciclo de vida de un tipo de ticket (estados y transiciones)."""
     tipo = datos.get("ticket_type")
     if tipo not in TIPOS:
-        raise ErrorDeDominio(422, "Tipo de ticket no válido")
+        raise error(422, "tipo_ticket_no_valido")
     estados = datos.get("states") or []
     if not estados:
-        raise ErrorDeDominio(422, "Un ciclo de vida necesita al menos un estado")
+        raise error(422, "ciclo_vida_sin_estados")
     claves = [str(e.get("key") or "").strip() for e in estados]
     if any(not k for k in claves) or len(set(claves)) != len(claves):
-        raise ErrorDeDominio(422, "Cada estado necesita una clave única")
+        raise error(422, "ciclo_vida_clave_unica")
     for e in estados:
         if e.get("base_status") not in ESTADOS_BASE:
-            raise ErrorDeDominio(422, f"Estado base no válido: {e.get('base_status')}")
+            raise error(422, "estado_no_valido_valor", detail=f"Estado base no válido: {e.get('base_status')}", estado=e.get('base_status'))
         if not str(e.get("label") or "").strip():
-            raise ErrorDeDominio(422, "Cada estado necesita un nombre")
+            raise error(422, "ciclo_vida_estado_sin_nombre")
     # Que ningun estado base quede sin estado propio en el que caer seria un
     # ciclo incompleto: el portal, el correo o un flujo pueden poner cualquiera.
     transiciones = datos.get("transitions") or []
     for t in transiciones:
         if t.get("from_key") not in claves or t.get("to_key") not in claves:
-            raise ErrorDeDominio(422, "Una transición usa un estado que no existe")
+            raise error(422, "ciclo_vida_transicion_estado_inexistente")
 
     ciclo = db.query(TicketLifecycle).filter(TicketLifecycle.organization_id == org_id,
                                              TicketLifecycle.ticket_type == tipo).first()
@@ -175,6 +175,6 @@ def borrar(db: Session, org_id, ciclo_id: str) -> None:
     ciclo = db.query(TicketLifecycle).filter(TicketLifecycle.id == ciclo_id,
                                              TicketLifecycle.organization_id == org_id).first()
     if ciclo is None:
-        raise ErrorDeDominio(404, "Ciclo de vida no encontrado")
+        raise error(404, "no_encontrado", detail="Ciclo de vida no encontrado", que="ciclo_de_vida")
     db.delete(ciclo)
     db.commit()

@@ -197,7 +197,7 @@
   position: fixed;
   right: 14px;
   bottom: 16px;
-  z-index: 115;
+  z-index: calc(var(--z-mobile-nav) + 15);
   border: 1px solid var(--surface-4);
   background: var(--surface-2);
   color: var(--text-1);
@@ -227,7 +227,7 @@
 .glchpa-box-10 {
   position: fixed;
   inset: 0;
-  z-index: 114;
+  z-index: calc(var(--z-mobile-nav) + 14);
 }
 .glchpa-box-11 {
   flex: 1;
@@ -415,7 +415,7 @@
   width: 460px;
   max-width: calc(100vw - 24px);
   height: min(78vh, 780px);
-  z-index: 115;
+  z-index: calc(var(--z-mobile-nav) + 15);
   background: var(--surface-1);
   border: 1px solid var(--surface-4);
   border-radius: 12px;

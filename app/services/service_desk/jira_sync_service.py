@@ -32,7 +32,7 @@ from app.models.jira_integration import (
 )
 from app.models.service_desk import Ticket, TicketComment, TicketPriority, TicketStatus
 from app.core.metrics import track_external_call
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error as error_con_codigo
 
 logger = logging.getLogger(__name__)
 
@@ -233,7 +233,8 @@ def empujar_ticket_confirmado(db: Session, config: JiraConfig, ticket: Ticket) -
         return sync_map
     except Exception as exc:
         db.rollback()
-        raise ErrorDeDominio(502, f"Jira push failed: {exc}") from exc
+        logger.warning("Jira push failed: %s", exc)
+        raise error_con_codigo(502, "servicio_externo_fallo", servicio="Jira") from exc
 
 
 def push_comment_to_jira(
@@ -461,7 +462,7 @@ def configuracion_propia(db: Session, user, config_id: str) -> _JiraConfig:
         .first()
     )
     if not fila:
-        raise ErrorDeDominio(404, "Jira config not found")
+        raise error_con_codigo(404, "no_encontrado", detail="Jira config not found", que="configuracion_jira")
     return fila
 
 
@@ -481,7 +482,7 @@ def configuracion_activa_propia(db: Session, user, config_id: str) -> _JiraConfi
         .first()
     )
     if not fila:
-        raise ErrorDeDominio(404, "Active Jira config not found")
+        raise error_con_codigo(404, "no_encontrado", detail="Active Jira config not found", que="configuracion_jira")
     return fila
 
 
@@ -496,7 +497,7 @@ def ticket_propio(db: Session, user, ticket_id: str) -> _Ticket:
         .first()
     )
     if not fila:
-        raise ErrorDeDominio(404, "Ticket not found")
+        raise error_con_codigo(404, "no_encontrado", detail="Ticket not found", que="ticket")
     return fila
 
 

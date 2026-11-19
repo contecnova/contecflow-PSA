@@ -28,7 +28,7 @@ from app.core.config import settings
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import Problem, ProblemRcaTemplate
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -326,14 +326,9 @@ def start_wizard(db: Session, problem: Problem, template: str) -> dict[str, Any]
 
     # Fall back to hard-coded built-in templates (offline / DB not yet seeded)
     if template not in _VALID_TEMPLATES:
-        raise ErrorDeDominio(
-            status_code=400,
-            detail=(
-                f"Unknown template '{template}'. "
+        raise error(400, "rca_plantilla_desconocida", detail=f"Unknown template '{template}'. "
                 f"Built-in options: {sorted(_VALID_TEMPLATES)}. "
-                "You may also pass the UUID of a custom template."
-            ),
-        )
+                "You may also pass the UUID of a custom template.", plantilla=template, opciones=sorted(_VALID_TEMPLATES))
     state = _build_initial_state(template)
     _save_state(problem, state)
     db.flush()
@@ -355,22 +350,19 @@ def submit_wizard_step(
     """
     state = _load_state(problem)
     if state is None:
-        raise ErrorDeDominio(status_code=400, detail="RCA wizard not started for this problem")
+        raise error(400, "rca_no_iniciado", detail="RCA wizard not started for this problem")
     if state.get("completed"):
-        raise ErrorDeDominio(status_code=400, detail="RCA wizard already completed")
+        raise error(400, "rca_ya_completado", detail="RCA wizard already completed")
 
     steps = state["steps"]
     total = state["total_steps"]
 
     if step_num < 1 or step_num > total:
-        raise ErrorDeDominio(
-            status_code=400,
-            detail=f"step_num must be between 1 and {total}",
-        )
+        raise error(400, "rca_paso_fuera_de_rango", detail=f"step_num must be between 1 and {total}", max=total)
 
     answer = (answer or "").strip()
     if not answer:
-        raise ErrorDeDominio(status_code=400, detail="answer cannot be empty")
+        raise error(400, "campo_obligatorio", detail="answer cannot be empty", campo="answer")
 
     # Record answer
     for s in steps:
@@ -400,19 +392,17 @@ def ai_assist_step(db: Session, problem: Problem, step_num: int) -> dict[str, st
 
     state = _load_state(problem)
     if state is None:
-        raise ErrorDeDominio(status_code=400, detail="RCA wizard not started for this problem")
+        raise error(400, "rca_no_iniciado", detail="RCA wizard not started for this problem")
 
     steps = state["steps"]
     total = state["total_steps"]
 
     if step_num < 1 or step_num > total:
-        raise ErrorDeDominio(
-            status_code=400, detail=f"step_num must be between 1 and {total}"
-        )
+        raise error(400, "rca_paso_fuera_de_rango", detail=f"step_num must be between 1 and {total}", max=total)
 
     target_step = next((s for s in steps if s["step"] == step_num), None)
     if target_step is None:
-        raise ErrorDeDominio(status_code=400, detail=f"Step {step_num} not found")
+        raise error(400, "no_encontrado", detail=f"Step {step_num} not found", que="paso")
 
     # Build context from previous answers
     prev_answers = [
@@ -449,7 +439,7 @@ def ai_assist_step(db: Session, problem: Problem, step_num: int) -> dict[str, st
             db=db,
             messages=[{"role": "user", "content": prompt}],
             system="You are an ITIL problem manager. Provide concise, actionable RCA guidance. " + _instruccion,
-            max_tokens=300,
+            max_tokens=settings.AI_BRIEF_ANSWER_MAX_TOKENS,
             organization_id=getattr(problem, "organization_id", None),
         )
         provider_used = result.get("provider", "unknown")
@@ -482,17 +472,14 @@ def complete_wizard(db: Session, problem: Problem) -> dict[str, Any]:
     """
     state = _load_state(problem)
     if state is None:
-        raise ErrorDeDominio(status_code=400, detail="RCA wizard not started for this problem")
+        raise error(400, "rca_no_iniciado", detail="RCA wizard not started for this problem")
     if state.get("completed"):
-        raise ErrorDeDominio(status_code=400, detail="RCA wizard already completed")
+        raise error(400, "rca_ya_completado", detail="RCA wizard already completed")
 
     steps = state["steps"]
     unanswered = [s["step"] for s in steps if not s.get("answer")]
     if unanswered:
-        raise ErrorDeDominio(
-            status_code=400,
-            detail=f"Steps not yet answered: {unanswered}. Complete all steps before finishing.",
-        )
+        raise error(400, "rca_pasos_sin_responder", detail=f"Steps not yet answered: {unanswered}. Complete all steps before finishing.", pasos=unanswered)
 
     # Derive fields from answers
     root_cause = _derive_root_cause_from_state(state)

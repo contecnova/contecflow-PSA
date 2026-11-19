@@ -212,7 +212,7 @@
   top: 0;
   left: 0;
   right: 0;
-  z-index: 2000;
+  z-index: calc(var(--z-modal) + 1000);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -444,7 +444,7 @@
 .layout-sx7.layout-sx7 {
   position: fixed;
   inset: 0;
-  z-index: 99;
+  z-index: calc(var(--z-mobile-nav) - 1);
   background: var(--overlay);
   display: block;
 }
@@ -577,7 +577,7 @@
 .layout-m22 {
   position: fixed;
   left: 0;
-  z-index: 120;
+  z-index: calc(var(--z-mobile-nav) + 20);
   box-shadow: var(--shadow-sidebar);
 }
 .layout-m23 {

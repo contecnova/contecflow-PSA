@@ -28,6 +28,7 @@ from app.services.automations_service.acciones import (
 )
 from app.services.automations_service.disparo import _encendidas, proxima_ejecucion
 from app.services.automations_service._comun import _v
+from app.core.codigos_de_error import error as error_con_codigo
 
 
 # ── «Probar»: simulacion ────────────────────────────────────────────────────
@@ -182,7 +183,7 @@ def regla_de(db: Session, rule_id: str, current_user) -> AutomationRule:
     rule = _de_mi_organizacion(db.query(AutomationRule).filter(AutomationRule.id == rule_id),
                                current_user).first()
     if not rule:
-        raise ErrorDeDominio(404, "Regla no encontrada")
+        raise error_con_codigo(404, "no_encontrado", detail="Regla no encontrada", que="regla")
     return rule
 
 
@@ -193,7 +194,7 @@ def _proyecto_de_mi_organizacion(db: Session, project_id: Optional[str], current
     if not current_user.is_superadmin:
         q = q.filter(Project.organization_id == current_user.organization_id)
     if not q.first():
-        raise ErrorDeDominio(422, "Proyecto no encontrado")
+        raise error_con_codigo(422, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")
 
 
 def create_rule_db(payload, db: Session, current_user) -> dict:

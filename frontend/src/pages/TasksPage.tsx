@@ -29,7 +29,9 @@ import {
   Ban, Brain, CalendarClock, CalendarDays, CalendarRange, CheckCircle2, CheckSquare, Clock, GanttChartSquare, LayoutGrid, List, Loader2, Pencil, Plus, Save, Search, Sparkles, Table2, Trash2, Users, X,
 } from 'lucide-react'
 import SmartScheduleModal from '../components/SmartScheduleModal'
-import { fmtDate, fmtNumber, STATUS_LABELS, extractErr} from '../utils/helpers'
+import { fmtDate, fmtNumber, extractErr} from '../utils/helpers'
+import { COLUMNAS_DE_TABLERO, etiquetaDeEstado } from '../constants/catalogos'
+import { useCatalogo } from '../hooks/useCatalogo'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAuth } from '../context/AuthContext'
 import DocumentsPanel from '../components/DocumentsPanel'
@@ -39,7 +41,6 @@ import DateInput from '../components/ui/DateInput'
 import { STALE_DEFAULT_MS, STALE_REFERENCE_DATA_MS } from '../constants/timings'
 import './TasksPage.css'
 
-const STATUS_LABELS_MAP: Record<string, string> = STATUS_LABELS
 
 type Traductor = ReturnType<typeof useAppT>
 
@@ -148,7 +149,7 @@ const tareas = {
   bulkUpdate: (body: BulkBody) => tasksApi.bulkUpdate(body as TaskBulkUpdatePayload),
 }
 // Revisión 2026-11: las cabeceras del tablero salían en castellano con la interfaz en
-// otro idioma (STATUS_LABELS es una tabla fija); estas son las claves de i18n.
+// otro idioma (tabla fija de helpers.ts, borrada el 19-11-2026); estas son las claves de i18n.
 const CLAVE_DE_ESTADO: Record<string, string> = {
   backlog: 'tasks.status_backlog', todo: 'tasks.status_todo', in_progress: 'tasks.status_in_progress',
   in_review: 'tasks.status_review', blocked: 'tasks.status_blocked', done: 'tasks.status_done', cancelled: 'tasks.status_cancelled',
@@ -177,7 +178,8 @@ function onKeyboardActivate(event: React.KeyboardEvent, action: () => void) {
 }
 
 
-const STATUSES = ['todo', 'in_progress', 'blocked', 'in_review', 'done']
+// 19-11-2026: las columnas salen del catálogo de estados de tarea de la empresa
+// (`useCatalogo('task-statuses')`); `COLUMNAS_DE_TABLERO` es el respaldo.
 /** «Abiertas»: lo que el servidor entiende por el filtro rápido de estado (todo menos hecho). */
 const ESTADOS_ABIERTOS = 'backlog,todo,in_progress,blocked,in_review'
 // Tope de tareas que se piden (el máximo del endpoint); si hay más, se avisa.
@@ -187,7 +189,7 @@ const CLAVE_DE_PRIORIDAD: Record<string, string> = {
   critical: 'tasks.priority_critical', high: 'tasks.priority_high', medium: 'tasks.priority_medium', low: 'tasks.priority_low',
 }
 /** Nombre del estado en el idioma activo (el del flujo del proyecto si no es uno de los conocidos). */
-const nombreDeEstado = (t: Traductor, status: string) => CLAVE_DE_ESTADO[status] ? t(CLAVE_DE_ESTADO[status]) : (STATUS_LABELS_MAP[status] || status)
+const nombreDeEstado = (t: Traductor, status: string) => CLAVE_DE_ESTADO[status] ? t(CLAVE_DE_ESTADO[status]) : etiquetaDeEstado(t as never, status)
 const nombreDePrioridadT = (t: Traductor, p?: string | null) => (p && CLAVE_DE_PRIORIDAD[p]) ? t(CLAVE_DE_PRIORIDAD[p]) : (p || '')
 /** Complejidad que devuelve /semantic/estimate (simple | medium | complex). */
 const COMPLEJIDADES = ['simple', 'medium', 'complex']
@@ -352,7 +354,7 @@ function useWorkflowStatusOptions(projectId: string | undefined, t: Traductor): 
 
 function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boolean; onClose: () => void }) {
   const idCampo = useId()
-  const puedeBorrar = useAuth().hasRole('admin', 'pm')
+  const puedeBorrar = useAuth().puede('tareas.gestionar')
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()
@@ -881,8 +883,12 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
 
 export default function TasksPage() {
   const traducir = useAppT()
+  const estadosDeTarea = useCatalogo('task-statuses')
+  const STATUSES = estadosDeTarea.valores.length
+    ? estadosDeTarea.valores.map(v => v.value).filter(v => v !== 'backlog' && v !== 'cancelled')
+    : COLUMNAS_DE_TABLERO
   const t = useAppT()
-  const { hasRole } = useAuth()
+  const { puede } = useAuth()
   const toast = useToast()
   const qc = useQueryClient()
   // ── Kanban drag-and-drop state ────────────────────────────────────────────
@@ -1079,7 +1085,7 @@ export default function TasksPage() {
   // Venían de la pantalla «Kanban» (/kanban-advanced), que enseñaba las mismas
   // tareas por estado; ahora es una sola. Carriles y WIP se guardan por proyecto
   // (`/cmdb/kanban/{proyecto}`): antes los límites vivían en memoria y se perdían.
-  const puedeConfigurar = hasRole('admin', 'pm')
+  const puedeConfigurar = puede('tareas.gestionar')
   const { data: sprintsDelProyecto = [] } = useQuery<Sprint[]>({
     queryKey: ['sprints', projectFilter], enabled: !!projectFilter,
     queryFn: () => sprintsApi.list(projectFilter).then(r => r.data ?? []),
@@ -1276,7 +1282,7 @@ export default function TasksPage() {
         actions={
           <div className={`tsk-header-actions${isMobile ? ' tsk-header-actions--full' : ''}`}>
             {/* I27: Auto-planificar. Aplicar las fechas (bulk-dates) exige admin o pm. */}
-            {hasRole('admin', 'pm') && (
+            {puede('tareas.gestionar') && (
               <Button
                 variant="secondary"
                 icon={<Sparkles size={14} />}
@@ -1286,7 +1292,7 @@ export default function TasksPage() {
                 {t('tasks.auto_planificar')}
               </Button>
             )}
-            {hasRole('admin', 'pm', 'team_lead') && (
+            {puede('tareas.crear') && (
               <Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>
                 {t('tasks.new_task')}
               </Button>
@@ -1388,8 +1394,8 @@ export default function TasksPage() {
           <EmptyState
             icon={<CheckSquare size={28} />}
             title={t('tasks.no_tasks')}
-            description={hasRole('admin', 'pm', 'team_lead') ? t('tasks.vacio_desc_crear') : t('tasks.vacio_desc')}
-            action={hasRole('admin', 'pm', 'team_lead') ? <Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('tasks.new_task')}</Button> : undefined}
+            description={puede('tareas.crear') ? t('tasks.vacio_desc_crear') : t('tasks.vacio_desc')}
+            action={puede('tareas.crear') ? <Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('tasks.new_task')}</Button> : undefined}
           />
         ) : (
           <div className="tsk-board">

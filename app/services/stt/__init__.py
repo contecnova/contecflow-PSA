@@ -24,6 +24,7 @@ from app.services.stt.base import STTError, STTProvider, STTResult
 from app.services.stt.google_stt import GoogleSTTProvider
 from app.services.stt.openai_stt import OpenAISTTProvider
 from app.services.stt.whisper_local_stt import WhisperLocalSTTProvider
+from app.core.codigos_de_error import ErrorConCodigo
 
 logger = logging.getLogger(__name__)
 
@@ -64,10 +65,8 @@ def get_stt_provider(name: Optional[str] = None, db=None, org_id=None) -> STTPro
     chosen = (name or _setting("STT_PROVIDER", "openai", db=db, org_id=org_id)).strip().lower()
     cls = _PROVIDER_REGISTRY.get(chosen)
     if cls is None:
-        raise ValueError(
-            f"STT provider desconocido: '{chosen}'. "
-            f"Opciones: {', '.join(_PROVIDER_REGISTRY.keys())}"
-        )
+        raise ErrorConCodigo("proveedor_no_soportado", detail=f"STT provider desconocido: '{chosen}'. "
+            f"Opciones: {', '.join(_PROVIDER_REGISTRY.keys())}", proveedor=chosen)
     return cls(db=db, org_id=org_id) if _accepts_db(cls) else cls()
 
 

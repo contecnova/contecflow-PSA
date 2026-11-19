@@ -19,6 +19,7 @@ from app.models.user import User
 from app.models.enterprise import WebhookEvent
 import app.services.enterprise_service as _svc
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.core.codigos_de_error import error_http, desde_valor
 
 router = APIRouter()
 
@@ -96,7 +97,7 @@ def grant_project_permission(
     try:
         return APIResponse.ok(data=_svc.grant_project_permission(project_id, payload, current_user, db))
     except ValueError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
 
 
 @router.patch("/project-permissions/{project_id}/{permission_id}", summary="Actualizar permiso")
@@ -157,7 +158,7 @@ def create_webhook(
         return APIResponse.ok(data=_svc.create_webhook(payload, current_user, db))
     except ValueError as e:
         # SSRF guard / validation failure → 400 (bad destination URL).
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
 
 
 @router.patch("/webhooks/{hook_id}", summary="Actualizar webhook")
@@ -171,7 +172,7 @@ def update_webhook(
         if str(e) == "not_found":
             raise HTTPException(404)
         # SSRF guard / validation failure → 400.
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
 
 
 @router.delete("/webhooks/{hook_id}", summary="Eliminar webhook")
@@ -227,7 +228,7 @@ def update_sso(
         return APIResponse.ok(data=_svc.update_sso_config(config_id, payload, current_user, db))
     except ValueError as e:
         msg = str(e)
-        raise HTTPException(403 if "org_mismatch" in msg else 404, msg)
+        raise desde_valor(403 if "org_mismatch" in msg else 404, e)
 
 
 @router.delete("/sso/{config_id}", summary="Eliminar SSO")
@@ -335,8 +336,8 @@ def delete_subcontractor(
         msg = str(e)
         if "has_dependencies" in msg:
             detail = msg.split("has_dependencies:", 1)[1] if ":" in msg else "Tiene dependencias"
-            raise HTTPException(400, f"No se puede eliminar: {detail}")
-        raise HTTPException(404, "Subcontratista no encontrado")
+            raise error_http(400, "tiene_dependencias", detail=f"No se puede eliminar: {detail}")
+        raise error_http(404, "no_encontrado", detail="Subcontratista no encontrado", que="subcontratista")
 
 
 @router.post("/subcontractors/{sub_id}/rates", summary="Añadir tarifa")
@@ -360,7 +361,7 @@ def delete_rate(
         return APIResponse.ok(data=_svc.delete_subcontractor_rate(sub_id, rate_id, db))
     except ValueError as e:
         msg = str(e)
-        raise HTTPException(400 if "dependencies" in msg else 404, msg)
+        raise desde_valor(400 if "dependencies" in msg else 404, e)
 
 
 @router.get("/subcontractors/{sub_id}/assignments", summary="Asignaciones del subcontratista")
@@ -445,7 +446,7 @@ def delete_worker(
         return APIResponse.ok(data=_svc.delete_worker(worker_id, db, current_user))
     except ValueError as e:
         msg = str(e)
-        raise HTTPException(400 if "dependencies" in msg else 404, msg)
+        raise desde_valor(400 if "dependencies" in msg else 404, e)
 
 
 @router.post("/subcontractors/workers/{worker_id}/skills", summary="Asignar skill al trabajador", status_code=201)
@@ -500,7 +501,7 @@ def delete_timelog(
         return APIResponse.ok(data=_svc.delete_timelog(sub_id, log_id, db))
     except ValueError as e:
         msg = str(e)
-        raise HTTPException(400 if "invoiced" in msg else 404, msg)
+        raise desde_valor(400 if "invoiced" in msg else 404, e)
 
 
 @router.get("/subcontractors/{sub_id}/invoices", summary="Facturas recibidas del subcontratista")
@@ -564,5 +565,5 @@ def upsert_forecast(
     project_id: str, year: int, month: int, payload: ForecastUpdate,
     db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
 ):
-    if not 1 <= month <= 12: raise HTTPException(400, "Mes inválido (1-12)")
+    if not 1 <= month <= 12: raise error_http(400, "mes_no_valido", detail="Mes inválido (1-12)")
     return APIResponse.ok(data=_svc.upsert_forecast(project_id, year, month, payload, db))

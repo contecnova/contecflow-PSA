@@ -55,6 +55,7 @@ from app.services.service_desk.jira_sync_service import (
     empujar_ticket_confirmado,
     run_incremental_sync,
 )
+from app.core.codigos_de_error import error_http
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/integrations/jira", tags=["Jira Integration"])
@@ -298,12 +299,12 @@ async def receive_jira_webhook(
                           x_atlassian_webhook_token, x_hub_signature_256, org)
     if not org_id:
         logger.warning("Jira webhook rejected: invalid/missing authentication token")
-        raise HTTPException(403, "Invalid Jira webhook authentication")
+        raise error_http(403, "webhook_auth_no_valida", detail="Invalid Jira webhook authentication", servicio="Jira")
 
     try:
         payload = json.loads(body or b"{}")
     except (ValueError, TypeError):
-        raise HTTPException(400, "Invalid JSON payload")
+        raise error_http(400, "json_no_valido", detail="Invalid JSON payload")
 
     issue = payload.get("issue") or {}
     issue_key = issue.get("key") or payload.get("issueKey") or ""

@@ -15,7 +15,8 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { NOTIFICATIONS_POLL_MS, STALE_5_MIN_MS, UI_FEEDBACK_SAVED_MS } from '../constants/timings'
 import { useAppT } from '../i18n/AppLangContext'
 import DateInput from '../components/ui/DateInput'
-import { useOrgSettings } from '../hooks/useOrgSettings'
+import { useOrgSettings, useTono } from '../hooks/useOrgSettings'
+import { HORAS_MAXIMAS_POR_DIA } from '../utils/umbrales'
 import AvisoDeHorasExtra from '../components/horas-extra/AvisoDeHorasExtra'
 import './ImputarPage.css'
 
@@ -54,6 +55,7 @@ interface WeekGridProps {
 
 function WeekGrid({ weekData, anomaliesByDate, hasAnyAnomaly, onOpenDrawer, t }: WeekGridProps) {
   const traducir = useAppT()
+  const tono = useTono()
   if (!weekData) return null
   // Iniciales de lunes a viernes en el idioma activo (el 1-1-2024 fue lunes).
   const days = [0, 1, 2, 3, 4].map(i => new Intl.DateTimeFormat(localeActivo(), { weekday: 'narrow' }).format(new Date(2024, 0, 1 + i)))
@@ -124,7 +126,7 @@ function WeekGrid({ weekData, anomaliesByDate, hasAnyAnomaly, onOpenDrawer, t }:
       <div className="imput-row-3">
         <span>{t('imputa_page.total')}: <span className="imput-label">{fmtNumber(weekData.total_hours, 2)}h</span></span>
         <span>{t('imputa_page.capacity')}: <span className="u-text1">{weekData.capacity_hours}h</span></span>
-        <span className="imput-label-2 imputar-page-e1" style={{ '--imputar-page-color': (weekData.load_pct ?? 0) > 100 ? 'var(--danger)' : (weekData.load_pct ?? 0) > 85 ? 'var(--warning)' : 'var(--success)' } as CSSProperties}>
+        <span className="imput-label-2 imputar-page-e1" style={{ '--imputar-page-color': `var(--${tono('carga', weekData.load_pct ?? 0)})` } as CSSProperties}>
           {weekData.load_pct?.toFixed(0)}{t('imputa_page.load_pct')}
         </span>
       </div>
@@ -569,7 +571,7 @@ export default function ImputarPage(): JSX.Element {
                   <div className="imput-box-10">
                     <label className="imput-label-10">{t('imputa_page.hours_edit').toUpperCase()}</label>
                     <input
-                      type="number" step="0.25" min="0.25" max="24"
+                      type="number" step="0.25" min="0.25" max={HORAS_MAXIMAS_POR_DIA}
                       value={editForm.hours}
                       aria-label={t('imputa_page.hours_edit')}
                       onChange={e => { camposEdit.limpiar('hours'); setEditForm(f => ({ ...f, hours: parseFloat(e.target.value) || 0 })) }}

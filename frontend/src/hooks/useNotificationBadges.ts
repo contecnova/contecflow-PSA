@@ -22,11 +22,7 @@ export interface NotificationBadges {
  * notifUnreadCount es exclusivo para el badge de la pestaña Notificaciones del Inbox.
  */
 export default function useNotificationBadges(): NotificationBadges {
-  const { hasRole, user, loading } = useAuth() as {
-    hasRole: (...roles: string[]) => boolean
-    user: unknown
-    loading: boolean
-  }
+  const { puede, user, loading } = useAuth()
   const canQueryProtected = !loading && !!user
 
   const { data: alerts } = useQuery({
@@ -35,7 +31,7 @@ export default function useNotificationBadges(): NotificationBadges {
     queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data),
     refetchInterval: POLL_DEFAULT_MS,
     staleTime: STALE_SHORT_MS,
-    enabled: hasRole('admin', 'pm', 'hr'),
+    enabled: puede('alertas.ver'),
   })
 
   // Misma clave y misma consulta que la campana de la barra superior

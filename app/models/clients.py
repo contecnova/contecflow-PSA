@@ -41,7 +41,7 @@ class Client(Base):
     name        = Column(String(255), nullable=False, index=True)
     short_name  = Column(String(50),  nullable=True)   # Alias / nombre corto
     tax_id      = Column(String(50),  nullable=True)   # CIF / NIF / VAT
-    industry    = Column(Enum(ClientIndustry), default=ClientIndustry.other)
+    industry    = Column(String(50), default=ClientIndustry.other.value)  # clave de `custom_client_industries` (19-11-2026)
     status      = Column(Enum(ClientStatus),   default=ClientStatus.active)
 
     # Datos propios de la empresa (18-11-2026): centralita y email general.
@@ -66,7 +66,7 @@ class Client(Base):
     website     = Column(String(500), nullable=True)
     address     = Column(Text,        nullable=True)
     city        = Column(String(100), nullable=True)
-    country     = Column(String(3),   default="ES")
+    country     = Column(String(3),   default=settings.DEFAULT_COUNTRY)  # 19-11-2026: en el alta, el país de la empresa (por_empresa)
 
     # Relación interna
     account_manager_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)

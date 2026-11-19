@@ -16,6 +16,7 @@ from app.services.service_desk.scoping import (
     scope_ticket_query as _scope_ticket_query,
 )
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error, desde_valor
 
 
 def cancelar_cambio(db, current_user, change_id: str) -> dict:
@@ -47,10 +48,7 @@ def cancelar_cambio(db, current_user, change_id: str) -> dict:
         ChangeStatus.closed_failed,
     }
     if cambio.status in TERMINALES:
-        raise ErrorDeDominio(
-            409,
-            f"No se puede cancelar un cambio en estado "
-            f"{cambio.status.value}: ya se ha ejecutado")
+        raise error(409, "cambio_no_cancelable", estado=cambio.status.value)
 
     ya_estaba = cambio.status == ChangeStatus.cancelled
     if not ya_estaba:
@@ -130,7 +128,7 @@ def get_change_by_id(db: Session, current_user: User, change_id: str):
 def get_change_payload(db: Session, current_user: User, change_id: str, full: bool = False) -> dict:
     change = get_change_by_id(db, current_user, change_id)
     if not change:
-        raise ErrorDeDominio(404, "Change request no encontrado")
+        raise error(404, "no_encontrado", detail="Change request no encontrado", que="solicitud_de_cambio")
     return serialize_change(change, full=full)
 
 
@@ -163,7 +161,7 @@ def serialize_change(change: ITSMChangeRequest, full: bool = False) -> dict:
         "rejected_reason": change.rejected_reason,
         # ITSM-P05: automated risk score always visible in list
         "auto_risk_score": change.auto_risk_score,
-        "auto_risk_label": _score_to_label(change.auto_risk_score),
+        "auto_risk_label": _score_to_label(change.auto_risk_score, change),
         "impact_analyzed": change.impact_analysis_json is not None,
         "suggested_window": _load_window(change.suggested_window_json),
     }
@@ -190,16 +188,14 @@ def _lista_json(raw) -> list:
     return valor if isinstance(valor, list) else []
 
 
-def _score_to_label(score) -> str | None:
+def _score_to_label(score, change=None) -> str | None:
+    # 19-11-2026: los cortes de RISK_LEVEL_* de la empresa (antes 75/55/30 aquí
+    # frente a 75/50/25 del ajuste).
     if score is None:
         return None
-    if score >= 75:
-        return "critical"
-    if score >= 55:
-        return "high"
-    if score >= 30:
-        return "medium"
-    return "low"
+    from sqlalchemy.orm import object_session
+    from app.core.umbrales import nivel_de_riesgo
+    return nivel_de_riesgo(score, object_session(change) if change is not None else None, registro=change)
 
 
 def _load_window(suggested_window_json: str | None) -> dict | None:
@@ -219,7 +215,7 @@ def next_change_number(db: Session) -> str:
 
 def build_change_request(payload: dict, requester_id: str, number: str) -> ITSMChangeRequest:
     if not payload.get("title") or not payload.get("description"):
-        raise ErrorDeDominio(422, "title y description son obligatorios")
+        raise error(422, "campos_obligatorios", detail="title y description son obligatorios", campos="title, description")
 
     change = ITSMChangeRequest(
         number=number,
@@ -291,8 +287,7 @@ def _pasar_a_revision(db: Session, change: ITSMChangeRequest, current_user: User
     try:
         cab.start_cab_workflow(db, change_id=change.id, requester=current_user)
     except ValueError as exc:
-        raise ErrorDeDominio(409, "No hay comité de cambios configurado (Service Desk → ajustes, "
-                                 "SD_CAB_GROUP_ID): un cambio normal o de emergencia necesita su aprobación") from exc
+        raise error(409, "cab_no_configurado", detail="No hay comité de cambios configurado (Service Desk → ajustes, SD_CAB_GROUP_ID): un cambio normal o de emergencia necesita su aprobación") from exc
 
 
 def _aplicar_estado(db: Session, change: ITSMChangeRequest, nuevo: str, current_user: User) -> None:
@@ -304,14 +299,14 @@ def _aplicar_estado(db: Session, change: ITSMChangeRequest, nuevo: str, current_
     from app.services.service_desk.change_calendar_service import exigir_ventana_libre
 
     if nuevo in _SOLO_POR_EL_CAB:
-        raise ErrorDeDominio(409, "Un cambio se aprueba votando en el CAB, no editándolo")
+        raise error(409, "cambio_aprobar_por_cab")
     if nuevo in _A_REVISION:
         _pasar_a_revision(db, change, current_user)
         return
     if nuevo == "scheduled":
         estado = getattr(change.status, "value", change.status)
         if estado != "approved":
-            raise ErrorDeDominio(409, "Solo se programa un cambio aprobado")
+            raise error(409, "cambio_solo_aprobado_programable")
         exigir_ventana_libre(db, change)
     change.status = nuevo
 
@@ -412,9 +407,9 @@ def approve_change_record(db: Session, current_user: User, change_id: str, paylo
         return change
     except ValueError as exc:
         if str(exc) != "user_not_in_cab":
-            raise ErrorDeDominio(422, str(exc)) from exc
+            raise desde_valor(422, exc) from exc
         if getattr(current_user.role, "value", current_user.role) != "admin" and not current_user.is_superadmin:
-            raise ErrorDeDominio(403, "Solo vota un miembro del CAB")
+            raise error(403, "cab_solo_miembros")
     from app.services.approval_engine._base import exigir_que_no_sea_suyo
     exigir_que_no_sea_suyo(db, change.requester_id, current_user, "itsm_change", change.id)
     approve_change_request(change, approved=aprobar, approver_id=current_user.id, reason=payload.get("reason"))
@@ -428,14 +423,14 @@ def enforce_change_org_constraints(db: Session, current_user: User, change: ITSM
     if change.owner_id:
         owner = db.query(User).filter(User.id == change.owner_id).first()
         if not owner or owner.organization_id != current_user.organization_id:
-            raise ErrorDeDominio(403, "No puedes asignar owner fuera de tu organización")
+            raise error(403, "responsable_fuera_de_empresa", detail="No puedes asignar owner fuera de tu organización")
 
     if change.related_ticket_id:
         ticket = _scope_ticket_query(db.query(Ticket), db, current_user).filter(Ticket.id == change.related_ticket_id).first()
         if not ticket:
-            raise ErrorDeDominio(403, "Ticket relacionado fuera de tu organización")
+            raise error(403, "ticket_relacionado_fuera_de_empresa", detail="Ticket relacionado fuera de tu organización")
 
     if change.related_problem_id:
         problem = _scope_problem_query(db.query(Problem), db, current_user).filter(Problem.id == change.related_problem_id).first()
         if not problem:
-            raise ErrorDeDominio(403, "Problema relacionado fuera de tu organización")
+            raise error(403, "problema_relacionado_fuera_de_empresa", detail="Problema relacionado fuera de tu organización")

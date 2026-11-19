@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 
 from app.models.settings import AppSetting
 from app.core.config import settings as app_settings
+from app.core.codigos_de_error import ErrorConCodigo
 
 _SESSIONS_KEY = "sd.voice_agent.sessions"
 _CONFIG_KEY = "sd.voice_agent.config"
@@ -163,7 +164,7 @@ def add_transcript_turn(
     sessions = _get_json(db, _SESSIONS_KEY, org_id, default={}) or {}
     session = sessions.get(session_id)
     if not session:
-        raise ValueError(f"Session {session_id!r} not found")
+        raise ErrorConCodigo("no_encontrado", detail=f"Session {session_id!r} not found", que="sesion")
     turn = {"speaker": speaker, "text": text, "ts": _now_iso()}
     session["transcript"].append(turn)
     # Classify intent from user turns
@@ -186,7 +187,7 @@ def close_session(
     sessions = _get_json(db, _SESSIONS_KEY, org_id, default={}) or {}
     session = sessions.get(session_id)
     if not session:
-        raise ValueError(f"Session {session_id!r} not found")
+        raise ErrorConCodigo("no_encontrado", detail=f"Session {session_id!r} not found", que="sesion")
     session["status"] = "closed"
     session["resolution"] = resolution
     session["closed_at"] = _now_iso()
@@ -202,7 +203,7 @@ def create_ticket_from_session(
     sessions = _get_json(db, _SESSIONS_KEY, org_id, default={}) or {}
     session = sessions.get(session_id)
     if not session:
-        raise ValueError(f"Session {session_id!r} not found")
+        raise ErrorConCodigo("no_encontrado", detail=f"Session {session_id!r} not found", que="sesion")
 
     from app.models.service_desk import Ticket, TicketHistory, TicketImpact, TicketPriority, TicketType, TicketUrgency
     from app.services.sla_service import next_ticket_number

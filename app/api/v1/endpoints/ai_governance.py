@@ -43,6 +43,7 @@ from app.services.ai_governance import (
     get_org_id as _org,
 )
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.core.codigos_de_error import error_http
 
 
 def _permiso_de_gobierno(current_user: User = Depends(get_current_user)) -> User:
@@ -192,7 +193,7 @@ def get_policy(
     verify_admin_or_governance_role(current_user)
     p = svc_get_policy(db, policy_id=policy_id, org_id=_org(current_user))
     if not p:
-        raise HTTPException(404, "Policy not found")
+        raise error_http(404, "no_encontrado", detail="Policy not found", que="politica")
     return APIResponse.ok(data=PolicyOut.model_validate(p))
 
 
@@ -207,7 +208,7 @@ def update_policy(
     verify_admin_or_governance_role(current_user)
     p = svc_get_policy(db, policy_id=policy_id, org_id=_org(current_user))
     if not p:
-        raise HTTPException(404, "Policy not found")
+        raise error_http(404, "no_encontrado", detail="Policy not found", que="politica")
     p = svc_update_policy(db, p, body.model_dump(exclude_unset=True))
     return APIResponse.ok(data=PolicyOut.model_validate(p))
 
@@ -223,7 +224,7 @@ def deactivate_policy(
     enforce_abac(db, current_user, "ai_governance_policy", policy_id, action="delete")
     p = svc_get_policy(db, policy_id=policy_id, org_id=_org(current_user))
     if not p:
-        raise HTTPException(404, "Policy not found")
+        raise error_http(404, "no_encontrado", detail="Policy not found", que="politica")
     svc_deactivate_policy(db, p)
     return APIResponse.ok(data={"ok": True, "deactivated": policy_id})
 
@@ -340,11 +341,11 @@ def _validate_policy(body: PolicyIn) -> None:
     valid_pii      = {label for label, _ in _PII_PATTERNS}
 
     if body.scope not in valid_scopes:
-        raise HTTPException(422, f"scope must be one of {valid_scopes}")
+        raise error_http(422, "campo_no_valido_opciones", detail=f"scope must be one of {valid_scopes}", campo="scope", opciones=valid_scopes)
     if body.action not in valid_actions:
-        raise HTTPException(422, f"action must be one of {valid_actions}")
+        raise error_http(422, "campo_no_valido_opciones", detail=f"action must be one of {valid_actions}", campo="action", opciones=valid_actions)
     if body.redact_strategy not in valid_strats:
-        raise HTTPException(422, f"redact_strategy must be one of {valid_strats}")
+        raise error_http(422, "campo_no_valido_opciones", detail=f"redact_strategy must be one of {valid_strats}", campo="redact_strategy", opciones=valid_strats)
     for et in body.pii_entity_types:
         if et not in valid_pii:
-            raise HTTPException(422, f"Unknown PII entity type: '{et}'")
+            raise error_http(422, "ia_gobierno_pii_desconocido", detail=f"Unknown PII entity type: '{et}'", tipo=et)

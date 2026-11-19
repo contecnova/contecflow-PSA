@@ -12,6 +12,7 @@ from app.models.service_desk import (
 from app.schemas.service_desk import StatusComponentIn, StatusIncidentIn, StatusIncidentUpdateIn
 import logging
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -28,12 +29,12 @@ def organizacion_de_la_pagina(db: Session, slug: Optional[str]) -> Optional[str]
     if slug:
         org = db.query(Organization).filter(Organization.slug == slug, Organization.is_active == True).first()  # noqa: E712
         if org is None:
-            raise ErrorDeDominio(404, "Página de estado no encontrada")
+            raise error(404, "no_encontrado", detail="Página de estado no encontrada", que="pagina_de_estado")
         return org.id
     ids = [r[0] for r in db.query(Organization.id).limit(2).all()]
     if len(ids) == 1:
         return ids[0]
-    raise ErrorDeDominio(422, "Indica la organización: ?org=<slug>")
+    raise error(422, "pagina_estado_sin_empresa", detail="Indica la organización: ?org=<slug>")
 
 
 from app.services.service_desk.pagina_de_estado_publica import idioma_de  # noqa: E402
@@ -136,7 +137,7 @@ def validate_component_status(status: str) -> None:
     try:
         StatusPageComponentStatus(status)
     except ValueError:
-        raise ErrorDeDominio(400, f"Invalid status: {status}")
+        raise error(400, "estado_no_valido_valor", detail=f"Invalid status: {status}", estado=status)
 
 
 def build_status_component(payload: StatusComponentIn) -> StatusPageComponent:

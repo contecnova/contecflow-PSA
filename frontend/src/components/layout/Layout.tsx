@@ -36,7 +36,7 @@ import {
 } from 'lucide-react'
 import { ANIMATION_FAST_MS, CLOCK_TICK_MS, DROPDOWN_DELAY_MS, POLL_FAST_MS, STALE_5_MIN_MS, STALE_LIVE_MS } from '../../constants/timings'
 import './Layout.css'
-import { ROLES_CON_AJUSTES } from '../../pages/settings/catalogoDeAjustes'
+import { puedeAbrir } from '../../permisos/navegacion'
 import { px } from '../../utils/estilos'
 
 const ROUTE_LABELS: Record<string, string> = {
@@ -185,109 +185,109 @@ const WORKSPACE_GROUPS: Record<string, string[]> = {
 const CLAVES_LAYOUT = ["shortcuts", "keyboard_shortcuts", "shortcuts_hint", "shortcuts_hint_suffix", "close", "recent", "workspace", "workspace_all", "workspace_work", "workspace_projects", "workspace_team", "workspace_business", "workspace_support", "workspace_analytics", "workspace_ai", "workspace_settings", "global_search_title", "open_global_search", "search_placeholder", "ai_title", "open_ai", "ai_short", "active_alerts_title", "pending_approvals_title", "skip_to_content", "main_navigation", "side_menu", "expand_sidebar", "collapse_sidebar", "main_content", "open_menu"] as const
 
 const NAV_GROUPS: NavGroupConfig[] = [
-  { id: 'trabajo', label: 'My Work', groupKey: 'group_work', icon: <Clock size={12} />, roles: ['admin','pm','team_lead','employee','hr','subcontractor'], items: [
-    { to: '/work-dashboard',  icon: <LayoutGrid size={SZ} />,   label: 'Mi día',       roles: ['admin','pm','team_lead','employee','hr','subcontractor'] },
-    { to: '/inbox',           icon: <Inbox size={SZ} />,        label: 'Bandeja de entrada', roles: ['admin','pm','team_lead','employee','hr','subcontractor'] },
-    { to: '/chat',            icon: <MessageSquare size={SZ} />, label: 'Chat (Teams)',     roles: ['admin','pm','team_lead','employee','hr'] },
-    { to: '/tasks',           icon: <CheckSquare size={SZ} />,  label: 'Tasks',           roles: ['admin','pm','team_lead','employee','subcontractor'] },
-    { to: '/time',            icon: <Clock size={SZ} />,        label: 'Tiempo',          roles: ['admin','pm','team_lead','employee','hr','subcontractor'] },
-    { to: '/calendar',        icon: <Calendar size={SZ} />,     label: 'Calendar',        roles: ['admin','pm','team_lead','employee','hr'] },
-    { to: '/absences',        icon: <Umbrella size={SZ} />,     label: 'Absences',        roles: ['admin','pm','hr','team_lead','employee','subcontractor'] },
-    { to: '/overtime',        icon: <AlarmClockPlus size={SZ} />,label: 'Overtime',        roles: ['admin','pm','hr','team_lead','employee','subcontractor'] },
-    { to: '/documents',       icon: <FileText size={SZ} />,     label: 'Documents',       roles: ['admin','pm','hr','team_lead','employee'] },
-    { to: '/expenses',        icon: <Receipt size={SZ} />,      label: 'Expenses',        roles: ['admin','pm','hr','employee'] },
-    { to: '/approvals',       icon: <CheckCircle size={SZ} />,  label: 'Approval Inbox',       roles: ['admin','pm','team_lead','hr','employee'] },
-    // Licencias y hardware, fase 4: sin `roles`, la ve toda persona con sesión (cada uno lo suyo).
+  { id: 'trabajo', label: 'My Work', groupKey: 'group_work', icon: <Clock size={12} />, items: [
+    { to: '/work-dashboard',  icon: <LayoutGrid size={SZ} />,   label: 'Mi día' },
+    { to: '/inbox',           icon: <Inbox size={SZ} />,        label: 'Bandeja de entrada' },
+    { to: '/chat',            icon: <MessageSquare size={SZ} />, label: 'Chat (Teams)' },
+    { to: '/tasks',           icon: <CheckSquare size={SZ} />,  label: 'Tasks' },
+    { to: '/time',            icon: <Clock size={SZ} />,        label: 'Tiempo' },
+    { to: '/calendar',        icon: <Calendar size={SZ} />,     label: 'Calendar' },
+    { to: '/absences',        icon: <Umbrella size={SZ} />,     label: 'Absences' },
+    { to: '/overtime',        icon: <AlarmClockPlus size={SZ} />,label: 'Overtime' },
+    { to: '/documents',       icon: <FileText size={SZ} />,     label: 'Documents' },
+    { to: '/expenses',        icon: <Receipt size={SZ} />,      label: 'Expenses' },
+    { to: '/approvals',       icon: <CheckCircle size={SZ} />,  label: 'Approval Inbox' },
+    // Licencias y hardware, fase 4: la ve toda persona con sesión (cada uno lo suyo).
     { to: '/my-equipment',    icon: <Laptop size={SZ} />,       label: 'My equipment & licences' },
   ]},
-  { id: 'proyectos', label: 'Projects', groupKey: 'group_projects', icon: <Folder size={12} />, roles: ['admin','pm','team_lead'], items: [
-    { to: '/projects-dashboard', icon: <LayoutGrid size={SZ} />,  label: 'Salud del portfolio', roles: ['admin','pm','team_lead'] },
-    { to: '/projects',        icon: <FolderOpen size={SZ} />,     label: 'Projects',            roles: ['admin','pm','team_lead'] },
-    { to: '/lessons',         icon: <Lightbulb size={SZ} />,      label: 'Lessons learned',     roles: ['admin','pm','team_lead'] },
-    { to: '/sprints',         icon: <RefreshCw size={SZ} />,      label: 'Sprints',             roles: ['admin','pm','team_lead'] },
-    { to: '/sprint-planning', icon: <Sparkles size={SZ} />,       label: 'Sprint Planning AI',  roles: ['admin','pm'] },
-    { to: '/raci',            icon: <Shield size={SZ} />,          label: 'RACI Matrix',         roles: ['admin','pm','team_lead'] },
-    { to: '/changelog',       icon: <ScrollText size={SZ} />,      label: 'Changelog',           roles: ['admin','pm','team_lead'] },
-    { to: '/uat',            icon: <ClipboardCheck size={SZ} />,  label: 'UAT',                  roles: ['admin','pm','team_lead'] },
-    { to: '/gantt',           icon: <BarChart2 size={SZ} />,      label: 'Gantt',               roles: ['admin','pm','team_lead','employee'] },
+  { id: 'proyectos', label: 'Projects', groupKey: 'group_projects', icon: <Folder size={12} />, items: [
+    { to: '/projects-dashboard', icon: <LayoutGrid size={SZ} />,  label: 'Salud del portfolio' },
+    { to: '/projects',        icon: <FolderOpen size={SZ} />,     label: 'Projects' },
+    { to: '/lessons',         icon: <Lightbulb size={SZ} />,      label: 'Lessons learned' },
+    { to: '/sprints',         icon: <RefreshCw size={SZ} />,      label: 'Sprints' },
+    { to: '/sprint-planning', icon: <Sparkles size={SZ} />,       label: 'Sprint Planning AI' },
+    { to: '/raci',            icon: <Shield size={SZ} />,          label: 'RACI Matrix' },
+    { to: '/changelog',       icon: <ScrollText size={SZ} />,      label: 'Changelog' },
+    { to: '/uat',            icon: <ClipboardCheck size={SZ} />,  label: 'UAT' },
+    { to: '/gantt',           icon: <BarChart2 size={SZ} />,      label: 'Gantt' },
     // Auditoria 2026-11 (#45): /epic-gantt existia sin entrada en el menu.
-    { to: '/epic-gantt',      icon: <BarChart2 size={SZ} />,      label: 'Gantt de épicas',     roles: ['admin','pm','team_lead'] },
-    { to: '/epics',           icon: <Target size={SZ} />,         label: 'Epics & Roadmap',     roles: ['admin','pm','team_lead'] },
-    { to: '/deliverables',    icon: <Package size={SZ} />,        label: 'Deliverables',        roles: ['admin','pm'] },
-    { to: '/changes',         icon: <ArrowLeftRight size={SZ} />, label: 'Changes',             roles: ['admin','pm'] },
-    { to: '/risks',           icon: <AlertTriangle size={SZ} />,  label: 'Risks',               roles: ['admin','pm'] },
-    { to: '/dependencies',    icon: <Link size={SZ} />,           label: 'Dependencies',        roles: ['admin','pm','team_lead','employee'] },
-    { to: '/git',             icon: <GitBranch size={SZ} />,      label: 'Git Integration',     roles: ['admin','pm'] },
-    { to: '/wiki',            icon: <BookOpen size={SZ} />,       label: 'Wiki',                roles: ['admin','pm','team_lead','employee','hr'] },
-    { to: '/meetings-ai',     icon: <Mic size={SZ} />,            label: 'Meeting Assistant',   roles: ['admin','pm','team_lead'] },
+    { to: '/epic-gantt',      icon: <BarChart2 size={SZ} />,      label: 'Gantt de épicas' },
+    { to: '/epics',           icon: <Target size={SZ} />,         label: 'Epics & Roadmap' },
+    { to: '/deliverables',    icon: <Package size={SZ} />,        label: 'Deliverables' },
+    { to: '/changes',         icon: <ArrowLeftRight size={SZ} />, label: 'Changes' },
+    { to: '/risks',           icon: <AlertTriangle size={SZ} />,  label: 'Risks' },
+    { to: '/dependencies',    icon: <Link size={SZ} />,           label: 'Dependencies' },
+    { to: '/git',             icon: <GitBranch size={SZ} />,      label: 'Git Integration' },
+    { to: '/wiki',            icon: <BookOpen size={SZ} />,       label: 'Wiki' },
+    { to: '/meetings-ai',     icon: <Mic size={SZ} />,            label: 'Meeting Assistant' },
   ]},
-  { id: 'equipo', label: 'Team & People', groupKey: 'group_team', icon: <Users size={12} />, roles: ['admin','pm','hr','team_lead'], items: [
-    { to: '/team-dashboard',  icon: <LayoutGrid size={SZ} />,     label: 'Capacidad del equipo', roles: ['admin','pm','hr','team_lead'] },
-    { to: '/resources',           icon: <Users size={SZ} />,      label: 'Resources',          roles: ['admin','hr','pm'] },
-    { to: '/resources/planning',  icon: <CalendarRange size={SZ} />, label: 'Resource planning', roles: ['admin','hr','pm','team_lead'] },
-    { to: '/capacity',            icon: <TrendingUp size={SZ} />, label: 'Capacity',           roles: ['admin','hr','pm'] },
-    { to: '/resource-forecast',   icon: <BarChart size={SZ} />,   label: 'Resource Forecast',  roles: ['admin','pm','team_lead'] },
-    { to: '/resource-scheduler',  icon: <CalendarRange size={SZ} />, label: 'Visual Scheduler', roles: ['admin','pm','team_lead'] },
-    { to: '/skills',              icon: <Award size={SZ} />,      label: 'Skills',             roles: ['admin','pm','hr','employee'] },
-    { to: '/org-chart',           icon: <Network size={SZ} />,    label: 'Org Chart',          roles: ['admin','pm','hr'] },
-    { to: '/okrs',                icon: <Trophy size={SZ} />,     label: 'OKRs',               roles: ['admin','pm','hr'] },
-    { to: '/performance-reviews', icon: <Star size={SZ} />,       label: 'Performance Reviews', roles: ['admin','pm','hr'] },
-    { to: '/training',            icon: <BookOpen size={SZ} />,   label: 'Training & Certs',   roles: ['admin','pm','hr','employee'] },
+  { id: 'equipo', label: 'Team & People', groupKey: 'group_team', icon: <Users size={12} />, items: [
+    { to: '/team-dashboard',  icon: <LayoutGrid size={SZ} />,     label: 'Capacidad del equipo' },
+    { to: '/resources',           icon: <Users size={SZ} />,      label: 'Resources' },
+    { to: '/resources/planning',  icon: <CalendarRange size={SZ} />, label: 'Resource planning' },
+    { to: '/capacity',            icon: <TrendingUp size={SZ} />, label: 'Capacity' },
+    { to: '/resource-forecast',   icon: <BarChart size={SZ} />,   label: 'Resource Forecast' },
+    { to: '/resource-scheduler',  icon: <CalendarRange size={SZ} />, label: 'Visual Scheduler' },
+    { to: '/skills',              icon: <Award size={SZ} />,      label: 'Skills' },
+    { to: '/org-chart',           icon: <Network size={SZ} />,    label: 'Org Chart' },
+    { to: '/okrs',                icon: <Trophy size={SZ} />,     label: 'OKRs' },
+    { to: '/performance-reviews', icon: <Star size={SZ} />,       label: 'Performance Reviews' },
+    { to: '/training',            icon: <BookOpen size={SZ} />,   label: 'Training & Certs' },
   ]},
-  { id: 'negocio', label: 'Clients & Finance', groupKey: 'group_business', icon: <DollarSign size={12} />, roles: ['admin','pm'], items: [
-    { to: '/finance-dashboard', icon: <LayoutGrid size={SZ} />,  label: 'Resumen financiero',  roles: ['admin','pm'] },
-    { to: '/clients',           icon: <UserCheck size={SZ} />,   label: 'Clients / CRM',       roles: ['admin','pm'] },
-    { to: '/pipeline',          icon: <Megaphone size={SZ} />,   label: 'Sales Pipeline',       roles: ['admin','pm'] },
-    { to: '/contracts',         icon: <ScrollText size={SZ} />,  label: 'Contracts',            roles: ['admin','pm'] },
-    { to: '/invoices',          icon: <CreditCard size={SZ} />,  label: 'Invoicing',            roles: ['admin','pm'] },
-    { to: '/milestone-billing', icon: <Flag size={SZ} />,        label: 'Milestone Billing',    roles: ['admin','pm'] },
-    { to: '/profitability',     icon: <TrendingUp size={SZ} />,  label: 'Profitability',        roles: ['admin','pm'] },
-    { to: '/revenue',           icon: <DollarSign size={SZ} />,  label: 'Revenue Recognition',  roles: ['admin','pm'] },
-    { to: '/budgets',           icon: <Briefcase size={SZ} />,   label: 'Budgets',              roles: ['admin','pm'] },
-    { to: '/subcontractors',    icon: <HardHat size={SZ} />,     label: 'Subcontractors',       roles: ['admin','pm'] },
-    { to: '/scenarios',         icon: <Calculator size={SZ} />,  label: 'What-If Scenarios',    roles: ['admin','pm'] },
-    { to: '/nps',               icon: <ThumbsUp size={SZ} />,    label: 'NPS & Health',         roles: ['admin','pm'] },
+  { id: 'negocio', label: 'Clients & Finance', groupKey: 'group_business', icon: <DollarSign size={12} />, items: [
+    { to: '/finance-dashboard', icon: <LayoutGrid size={SZ} />,  label: 'Resumen financiero' },
+    { to: '/clients',           icon: <UserCheck size={SZ} />,   label: 'Clients / CRM' },
+    { to: '/pipeline',          icon: <Megaphone size={SZ} />,   label: 'Sales Pipeline' },
+    { to: '/contracts',         icon: <ScrollText size={SZ} />,  label: 'Contracts' },
+    { to: '/invoices',          icon: <CreditCard size={SZ} />,  label: 'Invoicing' },
+    { to: '/milestone-billing', icon: <Flag size={SZ} />,        label: 'Milestone Billing' },
+    { to: '/profitability',     icon: <TrendingUp size={SZ} />,  label: 'Profitability' },
+    { to: '/revenue',           icon: <DollarSign size={SZ} />,  label: 'Revenue Recognition' },
+    { to: '/budgets',           icon: <Briefcase size={SZ} />,   label: 'Budgets' },
+    { to: '/subcontractors',    icon: <HardHat size={SZ} />,     label: 'Subcontractors' },
+    { to: '/scenarios',         icon: <Calculator size={SZ} />,  label: 'What-If Scenarios' },
+    { to: '/nps',               icon: <ThumbsUp size={SZ} />,    label: 'NPS & Health' },
   ]},
-  { id: 'soporte', label: 'Support & ITSM', groupKey: 'group_support', icon: <MessageSquare size={12} />, roles: ['admin','pm','hr','employee','team_lead','subcontractor'], items: [
-    { to: '/support-dashboard', icon: <LayoutGrid size={SZ} />,  label: 'Estado del soporte',  roles: ['admin','pm','employee','hr','team_lead'] },
-    { to: '/service-desk',    icon: <MessageSquare size={SZ} />, label: 'Service Desk',     roles: ['admin','pm','employee','hr','team_lead','subcontractor'] },
-    { to: '/cmdb',            icon: <Monitor size={SZ} />,       label: 'CMDB',             roles: ['admin','pm'] },
-    { to: '/alm',             icon: <Key size={SZ} />,           label: 'Licenses & Assets', roles: ['admin','pm'] },
-    { to: '/alm/altas-y-bajas', icon: <UserMinus size={SZ} />,   label: 'Onboarding & offboarding', roles: ['admin','pm','hr','team_lead'] },
-    { to: '/agent-dashboard', icon: <LayoutGrid size={SZ} />,    label: 'Agent Dashboard',  roles: ['admin','pm'] },
+  { id: 'soporte', label: 'Support & ITSM', groupKey: 'group_support', icon: <MessageSquare size={12} />, items: [
+    { to: '/support-dashboard', icon: <LayoutGrid size={SZ} />,  label: 'Estado del soporte' },
+    { to: '/service-desk',    icon: <MessageSquare size={SZ} />, label: 'Service Desk' },
+    { to: '/cmdb',            icon: <Monitor size={SZ} />,       label: 'CMDB' },
+    { to: '/alm',             icon: <Key size={SZ} />,           label: 'Licenses & Assets' },
+    { to: '/alm/altas-y-bajas', icon: <UserMinus size={SZ} />,   label: 'Onboarding & offboarding' },
+    { to: '/agent-dashboard', icon: <LayoutGrid size={SZ} />,    label: 'Agent Dashboard' },
   ]},
-  { id: 'analisis', label: 'Analytics & BI', groupKey: 'group_analytics', icon: <BarChart2 size={12} />, roles: ['admin','pm','team_lead','hr','employee'], items: [
-    { to: '/executive',       icon: <LayoutDashboard size={SZ} />, label: 'Executive Dashboard', roles: ['admin','pm'] },
-    { to: '/data-explorer',   icon: <Search size={SZ} />,          label: 'Data Explorer',       roles: ['admin','pm'] },
-    { to: '/ask-company',     icon: <MessageSquareText size={SZ} />, label: 'Ask the company',   roles: ['admin','pm','team_lead','hr','employee'] },
-    { to: '/reports',         icon: <FileText size={SZ} />,        label: 'Reports',             roles: ['admin','pm','hr','employee'] },
-    { to: '/report-builder',  icon: <Wrench size={SZ} />,          label: 'Report Builder',      roles: ['admin','pm'] },
-    { to: '/predictions',     icon: <Brain size={SZ} />,           label: 'Predictions',         roles: ['admin','pm'] },
-    { to: '/alerts',          icon: <Bell size={SZ} />,            label: 'Alerts',              roles: ['admin','pm','hr'] },
-    { to: '/evm',             icon: <BarChart size={SZ} />,        label: 'EVM — Earned Value',  roles: ['admin','pm'] },
-    { to: '/portfolio',       icon: <Layers size={SZ} />,          label: 'Project Portfolio',   roles: ['admin','pm'] },
-    { to: '/portfolio/intake', icon: <Inbox size={SZ} />,          label: 'Portfolio intake',    roles: ['admin','pm','team_lead','employee','hr'] },
-    { to: '/sprint-charts',   icon: <Activity size={SZ} />,        label: 'Burnup & Velocity',   roles: ['admin','pm'] },
-    { to: '/cumulative-flow', icon: <BarChart2 size={SZ} />,       label: 'Cumulative Flow',     roles: ['admin','pm'] },
-    { to: '/risk-scores',     icon: <Shield size={SZ} />,          label: 'Project Risk',        roles: ['admin','pm'] },
-    { to: '/exports',         icon: <Download size={SZ} />,        label: 'Data Export',         roles: ['admin','pm','hr'] },
+  { id: 'analisis', label: 'Analytics & BI', groupKey: 'group_analytics', icon: <BarChart2 size={12} />, items: [
+    { to: '/executive',       icon: <LayoutDashboard size={SZ} />, label: 'Executive Dashboard' },
+    { to: '/data-explorer',   icon: <Search size={SZ} />,          label: 'Data Explorer' },
+    { to: '/ask-company',     icon: <MessageSquareText size={SZ} />, label: 'Ask the company' },
+    { to: '/reports',         icon: <FileText size={SZ} />,        label: 'Reports' },
+    { to: '/report-builder',  icon: <Wrench size={SZ} />,          label: 'Report Builder' },
+    { to: '/predictions',     icon: <Brain size={SZ} />,           label: 'Predictions' },
+    { to: '/alerts',          icon: <Bell size={SZ} />,            label: 'Alerts' },
+    { to: '/evm',             icon: <BarChart size={SZ} />,        label: 'EVM — Earned Value' },
+    { to: '/portfolio',       icon: <Layers size={SZ} />,          label: 'Project Portfolio' },
+    { to: '/portfolio/intake', icon: <Inbox size={SZ} />,          label: 'Portfolio intake' },
+    { to: '/sprint-charts',   icon: <Activity size={SZ} />,        label: 'Burnup & Velocity' },
+    { to: '/cumulative-flow', icon: <BarChart2 size={SZ} />,       label: 'Cumulative Flow' },
+    { to: '/risk-scores',     icon: <Shield size={SZ} />,          label: 'Project Risk' },
+    { to: '/exports',         icon: <Download size={SZ} />,        label: 'Data Export' },
     { divider: true },
-    { to: '/data-platform',   icon: <Database size={SZ} />,        label: 'Data Platform',       roles: ['admin'] },
-    { to: '/data-governance', icon: <Shield size={SZ} />,          label: 'Data Governance',     roles: ['admin'] },
+    { to: '/data-platform',   icon: <Database size={SZ} />,        label: 'Data Platform' },
+    { to: '/data-governance', icon: <Shield size={SZ} />,          label: 'Data Governance' },
   ]},
-  { id: 'ia', label: 'AI & Automation', groupKey: 'group_ai', icon: <Brain size={12} />, roles: ['admin','pm'], items: [
-    { to: '/nexus-agent',     icon: <Zap size={SZ} />,           label: 'NexusAgent',       roles: ['admin','pm'] },
-    { to: '/oracle',          icon: <Eye size={SZ} />,           label: 'NexusOracle',      roles: ['admin','pm'] },
-    { to: '/semantic-engine', icon: <Brain size={SZ} />,         label: 'AI Assignment',    roles: ['admin','pm','hr'] },
-    { to: '/automations',     icon: <Bot size={SZ} />,           label: 'Automations',      roles: ['admin','pm'] },
-    { to: '/bpm',             icon: <Network size={SZ} />,       label: 'BPM Procesos',     roles: ['admin','pm','team_lead'] },
+  { id: 'ia', label: 'AI & Automation', groupKey: 'group_ai', icon: <Brain size={12} />, items: [
+    { to: '/nexus-agent',     icon: <Zap size={SZ} />,           label: 'NexusAgent' },
+    { to: '/oracle',          icon: <Eye size={SZ} />,           label: 'NexusOracle' },
+    { to: '/semantic-engine', icon: <Brain size={SZ} />,         label: 'AI Assignment' },
+    { to: '/automations',     icon: <Bot size={SZ} />,           label: 'Automations' },
+    { to: '/bpm',             icon: <Network size={SZ} />,       label: 'BPM Procesos' },
   ]},
   // 18-11-2026: una sola entrada. Toda la configuración (antes 20 entradas aquí,
   // más /rate-cards, /user-costs, /sla-calendars y el diseñador de flujos del
   // service desk en otros grupos) vive en /settings/:seccion, con su propia
   // navegación agrupada y buscador (pages/settings/catalogoDeAjustes.tsx).
-  { id: 'configuracion', label: 'Settings', groupKey: 'group_settings', icon: <Settings size={12} />, roles: ROLES_CON_AJUSTES, items: [
-    { to: '/settings',            icon: <Settings size={SZ} />,    label: 'Settings',               roles: ROLES_CON_AJUSTES },
+  { id: 'configuracion', label: 'Settings', groupKey: 'group_settings', icon: <Settings size={12} />, items: [
+    { to: '/settings',            icon: <Settings size={SZ} />,    label: 'Settings' },
   ]},
 ]
 
@@ -422,7 +422,6 @@ interface NavItemConfig {
   to?: string
   icon?: React.ReactNode
   label?: string
-  roles?: string[]
   divider?: boolean
 }
 
@@ -483,7 +482,6 @@ interface NavGroupConfig {
   label: string
   groupKey?: string
   icon?: React.ReactNode
-  roles?: string[]
   items: NavItemConfig[]
 }
 
@@ -492,7 +490,6 @@ interface NavGroupProps {
   collapsed?: boolean
   alertCount?: number
   approvalCount?: number
-  hasRole: (...roles: string[]) => boolean
   t?: TFn | null
   /** Acordeón: solo un grupo abierto a la vez (lo decide `Layout`). */
   open: boolean
@@ -500,7 +497,7 @@ interface NavGroupProps {
   onActive: () => void
 }
 
-function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, open, onToggle, onActive }: NavGroupProps) {
+function NavGroup({ group, collapsed, alertCount, approvalCount, t, open, onToggle, onActive }: NavGroupProps) {
   const location = useLocation()
   const isAnyChildActive = group.items.filter(i => !i.divider).some(
     i => location.pathname === i.to || location.pathname.startsWith(i.to + '/')
@@ -513,7 +510,8 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, hasRole, t, ope
   // Al navegar a una pantalla de este grupo, se abre (y se cierran los demás).
   useEffect(() => { if (isAnyChildActive) onActive() }, [isAnyChildActive]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const visibleItems = group.items.filter(i => i.divider || !i.roles || i.roles.some(r => hasRole(r)))
+  // Ya filtrados por permiso en `Layout` (navGroups).
+  const visibleItems = group.items
   const realVisible = visibleItems.filter(i => !i.divider)
   if (realVisible.length === 0) return null
 
@@ -851,7 +849,7 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
 
 export default function Layout({ children }: { children?: React.ReactNode }) {
   const appName = useAppName()
-  const { user, logout, hasRole, canOpen = () => true } = useAuth()
+  const { user, logout, puede, canOpen = () => true } = useAuth()
   const navigate = useNavigate()
   const { prefs, save } = useUserPreferences()
   const { t, setCustomTranslations } = useAppLang()
@@ -889,9 +887,11 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const [openGroup, setOpenGroup] = useState<string | null>(null)
 
   // Auditoría 2026-11: los módulos que cierra el rol desaparecen del menú.
+  // 19-11-2026 (matriz de permisos): un elemento se ve si su ruta está permitida
+  // en `permisos/navegacion.ts`, la misma declaración que protege la ruta.
   const navGroups = useMemo(() => NAV_GROUPS.map(g => ({
-    ...g, items: (g.items || []).filter(i => i.divider || !i.to || canOpen(i.to)),
-  })), [canOpen])
+    ...g, items: (g.items || []).filter(i => i.divider || !i.to || (canOpen(i.to) && puedeAbrir(i.to, puede))),
+  })), [canOpen, puede])
   const allNavItems = useMemo(() => navGroups.flatMap(g => g.items || []).filter(i => !i.divider), [navGroups])
 
   const [collapsed, setCollapsed] = useState<boolean>(false)
@@ -1072,12 +1072,12 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
           )}
 
           {navGroups.map(group => {
-            const visible = group.items.some(i => !i.divider && (!i.roles || i.roles.some(r => hasRole(r))))
+            const visible = group.items.some(i => !i.divider)
             if (!visible) return null
             if (workspace !== 'all' && !WORKSPACE_GROUPS[workspace]?.includes(group.id || '')) return null
             return (
               <NavGroup key={group.id} group={group} collapsed={collapsed}
-                alertCount={alertCount} approvalCount={approvalCount} hasRole={hasRole} t={t}
+                alertCount={alertCount} approvalCount={approvalCount} t={t}
                 open={openGroup === group.id}
                 onToggle={() => setOpenGroup(g => (g === group.id ? null : group.id))}
                 onActive={() => setOpenGroup(group.id)} />

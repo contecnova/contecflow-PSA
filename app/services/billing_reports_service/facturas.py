@@ -31,6 +31,7 @@ from app.services.billing_reports_service._comun import (
     _set_serializable_if_postgres,
     _tenant_org_id,
 )
+from app.core.codigos_de_error import error
 
 
 # Obtener una factura por ID
@@ -48,16 +49,13 @@ def crear_enlace_de_pago(db: Session, invoice_id: str) -> dict:
 
     invoice = get_invoice_by_id(db, invoice_id)
     if not invoice:
-        raise ErrorDeDominio(status_code=404, detail="Invoice not found")
+        raise error(404, "no_encontrado", detail="Invoice not found", que="factura")
     if not stripe_service.is_configured():
         # Honesto: la funcionalidad no está disponible hasta configurar Stripe,
         # en vez de un 503 que sugiere un fallo transitorio.
-        raise ErrorDeDominio(
-            status_code=501,
-            detail="El cobro con Stripe no está disponible: configura STRIPE_SECRET_KEY.",
-        )
+        raise error(501, "integracion_no_configurada", detail="El cobro con Stripe no está disponible: configura STRIPE_SECRET_KEY.", nombre="Stripe")
     if invoice.status == InvoiceStatus.paid:
-        raise ErrorDeDominio(status_code=409, detail="La factura ya está pagada.")
+        raise error(409, "factura_ya_pagada")
     if invoice.stripe_payment_link_url:
         return {"url": invoice.stripe_payment_link_url, "id": invoice.stripe_payment_link_id, "reused": True}
     try:
@@ -71,7 +69,9 @@ def crear_enlace_de_pago(db: Session, invoice_id: str) -> dict:
             customer_email=invoice.client_email,
         )
     except stripe_service.StripeError as e:
-        raise ErrorDeDominio(status_code=502, detail=str(e))
+        import logging
+        logging.getLogger(__name__).warning("Stripe: no se pudo crear el enlace de pago: %s", e)
+        raise error(502, "servicio_externo_fallo", servicio="Stripe")
     invoice.stripe_payment_link_url = session["url"]
     invoice.stripe_payment_link_id = session["id"]
     if session.get("payment_intent"):
@@ -157,7 +157,7 @@ def create_invoice(payload, current_user: User, db: Session) -> dict:
     if payload.project_id:
         project = _lock_project_for_update(db, payload.project_id)
         if not project:
-            raise ErrorDeDominio(status_code=404, detail="Proyecto no encontrado o no accesible")
+            raise error(404, "no_encontrado", detail="Proyecto no encontrado o no accesible", que="proyecto")
 
     client_name = payload.client_name or (project.client_name if project else None) or "Sin cliente"
     # Revisión 2026-11: el importe de cada línea lo calcula el servidor (antes se
@@ -228,7 +228,7 @@ def create_invoice(payload, current_user: User, db: Session) -> dict:
     except OperationalError as exc:
         db.rollback()
         if _is_serialization_failure(exc):
-            raise ErrorDeDominio(status_code=409, detail="Concurrent financial update detected. Please retry.")
+            raise error(409, "conflicto_concurrente", detail="Concurrent financial update detected. Please retry.")
         raise
     try:
         from app.core.metrics import invoices_created_total
@@ -269,14 +269,14 @@ def _factura(db: Session, invoice_id: str, *, bloquear: bool = False) -> Invoice
         q = q.with_for_update(of=Invoice)   # sólo la factura: las uniones externas no se pueden bloquear
     inv = q.first()
     if not inv:
-        raise ErrorDeDominio(404, "Factura no encontrada")
+        raise error(404, "no_encontrado", detail="Factura no encontrada", que="factura")
     return inv
 
 
 def _exigir_borrador(inv: Invoice) -> None:
     estado = inv.status.value if isinstance(inv.status, enum.Enum) else str(inv.status)
     if estado != "draft":
-        raise ErrorDeDominio(409, "Sólo se modifica un borrador: una factura emitida se anula y se hace otra")
+        raise error(409, "factura_solo_borrador_editable")
 
 
 def _imputaciones_de(lineas: list) -> set:
@@ -375,11 +375,11 @@ def _aprobacion_antes_de_enviar(inv, current_user: User, db: Session) -> None:
     if estado == "approved":
         return
     if estado == "pending":
-        raise ErrorDeDominio(409, "La factura está pendiente de aprobación en la bandeja")
+        raise error(409, "factura_pendiente_aprobacion")
     db.rollback()
     fuentes.abrir(db, "invoice", inv.id, f"Factura {inv.number} — {inv.client_name or ''}".strip(" —"),
                   current_user.id, {"amount": float(inv.total or 0), "project_id": inv.project_id})
-    raise ErrorDeDominio(409, "La factura necesita aprobación: se ha enviado a la bandeja de aprobaciones")
+    raise error(409, "factura_enviada_a_aprobacion")
 
 
 def update_invoice_status(invoice_id: str, payload: dict, current_user: User, db: Session) -> dict:
@@ -404,7 +404,7 @@ def update_invoice_status(invoice_id: str, payload: dict, current_user: User, db
         db.commit()
         return invoice_out(inv)
     if new_status not in allowed_transitions.get(old_status, []):
-        raise ErrorDeDominio(400, f"Transición de estado no permitida: {old_status} → {new_status}")
+        raise error(400, "transicion_no_permitida", detail=f"Transición de estado no permitida: {old_status} → {new_status}", desde=old_status, hasta=new_status)
     if old_status == "draft" and new_status == "sent":
         _aprobacion_antes_de_enviar(inv, current_user, db)
     # Assign as Enum if possible
@@ -425,7 +425,7 @@ def update_invoice_status(invoice_id: str, payload: dict, current_user: User, db
     except OperationalError as exc:
         db.rollback()
         if _is_serialization_failure(exc):
-            raise ErrorDeDominio(status_code=409, detail="Concurrent financial update detected. Please retry.")
+            raise error(409, "conflicto_concurrente", detail="Concurrent financial update detected. Please retry.")
         raise
     return invoice_out(inv)
 
@@ -492,6 +492,6 @@ def list_invoices(project_id: str | None, status: str | None, db: Session) -> li
 def get_invoice_for_pdf(invoice_id: str, db: Session):
     inv = db.query(Invoice).filter(Invoice.id == invoice_id).first()
     if not inv:
-        raise ErrorDeDominio(404, "Factura no encontrada")
+        raise error(404, "no_encontrado", detail="Factura no encontrada", que="factura")
     lines = db.query(_InvoiceLine).filter(_InvoiceLine.invoice_id == invoice_id).order_by(_InvoiceLine.order).all()
     return inv, lines

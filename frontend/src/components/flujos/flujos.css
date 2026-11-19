@@ -7,11 +7,11 @@
 }
 .flujo-nodo--seleccionado { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
 .flujo-nodo--error { border-color: var(--danger); }
-.flujo-nodo-tipo { display: flex; align-items: center; gap: 6px; font-size: 9px; font-weight: 700; color: var(--flujo-color, var(--accent));letter-spacing: 0.05em; }
+.flujo-nodo-tipo { display: flex; align-items: center; gap: 6px; font-size: var(--text-3xs); font-weight: 700; color: var(--flujo-color, var(--accent));letter-spacing: 0.05em; }
 .flujo-nodo-nombre { font-weight: 600; line-height: 1.3; word-break: break-word; }
 .flujo-nodo-error { color: var(--danger); font-size: var(--text-xs); margin-top: 2px; }
 .flujo-asa { background: var(--flujo-color, var(--accent)) !important; width: 9px !important; height: 9px !important; }
-.flujo-asa-etiqueta { position: absolute; left: 12px; top: -7px; font-size: 10px; color: var(--text-2); white-space: nowrap; pointer-events: none; }
+.flujo-asa-etiqueta { position: absolute; left: 12px; top: -7px; font-size: var(--text-2xs); color: var(--text-2); white-space: nowrap; pointer-events: none; }
 
 .flujo-editor { display: grid; grid-template-columns: 190px minmax(0, 1fr) 300px; gap: 12px; min-height: 560px; }
 .flujo-paleta, .flujo-propiedades { background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: 12px; padding: 12px; overflow-y: auto; }
@@ -21,7 +21,7 @@
   color: var(--text-1); font: inherit; font-size: var(--text-sm); cursor: pointer; text-align: left;
 }
 .flujo-paleta button:hover, .flujo-paleta button:focus-visible { border-color: var(--accent); outline: none; }
-.flujo-aviso { position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 5; background: var(--surface-1); border: 1px solid var(--danger);
+.flujo-aviso { position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: calc(var(--z-content) + 4); background: var(--surface-1); border: 1px solid var(--danger);
   border-radius: 8px; padding: 8px 12px; font-size: var(--text-sm); max-height: 30%; overflow-y: auto; }
 .flujo-aviso li { color: var(--danger); }
 @media (max-width: 960px) { .flujo-editor { grid-template-columns: 1fr; } }

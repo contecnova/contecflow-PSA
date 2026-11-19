@@ -19,7 +19,7 @@ from app.models.issue_types import (
     FTSEntry,
 )
 from app.models.epics import WikiSpace, WikiPage
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error, ErrorConCodigo
 
 
 SYSTEM_ISSUE_TYPES = [
@@ -49,8 +49,8 @@ def validar_tipo(project_id: str, valor: Optional[str], db: Session) -> None:
         return
     validos = tipos_validos(project_id, db)
     if valor not in validos:
-        raise ErrorDeDominio(422, f"Tipo de incidencia «{valor}» no existe en el proyecto. "
-                                 f"Válidos: {', '.join(sorted(validos))}")
+        raise error(422, "tipo_incidencia_no_valido", detail=f"Tipo de incidencia «{valor}» no existe en el proyecto. "
+                                 f"Válidos: {', '.join(sorted(validos))}", tipo=valor, validos=', '.join(sorted(validos)))
 
 
 def serialize_issue_type(it: IssueType) -> dict:
@@ -97,10 +97,10 @@ def list_issue_types(project_id: str, db: Session) -> list:
 
 def init_issue_types(project_id: str, db: Session) -> dict:
     if not db.query(Project).filter(Project.id == project_id).first():
-        raise ValueError("404:Proyecto no encontrado")
+        raise ErrorConCodigo("no_encontrado", detail="404:Proyecto no encontrado", que="proyecto")
     existing = db.query(IssueType).filter(IssueType.project_id == project_id).count()
     if existing > 0:
-        raise ValueError("Este proyecto ya tiene tipos de issue definidos")
+        raise ErrorConCodigo("tipos_incidencia_ya_definidos", detail="Este proyecto ya tiene tipos de issue definidos")
     created = []
     for name, value, icon, color, desc, is_sub, order in SYSTEM_ISSUE_TYPES:
         it = IssueType(
@@ -116,13 +116,13 @@ def init_issue_types(project_id: str, db: Session) -> dict:
 
 def create_issue_type(project_id: str, payload_dict: dict, db: Session) -> dict:
     if not db.query(Project).filter(Project.id == project_id).first():
-        raise ValueError("404:Proyecto no encontrado")
+        raise ErrorConCodigo("no_encontrado", detail="404:Proyecto no encontrado", que="proyecto")
     existing = db.query(IssueType).filter(
         IssueType.project_id == project_id,
         IssueType.value == payload_dict["value"],
     ).first()
     if existing:
-        raise ValueError(f"Ya existe el tipo '{payload_dict['value']}' en este proyecto")
+        raise ErrorConCodigo("tipo_incidencia_ya_existe", detail=f"Ya existe el tipo '{payload_dict['value']}' en este proyecto", tipo=payload_dict['value'])
     it = IssueType(
         project_id=project_id,
         name=payload_dict["name"],
@@ -145,7 +145,7 @@ def update_issue_type(project_id: str, type_id: str, payload_dict: dict, db: Ses
         IssueType.id == type_id, IssueType.project_id == project_id
     ).first()
     if not it:
-        raise ValueError("404:Tipo de issue no encontrado")
+        raise ErrorConCodigo("no_encontrado", detail="404:Tipo de issue no encontrado", que="tipo_de_incidencia")
     it.name        = payload_dict["name"]
     it.icon        = payload_dict.get("icon")
     it.color       = payload_dict.get("color", "#7a8aaa")
@@ -166,12 +166,12 @@ def delete_issue_type(project_id: str, type_id: str, db: Session) -> dict:
         IssueType.id == type_id, IssueType.project_id == project_id
     ).first()
     if not it:
-        raise ValueError("404:Tipo de issue no encontrado")
+        raise ErrorConCodigo("no_encontrado", detail="404:Tipo de issue no encontrado", que="tipo_de_incidencia")
     in_use = db.query(Task).filter(
         Task.issue_type == it.value, Task.project_id == project_id
     ).count()
     if in_use:
-        raise ValueError(f"No se puede eliminar: {in_use} tareas usan este tipo. Reasígnalas primero")
+        raise ErrorConCodigo("tipo_incidencia_en_uso", n=in_use)
     # audit #36 soft-delete — el tipo conserva su histórico para tareas legacy.
     it.is_active = False
     db.commit()
@@ -198,20 +198,20 @@ def create_epic_dependency(payload_dict: dict, created_by: str, db: Session) -> 
     epic_id = payload_dict["epic_id"]
     depends_on_id = payload_dict["depends_on_id"]
     if epic_id == depends_on_id:
-        raise ValueError("Una épica no puede depender de sí misma")
+        raise ErrorConCodigo("epica_depende_de_si_misma")
     for eid in [epic_id, depends_on_id]:
         if not db.query(Epic).filter(Epic.id == eid).first():
-            raise ValueError(f"404:Épica {eid} no encontrada")
+            raise ErrorConCodigo("no_encontrado", detail=f"404:Épica {eid} no encontrada", que="epica")
     existing = db.query(EpicDependencyMeta).filter(
         EpicDependencyMeta.epic_id == epic_id,
         EpicDependencyMeta.depends_on_id == depends_on_id,
     ).first()
     if existing:
-        raise ValueError("Esta dependencia ya existe")
+        raise ErrorConCodigo("dependencia_ya_existe")
     try:
         dep_type = EpicDepType(payload_dict.get("dep_type", "finish_to_start"))
     except ValueError:
-        raise ValueError(f"Tipo inválido: {payload_dict.get('dep_type')}")
+        raise ErrorConCodigo("tipo_no_valido_valor", detail=f"Tipo inválido: {payload_dict.get('dep_type')}", tipo=payload_dict.get('dep_type'))
     d = EpicDependencyMeta(
         epic_id=epic_id, depends_on_id=depends_on_id,
         dep_type=dep_type,
@@ -225,7 +225,7 @@ def create_epic_dependency(payload_dict: dict, created_by: str, db: Session) -> 
 def delete_epic_dependency(dep_id: str, db: Session) -> dict:
     d = db.query(EpicDependencyMeta).filter(EpicDependencyMeta.id == dep_id).first()
     if not d:
-        raise ValueError("404:Dependencia no encontrada")
+        raise ErrorConCodigo("no_encontrado", detail="404:Dependencia no encontrada", que="dependencia")
     db.delete(d); db.commit()
     return {"deleted": True}
 
@@ -352,7 +352,7 @@ def fts_search(
     viewer,
 ) -> dict:
     if not q or len(q.strip()) < 2:
-        raise ValueError("La consulta debe tener al menos 2 caracteres")
+        raise ErrorConCodigo("consulta_minimo_2")
     terms = [t.strip() for t in q.split() if t.strip()]
     query = _acotar_indice(db.query(FTSEntry), db, viewer)
     if project_id:

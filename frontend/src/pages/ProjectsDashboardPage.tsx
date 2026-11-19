@@ -24,35 +24,20 @@ import {
   COLOR, GaugeCard, BarRow, SectionCard, typePalette,
 } from '../components/dashboard/DashKit'
 import { usePeriodo } from '../hooks/usePeriodo'
+import { useTono } from '../hooks/useOrgSettings'
+import { colorDeTono } from '../utils/umbrales'
 import { SIN_HORA, codigoDeErrorDePeriodo } from '../utils/periodo'
 import { useAppT } from '../i18n/AppLangContext'
+import { colorDeEstado, etiquetaDeEstado } from '../constants/catalogos'
 import { STALE_DEFAULT_MS } from '../constants/timings'
 import type { FilaDeMetrica, KpisDelCuadroDeMando, SaludDeProyecto } from '../services/api/tipos-analitica'
 import './ProjectsDashboardPage.css'
 
-const STATUS_COLORS: Record<string, string> = {
-  active:    COLOR.accent,
-  planning:  'var(--sky-blue)',
-  on_hold:   COLOR.warning,
-  paused:    COLOR.warning,
-  completed: COLOR.success,
-  closed:    COLOR.success,
-  cancelled: COLOR.danger,
-  archived:  'var(--text-3)',
-}
+// 19-11-2026: etiquetas y colores de estado de una sola fuente (`constants/catalogos.ts`).
 
 export default function ProjectsDashboardPage() {
   const t = useAppT()
-  const STATUS_LABELS: Record<string, string> = {
-    active:    t('projects_dashboard.status_active'),
-    planning:  t('projects_dashboard.status_planning'),
-    on_hold:   t('projects_dashboard.status_on_hold'),
-    paused:    t('projects_dashboard.status_paused'),
-    completed: t('projects_dashboard.status_completed'),
-    closed:    t('projects_dashboard.status_closed'),
-    cancelled: t('projects_dashboard.status_cancelled'),
-    archived:  t('projects_dashboard.status_archived'),
-  }
+  const tono = useTono()
   // Periodo libre (16-11-2026): antes 30/90/365 días propios. La métrica es por
   // día de calendario y sin serie: sin hora ni agrupación.
   const periodo = usePeriodo({ defecto: '30d', granularidades: SIN_HORA })
@@ -110,8 +95,11 @@ export default function ProjectsDashboardPage() {
 
   const total = allProjects.length
   const active = allProjects.filter(p => p.status === 'active').length
-  const isCrit = (p: SaludDeProyecto) => (p.schedule_deviation_days || 0) > 0 || (p.budget_used_pct || 0) > 100
-  const isWarn = (p: SaludDeProyecto) => !isCrit(p) && ((p.budget_used_pct || 0) > 80 || (p.alerts_count || 0) > 0)
+  // 19-11-2026: el semáforo del presupuesto lo calcula el servidor (`budget_tone`,
+  // UMBRAL_PRESUPUESTO_*); antes 100/80 aquí.
+  const tonoPresupuesto = (p: SaludDeProyecto) => p.budget_tone ?? tono('presupuesto', p.budget_used_pct || 0)
+  const isCrit = (p: SaludDeProyecto) => (p.schedule_deviation_days || 0) > 0 || tonoPresupuesto(p) === 'danger'
+  const isWarn = (p: SaludDeProyecto) => !isCrit(p) && (tonoPresupuesto(p) === 'warning' || (p.alerts_count || 0) > 0)
   const crit = health.filter(isCrit).length
   const warn = health.filter(isWarn).length
   const ok = Math.max(health.length - crit - warn, 0)
@@ -121,7 +109,7 @@ export default function ProjectsDashboardPage() {
   const budgetTotal = Number(kpis?.total_budget) || 0
   const budgetSpent = Number(kpis?.total_spent) || 0
   const budgetPct = budgetTotal > 0 ? Math.round((budgetSpent / budgetTotal) * 100) : null
-  const budgetColor = budgetPct == null ? COLOR.accent : budgetPct > 90 ? COLOR.danger : budgetPct > 70 ? COLOR.warning : COLOR.success
+  const budgetColor = budgetPct == null ? COLOR.accent : colorDeTono(tono('presupuesto', budgetPct))
 
   const highRisks = risks.filter((r) => r.risk_level === 'high' || r.risk_level === 'critical').length
   const overdue = kpis?.tasks_overdue ?? 0
@@ -134,9 +122,9 @@ export default function ProjectsDashboardPage() {
   const statusRows = Object.entries(statusCounts)
     .sort((a, b) => b[1] - a[1])
     .map(([status, count]) => ({
-      label: STATUS_LABELS[status] || status,
+      label: etiquetaDeEstado(t as never, status),
       count,
-      color: STATUS_COLORS[status] || 'var(--text-3)',
+      color: colorDeEstado(status),
     }))
 
   const totalByType = byType.reduce((s, r) => s + (r.value || 0), 0)

@@ -46,7 +46,7 @@
   text-align: center;
 }
 .resoheat-ls {
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-weight: 700;
   color: var(--text-2);
 

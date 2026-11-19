@@ -19,6 +19,7 @@ from app.services.service_desk.kb_service import (
     list_kb_versions, serialize_kb_versions, rollback_kb_to_version,
 )
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.core.codigos_de_error import error_http
 
 router = APIRouter()
 
@@ -116,7 +117,7 @@ def crear_correccion(payload: CorreccionIn, db: Session = Depends(get_db),
     from app.services.service_desk.kb_service import puede_publicar
     # Una corrección pasa por delante de los artículos: la deja quien puede publicar.
     if not puede_publicar(db, current_user):
-        raise HTTPException(403, "Solo quien puede publicar en la base deja correcciones")
+        raise error_http(403, "kb_solo_publicadores", detail="Solo quien puede publicar en la base deja correcciones")
     corr = _crear(db, current_user, payload.question, payload.answer, es_publica=payload.is_public,
                   gap_id=payload.gap_id)
     return APIResponse.ok(data={"id": corr.id})
@@ -127,9 +128,9 @@ def _cambiar_estado(modelo, fila_id: str, payload: EstadoIn, db: Session, usuari
     try:
         cerrar(db, modelo, fila_id, payload.status, usuario)
     except ValueError:
-        raise HTTPException(422, "Estado no válido")
+        raise error_http(422, "estado_no_valido")
     except LookupError:
-        raise HTTPException(404, "No encontrado")
+        raise error_http(404, "no_encontrado_generico")
     return APIResponse.ok(data={"ok": True})
 
 
@@ -139,7 +140,7 @@ def estado_correccion(correction_id: str, payload: EstadoIn, db: Session = Depen
     from app.models.service_desk.kb_calidad import KBCorrection
     from app.services.service_desk.kb_service import puede_publicar
     if not puede_publicar(db, current_user):
-        raise HTTPException(403, "Solo quien puede publicar en la base cambia correcciones")
+        raise error_http(403, "kb_solo_publicadores", detail="Solo quien puede publicar en la base cambia correcciones")
     return _cambiar_estado(KBCorrection, correction_id, payload, db, current_user)
 
 
@@ -196,7 +197,7 @@ def get_kb_article(article_id: str, db: Session = Depends(get_db), lector: Lecto
     a = get_kb_article_and_increment_view(db, article_id, solo_publico=lector.solo_publico)
     if _lector_externo(lector) and getattr(a.status, "value", a.status) != "published":
         db.rollback()
-        raise HTTPException(404, "Artículo no encontrado")
+        raise error_http(404, "no_encontrado", detail="Artículo no encontrado", que="articulo")
     _commit_or_rollback(db)
     datos = serialize_kb_article_detail(a)
     if lector.cliente is not None:
@@ -259,7 +260,7 @@ def get_kb_versions(
     _ = get_scoped_kb_article_or_404(db, current_user, article_id)
     if _lector_externo(Lector(usuario=current_user)):
         # Externos como internos (16-11-2026): el historial guarda borradores.
-        raise HTTPException(404, "Artículo no encontrado")
+        raise error_http(404, "no_encontrado", detail="Artículo no encontrado", que="articulo")
     items = list_kb_versions(db, article_id)
     return APIListResponse.ok(items=serialize_kb_versions(items))
 

@@ -5,6 +5,7 @@ sin cambiar el codigo. El paquete reexporta todos los nombres.
 """
 from typing import Optional
 from sqlalchemy.orm import Session
+from app.core.umbrales import umbrales_de_empresa
 from app.models.client_portal import ClientMessage
 from app.models.client_portal import ClientUser, client_user_projects
 from app.models.client_portal import UATSession, UATStatus, FeatureRequest, FeatureRequestStatus
@@ -265,6 +266,9 @@ def get_client_dashboard(project_id: Optional[str], current_client, db: Session)
         },
         "next_milestone": _dashboard_next_milestone(milestones),
         "recent_activity": get_recent_activity(project.id, db),
+        # 19-11-2026: el portal no lee /settings/org-defaults (sesion de cliente):
+        # los umbrales de semaforo de la empresa del proyecto llegan con el panel.
+        "umbrales": umbrales_de_empresa(db, project.organization_id),
     }
 
 

@@ -16,6 +16,7 @@ from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.services import bi_smart_alerts_service as svc
+from app.core.codigos_de_error import desde_valor
 
 router = APIRouter()
 
@@ -93,7 +94,7 @@ def create_custom_metric(
         metric = svc.create_custom_metric(db, organization_id=org_id, payload=body.model_dump(), current_user=current_user)
     # intentional: chained re-raise preserves context
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise desde_valor(422, exc) from exc
     return APIResponse.ok(data=metric)
 
 
@@ -138,7 +139,7 @@ def create_alert_rule(
         )
     # intentional: chained re-raise preserves context
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise desde_valor(422, exc) from exc
     return APIResponse.ok(data=rule)
 
 
@@ -161,7 +162,7 @@ def update_alert_rule(
     # intentional: chained re-raise preserves context
     except ValueError as exc:
         code = 404 if str(exc) == "rule_not_found" else 422
-        raise HTTPException(status_code=code, detail=str(exc)) from exc
+        raise desde_valor(code, exc) from exc
     return APIResponse.ok(data=rule)
 
 
@@ -216,7 +217,7 @@ def acknowledge_alert(
             current_user=current_user,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise desde_valor(404, exc) from exc
     return APIResponse.ok(data=entry)
 
 

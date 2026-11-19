@@ -10,7 +10,7 @@
   padding: 32px;
 }
 .erroboun-txt-1 {
-  font-size: 40px;
+  font-size: var(--text-5xl);
 }
 .erroboun-box-1 {
   color: var(--text-1);
@@ -28,7 +28,7 @@
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--text-md);
   font-family: inherit;
 }
 .erroboun-box-4 {
@@ -36,7 +36,7 @@
   padding: 16px;
   border-radius: 8px;
   color: var(--danger);
-  font-size: 12px;
+  font-size: var(--text-sm);
   max-width: 800px;
   overflow: auto;
   max-height: 300px;

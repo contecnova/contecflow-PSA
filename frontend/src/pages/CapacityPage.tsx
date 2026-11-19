@@ -20,7 +20,8 @@ import { useAppT } from '../i18n/AppLangContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { z } from 'zod'
 import { useFormValidation } from '../hooks/useFormValidation'
-import { useOrgSettings } from '../hooks/useOrgSettings'
+import { useOrgSettings, useUmbrales } from '../hooks/useOrgSettings'
+import { estadoDeCarga } from '../utils/umbrales'
 import DateInput from '../components/ui/DateInput'
 import { STALE_SHORT_MS } from '../constants/timings'
 import './CapacityPage.css'
@@ -70,7 +71,7 @@ const crearEsquema = (t: Traducir) => z.object({
 type EsquemaAsignacion = ReturnType<typeof crearEsquema>
 
 /** Estado de carga de una semana (clave de la leyenda de la rejilla común). */
-const estadoDeCarga = (pct: number): string => pct > 100 ? 'sobrecargado' : pct > 85 ? 'alto' : pct > 60 ? 'ocupado' : 'disponible'
+// 19-11-2026: `estadoDeCarga` (utils/umbrales) con los umbrales de la empresa; antes 100/85/60 aquí.
 const LEYENDA: Array<{ clave: string; tono: TonoDeRejilla }> = [
   { clave: 'disponible',   tono: 'success' },
   { clave: 'ocupado',      tono: 'accent' },
@@ -102,7 +103,7 @@ function AssignModal({ prefill, onClose }: { prefill: AssignPrefill | null; onCl
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const { working_hours_per_day: jornada } = useOrgSettings()
+  const { working_hours_per_day: jornada, weekly_capacity_hours: capacidadSemanal } = useOrgSettings()
   const [form, setForm] = useState<AssignForm>({
     user_id:       prefill?.user_id ? String(prefill.user_id) : '',
     project_id:    prefill?.project_id ? String(prefill.project_id) : '',
@@ -183,7 +184,7 @@ function AssignModal({ prefill, onClose }: { prefill: AssignPrefill | null; onCl
           </div>
           <div>
             <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cap-label">{t('capacity.horas_planificadas')}</label>
-            <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={form.planned_hours} min="1" max="80" step="0.5"
+            <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={form.planned_hours} min="1" max={2 * capacidadSemanal} step="0.5"
               onChange={setField('planned_hours')} className="cap-input" aria-invalid={!!validation.errors.planned_hours} />{msg('planned_hours')}
             {validation.errors.planned_hours && <div className="u-field-error" role="alert">{validation.errors.planned_hours}</div>}
           </div>
@@ -297,6 +298,7 @@ function CapCell({ userId, weekStart, plans, capacity, onDrop, onAdd }: {
 
 export default function CapacityPage(): JSX.Element {
   const t = useAppT()
+  const umbrales = useUmbrales()
   const toast = useToast()
   const qc = useQueryClient()
   const { weekly_capacity_hours: capacidadSemanal } = useOrgSettings() // 18-11-2026: capacidad por defecto de la empresa
@@ -408,7 +410,7 @@ export default function CapacityPage(): JSX.Element {
             const capacidad = u.weekly_capacity_hours || capacidadSemanal
             const horas = plans.reduce((s, p) => s + (p.planned_hours || 0), 0)
             return {
-              estado: horas > 0 ? estadoDeCarga(capacidad > 0 ? (horas / capacidad) * 100 : 0) : undefined,
+              estado: horas > 0 ? estadoDeCarga(capacidad > 0 ? (horas / capacidad) * 100 : 0, umbrales) : undefined,
               contenido: (
                 <CapCell
                   userId={u.id}

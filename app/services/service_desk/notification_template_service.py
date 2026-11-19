@@ -15,7 +15,7 @@ from app.models.cab import EmailTemplate
 from app.services.formato_regional import IDIOMA_DE_RESPALDO
 from app.services.service_desk.plantillas_aviso import IDIOMAS, POR_DEFECTO, VARIABLES
 from app.services.service_desk.ticket_event_processor import renderizar
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 #: Valores de ejemplo para la vista previa.
 EJEMPLO = {
@@ -38,9 +38,9 @@ def _fila(db: Session, code: str, idioma: str, org_id: Optional[str]) -> Optiona
 
 def _exigir(code: str, idioma: str) -> None:
     if code not in POR_DEFECTO:
-        raise ErrorDeDominio(404, "Aviso desconocido")
+        raise error(404, "aviso_desconocido")
     if idioma not in IDIOMAS:
-        raise ErrorDeDominio(422, f"Idioma sin textos: {idioma}")
+        raise error(422, "idioma_sin_textos", idioma=idioma)
 
 
 def listar(db: Session, org_id: Optional[str]) -> list[dict]:
@@ -67,7 +67,7 @@ def guardar(db: Session, org_id: Optional[str], user_id: Optional[str], code: st
             subject: str, body_html: str, is_active: bool) -> dict:
     _exigir(code, idioma)
     if not subject.strip() or not body_html.strip():
-        raise ErrorDeDominio(422, "El asunto y el texto no pueden quedar vacíos")
+        raise error(422, "asunto_y_texto_obligatorios")
     fila = _fila(db, code, idioma, org_id)
     if fila is None:
         fila = EmailTemplate(

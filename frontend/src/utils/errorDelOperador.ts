@@ -22,6 +22,11 @@ export function textoDeErrorDelOperador(e: unknown): string | null {
   const params = data?.params && typeof data.params === 'object' ? data.params as Record<string, unknown> : {}
   return texto.replace(/\{(\w+)\}/g, (m, k: string) => {
     const v = params[k]
+    // 19-11-2026: `que` es una entidad del catálogo (`no_encontrado`, `que=epica`):
+    // se traduce con `err_srv.que_<entidad>` (`QUE` en codigos_de_error.py).
+    if (k === 'que' && typeof v === 'string' && typeof catalogo[`que_${v}`] === 'string') {
+      return traducirSinHook(`err_srv.que_${v}`)
+    }
     return typeof v === 'string' || typeof v === 'number' ? String(v) : m
   })
 }

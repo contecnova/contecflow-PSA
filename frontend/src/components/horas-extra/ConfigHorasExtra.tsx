@@ -225,7 +225,7 @@ function Regularizar() {
 
 function Reglas() {
   const { th, t } = useTh()
-  const esAdmin = useAuth().hasRole('admin')
+  const esAdmin = useAuth().puede('org.administrar')
   const qc = useQueryClient()
   const toast = useToast()
   const m = useMutation({

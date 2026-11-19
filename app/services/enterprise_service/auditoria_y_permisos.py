@@ -16,6 +16,7 @@ from app.services.notifications import notify_user
 from datetime import timedelta
 from datetime import datetime as _dt
 from sqlalchemy.orm import joinedload
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 def compute_audit_stats(db: Session, days: float, desde: datetime | None = None,
@@ -99,7 +100,7 @@ def get_project_permissions(project_id: str, db: Session) -> list:
 def grant_project_permission(project_id: str, payload, current_user, db: Session) -> dict:
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
-        raise ValueError("Proyecto no encontrado")
+        raise ErrorConCodigo("no_encontrado", detail="Proyecto no encontrado", que="proyecto")
     existing = db.query(ProjectPermission).filter(
         ProjectPermission.project_id == project_id,
         ProjectPermission.user_id == payload.user_id,

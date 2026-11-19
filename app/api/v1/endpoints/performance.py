@@ -35,6 +35,7 @@ from app.schemas.performance import (
 )
 from app.models.user import UserRole
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.core.codigos_de_error import error_http, desde_valor
 
 router = APIRouter(tags=["Performance Reviews"])
 
@@ -111,9 +112,9 @@ def activate_cycle(cycle_id: str, db: Session = Depends(get_db),
                    cu: User = Depends(require_admin_or_hr)):
     c = performance_service.get_cycle(db, cycle_id)
     if not c:
-        raise HTTPException(404, "Ciclo no encontrado")
+        raise error_http(404, "no_encontrado", detail="Ciclo no encontrado", que="ciclo")
     if c.status != ReviewCycleStatus.draft:
-        raise HTTPException(400, f"Solo se puede activar un ciclo en estado 'draft', actual: '{c.status}'")
+        raise error_http(400, "ciclo_solo_borrador", detail=f"Solo se puede activar un ciclo en estado 'draft', actual: '{c.status}'", estado=c.status)
     performance_service.activate_cycle(db, c)
     return APIResponse.ok(data={"status": "active"})
 
@@ -123,9 +124,9 @@ def close_cycle(cycle_id: str, db: Session = Depends(get_db),
                 cu: User = Depends(require_admin_or_hr)):
     c = performance_service.get_cycle(db, cycle_id)
     if not c:
-        raise HTTPException(404, "Ciclo no encontrado")
+        raise error_http(404, "no_encontrado", detail="Ciclo no encontrado", que="ciclo")
     if c.status != ReviewCycleStatus.active:
-        raise HTTPException(400, f"Solo se puede cerrar un ciclo activo, actual: '{c.status}'")
+        raise error_http(400, "ciclo_solo_activo", detail=f"Solo se puede cerrar un ciclo activo, actual: '{c.status}'", estado=c.status)
     performance_service.close_cycle(db, c)
     return APIResponse.ok(data={"status": "closed"})
 
@@ -137,7 +138,7 @@ def list_cycle_questions(cycle_id: str, db: Session = Depends(get_db),
                          cu: User = Depends(get_current_user)):
     c = performance_service.get_cycle(db, cycle_id)
     if not c:
-        raise HTTPException(404, "Ciclo no encontrado")
+        raise error_http(404, "no_encontrado", detail="Ciclo no encontrado", que="ciclo")
     return APIListResponse.ok(items=[_ser_question(q) for q in performance_service.list_questions(db, cycle_id)])
 
 
@@ -192,10 +193,10 @@ def list_eligible_reviewers(cycle_id: str, reviewee_id: str, review_type: str,
                             db: Session = Depends(get_db),
                             cu: User = Depends(require_admin_or_hr)):
     if review_type not in ("self", "manager", "peer", "upward"):
-        raise HTTPException(422, "review_type debe ser self|manager|peer|upward")
+        raise error_http(422, "campo_no_valido_opciones", detail="review_type debe ser self|manager|peer|upward", campo="review_type", opciones="self, manager, peer, upward")
     reviewee = performance_service.usuario_propio(db, cu, reviewee_id)
     if not reviewee:
-        raise HTTPException(404, "Persona evaluada no encontrada")
+        raise error_http(404, "no_encontrado", detail="Persona evaluada no encontrada", que="persona_evaluada")
 
     users = performance_service.eligible_reviewers(db, reviewee=reviewee, review_type=review_type)
 
@@ -251,7 +252,7 @@ def my_reviews(db: Session = Depends(get_db), cu: User = Depends(get_current_use
 def create_review(cycle_id: str, payload: dict,
                   db: Session = Depends(get_db), cu: User = Depends(require_admin_or_hr)):
     if not payload.get("reviewee_id") or not payload.get("reviewer_id"):
-        raise HTTPException(422, "reviewee_id y reviewer_id son obligatorios")
+        raise error_http(422, "campos_obligatorios", detail="reviewee_id y reviewer_id son obligatorios", campos="reviewee_id, reviewer_id")
     try:
         r = performance_service.create_review(
             db, cycle_id=cycle_id,
@@ -261,7 +262,7 @@ def create_review(cycle_id: str, payload: dict,
             validate_eligibility=bool(payload.get("validate_eligibility", True)),
         )
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
     return APIResponse.ok(data={"id": r.id})
 
 
@@ -270,12 +271,12 @@ def save_review(review_id: str, payload: ReviewIn,
                 db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     r = performance_service.get_review(db, review_id)
     if not r:
-        raise HTTPException(404, "Evaluación no encontrada")
+        raise error_http(404, "no_encontrado", detail="Evaluación no encontrada", que="evaluacion")
     if r.reviewer_id != cu.id:
-        raise HTTPException(403, "Solo el evaluador puede modificar esta evaluación")
+        raise error_http(403, "evaluacion_solo_evaluador")
     c = performance_service.get_cycle(db, r.cycle_id)
     if c and c.status == ReviewCycleStatus.closed:
-        raise HTTPException(400, "El ciclo de evaluación ya está cerrado")
+        raise error_http(400, "ciclo_evaluacion_cerrado")
     r = performance_service.save_review(db, r, payload.model_dump(exclude_unset=True))
     return APIResponse.ok(data=_ser_review(r))
 
@@ -285,12 +286,12 @@ def submit_review(review_id: str, db: Session = Depends(get_db),
                   cu: User = Depends(get_current_user)):
     r = performance_service.get_review(db, review_id)
     if not r:
-        raise HTTPException(404, "Evaluación no encontrada")
+        raise error_http(404, "no_encontrado", detail="Evaluación no encontrada", que="evaluacion")
     if r.reviewer_id != cu.id:
-        raise HTTPException(403, "Acceso denegado")
+        raise error_http(403, "sin_permiso", detail="Acceso denegado")
     c = performance_service.get_cycle(db, r.cycle_id)
     if c and c.status == ReviewCycleStatus.closed:
-        raise HTTPException(400, "El ciclo de evaluación ya está cerrado")
+        raise error_http(400, "ciclo_evaluacion_cerrado")
     performance_service.submit_review(db, r)
     return APIResponse.ok(data={"status": "submitted"})
 
@@ -300,7 +301,7 @@ def user_review_history(user_id: str, db: Session = Depends(get_db),
                         cu: User = Depends(get_current_user)):
     target = performance_service.usuario_propio(db, cu, user_id)
     if not _can_view_subject(cu, target):
-        raise HTTPException(403, "Acceso denegado")
+        raise error_http(403, "sin_permiso", detail="Acceso denegado")
     reviews = performance_service.get_user_review_history(db, user_id)
     return APIListResponse.ok(items=[_ser_review(r) for r in reviews])
 
@@ -317,7 +318,7 @@ def list_cycle_campaigns(
 ):
     c = performance_service.get_cycle(db, cycle_id)
     if not c:
-        raise HTTPException(404, "Ciclo no encontrado")
+        raise error_http(404, "no_encontrado", detail="Ciclo no encontrado", que="ciclo")
     campaigns, total = performance_service.list_cycle_campaigns(
         db, cycle_id, limit=limit, offset=offset,
     )
@@ -340,7 +341,7 @@ def create_campaign(cycle_id: str, payload: Campaign360In,
     if not performance_service.can_launch_campaign_for(
         db, current_user=cu, subject_id=payload.subject_id
     ):
-        raise HTTPException(403, "Solo puedes lanzar campañas para tus reportes directos")
+        raise error_http(403, "sin_permiso", detail="Solo puedes lanzar campañas para tus reportes directos")
     try:
         camp = performance_service.create_campaign(
             db,
@@ -355,7 +356,7 @@ def create_campaign(cycle_id: str, payload: Campaign360In,
             auto_activate=payload.auto_activate,
         )
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
     return APIResponse.ok(data=performance_service.serialize_campaign(camp))
 
 
@@ -364,7 +365,7 @@ def close_campaign(campaign_id: str, db: Session = Depends(get_db),
                    cu: User = Depends(require_admin_or_hr)):
     camp = performance_service.get_campaign(db, campaign_id)
     if not camp:
-        raise HTTPException(404, "Campaña no encontrada")
+        raise error_http(404, "no_encontrado", detail="Campaña no encontrada", que="campana")
     performance_service.close_campaign(db, camp)
     return APIResponse.ok(data=performance_service.serialize_campaign(camp))
 
@@ -375,9 +376,9 @@ def campaign_dashboard(campaign_id: str, db: Session = Depends(get_db),
                        cu: User = Depends(get_current_user)):
     camp = performance_service.get_campaign(db, campaign_id)
     if not camp:
-        raise HTTPException(404, "Campaña no encontrada")
+        raise error_http(404, "no_encontrado", detail="Campaña no encontrada", que="campana")
     if not _can_view_campaign(cu, camp, db):
-        raise HTTPException(403, "Acceso denegado")
+        raise error_http(403, "sin_permiso", detail="Acceso denegado")
     return APIResponse.ok(data=performance_service.aggregate_campaign(db, camp))
 
 
@@ -387,7 +388,7 @@ def campaign_dashboard_pdf(campaign_id: str, db: Session = Depends(get_db),
                            cu: User = Depends(require_admin_or_hr)):
     camp = performance_service.get_campaign(db, campaign_id)
     if not camp:
-        raise HTTPException(404, "Campaña no encontrada")
+        raise error_http(404, "no_encontrado", detail="Campaña no encontrada", que="campana")
     dashboard = performance_service.aggregate_campaign(db, camp)
     from app.services.campaign_pdf import generate_campaign_pdf
     from app.services._pdf_marca import PALETA_POR_DEFECTO, marca_de_organizacion
@@ -415,7 +416,7 @@ def campaign_reviews(campaign_id: str, db: Session = Depends(get_db),
                      cu: User = Depends(require_admin_or_hr)):
     camp = performance_service.get_campaign(db, campaign_id)
     if not camp:
-        raise HTTPException(404, "Campaña no encontrada")
+        raise error_http(404, "no_encontrado", detail="Campaña no encontrada", que="campana")
     return APIListResponse.ok(items=[_ser_review(r) for r in (camp.reviews or [])])
 
 
@@ -427,7 +428,7 @@ def user_360_history(user_id: str, db: Session = Depends(get_db),
     # pueden consultar el de cualquiera.
     is_priv = cu.is_superadmin or cu.role in (UserRole.admin, UserRole.hr, UserRole.pm, UserRole.team_lead)
     if not is_priv and cu.id != user_id:
-        raise HTTPException(403, "Solo puedes consultar tu propio histórico")
+        raise error_http(403, "sin_permiso", detail="Solo puedes consultar tu propio histórico")
     return APIResponse.ok(data=performance_service.history_360_for_subject(db, user_id))
 
 
@@ -446,7 +447,7 @@ def cycle_kpis(cycle_id: str, db: Session = Depends(get_db),
     from app.services import perf_reminder_service
     data = perf_reminder_service.cycle_kpis(db, cycle_id)
     if not data:
-        raise HTTPException(404, "Ciclo no encontrado")
+        raise error_http(404, "no_encontrado", detail="Ciclo no encontrado", que="ciclo")
     return APIResponse.ok(data=data)
 
 
@@ -470,7 +471,7 @@ def list_user_plans(user_id: str, db: Session = Depends(get_db),
         # Manager? lo permitimos si es manager directo
         target = performance_service.usuario_de_la_organizacion(db, cu, user_id)
         if not target or target.manager_id != cu.id:
-            raise HTTPException(403, "No tienes acceso a estos planes")
+            raise error_http(403, "sin_permiso", detail="No tienes acceso a estos planes")
     plans = dev_plan_service.list_plans_for_subject(db, user_id)
     return APIListResponse.ok(items=[dev_plan_service.serialize_plan(p) for p in plans])
 
@@ -481,9 +482,9 @@ def get_dev_plan(plan_id: str, db: Session = Depends(get_db),
     from app.services import dev_plan_service
     plan = dev_plan_service.get_plan(db, plan_id)
     if not plan:
-        raise HTTPException(404, "Plan no encontrado")
+        raise error_http(404, "no_encontrado", detail="Plan no encontrado", que="plan")
     if not dev_plan_service.can_view_plan(current_user=cu, plan=plan, db=db):
-        raise HTTPException(403, "Sin permisos para ver este plan")
+        raise error_http(403, "sin_permiso", detail="Sin permisos para ver este plan")
     return APIResponse.ok(data=dev_plan_service.serialize_plan(plan))
 
 
@@ -495,7 +496,7 @@ def create_dev_plan(payload: DevPlanIn, db: Session = Depends(get_db),
     target = performance_service.usuario_propio(db, cu, payload.subject_id)
     is_priv = cu.is_superadmin or cu.role in (UserRole.admin, UserRole.hr)
     if not is_priv and cu.id != payload.subject_id and target.manager_id != cu.id:
-        raise HTTPException(403, "Solo puedes crear planes propios o de tus reportes directos")
+        raise error_http(403, "sin_permiso", detail="Solo puedes crear planes propios o de tus reportes directos")
     plan = dev_plan_service.create_plan(
         db, subject_id=payload.subject_id, created_by=cu.id,
         organization_id=cu.organization_id,
@@ -514,9 +515,9 @@ def patch_dev_plan(plan_id: str, payload: DevPlanUpdate,
     from app.services import dev_plan_service
     plan = dev_plan_service.get_plan(db, plan_id)
     if not plan:
-        raise HTTPException(404, "Plan no encontrado")
+        raise error_http(404, "no_encontrado", detail="Plan no encontrado", que="plan")
     if not dev_plan_service.can_edit_plan(current_user=cu, plan=plan, db=db):
-        raise HTTPException(403, "Sin permisos para editar este plan")
+        raise error_http(403, "sin_permiso", detail="Sin permisos para editar este plan")
     plan = dev_plan_service.update_plan(db, plan, payload.model_dump(exclude_unset=True))
     return APIResponse.ok(data=dev_plan_service.serialize_plan(plan))
 
@@ -529,9 +530,9 @@ def add_dev_goal(plan_id: str, payload: DevGoalIn,
     from app.services import dev_plan_service
     plan = dev_plan_service.get_plan(db, plan_id)
     if not plan:
-        raise HTTPException(404, "Plan no encontrado")
+        raise error_http(404, "no_encontrado", detail="Plan no encontrado", que="plan")
     if not dev_plan_service.can_edit_plan(current_user=cu, plan=plan, db=db):
-        raise HTTPException(403, "Sin permisos")
+        raise error_http(403, "sin_permiso", detail="Sin permisos")
     g = dev_plan_service.add_goal(db, plan, payload.model_dump(exclude_unset=True))
     return APIResponse.ok(data=dev_plan_service.serialize_goal(g))
 
@@ -544,7 +545,7 @@ def patch_dev_goal(goal_id: str, payload: DevGoalUpdate,
     enforce_abac(db, cu, "dev_goal", goal_id, action="update")
     g = performance_service.objetivo_propio(db, cu, goal_id)
     if not dev_plan_service.can_edit_plan(current_user=cu, plan=g.plan, db=db):
-        raise HTTPException(403, "Sin permisos")
+        raise error_http(403, "sin_permiso", detail="Sin permisos")
     g = dev_plan_service.update_goal(db, g, payload.model_dump(exclude_unset=True))
     return APIResponse.ok(data=dev_plan_service.serialize_goal(g))
 
@@ -556,6 +557,6 @@ def remove_dev_goal(goal_id: str, db: Session = Depends(get_db),
     enforce_abac(db, cu, "dev_goal", goal_id, action="delete")
     g = performance_service.objetivo_propio(db, cu, goal_id)
     if not dev_plan_service.can_edit_plan(current_user=cu, plan=g.plan, db=db):
-        raise HTTPException(403, "Sin permisos")
+        raise error_http(403, "sin_permiso", detail="Sin permisos")
     dev_plan_service.delete_goal(db, g)
     return None

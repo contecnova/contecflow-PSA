@@ -394,6 +394,19 @@ def dia(db: Session, user_id: str, fecha: date, **kw) -> Optional[DiaEfectivo]:
     return horario(db, user_id, fecha, fecha, **kw).get(fecha)
 
 
+def horas_por_persona(db: Session, user_ids: Iterable[str], desde: date, hasta: date, **kw) -> dict[str, float]:
+    """{user_id: horas de trabajo en [desde, hasta]} según su horario efectivo.
+
+    19-11-2026 (semana laboral): la capacidad de las métricas, los escenarios y
+    los recordatorios contaba `weekday() < 5` × capacidad/5; ahora suma las
+    horas de cada día de SU horario (turno, jornada —martes a sábado, p. ej.—,
+    festivos de empresa y sede, contrato y, por defecto, ausencias aprobadas).
+    Sin jornada especial el resultado es el de siempre: L-V, capacidad/5 al día.
+    """
+    return {uid: round(sum(x.horas for x in dias_persona.values()), 4)
+            for uid, dias_persona in horarios(db, user_ids, desde, hasta, **kw).items()}
+
+
 def media_diaria(dias_persona: dict, defecto: float = 8.0) -> float:
     """Horas medias de un día de trabajo (teóricas, sin festivos ni fuera de
     contrato): la conversión días↔horas de esa persona."""

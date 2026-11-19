@@ -30,6 +30,16 @@ class AutomationsSettingsMixin:
     # que se manda a quien lo tenga activado, y cuántos avisos lista como mucho.
     NOTIFICATIONS_DIGEST_HOUR: int = Field(default=8, env="NOTIFICATIONS_DIGEST_HOUR")
     NOTIFICATIONS_DIGEST_MAX_ITEMS: int = Field(default=20, env="NOTIFICATIONS_DIGEST_MAX_ITEMS")
+    # Avisos a la hora de cada empresa (19-11-2026): hora local (HH:MM, en su
+    # DEFAULT_TIMEZONE) del motor de alertas, del recordatorio de la campaña de
+    # presupuestos y del de imputaciones (este avisa solo a quien ese día
+    # trabaja según su horario efectivo). Se redondea al cuarto de hora. Los valores
+    # son los de antes, cuando eran horas fijas del worker.
+    NOTIFICATIONS_ALERTS_TIME: str = Field(default="08:00", env="NOTIFICATIONS_ALERTS_TIME")
+    NOTIFICATIONS_BUDGET_CAMPAIGN_TIME: str = Field(default="08:30", env="NOTIFICATIONS_BUDGET_CAMPAIGN_TIME")
+    NOTIFICATIONS_MISSING_IMPUTATIONS_TIME: str = Field(default="18:00", env="NOTIFICATIONS_MISSING_IMPUTATIONS_TIME")
+    # 19-11-2026: también los recordatorios de evaluaciones de desempeño (antes 09:00 fijas).
+    NOTIFICATIONS_PERF_REMINDERS_TIME: str = Field(default="09:00", env="NOTIFICATIONS_PERF_REMINDERS_TIME")
 
     # ── BPM: motor de procesos (`app/services/bpmn_engine.py`) ──────────────
     # Pasos automaticos seguidos sin una espera: mas alla, la instancia falla

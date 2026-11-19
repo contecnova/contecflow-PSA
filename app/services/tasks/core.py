@@ -13,6 +13,7 @@ from app.core.errores import ErrorDeDominio
 
 
 from app.models.task import TaskStatus
+from app.core.codigos_de_error import error
 
 # ── Transition policy ─────────────────────────────────────────────────────────
 # Auditoría 2026-08 (hallazgo 18). Aquí había un comentario que decía «toda
@@ -55,10 +56,7 @@ def validate_task_transition(current_status: TaskStatus, new_status: TaskStatus)
     """Raise 400 if the transition is not permitted by _TASK_VALID_TRANSITIONS."""
     allowed = _TASK_VALID_TRANSITIONS.get(current_status, set())
     if new_status not in allowed:
-        raise ErrorDeDominio(
-            status_code=400,
-            detail=f"Transición inválida: {current_status.value} → {new_status.value}.",
-        )
+        raise error(400, "transicion_no_permitida", detail=f"Transición inválida: {current_status.value} → {new_status.value}.", desde=current_status.value, hasta=new_status.value)
 
 
 def apply_status_side_effects(task, new_status: TaskStatus) -> None:

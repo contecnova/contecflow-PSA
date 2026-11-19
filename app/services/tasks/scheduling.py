@@ -26,6 +26,7 @@ from app.core.errores import ErrorDeDominio
 from app.models.bookings import TaskDependency
 from app.models.project import Project
 from app.models.task import Task, TaskStatus
+from app.core.codigos_de_error import error
 
 
 def _fila(t: Task, inicio_ant, fin_ant) -> dict:
@@ -48,9 +49,9 @@ def cascade_reschedule(task_id: str, new_end_date: date, db: Session) -> dict:
 
     raiz = db.query(Task).filter(Task.id == task_id).first()
     if not raiz:
-        raise ErrorDeDominio(404, "Tarea no encontrada")
+        raise error(404, "no_encontrado", detail="Tarea no encontrada", que="tarea")
     if not raiz.due_date:
-        raise ErrorDeDominio(400, "La tarea raíz no tiene fecha de fin definida")
+        raise error(400, "tarea_raiz_sin_fin")
     if new_end_date == raiz.due_date:
         return {"rescheduled": [], "total_shifted": 0,
                 "message": "No hay cambio de fecha — nada que replanificar"}

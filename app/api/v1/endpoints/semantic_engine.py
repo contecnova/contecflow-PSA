@@ -9,6 +9,7 @@ from app.core.deps import get_current_user, require_admin_or_hr, require_interna
 from app.core.responses import APIListResponse, APIResponse
 import app.services.semantic_engine_service as _svc
 from app.core.config import settings
+from app.core.codigos_de_error import error_http, desde_valor
 
 router = APIRouter()
 
@@ -44,7 +45,7 @@ def update_config(data: SemConfigPatch = Body(...),
     if "engine_mode" in payload:
         payload["engine_mode"] = str(payload["engine_mode"]).strip().lower()
         if payload["engine_mode"] not in _svc.VALID_ENGINE_MODES:
-            raise HTTPException(400, f"engine_mode inválido. Use uno de: {', '.join(sorted(_svc.VALID_ENGINE_MODES))}")
+            raise error_http(400, "campo_no_valido_opciones", detail=f"engine_mode inválido. Use uno de: {', '.join(sorted(_svc.VALID_ENGINE_MODES))}", campo="engine_mode", opciones=', '.join(sorted(_svc.VALID_ENGINE_MODES)))
 
     # Normalize backend/model relationship without schema changes:
     # local_model_name="tfidf" is the explicit persisted toggle for TF-IDF mode.
@@ -87,7 +88,7 @@ def suggest_ticket_assignee(data: dict = Body(...),
     title = data.get("title", "")
     desc  = data.get("description", "")
     if not title:
-        raise HTTPException(400, "title requerido")
+        raise error_http(400, "campo_obligatorio", detail="title requerido", campo="title")
     candidates = _candidate_users_for_org(db, cu, data.get("candidate_user_ids"))
     priority   = data.get("priority", "medium")
     assigner   = _svc.get_assigner(db)
@@ -107,7 +108,7 @@ def suggest_task_assignee(data: dict = Body(...),
     title      = data.get("title", "")
     desc       = data.get("description", "")
     if not title:
-        raise HTTPException(400, "title requerido")
+        raise error_http(400, "campo_obligatorio", detail="title requerido", campo="title")
     project_id = data.get("project_id")
     candidates = data.get("candidate_user_ids")
     if project_id and not candidates:
@@ -179,7 +180,7 @@ def create_or_update_profile(data: dict = Body(...),
     user_id      = data.get("user_id")
     profile_text = data.get("profile_text", "")
     if not user_id:
-        raise HTTPException(400, "user_id requerido")
+        raise error_http(400, "campo_obligatorio", detail="user_id requerido", campo="user_id")
     try:
         return APIResponse.ok(data=_svc.upsert_profile(
             db,
@@ -190,7 +191,7 @@ def create_or_update_profile(data: dict = Body(...),
             current_user=cu,
         ))
     except PermissionError as e:
-        raise HTTPException(403, str(e))
+        raise desde_valor(403, e)
 
 
 @router.post("/profiles/auto-generate")
@@ -225,7 +226,7 @@ def record_feedback(data: dict = Body(...),
     original_engine_mode = data.get("original_engine_mode", "")
     confirmed            = bool(data.get("confirmed", False))
     if not item_text or not correct_user_id:
-        raise HTTPException(400, "item_text y correct_user_id requeridos")
+        raise error_http(400, "campos_obligatorios", detail="item_text y correct_user_id requeridos", campos="item_text, correct_user_id")
     assigner = _get_assigner(db)
     corrected_by = cu.id
     if original_engine_mode == "llm" and confirmed:

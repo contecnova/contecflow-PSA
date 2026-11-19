@@ -38,6 +38,7 @@ from app.core.responses import APIListResponse, APIResponse
 from app.services.ai_provider_service import call_ai, get_default_provider
 from app.services.ai_provider_service import PresupuestoDeIAAgotado
 from app.services import ai_provider_service as _gobernado
+from app.core.codigos_de_error import error_http, desde_valor
 
 router = APIRouter()
 
@@ -164,12 +165,12 @@ def transformar_texto(
     y un aviso es un 503: el texto del usuario no se toca.
     """
     if _check_prompt_injection(payload.mensaje):
-        raise HTTPException(400, "Petición rechazada: el contenido parece intentar manipular el sistema de IA.")
+        raise error_http(400, "ia_peticion_rechazada", detail="Petición rechazada: el contenido parece intentar manipular el sistema de IA.")
     texto = call_ai(db, [{"role": "user", "content": payload.mensaje}], module="inline_editor",
                     user_id=current_user.id, is_superadmin=bool(current_user.is_superadmin),
                     organization_id=current_user.organization_id)
     if _gobernado.es_aviso_de_ia(texto):
-        raise HTTPException(503, texto)
+        raise error_http(503, "ia_no_disponible", detail=texto)
     return APIResponse.ok(data={"texto": texto})
 
 
@@ -183,15 +184,12 @@ def chat(
 
     # P0-5: Reject prompt injection attempts
     if _check_prompt_injection(payload.message):
-        raise HTTPException(
-            status_code=400,
-            detail="Petición rechazada: el mensaje contiene patrones que intentan manipular el sistema de IA.",
-        )
+        raise error_http(400, "ia_peticion_rechazada", detail="Petición rechazada: el mensaje contiene patrones que intentan manipular el sistema de IA.")
 
     # Rate-limit check
     limit_err = _check_rate_limit(db, current_user.id, "nexusassist")
     if limit_err:
-        raise HTTPException(429, limit_err)
+        raise error_http(429, "ia_uso_no_permitido", detail=limit_err)
 
     # Revisión 2026-11: las políticas de entrada se aplican ANTES de guardar el
     # mensaje; antes se guardaba el original aunque una política lo redactara
@@ -199,7 +197,8 @@ def chat(
     effective_message, bloqueo = _gobernado.guardrail_de_instruccion(
         db, current_user, payload.message, module="nexusassist")
     if bloqueo:
-        raise HTTPException(400, str(bloqueo).strip("[]"))
+        raise error_http(400, "bloqueado_por_politica", detail=str(bloqueo).strip("[]"),
+                         motivo=str(bloqueo).strip("[]"))
 
     # Obtener o crear conversación, persistir mensaje y construir historial
     conv = None
@@ -219,31 +218,34 @@ def chat(
     try:
         assistant_text = call_ai(
             db, messages, system=system,
-            module="nexusassist", user_id=current_user.id, max_tokens=4000,
+            module="nexusassist", user_id=current_user.id, max_tokens=settings.AI_CHAT_MAX_TOKENS,
             is_superadmin=bool(getattr(current_user, "is_superadmin", False)),
             organization_id=getattr(current_user, "organization_id", None),
         )
     except PresupuestoDeIAAgotado as e:
-        raise HTTPException(429, str(e))
+        raise desde_valor(429, e)
     except ValueError as e:
-        raise HTTPException(400, f"Error de datos: {str(e)}")
+        _logger.warning("IA chat: error de datos del proveedor: %s", e)
+        raise error_http(400, "ia_error_datos")
     except ConnectionError as e:
-        raise HTTPException(503, f"No se pudo conectar con el proveedor IA: {str(e)}")
+        _logger.warning("IA chat: sin conexion con el proveedor: %s", e)
+        raise error_http(503, "ia_proveedor_sin_conexion")
     except Exception as e:
         import logging
         logging.getLogger(__name__).error(f"Error inesperado en IA chat: {e}", exc_info=True)
-        raise HTTPException(500, f"Error inesperado en el proveedor IA: {str(e)}")
+        raise error_http(500, "ia_proveedor_error_inesperado")
 
     # Si el mensaje fue bloqueado por governance, propagamos 400 al cliente
     if assistant_text.startswith("[Mensaje bloqueado por política de gobernanza"):
-        raise HTTPException(400, assistant_text.strip("[]"))
+        raise error_http(400, "bloqueado_por_politica", detail=assistant_text.strip("[]"),
+                         motivo=assistant_text.strip("[]"))
 
     # Revisión 2026-11: un aviso de la IA (sin proveedor, error del proveedor) no
     # es una respuesta: no se guarda como tal en la conversación (ni la pregunta
     # que no se pudo contestar) y llega como error al panel.
     if _gobernado.es_aviso_de_ia(assistant_text):
         db.rollback()
-        raise HTTPException(503, assistant_text)
+        raise error_http(503, "ia_no_disponible", detail=assistant_text)
 
     # Guardar respuesta
     latency = int((time.time() - t0) * 1000)
@@ -317,7 +319,7 @@ def valorar_respuesta(message_id: str, payload: ValoracionIn, db: Session = Depe
     try:
         return APIResponse.ok(data=valorar_del_asistente(db, current_user, message_id, payload.helpful, payload.comment))
     except LookupError:
-        raise HTTPException(404, "Respuesta no encontrada")
+        raise error_http(404, "no_encontrado", detail="Respuesta no encontrada", que="respuesta")
 
 
 @router.delete("/ai/conversations/{conv_id}", summary="Archivar conversación")
@@ -365,15 +367,12 @@ def run_agent(
 ):
     # P0-5: Reject prompt injection attempts in agent instructions
     if _check_prompt_injection(payload.instruction):
-        raise HTTPException(
-            status_code=400,
-            detail="Instrucción rechazada: el contenido parece intentar manipular el sistema de IA.",
-        )
+        raise error_http(400, "ia_peticion_rechazada", detail="Instrucción rechazada: el contenido parece intentar manipular el sistema de IA.")
 
     # Rate-limit check
     limit_err = _check_rate_limit(db, current_user.id, "nexusagent")
     if limit_err:
-        raise HTTPException(429, limit_err)
+        raise error_http(429, "ia_uso_no_permitido", detail=limit_err)
 
     # Create execution record immediately and return; worker runs the loop async
     execution = _svc.create_agent_execution(db, current_user.id, payload.instruction)
@@ -402,7 +401,7 @@ def agent_status(
     try:
         return APIResponse.ok(data=_svc.get_agent_status(db, exec_id, current_user.id))
     except ValueError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
 
 
 def _evento_sse(data: dict) -> str:
@@ -434,7 +433,7 @@ def _emitir_modo_degradado(_db, instruccion: str, system: str, usuario):
                 "\n\nUsando el contexto del sistema proporcionado, analiza la instrucción "
                 "del usuario y proporciona una respuesta completa y detallada con los datos reales."
             ),
-            module="nexusagent", user_id=usuario.id, max_tokens=1500,
+            module="nexusagent", user_id=usuario.id, max_tokens=settings.AI_LONG_ANSWER_MAX_TOKENS,
             is_superadmin=bool(getattr(usuario, "is_superadmin", False)),
             organization_id=getattr(usuario, "organization_id", None),
         )
@@ -645,11 +644,11 @@ def run_agent_stream(
       data: {"type": "error", "message": "..."}
     """
     if _check_prompt_injection(payload.instruction):
-        raise HTTPException(400, "Instrucción rechazada: el contenido parece intentar manipular el sistema de IA.")
+        raise error_http(400, "ia_peticion_rechazada", detail="Instrucción rechazada: el contenido parece intentar manipular el sistema de IA.")
 
     limit_err = _check_rate_limit(db, current_user.id, "nexusagent")
     if limit_err:
-        raise HTTPException(429, limit_err)
+        raise error_http(429, "ia_uso_no_permitido", detail=limit_err)
 
     instruction   = payload.instruction
     # Item #55: default conservador (False). Antes era True (override del

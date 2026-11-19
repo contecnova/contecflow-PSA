@@ -59,6 +59,47 @@ class CustomProjectType(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class CustomClientIndustry(Base):
+    """Sector de cliente: catálogo editable por empresa (19-11-2026).
+
+    Sustituye al enum de BD `clientindustry`. Las filas globales
+    (`organization_id = NULL`) son los diez sectores de siempre (mismas claves:
+    el API antiguo sigue valiendo); cada empresa añade los suyos. Misma
+    semántica que `CustomProjectType`. `clients.industry` guarda la clave.
+    """
+    _tenant_filter_include_global = True
+
+    __tablename__ = "custom_client_industries"
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    value = Column(String(50), nullable=False)
+    label = Column(String(100), nullable=False)
+    color = Column(String(20), default="#7a8aaa")
+    is_active = Column(Boolean, default=True)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class CustomExpenseCategory(Base):
+    """Categoría de gasto: catálogo editable por empresa (19-11-2026).
+
+    Sustituye al enum de BD `expensecategory`. Filas globales = las ocho
+    categorías de siempre (mismas claves); cada empresa añade las suyas.
+    `expenses.category` guarda la clave.
+    """
+    _tenant_filter_include_global = True
+
+    __tablename__ = "custom_expense_categories"
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    value = Column(String(50), nullable=False)
+    label = Column(String(100), nullable=False)
+    color = Column(String(20), default="#7a8aaa")
+    is_active = Column(Boolean, default=True)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class CustomProjectStatus(Base):
     # Auditoria 2026-08. Catalogo GLOBAL con personalizacion por organizacion:
     # las filas con `organization_id = NULL` son los valores que trae el

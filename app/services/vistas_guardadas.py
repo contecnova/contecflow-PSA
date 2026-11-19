@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 
 from app.core.errores import ErrorDeDominio
 from app.models.epics import SavedFilter
+from app.core.codigos_de_error import error
 
 TIPOS_DE_VISTA = ("kanban", "list", "table", "timeline", "calendar", "workload")
 _ROLES_QUE_COMPARTEN = ("admin", "pm")
@@ -60,16 +61,16 @@ def listar(db: Session, user, entity_type: str = "task", project_id: Optional[st
 
 def _validar(datos: dict) -> None:
     if datos.get("view_type") and datos["view_type"] not in TIPOS_DE_VISTA:
-        raise ErrorDeDominio(422, f"Tipo de vista no válido: {datos['view_type']}")
+        raise error(422, "valor_no_valido", detail=f"Tipo de vista no válido: {datos['view_type']}", valor=datos['view_type'])
     if "config" in datos and datos["config"] is not None and not isinstance(datos["config"], dict):
-        raise ErrorDeDominio(422, "La configuración de la vista tiene que ser un objeto")
+        raise error(422, "vista_config_no_objeto")
 
 
 def crear(db: Session, user, datos: dict) -> dict:
     from app.services.audit import audit_log
     _validar(datos)
     if datos.get("is_shared") and not _puede_compartir(user):
-        raise ErrorDeDominio(403, "Solo admin o PM comparten vistas con toda la empresa")
+        raise error(403, "vista_compartir_solo_admin_pm")
     if datos.get("project_id"):
         from app.services.planificador.servicio import proyecto_visible
         proyecto_visible(db, user, datos["project_id"])
@@ -91,9 +92,9 @@ def crear(db: Session, user, datos: dict) -> dict:
 def _propia(db: Session, user, view_id: str) -> SavedFilter:
     v = db.query(SavedFilter).filter(SavedFilter.id == view_id, SavedFilter.is_active.is_(True)).first()
     if not v or (v.created_by != user.id and not v.is_shared):
-        raise ErrorDeDominio(404, "Vista no encontrada")
+        raise error(404, "no_encontrado", detail="Vista no encontrada", que="vista")
     if v.created_by != user.id and _rol(user) != "admin" and not getattr(user, "is_superadmin", False):
-        raise ErrorDeDominio(403, "Solo quien creó la vista la cambia")
+        raise error(403, "vista_solo_autor")
     return v
 
 
@@ -102,7 +103,7 @@ def actualizar(db: Session, user, view_id: str, datos: dict) -> dict:
     _validar(datos)
     v = _propia(db, user, view_id)
     if datos.get("is_shared") and not _puede_compartir(user):
-        raise ErrorDeDominio(403, "Solo admin o PM comparten vistas con toda la empresa")
+        raise error(403, "vista_compartir_solo_admin_pm")
     for campo in ("name", "nql_query", "view_type", "is_shared"):
         if datos.get(campo) is not None:
             setattr(v, campo, datos[campo])

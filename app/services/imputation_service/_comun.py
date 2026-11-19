@@ -21,6 +21,7 @@ from app.services.psa_flows import sync_timesheet_from_imputations_flow
 from app.core.errores import ErrorDeDominio
 # ── Cost ───────────────────────────────────────────────────────────────────────
 import app.services.cost_service as _cost_svc
+from app.core.codigos_de_error import error
 
 
 def resolve_user_rate(db: Session, user: User, on_date: Optional[date] = None,
@@ -99,10 +100,7 @@ def _assert_project_membership(project, task, current_user: User, db: Session) -
     if current_user.role == UserRole.subcontractor:
         is_task_assignee = False
     if not (is_pm or is_member or is_task_assignee):
-        raise ErrorDeDominio(
-            status_code=403,
-            detail="No puedes imputar horas en un proyecto al que no estás asignado.",
-        )
+        raise error(403, "imputar_proyecto_no_asignado")
 
 
 def _notify_duplicate_imputation_manager(

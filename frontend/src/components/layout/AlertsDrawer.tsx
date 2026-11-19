@@ -37,7 +37,7 @@ interface Props {
 
 export default function AlertsDrawer({ onClose }: Props) {
   const { t } = useAppLang()
-  const { hasRole } = useAuth()
+  const { puede } = useAuth()
   const qc = useQueryClient()
 
   const { data: alerts = [], isLoading } = useQuery({
@@ -142,7 +142,7 @@ export default function AlertsDrawer({ onClose }: Props) {
                               {t('alertsdrawer.leida')}
                             </Pulsable>
                           )}
-                          {hasRole('admin', 'pm', 'hr') && (
+                          {puede('alertas.ver') && (
                             <Pulsable onClick={() => resolve(alert.id)} className="alerdraw-box-10">
                               {t('layoutshell.resolver')}
                             </Pulsable>

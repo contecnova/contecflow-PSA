@@ -23,6 +23,7 @@ from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.services import bi_query_builder_service as svc
+from app.core.codigos_de_error import desde_valor
 
 router = APIRouter()
 
@@ -125,7 +126,7 @@ def save_query(
             created_by=current_user.id,
         ))
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
+        raise desde_valor(422, exc)
 
 
 @router.post("/bi/query-builder/preview", summary="Preview ad-hoc de query visual sin guardar")
@@ -161,7 +162,7 @@ def preview_query(
             limit=body.limit,
         ))
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
+        raise desde_valor(422, exc)
 
 
 @router.delete("/bi/query-builder/queries/{query_id}", summary="Eliminar una query guardada", status_code=204)
@@ -178,7 +179,7 @@ def delete_query(
     try:
         svc.delete_query(db, org_id=org_id, query_id=query_id)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise desde_valor(404, exc)
 
 
 @router.post("/bi/query-builder/queries/{query_id}/execute", summary="Ejecutar una query guardada")
@@ -196,4 +197,4 @@ def execute_query(
     try:
         return APIResponse.ok(data=svc.execute_query(db, org_id=org_id, query_id=query_id, current_user=current_user))
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise desde_valor(404, exc)

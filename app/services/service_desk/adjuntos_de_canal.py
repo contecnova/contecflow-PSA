@@ -178,10 +178,10 @@ def descargar_acotado(cliente, url: str, *, headers: dict, tope: int, timeout: f
         r.raise_for_status()
         largo = r.headers.get("content-length")
         if largo and largo.isdigit() and int(largo) > tope:
-            raise ErrorDeDominio(413, "adjunto demasiado grande")
+            raise error_con_codigo(413, "adjunto_demasiado_grande", detail="adjunto demasiado grande")
         for trozo in r.iter_bytes():
             total += len(trozo)
             if total > tope:
-                raise ErrorDeDominio(413, "adjunto demasiado grande")
+                raise error_con_codigo(413, "adjunto_demasiado_grande", detail="adjunto demasiado grande")
             partes.append(trozo)
         return b"".join(partes), r.headers.get("content-type")

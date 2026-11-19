@@ -19,13 +19,14 @@ vi.mock('../pages/settings-sections/SettingsAdvancedSections', () => ({
   IntegrationProviderEditor: ({ provider }: { provider: string }) => <div data-testid="credenciales">{provider}</div>,
 }))
 vi.mock('../context/ToastContext', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn() }) }))
-vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: { role: estado.rol } }) }))
+vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: { role: estado.rol }, puede: (c: string) => puedeComo(estado.rol)(c) }) }))
 vi.mock('../i18n/AppLangContext', () => {
   const t = (k: string) => k
   return { useAppLang: () => ({ t, lang: 'es' }), useAppT: () => t }
 })
 
 import TraduccionSection from '../pages/settings-sections/TraduccionSection'
+import { puedeComo } from './capacidadesDelBackend'
 
 const USO = {
   cache: { entries: 120, characters: 5400, hits: 80 }, messages_translated: 42, glossary_terms: 1, kb_versions_in_review: 2,

@@ -15,6 +15,7 @@ import { Spinner } from '../../components/ui'
 import StatusBadge from '../../components/ui/StatusBadge'
 import { ticketsApi } from '../../services/api'
 import { STALE_SHORT_MS } from '../../constants/timings'
+import { ESTADOS_DEL_TABLERO_DE_TICKETS } from '../../constants/catalogos'
 import './KanbanTicketsTab.css'
 
 const PRIO_COLOR: Record<string, string> = { p1_critical: 'var(--danger)', p2_high: 'var(--orange)', p3_medium: 'var(--warning)', p4_low: 'var(--text-2)' }
@@ -32,7 +33,8 @@ interface KanbanTicket {
   [key: string]: unknown
 }
 
-const ESTADOS_DEL_TABLERO = ['new', 'assigned', 'in_progress', 'pending_client', 'pending_third', 'resolved']
+// 19-11-2026: estados ITSM de una sola fuente.
+const ESTADOS_DEL_TABLERO = ESTADOS_DEL_TABLERO_DE_TICKETS
 const KANBAN_MAX = 200
 
 interface DragState {

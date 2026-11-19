@@ -15,6 +15,7 @@ from app.services.absence_service import (
 )
 from app.schemas.absences import AbsenceIn, AbsenceReview
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.core.codigos_de_error import error_http
 
 router = APIRouter()
 
@@ -99,7 +100,7 @@ def cancel_absence(
 ):
     a = absence_service.get_absence_for_user(db, absence_id, current_user.id)
     if not a:
-        raise HTTPException(404, "Ausencia no encontrada")
+        raise error_http(404, "no_encontrado", detail="Ausencia no encontrada", que="ausencia")
     enforce_abac(db, current_user, "absence", absence_id, action="delete")
     solicitudes.cancelar(db, current_user, a)
     return APIResponse.ok(data={"ok": True, "message": "Ausencia cancelada correctamente"})
@@ -115,7 +116,7 @@ def edit_absence(
     """Edita una ausencia propia pendiente o en lista de espera: se vuelve a evaluar y a reservar."""
     a = absence_service.get_absence_for_user(db, absence_id, current_user.id)
     if not a:
-        raise HTTPException(404, "Ausencia no encontrada")
+        raise error_http(404, "no_encontrado", detail="Ausencia no encontrada", que="ausencia")
     a = solicitudes.editar(db, current_user, a, payload.model_dump())
     return APIResponse.ok(data=_absence_out(a, current_user, db))
 
@@ -154,7 +155,7 @@ def review_absence(
 ):
     a = absence_service.get_absence_by_id(db, absence_id)
     if not a:
-        raise HTTPException(404, "Ausencia no encontrada")
+        raise error_http(404, "no_encontrado", detail="Ausencia no encontrada", que="ausencia")
     # Quien pide no aprueba (segunda auditoría 2026-11): antes de elegir camino,
     # así vale igual para el voto en la bandeja que para la decisión directa.
     from app.services.approval_engine._base import exigir_que_no_sea_suyo
@@ -204,7 +205,7 @@ def get_user_absence_summary(
     if not year:
         year = datetime.now().year
     if current_user.role not in [UserRole.admin, UserRole.hr] and current_user.id != user_id:
-        raise HTTPException(403, "Acceso denegado")
+        raise error_http(403, "sin_permiso", detail="Acceso denegado")
 
     absences = absence_service.get_user_year_absences(db, user_id, year)
 

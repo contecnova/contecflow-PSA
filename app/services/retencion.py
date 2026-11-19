@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timedelta, timezone
 
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ def levantar_bloqueo(db, usuario, bloqueo_id: str) -> None:
         h = db.query(LegalHold).filter(LegalHold.id == bloqueo_id,
                                        LegalHold.organization_id == usuario.organization_id).first()
     if h is None:
-        raise ErrorDeDominio(404, "No existe")
+        raise error(404, "no_encontrado_generico", detail="No existe")
     h.is_active, h.released_at, h.released_by = False, datetime.now(timezone.utc), usuario.id
     audit_log(db, usuario, "LEGAL_HOLD_RELEASED", "legal_hold", h.id, h.case_reference)
     db.commit()
@@ -67,10 +67,10 @@ def levantar_bloqueo(db, usuario, bloqueo_id: str) -> None:
 
 def validar_bloqueo(entidad: str, campo: str) -> None:
     if entidad != "*" and entidad not in TIPOS:
-        raise ErrorDeDominio(422, f"Tipo desconocido: {entidad}")
+        raise error(422, "tipo_desconocido", tipo=entidad)
     validos = set().union(*(t.campos for t in TIPOS.values())) if entidad == "*" else set(TIPOS[entidad].campos)
     if campo not in validos:
-        raise ErrorDeDominio(422, f"Campo no válido para {entidad}: {campo}. Válidos: {sorted(validos)}")
+        raise error(422, "retencion_campo_no_valido", entidad=entidad, campo=campo, validos=sorted(validos))
 
 
 # ── Vista previa y aplicación ─────────────────────────────────────────────────
@@ -113,10 +113,10 @@ def guardar_politica(db, org, usuario, clave: str, dias: int, activa: bool) -> d
     from app.models.governance import RetentionPolicy
     from app.services.audit import audit_log
     if clave not in TIPOS:
-        raise ErrorDeDominio(422, f"Tipo desconocido: {clave}")
+        raise error(422, "tipo_desconocido", tipo=clave)
     minimo = minimo_de_dias(db, org)
     if dias < minimo:
-        raise ErrorDeDominio(422, f"Mínimo {minimo} días (RETENTION_MIN_DAYS)")
+        raise error(422, "retencion_minimo_dias", detail=f"Mínimo {minimo} días (RETENTION_MIN_DAYS)", dias=minimo)
     with _sin_filtro(db):
         p = db.query(RetentionPolicy).filter(RetentionPolicy.organization_id == org,
                                              RetentionPolicy.entity == clave).first()

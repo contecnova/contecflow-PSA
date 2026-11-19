@@ -35,6 +35,7 @@ from app.core.errores import ErrorDeDominio
 from app.models.ausencias import (DocumentoDeAusencia, RequisitoDeAusencia, RequisitoDocumentalDeTipo,
                                   TipoDeDocumentoDeAusencia)
 from app.models.resources import Absence, AbsenceStatus
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -99,11 +100,11 @@ def pedir(db: Session, usuario, a: Absence, tipo_id: str, vence, nota: Optional[
     exigir_gestion(db, usuario, a)
     t = db.query(TipoDeDocumentoDeAusencia).filter(TipoDeDocumentoDeAusencia.id == tipo_id).first()
     if t is None:
-        raise ErrorDeDominio(422, "Elige el tipo de documento")
+        raise error(422, "elige_tipo_de_documento")
     try:
         fecha = vence if isinstance(vence, date) else date.fromisoformat(str(vence)[:10])
     except (TypeError, ValueError):
-        raise ErrorDeDominio(422, "Fecha límite no válida")
+        raise error(422, "fecha_no_valida", detail="Fecha límite no válida")
     previos = db.query(RequisitoDeAusencia).filter(RequisitoDeAusencia.absence_id == a.id,
                                                    RequisitoDeAusencia.tipo_id == t.id).count()
     r = RequisitoDeAusencia(id=str(uuid.uuid4()), organization_id=a.organization_id, absence_id=a.id, tipo_id=t.id,
@@ -123,7 +124,7 @@ def dispensar(db: Session, usuario, a: Absence, requisito_id: str, nota: Optiona
     r = db.query(RequisitoDeAusencia).filter(RequisitoDeAusencia.id == requisito_id,
                                              RequisitoDeAusencia.absence_id == a.id).first()
     if r is None:
-        raise ErrorDeDominio(404, "Requisito no encontrado")
+        raise error(404, "no_encontrado", detail="Requisito no encontrado", que="requisito")
     r.estado, r.nota = "dispensado", (nota or r.nota)
     _evento(db, a, "documento_dispensado", usuario.id, documento=r.tipo.nombre if r.tipo else None, nota=nota)
     db.commit()
@@ -160,7 +161,7 @@ def exigir_gestion(db: Session, usuario, a: Absence) -> None:
     """RRHH, administrador o responsable (hasta 3 niveles) de la persona."""
     if usuario.is_superadmin or _rol(usuario) in ("admin", "hr") or _es_responsable(db, usuario, a):
         return
-    raise ErrorDeDominio(403, "Solo RRHH, un administrador o su responsable")
+    raise error(403, "solo_rrhh_admin_o_responsable")
 
 
 def especial(a: Absence, doc: DocumentoDeAusencia) -> bool:
@@ -198,27 +199,27 @@ def subir(db: Session, usuario, a: Absence, *, tipo_id: str, nombre: str, conten
     from app.services.s3_service import file_storage
     from app.services.settings_service import get_runtime_int
     if not puede_subir(db, usuario, a):
-        raise ErrorDeDominio(403, "Solo la persona, RRHH, su responsable o un administrador pueden adjuntar")
+        raise error(403, "adjuntar_solo_persona_rrhh_responsable_admin")
     if a.status == AbsenceStatus.cancelled:
-        raise ErrorDeDominio(400, "La ausencia está cancelada")
+        raise error(400, "ausencia_cancelada")
     tipo = db.query(TipoDeDocumentoDeAusencia).filter(TipoDeDocumentoDeAusencia.id == tipo_id).first()
     if tipo is None:
-        raise ErrorDeDominio(422, "Elige el tipo de documento")
+        raise error(422, "elige_tipo_de_documento")
     maximo = (get_runtime_int(db, "MAX_FILE_SIZE_MB", a.organization_id) or settings.MAX_FILE_SIZE_MB) * 1024 * 1024
     if len(contenido) > maximo:
-        raise ErrorDeDominio(413, f"El archivo supera el máximo de {maximo // (1024 * 1024)} MB")
+        raise error(413, "fichero_demasiado_grande", detail=f"El archivo supera el máximo de {maximo // (1024 * 1024)} MB", max=maximo // (1024 * 1024))
     validate_upload(nombre or "", content_type or "", contenido)
     av, detalle = scan_with_av(contenido)
     if av == "infected":
         audit_log(db, usuario, "UPLOAD_BLOCKED", "absence_document", a.id, nombre, metadata={"antivirus": detalle})
         db.commit()
-        raise ErrorDeDominio(422, "El antivirus ha bloqueado el archivo")
+        raise error(422, "antivirus_bloqueado")
     previo = None
     if sustituye_a:
         previo = db.query(DocumentoDeAusencia).filter(DocumentoDeAusencia.id == sustituye_a,
                                                       DocumentoDeAusencia.absence_id == a.id).first()
         if previo is None:
-            raise ErrorDeDominio(404, "El documento a sustituir no existe")
+            raise error(404, "no_encontrado", detail="El documento a sustituir no existe", que="documento")
     version = (previo.version + 1) if previo else 1
     doc = Document(id=str(uuid.uuid4()), organization_id=a.organization_id,
                    title=f"{tipo.nombre} · {a.start_date}"[:255], category=DocumentCategory.other,
@@ -292,16 +293,16 @@ def abrir(db: Session, usuario, a: Absence, doc_id: str, accion: str, ip: Option
     d = db.query(DocumentoDeAusencia).filter(DocumentoDeAusencia.id == doc_id,
                                              DocumentoDeAusencia.absence_id == a.id).first()
     if d is None:
-        raise ErrorDeDominio(404, "Documento no encontrado")
+        raise error(404, "no_encontrado", detail="Documento no encontrado", que="documento")
     accion = "download" if accion == "download" else "view"
     if not puede_ver(db, usuario, a, d):
         audit_log(db, usuario, "ACCESS_DENIED", "absence_document", d.id, d.tipo.nombre if d.tipo else None,
                   ip_address=ip, metadata={"absence_id": a.id, "action": accion, "special_category": especial(a, d)})
         db.commit()
-        raise ErrorDeDominio(403, "No puedes ver este documento")
+        raise error(403, "sin_acceso_documento")
     version = (d.documento.versions or [None])[0]
     if version is None or not version.file_key:
-        raise ErrorDeDominio(404, "El documento no tiene fichero")
+        raise error(404, "documento_sin_fichero")
     db.add(DocumentAccessLog(id=str(uuid.uuid4()), organization_id=a.organization_id, document_id=d.document_id,
                              user_id=usuario.id, action=accion, ip_address=ip))
     audit_log(db, usuario, "VIEW" if accion == "view" else "DOWNLOAD", "absence_document", d.id,

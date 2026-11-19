@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.core.tenancy import assert_org_id_is_own
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 #: Un nombre de variable CSS y su valor, acotados. Vienen del cliente y acaban
 #: en una hoja de estilo: sin tope, una sola variable puede pesar megas.
@@ -30,7 +31,7 @@ def _organizacion(db: Session, org_id: str):
 
     fila = db.query(Organization).filter(Organization.id == org_id).first()
     if not fila:
-        raise ErrorDeDominio(404, "Organization not found")
+        raise error(404, "no_encontrado", detail="Organization not found", que="organizacion")
     return fila
 
 

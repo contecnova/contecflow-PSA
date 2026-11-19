@@ -13,6 +13,7 @@ import json
 import logging
 import time
 from datetime import datetime, timezone
+from app.core.config import settings  # topes de tokens de IA (19-11-2026)
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +83,7 @@ def ejecutar_agente(execution_id: str, instruction: str, user_id: str, auto_appr
                         db,
                         messages=[{"role": "user", "content": instruction}],
                         system=system + "\n\nNota: ejecuta un análisis y plan de acción sin usar herramientas reales.",
-                        module="nexusagent", user_id=user_id, max_tokens=800,
+                        module="nexusagent", user_id=user_id, max_tokens=settings.AI_MEDIUM_ANSWER_MAX_TOKENS,
                         organization_id=current_user.organization_id,
                     )
                 except Exception:
@@ -134,7 +135,7 @@ def ejecutar_agente(execution_id: str, instruction: str, user_id: str, auto_appr
                 current_user=current_user,
                 model=agent_model,
                 api_key=agent_clave,
-                max_tokens=4096,
+                max_tokens=settings.AI_CHAT_MAX_TOKENS,
                 max_steps=20,
                 auto_approve=bool(auto_approve),
                 write_action_tools=WRITE_ACTION_TOOLS,

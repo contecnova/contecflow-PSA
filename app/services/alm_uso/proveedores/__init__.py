@@ -10,13 +10,14 @@ from __future__ import annotations
 
 from app.core.errores import ErrorDeDominio
 from app.services.alm_uso.proveedores.base import ProveedorDeUso
+from app.core.codigos_de_error import ErrorConCodigo
 
 _REGISTRO: dict[str, ProveedorDeUso] = {}
 
 
 def registrar(p: ProveedorDeUso) -> ProveedorDeUso:
     if not p.clave:
-        raise ValueError("un proveedor de uso necesita clave")
+        raise ErrorConCodigo("alm_proveedor_uso_sin_clave", detail="un proveedor de uso necesita clave")
     _REGISTRO[p.clave] = p
     return p
 

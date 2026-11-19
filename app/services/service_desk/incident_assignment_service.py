@@ -27,6 +27,7 @@ from app.services.settings_service.por_empresa import capacidad_semanal
 
 from app.models.settings import AppSetting
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 # Ningun modelo entrenado: el metodo es por reglas (ver la cabecera).
 _LGBM_AVAILABLE = False
@@ -96,7 +97,7 @@ def recommend_assignment(
 
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     if not ticket:
-        raise ErrorDeDominio(status_code=404, detail="Ticket no encontrado")
+        raise error(404, "no_encontrado", detail="Ticket no encontrado", que="ticket")
 
     members: list[Any] = []
     if ticket.assigned_group_id:

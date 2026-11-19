@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.models.service_desk import TicketTemplate
 import logging
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ def serialize_ticket_template(template: TicketTemplate) -> dict:
 
 def build_ticket_template(payload: dict) -> TicketTemplate:
     if not payload.get("name") or not payload.get("ticket_type"):
-        raise ErrorDeDominio(422, "name y ticket_type son obligatorios")
+        raise error(422, "campos_obligatorios", detail="name y ticket_type son obligatorios", campos="name, ticket_type")
 
     return TicketTemplate(
         name=payload["name"],
@@ -58,7 +58,7 @@ def get_ticket_template_by_id(db: Session, template_id: str):
 def get_ticket_template_or_404(db: Session, template_id: str, detail: str = "Plantilla no encontrada") -> TicketTemplate:
     template = get_ticket_template_by_id(db, template_id)
     if not template:
-        raise ErrorDeDominio(404, detail)
+        raise error(404, "no_encontrado", detail=detail, que="plantilla")
     return template
 
 

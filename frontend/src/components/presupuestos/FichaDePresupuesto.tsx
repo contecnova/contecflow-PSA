@@ -25,6 +25,7 @@ import FormularioDePartida, { CLASE_CAMPO, modoDe } from './FormularioDePartida'
 import { CierreDelPresupuesto, ControlDelPresupuesto, PedidosYTraspasos } from './SeguirPresupuesto'
 
 import { useFormatoMoneda } from '../../hooks/useFormatoMoneda'
+import { useTono } from '../../hooks/useOrgSettings'
 import './FichaDePresupuesto.css'
 import { TOOLTIP_SUPERFICIE_2 } from '../../constants/estilosGrafico'
 
@@ -258,6 +259,7 @@ function Seguimiento({ p, dinero }: { p: FichaPresupuesto; dinero: Dinero }) {
 
 function Estructura({ p, dinero, onAbrir }: { p: FichaPresupuesto; dinero: Dinero; onAbrir: (id: string) => void }) {
   const t = useAppT()
+  const tono = useTono()
   const te = p.techo_estado
   const uso = te && te.techo > 0 ? Math.min(100, Math.round((te.consumido_por_hijos / te.techo) * 100)) : 0
   return (
@@ -276,7 +278,7 @@ function Estructura({ p, dinero, onAbrir }: { p: FichaPresupuesto; dinero: Diner
             <span className={`${te.excedido ? 'ficha-de-presupuesto-m2' : 'ficha-de-presupuesto-m3'}`}>{t('pres.disponible')}: <strong>{dinero(te.disponible)}</strong></span>
           </div>
           <div role="progressbar" aria-valuenow={uso} aria-valuemin={0} aria-valuemax={100} aria-label={t('pres.techo')} className="fidepr-box-8">
-            <div className="fidepr-box-14 ficha-de-presupuesto-e9" style={{ '--ficha-de-presupuesto-width': `${uso}%`, '--ficha-de-presupuesto-background': te.excedido ? 'var(--danger)' : uso > 85 ? 'var(--warning)' : 'var(--success)' } as CSSProperties} />
+            <div className="fidepr-box-14 ficha-de-presupuesto-e9" style={{ '--ficha-de-presupuesto-width': `${uso}%`, '--ficha-de-presupuesto-background': te.excedido ? 'var(--danger)' : `var(--${tono('presupuesto', uso) ?? 'success'})` } as CSSProperties} />
           </div>
         </div>
       )}

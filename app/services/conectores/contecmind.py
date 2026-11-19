@@ -37,7 +37,7 @@ from sqlalchemy.orm import Session
 
 from app.services.conectores import fichas
 from app.services.conectores.anfitrion import CONTECMIND, ErrorDeConector, _ajuste, configuracion, llamar
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger("contecflow.conectores.contecmind")
 
@@ -247,7 +247,7 @@ def desenlazar(db: Session, usuario, entidad: str, entidad_id: str, enlace_id: s
          .filter(EnlaceDocumental.id == enlace_id, EnlaceDocumental.entidad == entidad,
                  EnlaceDocumental.entidad_id == str(entidad_id)).first())
     if e is None:
-        raise ErrorDeDominio(404, "Enlace no encontrado")
+        raise error(404, "no_encontrado", detail="Enlace no encontrado", que="enlace")
     audit_log(db, usuario, "DELETE", "enlaces_documentales", f"{entidad}:{entidad_id}", e.titulo,
               old_values={"document_id": e.document_id})
     db.delete(e)
@@ -259,9 +259,9 @@ def subir(db: Session, usuario, entidad: str, entidad_id: str, contenido: bytes,
     """Sube el fichero a la carpeta de la ficha en contecmind y lo enlaza."""
     maximo = int(_ajuste(db, "CONTECMIND_UPLOAD_MAX_MB", usuario.organization_id, "int")) * 1024 * 1024
     if not contenido:
-        raise ErrorDeDominio(400, "El fichero está vacío")
+        raise error(400, "fichero_vacio")
     if len(contenido) > maximo:
-        raise ErrorDeDominio(413, f"El fichero pasa del máximo ({maximo // (1024 * 1024)} MB)")
+        raise error(413, "fichero_demasiado_grande", detail=f"El fichero pasa del máximo ({maximo // (1024 * 1024)} MB)", max=maximo // (1024 * 1024))
     _exigir_escritura(db, usuario)
     carpeta = carpeta_de(db, usuario, entidad, entidad_id)
     # Reintentar la misma subida no crea dos documentos en contecmind.

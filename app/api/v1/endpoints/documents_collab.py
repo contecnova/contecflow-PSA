@@ -14,6 +14,7 @@ from app.services.documents_collab_service import (
     load_collab_snapshot as svc_load_snapshot,
     get_collab_history as svc_get_history,
 )
+from app.core.codigos_de_error import error_http
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -49,7 +50,7 @@ async def save_collab_snapshot(
     await run_db(_puede_escribir, db, doc_id, current_user)
     snapshot = await request.body()
     if not snapshot:
-        raise HTTPException(400, "Missing snapshot body")
+        raise error_http(400, "snapshot_sin_cuerpo", detail="Missing snapshot body")
     snap = await run_db(svc_save_snapshot, db, doc_id, snapshot, current_user.id)
     return {"id": snap.id, "document_id": doc_id, "clock": snap.clock, "size_bytes": snap.size_bytes}
 

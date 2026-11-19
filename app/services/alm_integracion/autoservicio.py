@@ -84,11 +84,17 @@ def mio(db: Session, user) -> dict:
     }
 
 
-def opciones_de_peticion(db: Session) -> dict:
+def opciones_de_peticion(db: Session, usuario=None) -> dict:
     """Lo que se puede pedir: licencias (solo nombre y producto) y tipos de equipo
-    que tienen ítem en el catálogo. Sin costes ni claves."""
+    que tienen ítem en el catálogo. Sin costes ni claves.
+
+    19-11-2026: si la empresa aún no tiene ítems de ALM en el catálogo, se crean
+    los de por defecto (`catalogo.asegurar_items`) para que siempre se pueda pedir.
+    """
     from app.models.alm_integracion import ALMItemDeCatalogo
     from app.services.alm_integracion.kits import TIPOS_DE_EQUIPO
+    org = (db.info or {}).get("organization_id") or getattr(usuario, "organization_id", None)
+    catalogo.asegurar_items(db, org, usuario)
     tipos = {m.tipo for m in db.query(ALMItemDeCatalogo).all()}
     licencias = []
     if "licencia" in tipos:

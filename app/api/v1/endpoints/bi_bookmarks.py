@@ -16,6 +16,7 @@ from app.db.session import get_db
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.services import bi_bookmarks_service as svc
+from app.core.codigos_de_error import desde_valor
 
 router = APIRouter()
 
@@ -68,7 +69,7 @@ def create_bookmark(
             current_user=current_user,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise desde_valor(422, exc) from exc
     return APIResponse.ok(data=bookmark)
 
 
@@ -88,7 +89,7 @@ def get_bookmark(
         )
     except ValueError as exc:
         code = 404 if "not_found" in str(exc) else 403
-        raise HTTPException(status_code=code, detail=str(exc)) from exc
+        raise desde_valor(code, exc) from exc
     return APIResponse.ok(data=bookmark)
 
 
@@ -110,7 +111,7 @@ def update_bookmark(
         )
     except ValueError as exc:
         code = 404 if "not_found" in str(exc) else 403
-        raise HTTPException(status_code=code, detail=str(exc)) from exc
+        raise desde_valor(code, exc) from exc
     return APIResponse.ok(data=bookmark)
 
 
@@ -130,7 +131,7 @@ def delete_bookmark(
             current_user=current_user,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
+        raise desde_valor(403, exc) from exc
     if not deleted:
         raise HTTPException(status_code=404, detail="bookmark_not_found")
 
@@ -154,7 +155,7 @@ def generate_share_url(
         )
     except ValueError as exc:
         code = 404 if "not_found" in str(exc) else 403
-        raise HTTPException(status_code=code, detail=str(exc)) from exc
+        raise desde_valor(code, exc) from exc
     return APIResponse.ok(data=result)
 
 
@@ -169,4 +170,4 @@ def get_shared_bookmark(
     try:
         return APIResponse.ok(data=svc.get_bookmark_by_share_token(db, share_token))
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise desde_valor(404, exc) from exc

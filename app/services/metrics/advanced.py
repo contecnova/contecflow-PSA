@@ -5,7 +5,6 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ._registro import register_metric
-from app.services.settings_service.por_empresa import capacidad_semanal
 from app.core import timeutil
 
 
@@ -178,6 +177,11 @@ def metric_burnout_index(
             .filter(Task.assignee_id.in_(user_ids), Task.status == "blocked")
             .group_by(Task.assignee_id).all()}
 
+        # 19-11-2026: capacidad de las 4 semanas según el horario efectivo de cada
+        # persona (sus días, sin festivos); antes capacidad/5 × 22 días fijos (L-V).
+        from app.services.horario import efectivo as hor
+        cap_4w = hor.horas_por_persona(db, [u.id for u in users[:top_n]], four_weeks_ago, today,
+                                       estados_ausencia=None)
         rows = []
         for user in users[:top_n]:
             total_hours_4w = hours_4w.get(user.id, 0) or 0
@@ -185,8 +189,7 @@ def metric_burnout_index(
             pending_absences = absences.get(user.id, 0) or 0
             blocked_tasks = blocked.get(user.id, 0) or 0
 
-            capacity_per_day = (capacidad_semanal(db, user)) / 5
-            capacity_4w = capacity_per_day * 22  # ~22 working days
+            capacity_4w = cap_4w.get(user.id, 0.0)
             utilization_pct = min(100, round((total_hours_4w / capacity_4w) * 100, 1)) if capacity_4w > 0 else 0
 
             trend = 10 if prev_4w_hours > total_hours_4w else (-10 if prev_4w_hours < total_hours_4w else 0)

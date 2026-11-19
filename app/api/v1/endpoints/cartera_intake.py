@@ -25,6 +25,7 @@ from app.core.paginacion import Paginacion, lista_paginada, paginacion
 from app.core.responses import APIResponse
 from app.models.user import User
 from app.services import cartera_service as svc
+from app.core.codigos_de_error import error
 
 router = APIRouter()
 
@@ -89,7 +90,7 @@ def create_criterion(payload: CriterioIn, db: Session = Depends(get_db),
                      current_user: User = Depends(require_admin_or_pm)):
     if not payload.name:
         from app.core.errores import ErrorDeDominio
-        raise ErrorDeDominio(422, "El criterio necesita un nombre")
+        raise error(422, "criterio_sin_nombre")
     return APIResponse.ok(data=svc.guardar_criterio(db, current_user, payload.model_dump(exclude_unset=True)))
 
 
@@ -110,7 +111,7 @@ def create_gate(payload: FaseIn, db: Session = Depends(get_db),
                 current_user: User = Depends(require_admin_or_pm)):
     if not payload.name:
         from app.core.errores import ErrorDeDominio
-        raise ErrorDeDominio(422, "La fase necesita un nombre")
+        raise error(422, "fase_sin_nombre")
     return APIResponse.ok(data=svc.guardar_fase(db, current_user, payload.model_dump(exclude_unset=True)))
 
 
@@ -138,7 +139,7 @@ def create_proposal(payload: PropuestaIn, db: Session = Depends(get_db),
     datos = payload.model_dump(exclude_unset=True)
     if not datos.get("title"):
         from app.core.errores import ErrorDeDominio
-        raise ErrorDeDominio(422, "La propuesta necesita un título")
+        raise error(422, "propuesta_sin_titulo")
     return APIResponse.ok(data=svc.guardar(db, current_user, datos))
 
 

@@ -9,12 +9,12 @@ import json
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from app.models.service_desk import ITSMChangeRequest, ChangeType, Ticket
-from app.core.errores import ErrorDeDominio
 
 from app.services.service_desk.change_impact_service.riesgo import (
     score_change_risk,
     suggest_maintenance_window,
 )
+from app.core.codigos_de_error import error
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -163,7 +163,7 @@ def simulate_change_whatif(
     """
     change = db.query(ITSMChangeRequest).filter(ITSMChangeRequest.id == change_id).first()
     if not change:
-        raise ErrorDeDominio(404, f"Change {change_id} not found")
+        raise error(404, "no_encontrado", detail=f"Change {change_id} not found", que="cambio")
 
     riesgo_orig = score_change_risk(db, change)
     cis_orig = riesgo_orig["ci_ids_expanded"]

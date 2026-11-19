@@ -17,6 +17,7 @@ from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.services import bi_report_builder_v2_service as svc
 from app.core.responses import APIListResponse, APIResponse
+from app.core.codigos_de_error import desde_valor
 
 router = APIRouter()
 
@@ -64,7 +65,7 @@ def get_preset(
     try:
         return APIResponse.ok(data=svc.get_preset(db, organization_id=org_id, preset_id=preset_id))
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise desde_valor(404, exc) from exc
 
 
 @router.post("/bi/reports/v2/presets/{preset_id}/customize", summary="Personalizar preset a nivel de organización")
@@ -86,7 +87,7 @@ def customize_preset(
         return APIResponse.ok(data=updated)
     except ValueError as exc:
         code = 404 if "not_found" in str(exc) else 422
-        raise HTTPException(status_code=code, detail=str(exc)) from exc
+        raise desde_valor(code, exc) from exc
 
 
 @router.delete(
@@ -105,7 +106,7 @@ def reset_preset_customization(
     try:
         return APIResponse.ok(data=svc.reset_preset_customization(db, organization_id=org_id, preset_id=preset_id))
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise desde_valor(404, exc) from exc
 
 
 @router.get("/bi/reports/v2/presets/{preset_id}/preview", summary="Preview de datos del preset")
@@ -119,7 +120,7 @@ def preview_preset(
     try:
         return APIResponse.ok(data=svc.preview_preset(db, organization_id=org_id, preset_id=preset_id, limit=limit))
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise desde_valor(404, exc) from exc
 
 
 @router.get("/bi/reports/v2/presets/{preset_id}/export", summary="Exportar datos del preset (JSON/CSV)")
@@ -138,7 +139,7 @@ def export_preset(
             export_format=format,
         ))
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise desde_valor(404, exc) from exc
 
 
 @router.post("/bi/reports/v2/presets/{preset_id}/execute-controlled", summary="Ejecutar preset con control de timeout y degradación")
@@ -159,7 +160,7 @@ def execute_preset_controlled(
             timeout_seconds=body.timeout_seconds,
         ))
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise desde_valor(404, exc) from exc
 
 
 @router.get("/bi/reports/v2/executions/{execution_id}", summary="Consultar progreso/resultado de ejecución controlada")
@@ -172,7 +173,7 @@ def get_controlled_execution(
     try:
         return APIResponse.ok(data=svc.get_execution_status(db, organization_id=org_id, execution_id=execution_id))
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise desde_valor(404, exc) from exc
 
 
 @router.get("/bi/reports/v2/categories", summary="Categorías de presets disponibles")
@@ -276,7 +277,7 @@ def get_template(
     try:
         return APIResponse.ok(data=svc.get_template(db, organization_id=org_id, template_id=template_id))
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise desde_valor(404, exc) from exc
 
 
 @router.post("/bi/reports/v2/templates", summary="Crear template de dashboard", status_code=201)
@@ -315,7 +316,7 @@ def update_template(
             payload=body.model_dump(exclude_none=True),
         ))
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise desde_valor(404, exc) from exc
 
 
 @router.delete("/bi/reports/v2/templates/{template_id}", summary="Eliminar template de dashboard", status_code=200)
@@ -331,4 +332,4 @@ def delete_template(
         svc.delete_template(db, organization_id=org_id, template_id=template_id)
         return APIResponse.ok(data={"ok": True, "template_id": template_id})
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise desde_valor(404, exc) from exc

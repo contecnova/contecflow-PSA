@@ -8,6 +8,7 @@ from app.models.marketplace import IntegrationInstance
 from app.models.marketplace import IntegrationConnector
 from app.models.pipeline import Opportunity
 from app.services.settings_service import outbound_http_timeout
+from app.core.codigos_de_error import error
 
 
 def get_salesforce_instance(db: Session, instance_id: str, org_id: Optional[str]):
@@ -110,13 +111,12 @@ def preparar_sincronizacion(db: Session, instance_id: str, org_id: Optional[str]
     import logging
 
     from app.core.encryption import decrypt_value
-    from app.core.errores import ErrorDeDominio
 
     inst = get_salesforce_instance(db, instance_id, org_id)
     if not inst:
-        raise ErrorDeDominio(404, "Salesforce integration instance not found or disabled")
+        raise error(404, "no_encontrado", detail="Salesforce integration instance not found or disabled", que="integracion")
     if not get_salesforce_connector(db, inst.connector_id):
-        raise ErrorDeDominio(400, "This instance is not a Salesforce connector")
+        raise error(400, "integracion_no_es_salesforce", detail="This instance is not a Salesforce connector")
     try:
         config = json.loads(decrypt_value(inst.encrypted_config) if inst.encrypted_config else "{}")
     except Exception:
@@ -125,11 +125,7 @@ def preparar_sincronizacion(db: Session, instance_id: str, org_id: Optional[str]
     sf_base = config.get("instance_url", "")
     access_token = config.get("access_token", "")
     if not sf_base or not access_token:
-        raise ErrorDeDominio(
-            503,
-            "Salesforce credentials incomplete. Configure instance_url and access_token "
-            "in the integration settings.",
-        )
+        raise error(503, "esign_credenciales_incompletas", detail="Salesforce credentials incomplete. Configure instance_url and access_token in the integration settings.", servicio="Salesforce")
     return inst, sf_base, access_token
 
 

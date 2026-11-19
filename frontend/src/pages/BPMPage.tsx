@@ -205,10 +205,10 @@ type NewProcess = { name: string; category: string; description: string; owner: 
 export default function BPMPage(): JSX.Element {
   const idCampo = useId()
   const { t: traducir, lang } = useAppLang()
-  const { hasRole } = useAuth()
+  const { puede } = useAuth()
   const { confirmar } = useConfirm()
   // La API exige admin o PM para crear, guardar, publicar, iniciar y borrar.
-  const puedeEditar = hasRole('admin', 'pm')
+  const puedeEditar = puede('bpm.editar')
   // Catálogo del sistema en el idioma activo: la estructura es fija y los
   // textos llegan con import() por idioma (ver ./bpm/catalogo).
   const [catalogo, setCatalogo] = useState<{ lang: string; procesos: ProcesoCatalogo[] } | null>(null)

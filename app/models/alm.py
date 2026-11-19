@@ -210,7 +210,7 @@ class ALMVendor(Base):
     account_number   = Column(String(100), nullable=True)   # Nº cliente en el proveedor
     tax_id           = Column(String(50),  nullable=True)   # CIF/NIF del proveedor
     address          = Column(Text, nullable=True)
-    country          = Column(String(3),   default="ES")
+    country          = Column(String(3),   default=settings.DEFAULT_COUNTRY)  # 19-11-2026: país de la empresa en el alta
     notes            = Column(Text, nullable=True)
     is_active        = Column(Boolean, default=True)
     created_at       = Column(DateTime(timezone=True), server_default=func.now())

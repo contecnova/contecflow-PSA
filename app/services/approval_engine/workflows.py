@@ -13,6 +13,7 @@ from app.core.errores import ErrorDeDominio
 
 
 from app.services.approval_engine._base import _WORKFLOW_TEMPLATES, _matches_conditions, _parse_trigger_conditions, find_default_workflow, serialize_workflow
+from app.core.codigos_de_error import error
 
 def list_workflow_templates() -> list[dict]:
     return _WORKFLOW_TEMPLATES
@@ -20,7 +21,7 @@ def list_workflow_templates() -> list[dict]:
 def validate_workflow(db: Session, workflow_id: str) -> dict:
     w = get_workflow(db, workflow_id)
     if not w:
-        raise ErrorDeDominio(404, "Flujo no encontrado")
+        raise error(404, "no_encontrado", detail="Flujo no encontrado", que="flujo")
     issues: list[str] = []
     warnings: list[str] = []
     steps = sorted(w.steps or [], key=lambda s: s.step_order)
@@ -57,7 +58,7 @@ def publish_workflow(db: Session, workflow_id: str) -> ApprovalWorkflow:
         raise ErrorDeDominio(422, {"message": "El flujo no es publicable", "issues": check["issues"]})
     w = get_workflow(db, workflow_id)
     if not w:
-        raise ErrorDeDominio(404, "Flujo no encontrado")
+        raise error(404, "no_encontrado", detail="Flujo no encontrado", que="flujo")
     w.is_active = True
     db.commit()
     db.refresh(w)
@@ -71,7 +72,7 @@ def clone_workflow_as_version(db: Session, workflow_id: str, suffix: Optional[st
 
     w = get_workflow(db, workflow_id)
     if not w:
-        raise ErrorDeDominio(404, "Flujo no encontrado")
+        raise error(404, "no_encontrado", detail="Flujo no encontrado", que="flujo")
     version_suffix = suffix or datetime.now(timezone.utc).strftime("v%Y%m%d%H%M")
     with atomic(db):
         cloned = ApprovalWorkflow(
@@ -109,7 +110,7 @@ def create_workflow_from_template(db: Session, template_id: str, override_name: 
 
     tpl = next((t for t in _WORKFLOW_TEMPLATES if t["id"] == template_id), None)
     if not tpl:
-        raise ErrorDeDominio(404, "Plantilla no encontrada")
+        raise error(404, "no_encontrado", detail="Plantilla no encontrada", que="plantilla")
     with atomic(db):
         w = ApprovalWorkflow(
             id=str(uuid.uuid4()),
@@ -198,7 +199,7 @@ def create_workflow(db: Session, payload_dict: dict):
                 payload_dict["auto_approval_rules"]
             )
         except ValueError as exc:
-            raise ErrorDeDominio(422, f"auto_approval_rules inválido: {exc}") from exc
+            raise error(422, "reglas_autoaprobacion_no_validas", detail=f"auto_approval_rules inválido: {exc}") from exc
     if payload_dict.get("is_default"):
         db.query(ApprovalWorkflow).filter(
             ApprovalWorkflow.entity_type == payload_dict["entity_type"]
@@ -227,7 +228,7 @@ def update_workflow(db: Session, workflow_id: str, payload_dict: dict):
                 payload_dict["auto_approval_rules"]
             )
         except ValueError as exc:
-            raise ErrorDeDominio(422, f"auto_approval_rules inválido: {exc}") from exc
+            raise error(422, "reglas_autoaprobacion_no_validas", detail=f"auto_approval_rules inválido: {exc}") from exc
     allowed = [
         "name", "description", "is_active", "is_default", "trigger_conditions",
         # audit #61: expose auto_approval_rules on update so it can be edited.

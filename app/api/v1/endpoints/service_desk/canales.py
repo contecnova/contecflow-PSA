@@ -95,7 +95,7 @@ def whatsapp_verify(
     db: Session = Depends(get_db),
 ):
     if hub_mode != "subscribe" or not canal_whatsapp.comprobar_alta(db, hub_verify_token):
-        raise ErrorDeDominio(403, "Verify token no válido")
+        raise error_con_codigo(403, "metodo_canal_verify_token", detail="Verify token no válido")
     return PlainTextResponse(hub_challenge or "")
 
 
@@ -106,7 +106,7 @@ async def whatsapp_webhook(request: Request, db: Session = Depends(get_db)):
     try:
         payload = json.loads(cuerpo or b"{}")
     except ValueError:
-        raise ErrorDeDominio(400, "Cuerpo ilegible")
+        raise error_con_codigo(400, "webhook_cuerpo_ilegible", detail="Cuerpo ilegible")
     return APIResponse.ok(data=await run_db(canal_whatsapp.procesar, db, cuerpo,
                                             request.headers.get("X-Hub-Signature-256"), payload))
 

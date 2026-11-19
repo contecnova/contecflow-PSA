@@ -14,7 +14,8 @@ export type CompensacionHe = 'pago' | 'bolsa' | 'ninguna'
 export type ControlImputacion = 'ninguno' | 'avisar' | 'regularizar' | 'bloquear'
 export type AmbitoPresupuesto = 'empresa' | 'departamento' | 'equipo' | 'proyecto'
 export type PeriodoPresupuesto = 'mes' | 'anio'
-export type DecisionHe = 'allow' | 'auto_approve' | 'review' | 'block'
+/** `incompleta` (19-11-2026): la vista previa con datos a medias; solo trae `errores`. */
+export type DecisionHe = 'allow' | 'auto_approve' | 'review' | 'block' | 'incompleta'
 export type AgruparPor = 'persona' | 'equipo' | 'departamento' | 'proyecto'
 export type Tramo = [string, string]
 

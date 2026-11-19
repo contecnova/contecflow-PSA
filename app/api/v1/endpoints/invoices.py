@@ -13,6 +13,7 @@ from app.schemas.billing_reports import InvoiceCreate, InvoiceOut, InvoiceSummar
 from app.services import billing_reports_service
 from app.services.psa_flows import build_invoice_preview_from_timesheets_flow
 from app.core.responses import APIListResponse, APIResponse
+from app.core.codigos_de_error import error_http
 
 router = APIRouter(tags=["Invoices"])
 
@@ -166,10 +167,10 @@ def download_invoice_pdf(
     current_user: User = Depends(get_current_user),
 ):
     if current_user.role in (UserRole.employee, UserRole.subcontractor):
-        raise HTTPException(status_code=403, detail="No tienes permiso para descargar facturas")
+        raise error_http(403, "factura_sin_permiso_descarga")
     inv = billing_reports_service.get_invoice_by_id(db, invoice_id)
     if not inv:
-        raise HTTPException(status_code=404, detail="Factura no encontrada")
+        raise error_http(404, "no_encontrado", detail="Factura no encontrada", que="factura")
 
     from app.services import invoice_pdf as _invoice_pdf
     from app.services._pdf_marca import PALETA_DE_FACTURA, marca_de_organizacion

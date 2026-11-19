@@ -10,6 +10,7 @@ from app.models.service_desk import ConfigurationItem, KBArticle, Problem, SLAPo
 from app.models.user import User, UserRole
 import logging
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -135,7 +136,7 @@ def get_scoped_ticket_or_404(
         .first()
     )
     if not ticket:
-        raise ErrorDeDominio(404, "Ticket no encontrado")
+        raise error(404, "no_encontrado", detail="Ticket no encontrado", que="ticket")
     return ticket
 
 

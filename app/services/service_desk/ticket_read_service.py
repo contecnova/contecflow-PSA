@@ -19,7 +19,6 @@ from app.services.service_desk.dynamic_ticket_fields_service import (
     get_ticket_dynamic_fields, get_tickets_dynamic_fields,
 )
 import logging
-from app.core.errores import ErrorDeDominio
 from app.core.codigos_de_error import error as error_con_codigo
 
 logger = logging.getLogger(__name__)
@@ -230,7 +229,7 @@ def ticket_detail_payload(db: Session, current_user: User, ticket_id: str, ticke
 
     ticket = scope_ticket_query(query, db, current_user).filter(Ticket.id == ticket_id).first()
     if not ticket:
-        raise ErrorDeDominio(404, "Ticket no encontrado")
+        raise error_con_codigo(404, "no_encontrado", detail="Ticket no encontrado", que="ticket")
 
     from app.services.service_desk import catalog_approval_service as _aprobacion
     payload = {
@@ -336,7 +335,7 @@ def candidatos_de_asignacion(
 
     ticket = get_scoped_ticket_or_404(db, current_user, ticket_id)
     if not ticket.assigned_group_id:
-        raise ErrorDeDominio(400, "El ticket no tiene grupo asignado")
+        raise error_con_codigo(400, "ticket_sin_grupo")
 
     miembros = (
         db.query(AgentGroupMember)

@@ -812,7 +812,7 @@ def slack_help_response() -> dict:
 
 
 def build_block_kit_message(event_type: str, payload: dict) -> dict:
-    base_url = settings.FRONTEND_URL or "http://localhost:3000"
+    base_url = settings.FRONTEND_URL  # 19-11-2026: sin respaldo localhost:3000 (FRONTEND_URL se valida en producción)
 
     if event_type == "task_overdue":
         return {

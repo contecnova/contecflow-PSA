@@ -185,12 +185,16 @@ def _project_health_score(
     alerts_count: int,
     risk_level_value: str,
     progress_pct: float,
+    cortes_presupuesto: tuple = (70.0, 90.0),
 ) -> int:
+    # 19-11-2026: la penalización por presupuesto empieza en los cortes de la
+    # empresa (UMBRAL_PRESUPUESTO_*, 70/90 por defecto); antes 80/100 fijos.
+    aviso, critico = cortes_presupuesto
     score = 100
-    if budget_used_pct > 100:
-        score -= min(30, int(budget_used_pct - 80))
-    elif budget_used_pct > 80:
-        score -= int((budget_used_pct - 80) * 0.8)
+    if budget_used_pct > critico:
+        score -= min(30, int(budget_used_pct - aviso))
+    elif budget_used_pct > aviso:
+        score -= int((budget_used_pct - aviso) * 0.8)
     if deviation_days > 30:
         score -= 25
     elif deviation_days > 14:
@@ -218,6 +222,8 @@ def get_projects_health(db: Session, current_user: Optional[User] = None) -> lis
 
     project_ids = [p.id for p in projects]
     today = timeutil.today()
+    from app.core.umbrales import cortes as _cortes, tono_con
+    cortes_presupuesto = _cortes("presupuesto", db, org)
 
     cost_rows = db.query(
         Imputation.project_id,
@@ -266,7 +272,7 @@ def get_projects_health(db: Session, current_user: Optional[User] = None) -> lis
         health_score = _project_health_score(
             budget_used_pct, deviation_days, alerts_count,
             p.risk_level.value if p.risk_level else "low",
-            progress_pct,
+            progress_pct, cortes_presupuesto,
         )
 
         result.append(ProjectHealthItem(
@@ -283,6 +289,7 @@ def get_projects_health(db: Session, current_user: Optional[User] = None) -> lis
             tasks_done=tasks_done,
             progress_pct=progress_pct,
             health_score=health_score,
+            budget_tone=tono_con("presupuesto", budget_used_pct, *cortes_presupuesto),
         ))
 
     return result

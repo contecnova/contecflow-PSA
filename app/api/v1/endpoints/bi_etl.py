@@ -30,6 +30,7 @@ from app.db.session import get_db
 from app.integrations import bi_etl_connectors as _etl
 from app.models.user import User
 from app.services import bi_etl_service as svc
+from app.core.codigos_de_error import error_http, desde_valor
 
 router = APIRouter(prefix="/bi/etl", tags=["BI ETL Connectors"])
 
@@ -54,9 +55,9 @@ def _llamar(f, *a, **kw):
     try:
         return f(*a, **kw)
     except svc.NoEncontrado:
-        raise HTTPException(status_code=404, detail="Conector no encontrado")
+        raise error_http(404, "no_encontrado", detail="Conector no encontrado", que="conector")
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise desde_valor(400, exc)
 
 
 @router.get("/connectors", summary="Conectores ETL, su estado y la ficha de la fuente REST genérica")

@@ -18,6 +18,7 @@ from app.models.bookings import ExchangeRate
 from app.models.project import Project, ProjectStatus
 from app.models.task import TaskStatus
 from app.models.user import User
+from app.core.codigos_de_error import ErrorConCodigo
 
 # ── FX helper ──────────────────────────────────────────────────────────────────
 
@@ -288,16 +289,20 @@ def _indicadores_evm(project: Project, db: Session, total_cost: float) -> _Indic
     )
 
 
-def _bandera_de_riesgo(cpi: Optional[float], margen_al_cierre: float) -> str:
+def _bandera_de_riesgo(cpi: Optional[float], margen_al_cierre: float, db=None, org_id=None) -> str:
     """Semaforo del proyecto: critico, aviso u ok.
 
     Un CPI por debajo de 0,8 o un margen previsto negativo son criticos. Ojo con
     el `cpi and`: sin coste real el CPI es None y no dispara nada, asi que un
     proyecto sin imputaciones nunca sale critico por CPI — solo por margen.
     """
-    if (cpi and cpi < 0.8) or margen_al_cierre < 0:
+    # 19-11-2026: el CPI con los cortes de EVM_INDEX_* de la empresa
+    # (`app.core.umbrales`, métrica «evm»); antes 0,8/0,95 fijos aquí.
+    from app.core.umbrales import tono_de
+    tono = tono_de("evm", cpi, db, org_id) if cpi else None
+    if tono == "danger" or margen_al_cierre < 0:
         return "critical"
-    if (cpi and cpi < 0.95) or margen_al_cierre < 10:
+    if tono == "warning" or margen_al_cierre < 10:
         return "warning"
     return "ok"
 
@@ -389,7 +394,7 @@ def calc_project_profitability(
         "etc": evm.etc,
         "vac": evm.vac,
         "margin_at_completion": margin_at_completion,
-        "risk_flag": _bandera_de_riesgo(evm.cpi, margin_at_completion),
+        "risk_flag": _bandera_de_riesgo(evm.cpi, margin_at_completion, db, project.organization_id),
     }
 
 
@@ -548,7 +553,7 @@ def update_milestone(db: Session, m: ProjectMilestone, updates: dict) -> Project
 
 def delete_milestone(db: Session, m: ProjectMilestone) -> None:
     if m.is_billed or m.invoice_id:
-        raise ValueError("No se puede eliminar un hito ya facturado")
+        raise ErrorConCodigo("hito_facturado_no_eliminable")
     m.is_active = False
     db.commit()
 

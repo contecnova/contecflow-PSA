@@ -31,6 +31,7 @@ from app.core.escalas import accion_por_correlacion
 from app.models.project import Project
 from app.models.service_desk import Ticket, TicketStatus, TicketPriority
 from app.models.user import User
+from app.core.codigos_de_error import ErrorConCodigo
 
 logger = logging.getLogger(__name__)
 
@@ -333,7 +334,7 @@ def merge_cluster_to_problem(
     # Infer category and priority from the tickets
     tickets = db.query(Ticket).filter(Ticket.id.in_(ticket_ids)).all()
     if not tickets:
-        raise ValueError("No se encontraron tickets para el cluster")
+        raise ErrorConCodigo("sin_tickets_para_correlacion", detail="No se encontraron tickets para el cluster")
 
     # FIX: helper para evitar AttributeError ('Ticket' no tiene .category directa)
     categories = [c for c in (_ticket_category(t) for t in tickets) if c]

@@ -10,6 +10,7 @@ from app.models.user import User, UserRole
 from app.services import deliverable_service
 from app.services.deliverable_service import serialize_deliverable as _del_out
 from app.schemas.deliverables import DeliverableIn, DeliverableUpdate
+from app.core.codigos_de_error import error_http
 
 router = APIRouter()
 
@@ -66,7 +67,7 @@ def create_deliverable(
     _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     if current_user.role not in [UserRole.admin, UserRole.pm]:
-        raise HTTPException(403, "Acceso denegado")
+        raise error_http(403, "sin_permiso", detail="Acceso denegado")
     d = deliverable_service.create_deliverable(db, project_id, **payload.model_dump())
     return APIResponse.ok(data=_del_out(d))
 
@@ -81,17 +82,17 @@ def update_deliverable(
     _rol: User = Depends(require_any_manager),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     if current_user.role not in [UserRole.admin, UserRole.pm]:
-        raise HTTPException(403, "Solo administradores y PMs pueden actualizar entreables")
+        raise error_http(403, "solo_admin_o_pm", detail="Solo administradores y PMs pueden actualizar entreables")
     d = deliverable_service.get_deliverable(db, del_id, project_id)
     if not d:
-        raise HTTPException(404, "Entregable no encontrado")
+        raise error_http(404, "no_encontrado", detail="Entregable no encontrado", que="entregable")
     enforce_abac(db, current_user, "deliverable", del_id, action="update")
     cambios = payload.model_dump(exclude_unset=True)
     # Revisión 2026-11: aceptar y rechazar tienen su regla (sólo un entregado);
     # editando el estado a mano se la saltaba.
     if cambios.get("status") in ("accepted", "rejected") and cambios["status"] != str(getattr(d.status, "value", d.status)) \
             and str(getattr(d.status, "value", d.status)) != "delivered":
-        raise HTTPException(400, "Sólo se acepta o rechaza un entregable entregado")
+        raise error_http(400, "entregable_solo_entregado", detail="Sólo se acepta o rechaza un entregable entregado")
     d = deliverable_service.update_deliverable(db, d, cambios)
     return APIResponse.ok(data=_del_out(d))
 
@@ -107,7 +108,7 @@ def deliver(
 ):
     d = deliverable_service.get_deliverable(db, del_id, project_id)
     if not d:
-        raise HTTPException(404, "No encontrado")
+        raise error_http(404, "no_encontrado_generico")
     enforce_abac(db, current_user, "deliverable", del_id, action="update")
     d = deliverable_service.mark_delivered(db, d, document_url)
     return APIResponse.ok(data=_del_out(d))
@@ -122,9 +123,9 @@ def accept(
 ):
     d = deliverable_service.get_deliverable(db, del_id, project_id)
     if not d:
-        raise HTTPException(404, "No encontrado")
+        raise error_http(404, "no_encontrado_generico")
     if d.status != "delivered":
-        raise HTTPException(400, "Solo se pueden aceptar entregables entregados")
+        raise error_http(400, "entregable_solo_entregado", detail="Solo se pueden aceptar entregables entregados")
     enforce_abac(db, current_user, "deliverable", del_id, action="update")
     d = deliverable_service.mark_accepted(db, d)
     return APIResponse.ok(data=_del_out(d))
@@ -140,9 +141,9 @@ def reject(
 ):
     d = deliverable_service.get_deliverable(db, del_id, project_id)
     if not d:
-        raise HTTPException(404, "No encontrado")
+        raise error_http(404, "no_encontrado_generico")
     if d.status != "delivered":
-        raise HTTPException(400, "Solo se pueden rechazar entregables entregados")
+        raise error_http(400, "entregable_solo_entregado", detail="Solo se pueden rechazar entregables entregados")
     enforce_abac(db, current_user, "deliverable", del_id, action="update")
     d = deliverable_service.mark_rejected(db, d, reason)
     return APIResponse.ok(data=_del_out(d))
@@ -157,7 +158,7 @@ def delete_deliverable(
 ):
     d = deliverable_service.get_deliverable(db, del_id, project_id)
     if not d:
-        raise HTTPException(404, "No encontrado")
+        raise error_http(404, "no_encontrado_generico")
     enforce_abac(db, current_user, "deliverable", del_id, action="delete")
     deliverable_service.delete_deliverable(db, d)
     return APIResponse.ok(data={"ok": True, "message": f"Entregable '{d.name}' eliminado"})

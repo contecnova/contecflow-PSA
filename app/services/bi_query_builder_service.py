@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 from app.models.settings import AppSetting
 from app.models.user import User
 from app.services import report_builder_service
+from app.core.codigos_de_error import ErrorConCodigo
 
 _KEY_QUERIES = "bi.query_builder.saved"
 
@@ -136,7 +137,7 @@ def _normalize_aggregations(aggregations: list[dict]) -> list[dict]:
         if not field or not func:
             continue
         if func not in SUPPORTED_AGGREGATIONS:
-            raise ValueError(f"Unsupported aggregation function: {func}")
+            raise ErrorConCodigo("funcion_agregacion_no_soportada", detail=f"Unsupported aggregation function: {func}", funcion=func)
         normalized.append(
             {
                 "field": field,
@@ -174,7 +175,7 @@ def _run_aggregation(values: list[Any], func: str) -> Any:
         return min(nums)
     if func == "max":
         return max(nums)
-    raise ValueError(f"Unsupported aggregation function: {func}")
+    raise ErrorConCodigo("funcion_agregacion_no_soportada", detail=f"Unsupported aggregation function: {func}", funcion=func)
 
 
 def _apply_grouping_and_aggregations(
@@ -250,7 +251,7 @@ def _validate_fields_against_dataset(dataset: str, fields: list[str]) -> None:
     allowed_cols = set((entity.get("columns") or {}).keys())
     unknown = [f for f in fields if f not in allowed_cols]
     if unknown:
-        raise ValueError(f"Unknown fields for dataset '{dataset}': {unknown}")
+        raise ErrorConCodigo("bi_campos_desconocidos", detail=f"Unknown fields for dataset '{dataset}': {unknown}", dataset=dataset, campos=unknown)
 
 
 def _compute_query_result(
@@ -268,9 +269,7 @@ def _compute_query_result(
 ) -> dict[str, Any]:
     dataset = _resolve_dataset(dataset)
     if dataset not in report_builder_service.ENTITIES:
-        raise ValueError(
-            f"Dataset '{dataset}' not found. Available: {list(report_builder_service.ENTITIES.keys())}"
-        )
+        raise ErrorConCodigo("no_encontrado", detail=f"Dataset '{dataset}' not found. Available: {list(report_builder_service.ENTITIES.keys())}", que="dataset")
 
     entity_cols = list((report_builder_service.ENTITIES.get(dataset, {}).get("columns") or {}).keys())
     selected_fields = fields or entity_cols
@@ -354,9 +353,7 @@ def save_query(
     if dataset not in report_builder_service.ENTITIES:
         dataset = _resolve_dataset(dataset)
     if dataset not in report_builder_service.ENTITIES:
-        raise ValueError(
-            f"Dataset '{dataset}' not found. Available: {list(report_builder_service.ENTITIES.keys())}"
-        )
+        raise ErrorConCodigo("no_encontrado", detail=f"Dataset '{dataset}' not found. Available: {list(report_builder_service.ENTITIES.keys())}", que="dataset")
     queries = _get_queries(db, org_id)
     qid = str(uuid.uuid4())
     entry = {
@@ -386,7 +383,7 @@ def list_queries(db: Session, *, org_id: Optional[str]) -> list[dict]:
 def delete_query(db: Session, *, org_id: Optional[str], query_id: str) -> None:
     queries = _get_queries(db, org_id)
     if query_id not in queries:
-        raise ValueError(f"Query '{query_id}' not found")
+        raise ErrorConCodigo("no_encontrado", detail=f"Query '{query_id}' not found", que="consulta")
     del queries[query_id]
     _save_queries(db, org_id, queries)
 
@@ -403,7 +400,7 @@ def execute_query(
     """
     queries = _get_queries(db, org_id)
     if query_id not in queries:
-        raise ValueError(f"Query '{query_id}' not found")
+        raise ErrorConCodigo("no_encontrado", detail=f"Query '{query_id}' not found", que="consulta")
     q = queries[query_id]
     result = _compute_query_result(
         db,

@@ -16,6 +16,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { useFormValidation } from '../hooks/useFormValidation'
 import DateInput from '../components/ui/DateInput'
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
+import { useTono, useUmbrales } from '../hooks/useOrgSettings'
 import './ContractsPage.css'
 
 type Traductor = ReturnType<typeof useAppT>
@@ -413,6 +414,8 @@ function ContractDetail({ contract, onClose, onEdit }: { contract: Contract; onC
 
 export default function ContractsPage(): JSX.Element {
   const t = useAppT()
+  const tono = useTono()
+  const horizonteDeVencimiento = useUmbrales().sueltos.UMBRAL_VENCIMIENTO_HORIZONTE_DIAS
   const fmtMoneda = useFormatoMoneda()
   const [showCreate, setShowCreate] = useState(false)
   const [editing, setEditing] = useState<Contract | null>(null)
@@ -431,13 +434,13 @@ export default function ContractsPage(): JSX.Element {
     : c.hours_bag ? `${fmtNumber(c.hours_bag, 0)}h` : '—'
   const estadoDe = (c: Contract) => (STATUS_COLOR[c.status || ''] ? c.status! : 'draft')
 
-  // Contratos que vencen en los próximos 90 días
+  // Contratos que vencen en el horizonte de la empresa (UMBRAL_VENCIMIENTO_HORIZONTE_DIAS, 90 por defecto; 19-11-2026)
   const today = new Date()
   const expiring = contracts.filter(c => {
     if (!c.end_date || c.status === 'cancelled' || c.status === 'expired') return false
     const end = new Date(c.end_date)
     const daysLeft = Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-    return daysLeft >= 0 && daysLeft <= 90
+    return daysLeft >= 0 && daysLeft <= horizonteDeVencimiento
   }).map(c => {
     const daysLeft = Math.ceil((new Date(c.end_date!).getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
     return { ...c, daysLeft }
@@ -489,7 +492,8 @@ export default function ContractsPage(): JSX.Element {
       {expiring.length > 0 && (
         <div>
           {expiring.map(c => {
-            const nivel = c.daysLeft <= 14 ? 'danger' : c.daysLeft <= 30 ? 'warning' : 'accent'
+            const tonoVencimiento = tono('vencimiento', c.daysLeft)
+            const nivel = tonoVencimiento === 'success' ? 'accent' : tonoVencimiento
             return (
               <Pulsable key={c.id} type="button" className={`ctr-expiring ctr-expiring--${nivel}`}
                 onClick={() => setDetail(c)}>

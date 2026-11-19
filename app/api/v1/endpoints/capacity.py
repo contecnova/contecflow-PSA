@@ -12,6 +12,7 @@ from app.models.user import User
 from app.services.psa_flows import create_capacity_plan_flow
 from app.services import capacity_service
 from app.core import timeutil
+from app.core.codigos_de_error import error_http
 
 router = APIRouter()
 
@@ -224,10 +225,10 @@ def create_capacity_plan(
         new_hours = float(payload["planned_hours"]) if payload.get("planned_hours") is not None \
             else jornada_de_empresa(db)
     except (TypeError, ValueError):
-        raise HTTPException(status_code=400, detail="week_start (AAAA-MM-DD) o planned_hours no válidos")
+        raise error_http(400, "capacidad_datos_no_validos", detail="week_start (AAAA-MM-DD) o planned_hours no válidos")
 
     if not week_start:
-        raise HTTPException(status_code=400, detail="week_start es obligatorio")
+        raise error_http(400, "campo_obligatorio", detail="week_start es obligatorio", campo="week_start")
 
     plan = create_capacity_plan_flow(
         db=db,

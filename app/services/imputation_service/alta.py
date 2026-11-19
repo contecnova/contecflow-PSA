@@ -28,6 +28,7 @@ from app.services.imputation_service._comun import (
     resolve_user_rate,
     sync_imputation_week_timesheet,
 )
+from app.core.codigos_de_error import error
 
 
 # ── Validate & create ──────────────────────────────────────────────────────────
@@ -57,16 +58,10 @@ def _validar_fecha_imputable(payload, current_user: User, db: Session) -> None:
     earliest_allowed = get_lockout_cutoff(current_user, db)
     if payload.date < earliest_allowed:
         lockout_days = (today_for_user(current_user) - earliest_allowed).days
-        raise ErrorDeDominio(
-            status_code=400,
-            detail=(
-                f"No puedes imputar en fechas anteriores a hace {lockout_days} días "
-                f"({earliest_allowed}). Contacta con tu manager si necesitas una corrección."
-            ),
-        )
+        raise error(400, "imputar_fecha_bloqueada", dias=lockout_days, fecha=earliest_allowed)
     today_utc = datetime.now(timezone.utc).date()
     if payload.date > today_utc:
-        raise ErrorDeDominio(status_code=400, detail="No puedes imputar en fechas futuras.")
+        raise error(400, "imputar_fecha_futura")
 
 
 def _buscar_proyecto_del_usuario(payload, current_user: User, db: Session) -> Project:
@@ -81,7 +76,7 @@ def _buscar_proyecto_del_usuario(payload, current_user: User, db: Session) -> Pr
         project_q = project_q.filter(Project.organization_id == current_user.organization_id)
     project = project_q.first()
     if not project:
-        raise ErrorDeDominio(status_code=404, detail="Proyecto no encontrado")
+        raise error(404, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")
     return project
 
 
@@ -98,19 +93,14 @@ def _buscar_tarea_del_proyecto(payload, db: Session) -> Optional[Task]:
         Task.project_id == payload.project_id,
     ).first()
     if not task:
-        raise ErrorDeDominio(
-            status_code=404, detail="Tarea no encontrada o no pertenece al proyecto"
-        )
+        raise error(404, "tarea_no_en_proyecto")
     return task
 
 
 def _validar_estado_del_proyecto(project: Project) -> None:
     """Un proyecto cerrado no admite horas nuevas."""
     if project.status in (_PS.completed, _PS.closed, _PS.cancelled, _PS.archived):
-        raise ErrorDeDominio(
-            status_code=400,
-            detail=f"No puedes imputar horas a un proyecto en estado '{project.status}'. Contacta con el PM si necesitas registrar horas históricas.",
-        )
+        raise error(400, "imputar_proyecto_estado", detail=f"No puedes imputar horas a un proyecto en estado '{project.status}'. Contacta con el PM si necesitas registrar horas históricas.", estado=project.status)
 
 
 def _validar_tarifa_horaria(payload, current_user: User, db: Session) -> None:
@@ -120,10 +110,7 @@ def _validar_tarifa_horaria(payload, current_user: User, db: Session) -> None:
     interna sino de su factura.
     """
     if (not resolve_user_rate(db, current_user, payload.date)) and current_user.role != UserRole.subcontractor:
-        raise ErrorDeDominio(
-            status_code=400,
-            detail="No puedes imputar horas sin tener una tarifa horaria asignada. Contacta con Recursos Humanos.",
-        )
+        raise error(400, "sin_tarifa_horaria")
 
 
 def _validar_tope_diario(payload, current_user: User, db: Session) -> None:
@@ -138,19 +125,13 @@ def _validar_tope_diario(payload, current_user: User, db: Session) -> None:
         Imputation.date == payload.date,
     ).scalar() or 0.0
     if existing_hours + payload.hours > 24:
-        raise ErrorDeDominio(
-            status_code=400,
-            detail=f"No puedes imputar más de 24h en un día. Ya tienes {existing_hours}h registradas.",
-        )
+        raise error(400, "imputar_mas_de_24h", horas=existing_hours)
 
 
 def _validar_estado_de_la_tarea(task: Optional[Task]) -> None:
     """Una tarea acabada o cancelada no admite horas nuevas."""
     if task and task.status in (TaskStatus.done, TaskStatus.cancelled):
-        raise ErrorDeDominio(
-            status_code=400,
-            detail=f"No puedes imputar horas en una tarea con estado '{task.status}'.",
-        )
+        raise error(400, "imputar_tarea_estado", detail=f"No puedes imputar horas en una tarea con estado '{task.status}'.", estado=task.status)
 
 
 def _id_de_imputacion_duplicada(payload, current_user: User, task, db: Session) -> Optional[str]:
@@ -182,7 +163,7 @@ def _id_de_imputacion_duplicada(payload, current_user: User, task, db: Session) 
     if not fila:
         return None
     if not getattr(payload, "force_duplicate", False):
-        raise ErrorDeDominio(status_code=409, detail=mensaje)
+        raise error(409, "imputacion_duplicada", detail=mensaje)
     return fila[0]
 
 
@@ -203,10 +184,7 @@ def _validar_tope_semanal(payload, current_user: User, db: Session) -> None:
     from app.services.horas_extra import control as control_horas_extra
     weekly_capacity += control_horas_extra.capacidad_semanal_extra(db, current_user.id, payload.date)
     if weekly_hours + payload.hours > weekly_capacity:
-        raise ErrorDeDominio(
-            status_code=400,
-            detail=f"Excederías la capacidad semanal ({weekly_capacity}h). Semana actual: {weekly_hours}h, nueva imputación: {payload.hours}h.",
-        )
+        raise error(400, "imputar_supera_capacidad", detail=f"Excederías la capacidad semanal ({weekly_capacity}h). Semana actual: {weekly_hours}h, nueva imputación: {payload.hours}h.", capacidad=weekly_capacity, semana=weekly_hours, nueva=payload.hours)
 
 
 def _crear_imputacion(payload, current_user: User, db: Session) -> Imputation:
@@ -238,10 +216,7 @@ def _crear_imputacion(payload, current_user: User, db: Session) -> Imputation:
         # La ultima linea de defensa: el indice unico. Se llega aqui cuando dos
         # peticiones simultaneas pasan los dos el control de duplicados.
         db.rollback()
-        raise ErrorDeDominio(
-            status_code=409,
-            detail="Ya existe una imputación para esta tarea en esa fecha.",
-        ) from exc
+        raise error(409, "imputacion_duplicada") from exc
     return imputation
 
 
@@ -294,19 +269,16 @@ def validate_imputation_edit_allowed(imp, current_user: User, db: Session) -> No
     """
 
     if imp.user_id != current_user.id and current_user.role != UserRole.admin:
-        raise ErrorDeDominio(status_code=403, detail="No puedes editar imputaciones de otros")
+        raise error(403, "imputacion_ajena")
 
     if imp.is_approved and current_user.role != UserRole.admin:
-        raise ErrorDeDominio(status_code=400, detail="No se puede editar una imputación ya aprobada")
+        raise error(400, "imputacion_aprobada")
 
     if current_user.role != UserRole.admin:
         earliest_allowed = get_lockout_cutoff(current_user, db)
         if imp.date < earliest_allowed:
             lockout_days = (today_for_user(current_user) - earliest_allowed).days
-            raise ErrorDeDominio(
-                status_code=400,
-                detail=f"No puedes editar imputaciones de hace más de {lockout_days} días.",
-            )
+            raise error(400, "imputacion_demasiado_antigua", dias=lockout_days)
 
     week_start = imp.date - timedelta(days=imp.date.weekday())
     ts = db.query(Timesheet).filter(
@@ -314,7 +286,4 @@ def validate_imputation_edit_allowed(imp, current_user: User, db: Session) -> No
         Timesheet.week_start == week_start,
     ).first()
     if ts and ts.status in [TimesheetStatus.submitted, TimesheetStatus.approved] and current_user.role != UserRole.admin:
-        raise ErrorDeDominio(
-            status_code=400,
-            detail="No se puede editar imputaciones en una hoja de tiempo ya enviada o aprobada",
-        )
+        raise error(400, "imputacion_hoja_enviada")

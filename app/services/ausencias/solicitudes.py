@@ -105,20 +105,20 @@ def construir(db: Session, usuario, datos: dict, a: Optional[Absence] = None) ->
                                   clave=datos.get("type"))
     inicio, fin = _fecha(datos.get("start_date"), "inicio"), _fecha(datos.get("end_date"), "fin")
     if fin < inicio:
-        raise ErrorDeDominio(400, "La fecha de fin no puede ser anterior a la de inicio")
+        raise error_con_codigo(400, "fecha_fin_anterior_a_inicio", detail="La fecha de fin no puede ser anterior a la de inicio")
     sustituto = datos.get("substitute_id") or None
     if sustituto:
         if sustituto == (a.user_id if a else usuario.id):
-            raise ErrorDeDominio(422, "No puedes ser tu propio sustituto")
+            raise error_con_codigo(422, "sustituto_uno_mismo")
         if db.query(User.id).filter(User.id == sustituto, User.is_active.is_(True)).first() is None:
-            raise ErrorDeDominio(422, "El sustituto no existe en tu empresa o no está activo")
+            raise error_con_codigo(422, "sustituto_no_valido")
     turno = datos.get("shift_id") or None
     if turno:
         from app.services.ausencias import turnos
         turnos.turno(db, turno)
     horas = datos.get("hours")
     if horas not in (None, "") and float(horas) <= 0:
-        raise ErrorDeDominio(422, "Las horas tienen que ser más de 0")
+        raise error_con_codigo(422, "horas_mayor_que_cero", detail="Las horas tienen que ser más de 0")
     h_ini, h_fin = _hora(datos.get("start_time"), "hora de inicio"), _hora(datos.get("end_time"), "hora de fin")
     if (h_ini is None) != (h_fin is None):
         raise error_con_codigo(422, "indica_hora_inicio_y_fin")
@@ -246,7 +246,7 @@ def _solapada(db: Session, a: Absence) -> None:
             if not tr.interseccion([tr.desde_texto(a.start_time, a.end_time)],
                                    [tr.desde_texto(otra.start_time, otra.end_time)]):
                 continue
-        raise ErrorDeDominio(400, f"Ya tienes una ausencia solapada del {otra.start_date} al {otra.end_date}")
+        raise error_con_codigo(400, "ausencia_solapada", desde=otra.start_date, hasta=otra.end_date)
 
 
 # ── Vista previa ─────────────────────────────────────────────────────────────
@@ -374,7 +374,7 @@ def _tras_pedir(db: Session, a: Absence, ev: dict, actor) -> None:
         a.status, a.rejection_reason = AbsenceStatus.rejected, _mensaje_de_bloqueo(r.get("cupo"))[:255]
         evento(db, a, "rechazada", None, motivo=a.rejection_reason, cupo_lleno=r.get("llenos"))
         db.commit()
-        raise ErrorDeDominio(409, a.rejection_reason)
+        raise error_con_codigo(409, "cupo_lleno", detail=a.rejection_reason)
     if r["resultado"] == "espera" or (r["resultado"] == "sin_cupo" and ev["decision"] == "waitlist"):
         a.status = AbsenceStatus.waitlisted
         posicion = cupos.posicion(db, a.id)
@@ -478,7 +478,7 @@ def revisar(db: Session, usuario, a: Absence, aprobado: bool, nota: Optional[str
     from app.services.approval_engine._base import exigir_que_no_sea_suyo
     from app.services.approval_engine.requests import decide_approval_request
     if a.status != AbsenceStatus.pending:
-        raise ErrorDeDominio(400, "Solo se pueden revisar ausencias pendientes")
+        raise error_con_codigo(400, "ausencia_solo_pendientes_revisables")
     exigir_que_no_sea_suyo(db, a.user_id, usuario, "absence", a.id)
     req = db.query(ApprovalRequest).filter(ApprovalRequest.entity_type == "leave", ApprovalRequest.entity_id == a.id,
                                            ApprovalRequest.status == "pending").first()
@@ -497,7 +497,7 @@ def revisar(db: Session, usuario, a: Absence, aprobado: bool, nota: Optional[str
 def cancelar(db: Session, usuario, a: Absence) -> None:
     from app.services.approval_engine import fuentes
     if a.status == AbsenceStatus.approved and a.start_date <= timeutil.today():
-        raise ErrorDeDominio(400, "No puedes cancelar una ausencia ya iniciada")
+        raise error_con_codigo(400, "ausencia_iniciada_no_cancelable")
     a.status = AbsenceStatus.cancelled
     a.is_active = False
     fuentes.cerrar(db, "leave", a.id, "cancelled", "Cancelada por quien la pidió")
@@ -513,7 +513,7 @@ def editar(db: Session, usuario, a: Absence, datos: dict) -> Absence:
     from app.services.approval_engine import fuentes
     from app.services.ausencias import documentos
     if a.status not in (AbsenceStatus.pending, AbsenceStatus.waitlisted):
-        raise ErrorDeDominio(400, f"Solo se pueden editar ausencias pendientes. Esta está '{getattr(a.status, 'value', a.status)}'")
+        raise error_con_codigo(400, "ausencia_solo_pendientes_editables", detail=f"Solo se pueden editar ausencias pendientes. Esta está '{getattr(a.status, 'value', a.status)}'", estado=getattr(a.status, 'value', a.status))
     fechas = (a.start_date, a.end_date)
     a = construir(db, usuario, datos, a)
     if (a.start_date, a.end_date) != fechas:
@@ -525,7 +525,8 @@ def editar(db: Session, usuario, a: Absence, datos: dict) -> Absence:
     _solapada(db, a)
     if ev["decision"] == "block":
         db.rollback()
-        raise ErrorDeDominio(422, "; ".join(b.get("mensaje") or "" for b in ev["resultado"]["bloqueos"]) or "Lo impide una política")
+        _motivo = "; ".join(b.get("mensaje") or "" for b in ev["resultado"]["bloqueos"]) or "Lo impide una política"
+        raise error_con_codigo(422, "bloqueado_por_politica", detail=_motivo, motivo=_motivo)
     _guardar_medidas(a, m)
     a.status = AbsenceStatus.pending
     fuentes.cerrar(db, "leave", a.id, "cancelled", "Editada: se vuelve a pedir")
@@ -576,9 +577,9 @@ def ampliar(db: Session, usuario, a: Absence, nuevo_fin: date, nota: Optional[st
     from app.services.approval_engine import fuentes
     from app.services.ausencias import documentos
     if a.status != AbsenceStatus.approved:
-        raise ErrorDeDominio(400, "Solo se amplía una ausencia aprobada")
+        raise error_con_codigo(400, "ausencia_solo_aprobada_ampliable")
     if nuevo_fin <= a.end_date:
-        raise ErrorDeDominio(422, "La nueva fecha de fin tiene que ser posterior a la actual")
+        raise error_con_codigo(422, "ausencia_nueva_fin_posterior")
     anterior = a.end_date
     tramo = Absence(id=a.id, user_id=a.user_id, organization_id=a.organization_id, type=a.type,
                     absence_type_id=a.absence_type_id, start_date=anterior + timedelta(days=1), end_date=nuevo_fin,
@@ -590,21 +591,21 @@ def ampliar(db: Session, usuario, a: Absence, nuevo_fin: date, nota: Optional[st
     if tramo in db:
         db.expunge(tramo)
     if ev["decision"] == "block":
-        raise ErrorDeDominio(422, "; ".join(b.get("mensaje") or "" for b in ev["resultado"]["bloqueos"])
-                             or "Lo impide una política")
+        _motivo = "; ".join(b.get("mensaje") or "" for b in ev["resultado"]["bloqueos"]) or "Lo impide una política"
+        raise error_con_codigo(422, "bloqueado_por_politica", detail=_motivo, motivo=_motivo)
     otra = db.query(Absence).filter(Absence.user_id == a.user_id, Absence.id != a.id, Absence.is_active.is_(True),
                                     Absence.status.in_([AbsenceStatus.pending, AbsenceStatus.approved,
                                                         AbsenceStatus.waitlisted]),
                                     Absence.start_date <= nuevo_fin, Absence.end_date > anterior).first()
     if otra is not None:
-        raise ErrorDeDominio(400, f"Se solapa con otra ausencia del {otra.start_date} al {otra.end_date}")
+        raise error_con_codigo(400, "ausencia_solapada_otra", desde=otra.start_date, hasta=otra.end_date)
     # Plazas del tramo nuevo (cualquier momento: la parte ya aprobada conserva las suyas).
     aus = (ev.get("contexto") or {}).get("_ausencia") or {}
     peticiones = [{"cupo": c, "huecos": cupos.huecos_de(c, aus)} for c in (ev["resultado"].get("propios") or [])
                   if c.get("tipo") == cupos.TIPO and c.get("clave")]
     r = cupos.reservar(db, a.id, _ahora(), peticiones, a.organization_id) if peticiones else {"resultado": "sin_cupo"}
     if r["resultado"] == "lleno":
-        raise ErrorDeDominio(409, _mensaje_de_bloqueo(r.get("cupo")))
+        raise error_con_codigo(409, "cupo_lleno", detail=_mensaje_de_bloqueo(r.get("cupo")))
     a.end_date = nuevo_fin
     _guardar_medidas(a, medidas_finales(evaluar(db, a)))
     espera = r["resultado"] == "espera" or (r["resultado"] == "sin_cupo" and ev["decision"] == "waitlist")
@@ -713,7 +714,7 @@ def dar_plaza(db: Session, usuario, a: Absence) -> Absence:
     queda marcado «por encima»)."""
     from app.models.ausencias import ReservaDeCupo
     if a.status != AbsenceStatus.waitlisted:
-        raise ErrorDeDominio(400, "Esa ausencia no está en lista de espera")
+        raise error_con_codigo(400, "ausencia_no_en_espera")
     if not cupos.intentar_promover(db, a.id):
         with cupos.seccion(db):
             for r in db.query(ReservaDeCupo).filter(ReservaDeCupo.absence_id == a.id, ReservaDeCupo.estado == "espera"):

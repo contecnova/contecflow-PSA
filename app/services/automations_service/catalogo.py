@@ -6,9 +6,9 @@ sin cambiar el codigo. El paquete reexporta todos los nombres.
 import json
 from typing import Optional
 from app.models.automations import ActionType, AutomationRule, TriggerType
-from app.core.errores import ErrorDeDominio
 
 from app.services.automations_service._comun import _v
+from app.core.codigos_de_error import error
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -155,21 +155,21 @@ def _faltan(tipo: str, params: dict) -> list[str]:
 
 def _validar_condicion(c: dict) -> None:
     if not isinstance(c, dict):
-        raise ErrorDeDominio(422, "Condición mal formada")
+        raise error(422, "automatizacion_condicion_mal_formada")
     if "conditions" in c or "match" in c:
         if c.get("match", "all") not in _GRUPOS:
-            raise ErrorDeDominio(422, f"Grupo desconocido: {c.get('match')} (all | any)")
+            raise error(422, "automatizacion_grupo_desconocido", detail=f"Grupo desconocido: {c.get('match')} (all | any)", grupo=c.get('match'))
         hijas = c.get("conditions")
         # Un grupo vacío no se puede evaluar: no se acepta (antes «sin condición» = siempre).
         if not isinstance(hijas, list) or not hijas:
-            raise ErrorDeDominio(422, "Un grupo de condiciones necesita al menos una")
+            raise error(422, "automatizacion_grupo_vacio")
         for h in hijas:
             _validar_condicion(h)
         return
     if not c.get("field"):
-        raise ErrorDeDominio(422, "La condicion necesita un campo")
+        raise error(422, "automatizacion_condicion_sin_campo", detail="La condicion necesita un campo")
     if c.get("operator", "equals") not in _OPERADORES:
-        raise ErrorDeDominio(422, f"Operador desconocido: {c.get('operator')}")
+        raise error(422, "operador_desconocido", operador=c.get('operator'))
 
 
 def validar_cron(expr: Optional[str]):
@@ -178,21 +178,21 @@ def validar_cron(expr: Optional[str]):
     try:
         return CronTrigger.from_crontab((expr or "").strip())
     except (ValueError, TypeError) as e:
-        raise ErrorDeDominio(422, f"Expresión cron no válida «{expr}»: {e}")
+        raise error(422, "cron_no_valido", detail=f"Expresión cron no válida «{expr}»: {e}", expresion=expr)
 
 
 def validar_regla(trigger_type: Optional[str], conditions: Optional[dict], actions: Optional[list],
                   schedule_cron: Optional[str] = None) -> None:
     """422 si la regla nombra algo que el motor no sabe hacer."""
     if trigger_type is not None and trigger_type not in CATALOGO_DISPARADORES:
-        raise ErrorDeDominio(422, f"Disparador desconocido: {trigger_type}")
+        raise error(422, "disparador_desconocido", disparador=trigger_type)
     if trigger_type == "scheduled":
         validar_cron(schedule_cron)
     if conditions:
         _validar_condicion(conditions)
     if actions is not None:
         if not actions:
-            raise ErrorDeDominio(422, "La regla necesita al menos una accion")
+            raise error(422, "automatizacion_sin_acciones", detail="La regla necesita al menos una accion")
         for i, a in enumerate(actions, 1):
             tipo = (a or {}).get("type")
             if tipo == "conditional_branch":
@@ -201,10 +201,10 @@ def validar_regla(trigger_type: Optional[str], conditions: Optional[dict], actio
                               or [{"type": "create_alert", "params": {"message": "-"}}])
                 continue
             if _ALIAS.get(tipo, tipo) not in CATALOGO_ACCIONES:
-                raise ErrorDeDominio(422, f"Accion {i}: tipo desconocido «{tipo}»")
+                raise error(422, "automatizacion_accion_tipo_desconocido", detail=f"Accion {i}: tipo desconocido «{tipo}»", n=i, tipo=tipo)
             faltan = _faltan(tipo, a.get("params") or {})
             if faltan:
-                raise ErrorDeDominio(422, f"Accion {i} ({tipo}): falta {', '.join(faltan)}")
+                raise error(422, "automatizacion_accion_falta", detail=f"Accion {i} ({tipo}): falta {', '.join(faltan)}", n=i, tipo=tipo, faltan=', '.join(faltan))
 
 
 def serialize_rule(r: AutomationRule) -> dict:

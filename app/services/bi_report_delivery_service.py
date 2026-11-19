@@ -34,6 +34,7 @@ from sqlalchemy.orm import Session
 
 from app.models.settings import AppSetting
 from dataclasses import dataclass
+from app.core.codigos_de_error import ErrorConCodigo
 
 logger = logging.getLogger(__name__)
 
@@ -277,7 +278,7 @@ def delete_schedule(db: Session, *, organization_id: Optional[str], schedule_id:
 def _validate_channels(channels: List[str]) -> None:
     invalid = [c for c in channels if c not in VALID_CHANNELS]
     if invalid:
-        raise ValueError(f"Invalid channels: {invalid}. Supported: {VALID_CHANNELS}")
+        raise ErrorConCodigo("canales_no_validos", detail=f"Invalid channels: {invalid}. Supported: {VALID_CHANNELS}", canales=invalid, opciones=VALID_CHANNELS)
 
 
 def _validate_webhooks(datos: Dict[str, Any]) -> None:
@@ -291,12 +292,12 @@ def _validate_webhooks(datos: Dict[str, Any]) -> None:
 
 def _validate_format(fmt: str) -> None:
     if fmt not in VALID_FORMATS:
-        raise ValueError(f"Invalid format: {fmt!r}. Supported: {VALID_FORMATS}")
+        raise ErrorConCodigo("formato_no_valido", detail=f"Invalid format: {fmt!r}. Supported: {VALID_FORMATS}", formato=fmt, opciones=VALID_FORMATS)
 
 
 def _validate_frequency(freq: str) -> None:
     if freq not in VALID_FREQUENCIES:
-        raise ValueError(f"Invalid frequency: {freq!r}. Supported: {VALID_FREQUENCIES}")
+        raise ErrorConCodigo("frecuencia_no_valida", detail=f"Invalid frequency: {freq!r}. Supported: {VALID_FREQUENCIES}", frecuencia=freq, opciones=VALID_FREQUENCIES)
 
 
 # ── Export helpers ─────────────────────────────────────────────────────────────

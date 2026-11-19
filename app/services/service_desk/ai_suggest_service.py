@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.models.service_desk import CannedResponse
 from app.models.user import User
+from app.core.config import settings  # topes de tokens de IA (19-11-2026)
 
 
 def _compute_kb_matches(db: Session, query_text: str):
@@ -108,7 +109,7 @@ def build_ai_ticket_suggestion(db: Session, ticket_id: str, payload: Optional[di
             system=system,
             module="service_desk",
             user_id=current_user.id,
-            max_tokens=500,
+            max_tokens=settings.AI_BRIEF_ANSWER_MAX_TOKENS,
         )
         ai_error = None
         from app.services.ai_provider_service import es_aviso_de_ia

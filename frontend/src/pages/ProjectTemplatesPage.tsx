@@ -16,8 +16,7 @@ import { templatesApi, type ApiError } from '../services/api'
 import type { PlantillaDeProyecto, ProyectoDesdePlantilla } from '../services/api/tipos-proyectos'
 import { Button, Card, ClientSelect, EmptyState, Input, Modal, Select, Spinner, Pulsable } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
-import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
-import { TYPE_LABELS } from '../utils/helpers'
+import { useCatalogo } from '../hooks/useCatalogo'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { LayoutTemplate, Plus, ChevronDown, ChevronUp, FolderPlus, CheckCircle2, X } from 'lucide-react'
@@ -111,6 +110,7 @@ function TemplateCard({ tpl, onInstantiate, t }: { tpl: Tpl; onInstantiate: (tpl
 
 function CreateTemplateModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const t = useAppT()
+  const tiposDeProyecto = useCatalogo('project-types')
   const [form, setForm] = useState<{ name: string; description: string; project_type: string; estimated_weeks: string; estimated_hours: string; phases: TplPhase[]; risks: TplRisk[]; deliverables: TplDeliverable[] }>({
     name: '',
     description: '',
@@ -224,7 +224,7 @@ function CreateTemplateModal({ onClose, onDone }: { onClose: () => void; onDone:
         <div className="ptpl-campos ptpl-campos--4">
           <Input label={t('plantillas_ui.nombre_req')} value={form.name} onChange={set('name')} />
           <Select label={t('plantillas_ui.tipo')} value={form.project_type} onChange={set('project_type')}
-            options={Object.keys(TYPE_LABELS).map(v => ({ value: v, label: etiquetaCodigo(t, 'tipo_proyecto', v, TYPE_LABELS[v]) }))} />
+            options={tiposDeProyecto.opciones} />
           <Input label={t('plantillas_ui.semanas')} type="number" value={form.estimated_weeks} onChange={set('estimated_weeks')} />
           <Input label={t('plantillas_ui.horas')} type="number" value={form.estimated_hours} onChange={set('estimated_hours')} />
         </div>

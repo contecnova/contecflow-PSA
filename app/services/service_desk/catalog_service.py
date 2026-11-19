@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models.service_desk import ServiceCategory, ServiceItem
 import logging
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +80,7 @@ def create_category_record(db: Session, payload) -> ServiceCategory:
 def get_category_or_404(db: Session, cat_id: str) -> ServiceCategory:
     category = db.query(ServiceCategory).filter(ServiceCategory.id == cat_id).first()
     if not category:
-        raise ErrorDeDominio(404, "Categoria no encontrada")
+        raise error(404, "no_encontrado", detail="Categoria no encontrada", que="categoria")
     return category
 
 
@@ -116,7 +116,7 @@ def _exigir_modo_de_aprobacion(db: Session, datos: dict) -> None:
     from app.services.service_desk.catalog_approval_service import exigir_aprobador, exigir_flujo
     modo = datos.get("approval_mode") or "single"
     if modo not in ("single", "engine"):
-        raise ErrorDeDominio(422, "El modo de aprobación es single o engine")
+        raise error(422, "catalogo_modo_aprobacion_no_valido")
     if not datos.get("requires_approval"):
         return
     if modo == "engine":
@@ -128,7 +128,7 @@ def _exigir_modo_de_aprobacion(db: Session, datos: dict) -> None:
 def get_service_or_404(db: Session, service_id: str) -> ServiceItem:
     service = db.query(ServiceItem).filter(ServiceItem.id == service_id).first()
     if not service:
-        raise ErrorDeDominio(404, "No encontrado")
+        raise error(404, "no_encontrado_generico")
     return service
 
 

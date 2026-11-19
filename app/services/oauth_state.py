@@ -25,7 +25,7 @@ import secrets
 from typing import Optional
 
 from app.core.config import settings
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 
 def _firma(proposito: str, crudo: str) -> str:
@@ -59,15 +59,15 @@ def consumir(proposito: str, state: Optional[str], *, user_id: Optional[str] = N
     from app.services.auth_service.estado_efimero import consume_sso_state_payload
 
     if not state or "." not in state:
-        raise ErrorDeDominio(400, "state OAuth ausente o inválido")
+        raise error(400, "oauth_state_no_valido", detail="state OAuth ausente o inválido")
     crudo, firma = state.rsplit(".", 1)
     if not hmac.compare_digest(_firma(proposito, crudo), firma):
-        raise ErrorDeDominio(400, "state OAuth ausente o inválido")
+        raise error(400, "oauth_state_no_valido", detail="state OAuth ausente o inválido")
     datos = consume_sso_state_payload(_clave(proposito, crudo))
     if datos is None:
-        raise ErrorDeDominio(400, "state OAuth caducado o ya utilizado")
+        raise error(400, "oauth_state_caducado", detail="state OAuth caducado o ya utilizado")
     if user_id is not None and datos.get("user_id") != user_id:
-        raise ErrorDeDominio(400, "state OAuth de otro usuario")
+        raise error(400, "oauth_state_otro_usuario", detail="state OAuth de otro usuario")
     if org_id is not None and datos.get("org_id") != org_id:
-        raise ErrorDeDominio(400, "state OAuth de otra organización")
+        raise error(400, "oauth_state_otra_empresa", detail="state OAuth de otra organización")
     return datos

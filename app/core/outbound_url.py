@@ -22,7 +22,7 @@ import socket
 import urllib.request
 from urllib.parse import urlparse
 
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 ALLOWED_SCHEMES = frozenset({"http", "https"})
 
@@ -53,16 +53,16 @@ def validate_outbound_url(url: str, field: str = "url", *, require_https: bool =
 
     if require_https:
         if scheme != "https":
-            raise ErrorDeDominio(400, f"{field} debe ser una URL HTTPS")
+            raise error(400, "url_debe_ser_https", detail=f"{field} debe ser una URL HTTPS", campo=field)
     elif scheme not in ALLOWED_SCHEMES:
-        raise ErrorDeDominio(400, f"{field} debe usar http o https, no {scheme or 'ningún esquema'}")
+        raise error(400, "url_esquema_no_valido", campo=field, esquema=scheme or 'ningún esquema')
 
     hostname = (parsed.hostname or "").strip().lower()
     if not hostname:
-        raise ErrorDeDominio(400, f"{field} debe incluir hostname")
+        raise error(400, "url_sin_host", detail=f"{field} debe incluir hostname", campo=field)
 
     if hostname in _LOCAL_HOSTNAMES or hostname.endswith(".local"):
-        raise ErrorDeDominio(400, f"{field} no puede apuntar a hosts locales")
+        raise error(400, "url_host_local", detail=f"{field} no puede apuntar a hosts locales", campo=field)
 
     if hostname in _hosts_privados_permitidos():
         return url
@@ -74,11 +74,11 @@ def validate_outbound_url(url: str, field: str = "url", *, require_https: bool =
 
     if ip_obj is not None:
         if _es_red_prohibida(ip_obj):
-            raise ErrorDeDominio(400, f"{field} apunta a una red no permitida")
+            raise error(400, "url_red_no_permitida", campo=field)
         return url
 
     if any(_es_red_prohibida(ip) for ip in _resolver(hostname)):
-        raise ErrorDeDominio(400, f"{field} apunta a una red no permitida")
+        raise error(400, "url_red_no_permitida", campo=field)
 
     return url
 

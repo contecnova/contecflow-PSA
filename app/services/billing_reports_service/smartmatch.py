@@ -15,6 +15,7 @@ from app.models.user import User
 from app.models.task import Task
 from app.models.resources import UserSkill
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -64,9 +65,7 @@ def _semanas_del_periodo(start_date, end_date) -> float:
         d1 = date.fromisoformat(start_date)
         d2 = date.fromisoformat(end_date)
     except ValueError:
-        raise ErrorDeDominio(
-            400, "Formato de fecha inválido en start_date/end_date, se espera YYYY-MM-DD",
-        )
+        raise error(400, "fecha_no_valida", detail="Formato de fecha inválido en start_date/end_date, se espera YYYY-MM-DD")
     return max((d2 - d1).days / 7, 0.5)
 
 
@@ -186,11 +185,17 @@ def smartmatch(payload: dict, db: Session) -> dict:
     except ValueError:
         ini, fin = hoy, hoy + timedelta(days=13)
 
+    # 19-11-2026: las horas del externo salen de su horario efectivo (sus días y
+    # festivos), no de L-V × capacidad/5.
+    from app.services.horario import efectivo as hor
+    planes_ext = hor.horarios(db, list(ventanas_ext), ini, fin) if ventanas_ext and fin >= ini else {}
+
     def _horas_ext(user):
         v = ventanas_ext.get(user.id)
         if v is None:
             return None
-        return horas_disponibles(v, ini, fin, capacidad_semanal(db, user))
+        por_dia = {d: x.horas for d, x in (planes_ext.get(user.id) or {}).items()}
+        return horas_disponibles(v, ini, fin, capacidad_semanal(db, user), por_dia if por_dia else None)
 
     resultados = [
         _puntuar_candidato(

@@ -5,7 +5,7 @@ sin cambiar el codigo. El paquete reexporta todos los nombres.
 """
 from sqlalchemy.orm import Session
 from app.models.mfa import WebAuthnCredential
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 
 # ── WebAuthn helpers ──────────────────────────────────────────────────────────
@@ -81,7 +81,7 @@ def upsert_webauthn_credential(
     """Add or update a WebAuthn credential. Raises 409 if credential belongs to another user."""
     existing = get_credential_by_credential_id(db, credential_id)
     if existing and existing.user_id != current_user_id:
-        raise ErrorDeDominio(409, "La passkey ya está registrada para otro usuario")
+        raise error(409, "passkey_de_otro_usuario")
     if existing:
         existing.public_key = public_key
         existing.sign_count = sign_count

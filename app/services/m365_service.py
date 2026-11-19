@@ -12,6 +12,7 @@ from app.models.financial import ProjectMilestone
 from app.models.task import Task
 from app.core.errores import ErrorDeDominio
 from app.services.settings_service import outbound_http_timeout
+from app.core.codigos_de_error import error
 
 GRAPH_BASE = f"{settings.MICROSOFT_GRAPH_BASE}/v1.0"
 
@@ -40,7 +41,7 @@ async def get_graph_token() -> str:
     async with httpx.AsyncClient(timeout=outbound_http_timeout(default=15)) as client:
         resp = await client.post(url, data=data)
     if resp.status_code != 200:
-        raise ErrorDeDominio(502, "Error obteniendo token de Azure AD")
+        raise error(502, "servicio_externo_fallo", detail="Error obteniendo token de Azure AD", servicio="Azure AD")
     return resp.json()["access_token"]
 
 
@@ -55,7 +56,7 @@ def get_graph_token_sync() -> str:
     with httpx.Client(timeout=outbound_http_timeout(default=15)) as client:
         resp = client.post(url, data=data)
     if resp.status_code != 200:
-        raise ErrorDeDominio(502, "Error obteniendo token de Azure AD")
+        raise error(502, "servicio_externo_fallo", detail="Error obteniendo token de Azure AD", servicio="Azure AD")
     return resp.json()["access_token"]
 
 
@@ -146,7 +147,7 @@ def buzon_de_la_organizacion(db: Session, user, upn: str) -> str:
 
     limpio = (upn or "").strip()
     if not limpio or limpio.lower() not in _upns_de_la_organizacion(db, user, [limpio]):
-        raise ErrorDeDominio(403, "Ese buzón no es de un usuario de tu organización")
+        raise error(403, "buzon_de_otra_empresa", detail="Ese buzón no es de un usuario de tu organización")
     return quote(limpio, safe="@")
 
 

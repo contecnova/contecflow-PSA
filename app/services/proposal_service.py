@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from app.models.pipeline import Opportunity, ProposalTemplate
 from app.core import timeutil
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 # ── Template variable map ──────────────────────────────────────────────────────
 
@@ -128,15 +129,15 @@ def list_templates(db: Session) -> list:
 def get_template(db: Session, template_id: str) -> ProposalTemplate:
     t = db.query(ProposalTemplate).filter(ProposalTemplate.id == template_id).first()
     if not t:
-        raise ErrorDeDominio(404, "Plantilla no encontrada")
+        raise error(404, "no_encontrado", detail="Plantilla no encontrada", que="plantilla")
     return t
 
 
 def create_template(db: Session, organization_id: str, user_id: str, data: dict) -> ProposalTemplate:
     if not data.get("name"):
-        raise ErrorDeDominio(422, "El campo 'name' es obligatorio para crear una plantilla de propuesta")
+        raise error(422, "nombre_obligatorio", detail="El campo 'name' es obligatorio para crear una plantilla de propuesta")
     if not organization_id:
-        raise ErrorDeDominio(422, "El usuario no tiene organización asignada")
+        raise error(422, "sin_empresa", detail="El usuario no tiene organización asignada")
     t = ProposalTemplate(
         id=str(uuid.uuid4()),
         organization_id=organization_id,
@@ -180,7 +181,7 @@ def generate_proposal(
     """
     opp = db.query(Opportunity).filter(Opportunity.id == opp_id, Opportunity.is_active == True).first()
     if not opp:
-        raise ErrorDeDominio(404, "Oportunidad no encontrada")
+        raise error(404, "no_encontrado", detail="Oportunidad no encontrada", que="oportunidad")
 
     if template_id:
         tmpl = get_template(db, template_id)
@@ -204,9 +205,9 @@ def generate_proposal(
 def mark_proposal_sent(db: Session, opp_id: str) -> Opportunity:
     opp = db.query(Opportunity).filter(Opportunity.id == opp_id, Opportunity.is_active == True).first()
     if not opp:
-        raise ErrorDeDominio(404, "Oportunidad no encontrada")
+        raise error(404, "no_encontrado", detail="Oportunidad no encontrada", que="oportunidad")
     if not opp.proposal_content:
-        raise ErrorDeDominio(400, "Genera la propuesta antes de marcarla como enviada")
+        raise error(400, "propuesta_sin_generar")
     opp.proposal_sent_at = datetime.now(timezone.utc)
     db.commit()
     return opp
@@ -230,5 +231,5 @@ def get_opportunity_by_id(db: Session, opp_id: str) -> Opportunity:
     """Fetch an Opportunity by id, raising 404 if not found."""
     opp = db.query(Opportunity).filter(Opportunity.id == opp_id, Opportunity.is_active == True).first()
     if not opp:
-        raise ErrorDeDominio(404, "Oportunidad no encontrada")
+        raise error(404, "no_encontrado", detail="Oportunidad no encontrada", que="oportunidad")
     return opp

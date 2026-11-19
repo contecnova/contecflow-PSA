@@ -11,6 +11,7 @@ from app.models.advanced_config import RateEntry
 from app.models.advanced_config import RateOverride
 from app.core import timeutil
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 
 # ── helpers ────────────────────────────────────────────────────────────────────
@@ -180,7 +181,7 @@ def delete_entry(db: Session, table_id: str, entry_id: str, org_id, is_superadmi
 def add_override(db: Session, table_id: str, payload_dict: dict, org_id, is_superadmin: bool):
     get_rate_table_or_404(db, table_id, org_id, is_superadmin)
     if not payload_dict.get("client_id") and not payload_dict.get("project_id"):
-        raise ErrorDeDominio(400, "Debe especificar client_id o project_id")
+        raise error(400, "indica_cliente_o_proyecto", detail="Debe especificar client_id o project_id")
     o = RateOverride(id=str(uuid.uuid4()), table_id=table_id, **payload_dict)
     db.add(o)
     db.commit()

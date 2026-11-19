@@ -50,6 +50,24 @@ const daysBetween = (a?: string, b?: string) => {
   return Math.max(0, Math.round((new Date(b).getTime()-new Date(a).getTime())/(1000*60*60*24)))
 }
 
+// 19-11-2026: estados y prioridades de épica en UN sitio (antes, copiados en el
+// formulario y en la página).
+function cfgDeEpicas(t: (k: string) => string) {
+  const STATUS_CFG = {
+    open:        { label: t('epics.status_open'),        color:'var(--text-2)', bg:'color-mix(in srgb, var(--text-2) 9%, transparent)' },
+    in_progress: { label: t('epics.status_in_progress'), color:'var(--accent)', bg:'var(--accent-muted)' },
+    done:        { label: t('epics.status_done'),        color:'var(--success)', bg:'var(--success-bg)' },
+    cancelled:   { label: t('epics.status_cancelled'),   color:'var(--danger)', bg:'var(--danger-bg)' },
+  }
+  const PRIORITY_CFG = {
+    low:      { label: t('epics.priority_low'),      color:'var(--text-2)' },
+    medium:   { label: t('epics.priority_medium'),   color:'var(--warning)' },
+    high:     { label: t('epics.priority_high'),     color:'var(--warning)' },
+    critical: { label: t('epics.priority_critical'), color:'var(--danger)' },
+  }
+  return { STATUS_CFG, PRIORITY_CFG }
+}
+
 function EpicForm({ projectId, epic, onClose }: { projectId: string; epic?: EpicItem | null; onClose: () => void }) {
   const idCampo = useId()
   const t = useAppT()
@@ -68,18 +86,7 @@ function EpicForm({ projectId, epic, onClose }: { projectId: string; epic?: Epic
   })
   const set = <K extends keyof EpicFormState>(k: K) => (v: EpicFormState[K]) => { campos.limpiar(k); setForm((f) => ({ ...f, [k]: v })) }
 
-  const STATUS_CFG = {
-    open:        { label: t('epics.status_open'),        color:'var(--text-2)', bg:'color-mix(in srgb, var(--text-2) 9%, transparent)' },
-    in_progress: { label: t('epics.status_in_progress'), color:'var(--accent)', bg:'var(--accent-muted)' },
-    done:        { label: t('epics.status_done'),        color:'var(--success)', bg:'var(--success-bg)' },
-    cancelled:   { label: t('epics.status_cancelled'),   color:'var(--danger)', bg:'var(--danger-bg)' },
-  }
-  const PRIORITY_CFG = {
-    low:      { label: t('epics.priority_low'),      color:'var(--text-2)' },
-    medium:   { label: t('epics.priority_medium'),   color:'var(--warning)' },
-    high:     { label: t('epics.priority_high'),     color:'var(--warning)' },
-    critical: { label: t('epics.priority_critical'), color:'var(--danger)' },
-  }
+  const { STATUS_CFG, PRIORITY_CFG } = cfgDeEpicas(t)
 
   const campos = useErroresDeCampo()
   const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
@@ -252,21 +259,10 @@ export default function EpicsPage(): JSX.Element {
   const [editEpic,  setEditEpic]  = useState<EpicItem | null>(null)
   const [detailEpic,setDetailEpic]= useState<EpicItem | null>(null)
   // Escribir épicas es de admin y PM (el backend lo exige): el jefe de equipo las ve en sólo lectura.
-  const { user } = useAuth() as { user?: { role?: string } }
-  const canEdit = ['admin', 'pm'].includes(user?.role ?? '')
+  const { puede } = useAuth()
+  const canEdit = puede('proyectos.gestionar')
 
-  const STATUS_CFG = {
-    open:        { label: t('epics.status_open'),        color:'var(--text-2)', bg:'color-mix(in srgb, var(--text-2) 9%, transparent)' },
-    in_progress: { label: t('epics.status_in_progress'), color:'var(--accent)', bg:'var(--accent-muted)' },
-    done:        { label: t('epics.status_done'),        color:'var(--success)', bg:'var(--success-bg)' },
-    cancelled:   { label: t('epics.status_cancelled'),   color:'var(--danger)', bg:'var(--danger-bg)' },
-  }
-  const PRIORITY_CFG = {
-    low:      { label: t('epics.priority_low'),      color:'var(--text-2)' },
-    medium:   { label: t('epics.priority_medium'),   color:'var(--warning)' },
-    high:     { label: t('epics.priority_high'),     color:'var(--warning)' },
-    critical: { label: t('epics.priority_critical'), color:'var(--danger)' },
-  }
+  const { STATUS_CFG, PRIORITY_CFG } = cfgDeEpicas(t)
 
   const { data:projectsRaw=[] } = useQuery({queryKey:['projects'],queryFn:()=>projectsApi.list({}).then(r=>Array.isArray(r.data)?r.data:[]).catch(()=>[])})
   const projects = projectsRaw as ProjectItem[]

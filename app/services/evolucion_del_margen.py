@@ -37,6 +37,7 @@ from sqlalchemy.orm import Session
 
 from app.core.codigos_de_error import error
 from app.core.periodo import FORMATO_CLAVE, Periodo
+from app.core.codigos_de_error import ErrorConCodigo
 
 POR = ("proyecto", "cliente")
 _CAMPOS = ("revenue", "total_cost", "hours")
@@ -190,7 +191,7 @@ def desglose(db: Session, org_id, p: Periodo, por: str = "proyecto", *, limite: 
     proyectos sin cliente se agrupan en una fila ``id = None``."""
     from app.models.clients import Client
     if por not in POR:
-        raise ValueError(f"desglose no admitido: {por!r}")
+        raise ErrorConCodigo("valor_no_valido", detail=f"desglose no admitido: {por!r}", valor=por)
     proyectos = _proyectos(db, org_id, proyecto_id, cliente_id)
     datos, _ = _por_proyecto_y_tramo(db, p, proyectos)
     totales: dict = {}

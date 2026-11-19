@@ -11,6 +11,7 @@ from app.models.user import User
 from app.models.activity import VendorScore
 from app.models.alm import ALMVendor
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -72,7 +73,7 @@ def add_vendor_score_record(db: Session, vendor_id: str, payload, current_user: 
     for field in ["sla_score", "quality_score", "support_score", "price_score", "innovation_score", "compliance_score"]:
         v = getattr(payload, field, None)
         if v is not None and not (0 <= v <= 10):
-            raise ErrorDeDominio(400, f"{field} must be 0-10")
+            raise error(400, "puntuacion_0_a_10", detail=f"{field} must be 0-10", campo=field)
     composite = score_composite(payload)
     score = VendorScore(
         vendor_id=vendor_id,

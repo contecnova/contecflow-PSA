@@ -24,8 +24,7 @@ import { FolderOpen, GitBranch, MessageSquare, Pencil, Plus, RotateCcw, Trash2, 
 import { useAppT } from '../i18n/AppLangContext'
 import { CHART_COLORS_EXTENDED, COLOR_DATO_POR_DEFECTO, alpha } from '../constants/theme'
 import './WorkflowsPage.css'
-
-type ProjectRole = 'admin' | 'pm' | 'team_lead' | 'employee' | 'hr'
+import { useRolesReales } from '../hooks/useRolesReales'
 
 type ProjectItem = {
   id: string | number
@@ -56,7 +55,6 @@ type TransitionFormData = {
 /** Variables de color por estado (dato del usuario). */
 const colorVars = (color: string, bg?: string) => ({ '--wf-color': color, ...(bg ? { '--wf-bg': bg } : {}) }) as CSSProperties
 
-const ROLES: ProjectRole[] = ['admin', 'pm', 'team_lead', 'employee', 'hr']
 const COLORS = CHART_COLORS_EXTENDED
 
 function StateForm({ projectId, state, onClose }: { projectId: string; state: WorkflowState | null; onClose: () => void }) {
@@ -140,6 +138,8 @@ function StateForm({ projectId, state, onClose }: { projectId: string; state: Wo
 
 function TransitionForm({ projectId, states, onClose }: { projectId: string; states: WorkflowState[]; onClose: () => void }) {
   const idCampo = useId()
+  // 19-11-2026: roles reales del backend (`GET /auth/roles`).
+  const roles = useRolesReales()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -190,7 +190,7 @@ function TransitionForm({ projectId, states, onClose }: { projectId: string; sta
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="wf-label">{t('workflows.solo_puede_ejecutarla_este_rol')}</label>
           <Select suelto placeholder={false} id={`${idCampo}-3`} value={form.required_role} onChange={e => set('required_role')(e.target.value)}>
             <option value="">{t('workflows.cualquier_rol')}</option>
-            {ROLES.map(r => <option key={r} value={r}>{t(`workflows.rol_${r}`)}</option>)}
+            {roles.map(r => <option key={r.id} value={r.id}>{r.etiqueta}</option>)}
           </Select>{msg('required_role')}
         </div>
         <Checkbox className="u-row-center-8-pointer" checked={!!form.requires_comment} onChange={v => set('requires_comment')(v)}

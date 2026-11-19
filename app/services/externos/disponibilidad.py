@@ -86,17 +86,26 @@ def fraccion_de_semana(v: Optional[Ventana], lunes: date) -> float:
     return sum(1 for d in laborables if v.contiene(d)) / 5.0
 
 
-def horas_disponibles(v: Optional[Ventana], inicio: date, fin: date, capacidad_semanal: float) -> Optional[float]:
+def horas_disponibles(v: Optional[Ventana], inicio: date, fin: date, capacidad_semanal: float,
+                      horas_por_dia: Optional[dict] = None) -> Optional[float]:
     """Horas que puede dar en [inicio, fin]: capacidad en su ventana, con tope de
-    horas contratadas. None si es interno (lo decide quien llama)."""
+    horas contratadas. None si es interno (lo decide quien llama).
+
+    19-11-2026: `horas_por_dia` ({fecha: horas}) es su horario efectivo
+    (`horario.efectivo`: su jornada o turno, festivos, ausencias); con él se
+    suman esas horas. Sin él, el calculo de antes: L-V × capacidad/5.
+    """
     if v is None:
         return None
     a, b = v.dias_dentro(inicio, fin)
     if a is None:
         return 0.0
     from datetime import timedelta
-    laborables = sum(1 for i in range((b - a).days + 1) if (a + timedelta(days=i)).weekday() < 5)
-    horas = capacidad_semanal / 5.0 * laborables
+    if horas_por_dia is not None:
+        horas = sum(horas_por_dia.get(a + timedelta(days=i), 0.0) for i in range((b - a).days + 1))
+    else:
+        laborables = sum(1 for i in range((b - a).days + 1) if (a + timedelta(days=i)).weekday() < 5)
+        horas = capacidad_semanal / 5.0 * laborables
     if v.horas_restantes is not None:
         horas = min(horas, v.horas_restantes)
     return round(horas, 2)

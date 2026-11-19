@@ -19,6 +19,8 @@ import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import { CheckCircle2, ChevronDown, ChevronRight, Pencil, Plus, Target, Trash2, TrendingUp, Trophy, X, ListChecks } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { extractErr } from '../utils/helpers'
+import { useTono } from '../hooks/useOrgSettings'
+import type { Tono } from '../utils/umbrales'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { LARGE_PAGE_SIZE } from '../constants/timings'
 import { useAppT } from '../i18n/AppLangContext'
@@ -53,7 +55,8 @@ const STATUS_CFG: Record<string, { kind: StatusBadgeKind; label: string }> = {
   cancelled: { kind: 'danger',  label:'pagina_okr.cancelado' },
 }
 
-const colorDeProgreso = (pct: number) => pct >= 100 ? 'var(--success)' : pct >= 60 ? 'var(--accent)' : pct >= 30 ? 'var(--warning)' : 'var(--danger)'
+/** 19-11-2026: aviso y crítico con UMBRAL_OKR_* de la empresa (antes 60/30 aquí); 100 % = conseguido. */
+const colorDeProgreso = (pct: number, tono: Tono | undefined) => pct >= 100 ? 'var(--success)' : tono === 'success' ? 'var(--accent)' : `var(--${tono ?? 'danger'})`
 
 function ProgressRing({ pct, size=44, stroke=4, color='var(--accent)' }: { pct: number; size?: number; stroke?: number; color?: string }) {
   const r = (size - stroke) / 2
@@ -78,6 +81,7 @@ function ProgressRing({ pct, size=44, stroke=4, color='var(--accent)' }: { pct: 
 
 function KRRow({ kr, onDelete }: { kr: KeyResult; onDelete: (id: string | number) => void }) {
   const fmtMoneda = useFormatoMoneda()
+  const tono = useTono()
   const t = useAppT()
   const [showCheckin, setShowCheckin] = useState(false)
   const [checkinVal, setCheckinVal] = useState<string | number>(kr.current_value ?? 0)
@@ -102,7 +106,7 @@ function KRRow({ kr, onDelete }: { kr: KeyResult; onDelete: (id: string | number
   return (
     <div className="okr-kr">
       <div className="okr-kr__fila">
-        <ProgressRing pct={pct} size={36} stroke={3} color={colorDeProgreso(pct)} />
+        <ProgressRing pct={pct} size={36} stroke={3} color={colorDeProgreso(pct, tono('okr', pct))} />
         <div className="u-flex1-min0">
           <div className="okr-kr__titulo">{kr.title}</div>
           <div className="okr-kr__meta">
@@ -142,6 +146,7 @@ function ObjectiveCard({ obj, onEdit, onAddKR, onDeleteObj, onDeleteKR }: {
   onDeleteKR: (id: string | number) => void
 }) {
   const t = useAppT()
+  const tono = useTono()
   const [expanded, setExpanded] = useState(true)
   const statusCfg = STATUS_CFG[obj.status ?? ''] || STATUS_CFG.draft
   const pct = obj.progress ?? 0
@@ -153,7 +158,7 @@ function ObjectiveCard({ obj, onEdit, onAddKR, onDeleteObj, onDeleteKR }: {
           onClick={() => setExpanded(s => !s)}>
           {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
         </IconButton>
-        <ProgressRing pct={pct} size={48} stroke={4} color={colorDeProgreso(pct)} />
+        <ProgressRing pct={pct} size={48} stroke={4} color={colorDeProgreso(pct, tono('okr', pct))} />
         <div className="u-flex1-min0">
           <div className="okr-obj__titulo">{obj.title}</div>
           <div className="okr-obj__meta">
@@ -416,6 +421,7 @@ function KRModal({ objective, onClose }: { objective: Objective; onClose: () => 
 
 export default function OKRsPage() {
   const t = useAppT() as (key: string) => string
+  const tono = useTono()
   const toast = useToast()
   const qc = useQueryClient()
   const anioActual = new Date().getFullYear()
@@ -447,7 +453,7 @@ export default function OKRsPage() {
   const avgProgress = totalObjs > 0
     ? Math.round(objectives.reduce((s, o) => s + (o.progress || 0), 0) / totalObjs)
     : 0
-  const onTrack = objectives.filter((o) => (o.progress || 0) >= 60).length
+  const onTrack = objectives.filter((o) => tono('okr', o.progress || 0) === 'success').length
   const nuevo = () => { setEditingObj(null); setShowObjModal(true) }
 
   return (

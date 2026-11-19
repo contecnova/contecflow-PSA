@@ -15,6 +15,7 @@ import logging
 import re
 from typing import Optional
 from sqlalchemy.orm import Session
+from app.core.config import settings  # topes de tokens de IA (19-11-2026)
 
 logger = logging.getLogger(__name__)
 
@@ -266,7 +267,7 @@ def _generate_sql(
         system=_ASK_SYSTEM + (f"\n\n{ejemplos}" if ejemplos else ""),
         module="ask_the_data",
         user_id=user_id,
-        max_tokens=400,
+        max_tokens=settings.AI_BRIEF_ANSWER_MAX_TOKENS,
         is_superadmin=is_superadmin,
         organization_id=org_id,
     )

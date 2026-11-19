@@ -14,6 +14,7 @@ from app.schemas.abac import (
 )
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import UserRole
+from app.core.codigos_de_error import error_http
 
 
 # ============================================================================
@@ -36,7 +37,7 @@ def list_attribute_definitions(
     """List available attribute definitions for org."""
     org_id = current_user.organization_id
     if not org_id:
-        raise HTTPException(status_code=400, detail="User organization not set")
+        raise error_http(400, "sin_empresa", detail="User organization not set")
     service = ABACService(db, org_id)
     definitions = service.list_attribute_definitions(active_only=active_only)
     items = [AttributeDefinitionSchema.model_validate(d) for d in definitions]
@@ -54,7 +55,7 @@ def create_attribute_definition(
     verify_admin_or_governance_role(current_user)
     org_id = current_user.organization_id
     if not org_id:
-        raise HTTPException(status_code=400, detail="User organization not set")
+        raise error_http(400, "sin_empresa", detail="User organization not set")
 
     service = ABACService(db, org_id)
     attr_def = service.create_attribute_definition(
@@ -78,7 +79,7 @@ def initialize_default_attributes(
     verify_admin_or_governance_role(current_user)
     org_id = current_user.organization_id
     if not org_id:
-        raise HTTPException(status_code=400, detail="User organization not set")
+        raise error_http(400, "sin_empresa", detail="User organization not set")
 
     service = ABACService(db, org_id)
     existing = service.list_attribute_definitions(active_only=False)
@@ -113,10 +114,10 @@ def get_user_attributes(
     """Get all attributes for a user (non-expired)."""
     # Check permission: user can view their own, admins can view others
     if current_user.id != user_id and current_user.role != UserRole.admin:
-        raise HTTPException(status_code=403, detail="Cannot view other user's attributes")
+        raise error_http(403, "sin_permiso", detail="Cannot view other user's attributes")
     org_id = current_user.organization_id
     if not org_id:
-        raise HTTPException(status_code=400, detail="User organization not set")
+        raise error_http(400, "sin_empresa", detail="User organization not set")
 
     service = ABACService(db, org_id)
     attrs = service.get_user_attributes(user_id)
@@ -135,7 +136,7 @@ def assign_user_attribute(
     verify_admin_or_governance_role(current_user)
     org_id = current_user.organization_id
     if not org_id:
-        raise HTTPException(status_code=400, detail="User organization not set")
+        raise error_http(400, "sin_empresa", detail="User organization not set")
 
     service = ABACService(db, org_id)
     attr = service.assign_user_attribute(
@@ -162,7 +163,7 @@ def revoke_user_attribute(
     enforce_abac(db, current_user, "abac_user_attribute", user_id, action="delete")
     org_id = current_user.organization_id
     if not org_id:
-        raise HTTPException(status_code=400, detail="User organization not set")
+        raise error_http(400, "sin_empresa", detail="User organization not set")
 
     service = ABACService(db, org_id)
     count = service.revoke_user_attribute(user_id, attribute_key)
@@ -182,7 +183,7 @@ def list_policies(
     """List ABAC policies for org."""
     org_id = current_user.organization_id
     if not org_id:
-        raise HTTPException(status_code=400, detail="User organization not set")
+        raise error_http(400, "sin_empresa", detail="User organization not set")
     service = ABACService(db, org_id)
     policies = service.list_policies(active_only=active_only)
     items = [ABACPolicySchema.model_validate(p) for p in policies]
@@ -200,7 +201,7 @@ def create_policy(
     verify_admin_or_governance_role(current_user)
     org_id = current_user.organization_id
     if not org_id:
-        raise HTTPException(status_code=400, detail="User organization not set")
+        raise error_http(400, "sin_empresa", detail="User organization not set")
 
     rules = [r.model_dump() for r in schema.rules]
     service = ABACService(db, org_id)
@@ -228,11 +229,11 @@ def get_policy(
     """Get a specific policy."""
     org_id = current_user.organization_id
     if not org_id:
-        raise HTTPException(status_code=400, detail="User organization not set")
+        raise error_http(400, "sin_empresa", detail="User organization not set")
     service = ABACService(db, org_id)
     policy = service.get_policy_by_id(policy_id)
     if not policy:
-        raise HTTPException(status_code=404, detail="Policy not found")
+        raise error_http(404, "no_encontrado", detail="Policy not found", que="politica")
     return APIResponse.ok(data=ABACPolicySchema.model_validate(policy))
 
 
@@ -248,7 +249,7 @@ def update_policy(
     verify_admin_or_governance_role(current_user)
     org_id = current_user.organization_id
     if not org_id:
-        raise HTTPException(status_code=400, detail="User organization not set")
+        raise error_http(400, "sin_empresa", detail="User organization not set")
 
     rules = [r.model_dump() for r in schema.rules]
     service = ABACService(db, org_id)
@@ -279,7 +280,7 @@ def delete_policy(
     enforce_abac(db, current_user, "abac_policy", policy_id, action="delete")
     org_id = current_user.organization_id
     if not org_id:
-        raise HTTPException(status_code=400, detail="User organization not set")
+        raise error_http(400, "sin_empresa", detail="User organization not set")
 
     service = ABACService(db, org_id)
     service.delete_policy(policy_id)
@@ -306,7 +307,7 @@ def evaluate_access(
     user_roles = [current_user.role] if current_user.role else []
     org_id = current_user.organization_id
     if not org_id:
-        raise HTTPException(status_code=400, detail="User organization not set")
+        raise error_http(400, "sin_empresa", detail="User organization not set")
     service = ABACService(db, org_id)
 
     decision, matched_policies, details = service.evaluate_access(
@@ -350,7 +351,7 @@ def evaluate_access_for_user(
     verify_admin_or_governance_role(current_user)
     org_id = current_user.organization_id
     if not org_id:
-        raise HTTPException(status_code=400, detail="User organization not set")
+        raise error_http(400, "sin_empresa", detail="User organization not set")
 
     service = ABACService(db, org_id)
     user = service.get_user_by_id_and_org(user_id)
@@ -383,7 +384,7 @@ def get_audit_log(
     verify_admin_or_governance_role(current_user)
     org_id = current_user.organization_id
     if not org_id:
-        raise HTTPException(status_code=400, detail="User organization not set")
+        raise error_http(400, "sin_empresa", detail="User organization not set")
 
     service = ABACService(db, org_id)
     result = service.list_audit_log(user_id=user_id, limit=limit, offset=offset)

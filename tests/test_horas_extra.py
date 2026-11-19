@@ -331,3 +331,16 @@ def test_grc_retencion_rgpd_e_informe(client, admin_token, dev_token, ctx):
     assert copia["data_summary"]["overtime_requests"] == 1 and copia["overtime_requests"][0]["horas"] == 2
     ids = {c["id"] for c in informe_de_cumplimiento.generar(ctx, ORG)["controls"]}
     assert {"overtime_limits", "overtime_unauthorized"} <= ids
+
+
+# ── Vista previa con datos a medias (19-11-2026) ────────────────────────────
+
+def test_vista_previa_a_medias_no_da_422(client, dev_token):
+    """Mientras se escribe, sin horas ni franja: lo que falta como error a enseñar, sin 422."""
+    r = client.post("/api/v1/overtime/preview", headers=auth(dev_token),
+                    json={"fecha": str(LUNES), "tipo": "laborable"})
+    assert r.status_code == 200, r.text
+    d = r.json()["data"]
+    assert d["decision"] == "incompleta" and d["errores"] and d["codigo_error"] == "horas_extra_sin_franja_ni_horas"
+    # Pedir de verdad sigue rechazándolo.
+    assert _pedir(client, dev_token, fecha=str(LUNES), tipo="laborable").status_code == 422

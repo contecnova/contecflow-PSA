@@ -16,6 +16,7 @@ from app.core.errores import ErrorDeDominio
 
 from app.services.approval_engine._base import _apply_entity_final_decision, _is_authorized, _notify_requester_approved, _record_sod_violation, find_default_workflow, log_financial_approval_event, logger, notify_approver, scope_request_query
 from app.models.user import UserRole
+from app.core.codigos_de_error import error
 
 def create_approval_request(payload, db: Session, current_user: User, confirmar: bool = True,
                             politicas: Optional[dict] = None) -> dict:
@@ -45,18 +46,16 @@ def create_approval_request(payload, db: Session, current_user: User, confirmar:
         # Rev. 166 (#27): sin flujo, una solicitud vale si las políticas piden
         # niveles o pasos (la solicitud lleva solo esos pasos).
         if not wf and not (politicas and (politicas.get("niveles") or politicas.get("pasos"))):
-            raise ErrorDeDominio(
-                404, f"No hay flujo de aprobación configurado para '{payload.entity_type}'"
-            )
+            raise error(404, "sin_flujo_aprobacion", detail=f"No hay flujo de aprobación configurado para '{payload.entity_type}'", entidad=payload.entity_type)
         wf_id = wf.id if wf else None
     else:
         wf = db.query(ApprovalWorkflow).filter(ApprovalWorkflow.id == wf_id).first()
         if not wf:
-            raise ErrorDeDominio(404, "Flujo no encontrado")
+            raise error(404, "no_encontrado", detail="Flujo no encontrado", que="flujo")
 
     if politicas and politicas.get("decision") == "block":
-        raise ErrorDeDominio(422, "; ".join(b.get("mensaje") or "" for b in politicas.get("bloqueos") or [])
-                             or "Lo impide una política")
+        motivo = "; ".join(b.get("mensaje") or "" for b in politicas.get("bloqueos") or [])
+        raise error(422, "bloqueado_por_politica", detail=motivo or "Lo impide una política", motivo=motivo)
     contexto_json = None
     if isinstance(getattr(payload, "context", None), dict):
         contexto_json = json.dumps(payload.context, ensure_ascii=False, default=str)
@@ -174,19 +173,19 @@ def _load_request_and_workflow_for_decision(
     if not req:
         raise ErrorDeDominio(404)
     if req.status != "pending":
-        raise ErrorDeDominio(400, f"La solicitud ya está en estado '{req.status}'")
+        raise error(400, "solicitud_ya_en_estado", detail=f"La solicitud ya está en estado '{req.status}'", estado=req.status)
 
     wf = db.query(ApprovalWorkflow).options(
         joinedload(ApprovalWorkflow.steps)
     ).filter(ApprovalWorkflow.id == req.workflow_id).first() if req.workflow_id else None
     if not wf and req.workflow_id:
-        raise ErrorDeDominio(404, "Flujo no encontrado")
+        raise error(404, "no_encontrado", detail="Flujo no encontrado", que="flujo")
 
     from app.services.approval_engine.pasos import pasos_de
     steps = pasos_de(db, req, wf)
     step = next((s for s in steps if s.step_order == req.current_step), None)
     if not step:
-        raise ErrorDeDominio(400, "No se encontró el paso actual del flujo de aprobación")
+        raise error(400, "no_encontrado", detail="No se encontró el paso actual del flujo de aprobación", que="paso_de_aprobacion")
     return req, wf, steps, step
 
 def _validate_decision_authorization(
@@ -194,18 +193,14 @@ def _validate_decision_authorization(
 ) -> None:
     """Apply authorization / SoD / attachment / double-vote validations."""
     if not _is_authorized(step, current_user, req.requested_by, db, req=req):
-        raise ErrorDeDominio(403, "No tienes permiso para aprobar este paso")
+        raise error(403, "sin_permiso_aprobar_paso")
 
     if req.requested_by == current_user.id:
         _record_sod_violation(req, current_user, db)
-        raise ErrorDeDominio(
-            403,
-            "SoD: el solicitante no puede aprobar su propia solicitud "
-            "(Segregación de Funciones — crear ≠ aprobar)",
-        )
+        raise error(403, "sod_no_puedes_aprobar_lo_tuyo", detail="SoD: el solicitante no puede aprobar su propia solicitud (Segregación de Funciones — crear ≠ aprobar)")
 
     if step.requires_attachment and decision in ("approved", "rejected") and not attachment_url:
-        raise ErrorDeDominio(400, "Este paso requiere adjuntar un documento para emitir la decisión")
+        raise error(400, "paso_requiere_documento")
 
     existing_vote = next(
         (d for d in (req.decisions or [])
@@ -216,7 +211,7 @@ def _validate_decision_authorization(
         None
     )
     if existing_vote:
-        raise ErrorDeDominio(400, "Ya has emitido tu voto en este paso")
+        raise error(400, "voto_ya_emitido")
 
 def _record_decision_row(
     req, decision: str, note: Optional[str], delegate_to: Optional[str],
@@ -260,7 +255,7 @@ def _apply_delegated_decision(
     req, steps, note: Optional[str], delegate_to: Optional[str], db: Session
 ) -> None:
     if not delegate_to:
-        raise ErrorDeDominio(400, "Debes indicar delegate_to para delegar la aprobación")
+        raise error(400, "campo_obligatorio", detail="Debes indicar delegate_to para delegar la aprobación", campo="delegate_to")
     req.final_note = f"Delegado a {delegate_to} ({note or 'sin nota'})"
     db.commit()
     notify_approver(

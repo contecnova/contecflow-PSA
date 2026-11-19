@@ -92,7 +92,8 @@ def comprobar(db: Session, user, request: Request) -> None:
     _nivel, motivo = decidir(db, user, request.method, request.url.path,
                              (request.path_params or {}).get("project_id"))
     if motivo:
-        raise ErrorDeDominio(status.HTTP_403_FORBIDDEN, MOTIVOS[motivo])
+        from app.core.codigos_de_error import error
+        raise error(status.HTTP_403_FORBIDDEN, "permiso_proyecto_denegado", detail=MOTIVOS[motivo], motivo=motivo)
 
 
 def vetados_y_concedidos(db: Session, user) -> tuple[set[str], set[str]]:

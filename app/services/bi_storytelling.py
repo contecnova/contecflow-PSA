@@ -24,6 +24,7 @@ import hashlib
 import json
 import logging
 from typing import Optional
+from app.core.config import settings  # topes de tokens de IA (19-11-2026)
 
 logger = logging.getLogger(__name__)
 
@@ -166,7 +167,7 @@ def generate_narrative(
                 system="Eres un analista financiero ejecutivo. " + instruccion_de_idioma(lang),
                 module="bi_storytelling",
                 user_id=None,
-                max_tokens=800,
+                max_tokens=settings.AI_MEDIUM_ANSWER_MAX_TOKENS,
                 is_superadmin=False,
                 organization_id=org_id,
             )

@@ -96,8 +96,13 @@ def _serie_overloaded_users(ctx: _Ctx) -> Optional[list[float]]:
                             ).filter(Imputation.date >= start_date
                             ).group_by("mo",Imputation.user_id).all()
             bkt: dict[str,float] = defaultdict(float)
+            # 19-11-2026: antes 160 h fijas; ahora 4 semanas de la capacidad de la
+            # empresa por su carga crítica (40 × 4 × 100 % = 160 por defecto).
+            from app.core.umbrales import cortes as _cortes
+            from app.services.settings_service.por_empresa import capacidad_semanal_de_empresa
+            _limite = capacidad_semanal_de_empresa(db, organization_id) * 4 * _cortes("carga", db, organization_id)[1] / 100
             for mo, uid, tot in rows:  # noqa: B007
-                if tot and tot > 160: bkt[str(mo)] += 1.0
+                if tot and tot > _limite: bkt[str(mo)] += 1.0
             return [float(bkt.get(m["month"],0.0)) for m in series]
         except Exception:
             logger.debug("Failed to fetch metric %s for org=%s", metric_key, organization_id, exc_info=True)

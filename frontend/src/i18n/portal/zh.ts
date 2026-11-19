@@ -478,7 +478,7 @@ const zh: Record<string, string> = {
   pdash_burn_over: '预计超支',
   pdash_burn_warn: '早期预警',
   pdash_burn_ok: '在控制范围内',
-  pdash_next60: '未来 60 天内的安排',
+  pdash_next60: '未来 {{n}} 天内的安排',
   pdash_overdue_ago: '已逾期 {{n}} 天',
   pdash_today: '今天',
   pdash_in_days: '{{n}} 天后',
@@ -1168,6 +1168,8 @@ const zh: Record<string, string> = {
   "portal_avisos.tipo_conversacion": "会话",
   "err_srv.notificacion_no_encontrada": "未找到通知",
   "err_srv.validacion": "请检查数据",
+  // 19-11-2026: error generico sin detalles internos (codigos_de_error.py)
+  "err_srv.error_interno": "无法完成操作。请重试；如果问题仍然存在，请联系支持人员。",
   // Errores de validación por campo (17-11-2026)
   "validacion.obligatorio": "必填",
   "validacion.formato": "格式无效",

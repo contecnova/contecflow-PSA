@@ -17,8 +17,8 @@ import logging
 from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
-from app.core.errores import ErrorDeDominio
 from app.core.constantes import NOMBRE_DEL_PRODUCTO
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -141,7 +141,7 @@ def _openpyxl_bi():
         from openpyxl.styles import Font, PatternFill
         from openpyxl.worksheet.table import Table, TableStyleInfo
     except ImportError as exc:
-        raise ErrorDeDominio(500, f"openpyxl no instalado: {exc}") from exc
+        raise error(500, "dependencia_no_instalada", detail=f"openpyxl no instalado: {exc}", paquete="openpyxl") from exc
     return openpyxl, BarChart, LineChart, Reference, Font, PatternFill, Table, TableStyleInfo
 
 
@@ -315,7 +315,7 @@ def export_dashboard_pptx(
         from pptx.enum.chart import XL_CHART_TYPE
         from pptx.util import Inches, Pt
     except ImportError as exc:
-        raise ErrorDeDominio(500, f"python-pptx no instalado: {exc}") from exc
+        raise error(500, "dependencia_no_instalada", detail=f"python-pptx no instalado: {exc}", paquete="python-pptx") from exc
 
     if periodo is not None:
         period_days = periodo.dias_enteros

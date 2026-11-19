@@ -450,7 +450,7 @@ function PosicionesTab({ allUsers, isAdmin }: { allUsers: OrgUser[]; isAdmin: bo
 function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
   const t = useAppT()
   // La cadena de otra persona es para gestores (como en el servidor); el resto ve la suya.
-  const puedeVerOtras = useAuth().hasRole('admin', 'pm', 'team_lead', 'hr')
+  const puedeVerOtras = useAuth().puede('equipo.ver')
   const [selectedUserId, setSelectedUserId] = useState('')
   const [search, setSearch] = useState('')
 
@@ -604,9 +604,9 @@ function AprobacionesTab({ allUsers }: { allUsers: OrgUser[] }) {
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function OrgChartPage() {
   const t = useAppT()
-  const { hasRole } = useAuth()
+  const { puede } = useAuth()
   const [tab, setTab] = useState('arbol')
-  const isAdmin = hasRole('admin')
+  const isAdmin = puede('org.administrar')
 
   const { data: chartData, isLoading: loadingChart } = useQuery<OrgChartData>({
     queryKey: ['org-chart'],

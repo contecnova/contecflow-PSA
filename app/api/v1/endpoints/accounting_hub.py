@@ -21,6 +21,7 @@ from app.core.deps import require_any_manager
 from app.core.responses import APIResponse
 from app.models.user import User
 from app.services import accounting_hub_service
+from app.core.codigos_de_error import error_http
 
 logger = logging.getLogger(__name__)
 
@@ -31,11 +32,8 @@ def _get_cfg(integration_type: str, db: Session) -> dict:
     """Return config dict for the active integration, raise 404 if missing."""
     cfg = accounting_hub_service.get_accounting_config(db, integration_type)
     if not cfg:
-        raise HTTPException(
-            404,
-            f"Integración '{integration_type}' no configurada o inactiva. "
-            "Configúrala en Enterprise → Integraciones.",
-        )
+        raise error_http(404, "integracion_no_configurada", detail=f"Integración '{integration_type}' no configurada o inactiva. "
+            "Configúrala en Enterprise → Integraciones.", nombre=integration_type)
     # Enterprise guarda los tokens cifrados (`encrypt_config_secrets`): sin
     # descifrar se mandaba el texto cifrado a Xero/QuickBooks.
     from app.core.secret_utils import decrypt_config_secrets
@@ -55,7 +53,7 @@ def test_xero(
     cfg = payload if payload.get("access_token") else _get_cfg("xero", db)
     result = test_xero_connection(cfg)
     if not result["ok"]:
-        raise HTTPException(400, f"Error Xero: {result.get('error')}")
+        raise error_http(400, "servicio_externo_fallo", detail=f"Error Xero: {result.get('error')}", servicio="Xero")
     return APIResponse.ok(data=result)
 
 
@@ -70,7 +68,7 @@ def test_qb(
     cfg = payload if payload.get("access_token") else _get_cfg("quickbooks", db)
     result = test_quickbooks_connection(cfg)
     if not result["ok"]:
-        raise HTTPException(400, f"Error QuickBooks: {result.get('error')}")
+        raise error_http(400, "servicio_externo_fallo", detail=f"Error QuickBooks: {result.get('error')}", servicio="QuickBooks")
     return APIResponse.ok(data=result)
 
 
@@ -93,7 +91,7 @@ def push_invoice(
 
     inv, lines = accounting_hub_service.get_invoice_with_lines(db, invoice_id)
     if not inv:
-        raise HTTPException(404, "Factura no encontrada")
+        raise error_http(404, "no_encontrado", detail="Factura no encontrada", que="factura")
 
     inv_data = {
         "number":       inv.number,
@@ -123,10 +121,10 @@ def push_invoice(
     elif provider in ("quickbooks", "qbo"):
         result = push_invoice_to_quickbooks(cfg, inv_data)
     else:
-        raise HTTPException(400, f"Proveedor '{provider}' no soportado. Usa 'xero' o 'quickbooks'.")
+        raise error_http(400, "proveedor_no_soportado", detail=f"Proveedor '{provider}' no soportado. Usa 'xero' o 'quickbooks'.", proveedor=provider)
 
     if not result["ok"]:
-        raise HTTPException(400, f"Error al sincronizar: {result.get('error')}")
+        raise error_http(400, "servicio_externo_fallo", detail=f"Error al sincronizar: {result.get('error')}", servicio="contabilidad")
 
     sync_id = result.get("xero_invoice_id") or result.get("qb_invoice_id", "")
     accounting_hub_service.mark_invoice_synced(db, inv, provider, sync_id)
@@ -182,7 +180,7 @@ def pull_xero_contacts(
     cfg    = _get_cfg("xero", db)
     result = pull_contacts_from_xero(cfg)
     if not result["ok"]:
-        raise HTTPException(400, f"Error Xero: {result.get('error')}")
+        raise error_http(400, "servicio_externo_fallo", detail=f"Error Xero: {result.get('error')}", servicio="Xero")
 
     if import_to_contecflow:
         imported = accounting_hub_service.import_xero_contacts(db, result["contacts"])

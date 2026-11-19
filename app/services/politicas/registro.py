@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any, Callable, Optional
 
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import ErrorConCodigo
 
 #: Tipos de campo y los operadores que admite cada uno (el primero es el de
 #: por defecto en la pantalla). La lista es la que la pantalla ofrece; un campo
@@ -61,9 +61,9 @@ class Campo:
 
     def __post_init__(self):
         if self.tipo not in OPERADORES_POR_TIPO:
-            raise ValueError(f"tipo de campo desconocido: {self.tipo}")
+            raise ErrorConCodigo("tipo_desconocido", detail=f"tipo de campo desconocido: {self.tipo}", tipo=self.tipo)
         if self.tipo == "entidad" and self.entidad not in ENTIDADES:
-            raise ValueError(f"campo {self.clave}: entidad desconocida {self.entidad}")
+            raise ErrorConCodigo("entidad_desconocida", detail=f"campo {self.clave}: entidad desconocida {self.entidad}", campo=self.clave, entidad=self.entidad)
 
     @property
     def ops(self) -> tuple[str, ...]:
@@ -177,7 +177,7 @@ class Dominio:
     def __post_init__(self):
         self._por_clave = {c.clave: c for c in self.campos}
         if len(self._por_clave) != len(self.campos):
-            raise ValueError(f"dominio {self.clave}: claves de campo repetidas")
+            raise ErrorConCodigo("error_interno", detail=f"dominio {self.clave}: claves de campo repetidas")
 
     def campo(self, clave: str) -> Optional[Campo]:
         return self._por_clave.get(clave)

@@ -601,7 +601,7 @@ export default function CMDBPage(): JSX.Element {
   const etiqueta = useEtiqueta()
   const { data: deClase } = useCamposDeClase()
   const etiquetaDeCampo = useEtiquetaDeCampo()
-  const { user } = useAuth()
+  const { puede } = useAuth()
   const toast = useToast()
   const qc = useQueryClient()
   const [showForm, setShowForm] = useState(false)
@@ -685,7 +685,7 @@ export default function CMDBPage(): JSX.Element {
           { id: '3d',       label: t('cmdb.tab_3d'), icon: <Box size={14} /> },
           { id: 'impact',   label: t('sd_mercado.tab_impacto'), icon: <Zap size={14} /> },
           // Agentes y clases son de admin en el servidor (revisión 2026-11: pm veía Agentes y recibía 403).
-          ...(user?.role === 'admin' ? [{ id: 'agents', label: t('cmdb.tab_agents'), icon: <Bot size={14} /> }, { id: 'classes', label: t('cmdb.tab_classes'), icon: <Shapes size={14} /> },
+          ...(puede('org.administrar') ? [{ id: 'agents', label: t('cmdb.tab_agents'), icon: <Bot size={14} /> }, { id: 'classes', label: t('cmdb.tab_classes'), icon: <Shapes size={14} /> },
             { id: 'ci_classes', label: t('sd_mercado.tab_clases_propias'), icon: <Shapes size={14} /> }, { id: 'discovery', label: t('sd_mercado.tab_descubrimiento'), icon: <Radar size={14} /> }] : []),
         ]}
         active={tab}

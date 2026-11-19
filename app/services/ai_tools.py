@@ -44,6 +44,7 @@ from dataclasses import dataclass, field
 import httpx
 
 from app.core.config import settings
+from app.core.codigos_de_error import ErrorConCodigo
 
 _logger = logging.getLogger("ai_tools")
 
@@ -116,7 +117,7 @@ def herramientas_para(proveedor: str, herramientas: list[dict]) -> list | dict:
             }
             for h in herramientas
         ]}]
-    raise ValueError(f"El proveedor '{proveedor}' no soporta herramientas")
+    raise ErrorConCodigo("ia_proveedor_sin_herramientas", detail=f"El proveedor '{proveedor}' no soporta herramientas", proveedor=proveedor)
 
 
 def _limpiar_esquema_para_gemini(esquema: dict) -> dict:
@@ -173,7 +174,7 @@ def pedir_turno(*, proveedor: str, api_key: str, modelo: str, base_url: str,
                              herramientas, max_tokens)
     if p == "gemini":
         return _turno_gemini(api_key, modelo, mensajes, system, herramientas, max_tokens)
-    raise ValueError(f"El proveedor '{proveedor}' no soporta herramientas")
+    raise ErrorConCodigo("ia_proveedor_sin_herramientas", detail=f"El proveedor '{proveedor}' no soporta herramientas", proveedor=proveedor)
 
 
 def mensajes_del_turno(proveedor: str, turno: TurnoDelAgente,
@@ -216,7 +217,7 @@ def mensajes_del_turno(proveedor: str, turno: TurnoDelAgente,
             ]},
         ]
 
-    raise ValueError(f"El proveedor '{proveedor}' no soporta herramientas")
+    raise ErrorConCodigo("ia_proveedor_sin_herramientas", detail=f"El proveedor '{proveedor}' no soporta herramientas", proveedor=proveedor)
 
 
 # ── Implementación por familia ───────────────────────────────────────────────

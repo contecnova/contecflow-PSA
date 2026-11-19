@@ -65,7 +65,8 @@ def detect_anomalies(
         }
     """
     if len(values) < 4:
-        raise ValueError("At least 4 data points required for anomaly detection")
+        from app.core.codigos_de_error import ErrorConCodigo
+        raise ErrorConCodigo("anomalias_datos_insuficientes", detail="At least 4 data points required for anomaly detection")
     contamination = max(0.01, min(0.5, contamination))
 
     if _SKLEARN_AVAILABLE and method in ("auto", "isolation_forest"):

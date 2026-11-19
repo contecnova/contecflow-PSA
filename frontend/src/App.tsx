@@ -4,7 +4,7 @@ import ErrorBoundary from './components/ErrorBoundary'
 import { withRouteBoundary } from './components/RouteBoundary'
 import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
-import type { Role } from './context/AuthContext'
+import { paginaDeInicio, puedeAbrir } from './permisos/navegacion'
 import Layout from './components/layout/Layout'
 import AppShell from './components/layout/AppShell'
 import { Button, Spinner } from './components/ui'
@@ -31,7 +31,7 @@ const AlertsPage             = lazy(() => import('./pages/AlertsPage'))
 const ExportsPage            = lazy(() => import('./pages/ExportsPage'))
 const ReportsPage            = lazy(() => import('./pages/ReportsPage'))
 const SettingsPage           = lazy(() => import('./pages/SettingsPage'))
-import { ROLES_CON_AJUSTES, SECCIONES_DE_AJUSTES } from './pages/settings/catalogoDeAjustes'
+import { SECCIONES_DE_AJUSTES } from './pages/settings/catalogoDeAjustes'
 const TimesheetsPage         = lazy(() => import('./pages/TimesheetsPage'))
 const CapacityPage           = lazy(() => import('./pages/CapacityPage'))
 const ProfitabilityPage      = lazy(() => import('./pages/ProfitabilityPage'))
@@ -257,40 +257,27 @@ function RouteScopedBoundary({ children }: { children?: ReactNode }) {
 
 interface ProtectedRouteProps {
   children?: ReactNode
-  roles?: Role[]
 }
-function ProtectedRoute({ children, roles }: ProtectedRouteProps) {
+/**
+ * 19-11-2026 (matriz de permisos): la capacidad que pide cada ruta no se
+ * escribe aquí; sale de `permisos/navegacion.ts` (la misma declaración que
+ * usa el menú). Además, el bloqueo por módulo del rol (`canOpen`).
+ */
+function ProtectedRoute({ children }: ProtectedRouteProps) {
   const location = useLocation()
-  const { user, loading, hasRole, canOpen = () => true } = useAuth()
+  const { user, loading, puede, canOpen = () => true } = useAuth()
   if (loading) return (
     <div className="app-e1">
       <Spinner size={32} />
     </div>
   )
   if (!user) return <Navigate to="/login" replace />
-  if ((roles && !hasRole(...roles)) || !canOpen(location.pathname)) {
+  if (!puedeAbrir(location.pathname, puede, true) || !canOpen(location.pathname)) {
     return <Navigate to="/403" state={{ from: location.pathname }} replace />
   }
   return <>{children}</>
 }
 
-// Default landing per role — aligns with PSA market standard:
-//   employee   → /work-dashboard ("My Day": tasks + timer + approvals)
-//   subcontractor (externo) → /work-dashboard: trabaja como un interno
-//   hr         → /team-dashboard (people, OKRs, performance, training)
-//   admin/pm/team_lead → /projects-dashboard (portfolio health + KPIs)
-//   fallback   → /tasks
-function landingPathFor(role: Role | undefined): string {
-  switch (role) {
-    case 'employee':
-    case 'subcontractor':      return '/work-dashboard'
-    case 'hr':                 return '/team-dashboard'
-    case 'admin':
-    case 'pm':
-    case 'team_lead':          return '/projects-dashboard'
-    default:                   return '/tasks'
-  }
-}
 
 // ── Redirects para rutas /bi/* legacy ─────────────────────────────────────
 const BI_LEGACY_TARGETS: Record<string, string> = {
@@ -326,8 +313,9 @@ function BiProjectLegacyRedirect() {
 }
 
 function AppRoutes() {
-  const { user } = useAuth()
-  const defaultPath = landingPathFor(user?.role)
+  const { user, puede } = useAuth()
+  // Página de inicio según las capacidades (permisos/navegacion.ts → paginaDeInicio).
+  const defaultPath = paginaDeInicio(puede)
 
   return (
     <>
@@ -368,7 +356,7 @@ function AppRoutes() {
       } />
 
       <Route path="/projects-dashboard" element={
-        <ProtectedRoute roles={['admin','pm','team_lead']}>
+        <ProtectedRoute>
           <Layout><SafeProjectsDashboard /></Layout>
         </ProtectedRoute>
       } />
@@ -392,19 +380,19 @@ function AppRoutes() {
       } />
 
       <Route path="/resources" element={
-        <ProtectedRoute roles={['admin', 'hr', 'pm']}>
+        <ProtectedRoute>
           <Layout><ResourcesPage /></Layout>
         </ProtectedRoute>
       } />
 
       <Route path="/alerts" element={
-        <ProtectedRoute roles={['admin', 'pm', 'hr']}>
+        <ProtectedRoute>
           <Layout><AlertsPage /></Layout>
         </ProtectedRoute>
       } />
 
       <Route path="/exports" element={
-        <ProtectedRoute roles={['admin', 'pm', 'hr']}>
+        <ProtectedRoute>
           <Layout><ExportsPage /></Layout>
         </ProtectedRoute>
       } />
@@ -418,12 +406,12 @@ function AppRoutes() {
       {/* 18-11-2026: toda la configuración en /settings/:seccion (pages/settings/catalogoDeAjustes.tsx).
           La página decide qué secciones ve cada rol; las rutas sueltas de antes redirigen aquí. */}
       <Route path="/settings" element={
-        <ProtectedRoute roles={ROLES_CON_AJUSTES}>
+        <ProtectedRoute>
           <Layout><SettingsPage /></Layout>
         </ProtectedRoute>
       } />
       <Route path="/settings/:seccion" element={
-        <ProtectedRoute roles={ROLES_CON_AJUSTES}>
+        <ProtectedRoute>
           <Layout><SettingsPage /></Layout>
         </ProtectedRoute>
       } />
@@ -438,31 +426,31 @@ function AppRoutes() {
       } />
 
       <Route path="/capacity" element={
-        <ProtectedRoute roles={['admin', 'pm', 'hr']}>
+        <ProtectedRoute>
           <Layout><CapacityPage /></Layout>
         </ProtectedRoute>
       } />
 
       <Route path="/profitability" element={
-        <ProtectedRoute roles={['admin', 'pm']}>
+        <ProtectedRoute>
           <Layout><ProfitabilityPage /></Layout>
         </ProtectedRoute>
       } />
 
       <Route path="/pipeline" element={
-        <ProtectedRoute roles={['admin', 'pm']}>
+        <ProtectedRoute>
           <Layout><PipelinePage /></Layout>
         </ProtectedRoute>
       } />
 
       <Route path="/contracts" element={
-        <ProtectedRoute roles={['admin', 'pm']}>
+        <ProtectedRoute>
           <Layout><ContractsPage /></Layout>
         </ProtectedRoute>
       } />
 
       <Route path="/risks" element={
-        <ProtectedRoute roles={['admin', 'pm']}>
+        <ProtectedRoute>
           <Layout><RisksPage /></Layout>
         </ProtectedRoute>
       } />
@@ -486,68 +474,68 @@ function AppRoutes() {
       } />
 
       <Route path="/changes" element={
-        <ProtectedRoute roles={['admin', 'pm']}>
+        <ProtectedRoute>
           <Layout><ChangesPage /></Layout>
         </ProtectedRoute>
       } />
 
       <Route path="/deliverables" element={
-        <ProtectedRoute roles={['admin', 'pm']}>
+        <ProtectedRoute>
           <Layout><DeliverablesPage /></Layout>
         </ProtectedRoute>
       } />
 
       <Route path="/client-portal" element={
-        <ProtectedRoute roles={['admin', 'pm']}>
+        <ProtectedRoute>
           <Layout><ClientPortalPage /></Layout>
         </ProtectedRoute>
       } />
 
       <Route path="/support-dashboard" element={
-        <ProtectedRoute roles={['admin','pm','employee','hr','team_lead']}>
+        <ProtectedRoute>
           <Layout><SafeSupportDashboard /></Layout>
         </ProtectedRoute>
       } />
 
       {/* El externo (subcontractor) entra acotado: el servidor solo le da sus tickets. */}
       <Route path="/service-desk" element={
-        <ProtectedRoute roles={['admin', 'pm', 'employee', 'hr', 'subcontractor']}>
+        <ProtectedRoute>
           <Layout><SafeServiceDesk /></Layout>
         </ProtectedRoute>
       } />
 
       <Route path="/sd/workflow-designer" element={
-        <ProtectedRoute roles={['admin', 'pm']}>
+        <ProtectedRoute>
           <Layout><SafeWorkflowDesigner /></Layout>
         </ProtectedRoute>
       } />
 
       {/* External client portal – no Layout, standalone app */}
-      <Route path="/invoices" element={<ProtectedRoute roles={['admin','pm']}><Layout><InvoicesPage /></Layout></ProtectedRoute>} />
+      <Route path="/invoices" element={<ProtectedRoute><Layout><InvoicesPage /></Layout></ProtectedRoute>} />
       <Route path="/portal" element={<PortalClientePage />} />
       <Route path="/portal/view/:token" element={<PortalPublicViewPage />} />
 
       <Route path="/sprints" element={<ProtectedRoute><Layout><SprintsPage /></Layout></ProtectedRoute>} />
       <Route path="/expenses" element={<ProtectedRoute><Layout><ExpensesPage /></Layout></ProtectedRoute>} />
-      <Route path="/revenue" element={<ProtectedRoute roles={['admin','pm']}><Layout><RevenuePage /></Layout></ProtectedRoute>} />
-      <Route path="/risk-scores" element={<ProtectedRoute roles={['admin','pm']}><Layout><RiskScoresPage /></Layout></ProtectedRoute>} />
-      <Route path="/evm" element={<ProtectedRoute roles={['admin','pm']}><Layout><EVMPage /></Layout></ProtectedRoute>} />
-      <Route path="/portfolio" element={<ProtectedRoute roles={['admin','pm']}><Layout><PortfolioPage /></Layout></ProtectedRoute>} />
-      <Route path="/portfolio/intake" element={<ProtectedRoute roles={['admin','pm','team_lead','employee','hr']}><Layout><CarteraIntakePage /></Layout></ProtectedRoute>} />
-      <Route path="/resources/planning" element={<ProtectedRoute roles={['admin','hr','pm','team_lead']}><Layout><PlanificacionDeRecursosPage /></Layout></ProtectedRoute>} />
-      <Route path="/git" element={<ProtectedRoute roles={['admin','pm']}><Layout><GitPage /></Layout></ProtectedRoute>} />
-      <Route path="/sprint-charts" element={<ProtectedRoute roles={['admin','pm']}><Layout><SprintChartsPage /></Layout></ProtectedRoute>} />
-      <Route path="/esign" element={<ProtectedRoute roles={['admin','pm']}><Layout><ESignPage /></Layout></ProtectedRoute>} />
-      <Route path="/report-builder" element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeReportBuilder /></Layout></ProtectedRoute>} />
-      <Route path="/nps" element={<ProtectedRoute roles={['admin','pm']}><Layout><NPSPage /></Layout></ProtectedRoute>} />
-      <Route path="/automations" element={<ProtectedRoute roles={['admin','pm']}><Layout><AutomationsPage /></Layout></ProtectedRoute>} />
+      <Route path="/revenue" element={<ProtectedRoute><Layout><RevenuePage /></Layout></ProtectedRoute>} />
+      <Route path="/risk-scores" element={<ProtectedRoute><Layout><RiskScoresPage /></Layout></ProtectedRoute>} />
+      <Route path="/evm" element={<ProtectedRoute><Layout><EVMPage /></Layout></ProtectedRoute>} />
+      <Route path="/portfolio" element={<ProtectedRoute><Layout><PortfolioPage /></Layout></ProtectedRoute>} />
+      <Route path="/portfolio/intake" element={<ProtectedRoute><Layout><CarteraIntakePage /></Layout></ProtectedRoute>} />
+      <Route path="/resources/planning" element={<ProtectedRoute><Layout><PlanificacionDeRecursosPage /></Layout></ProtectedRoute>} />
+      <Route path="/git" element={<ProtectedRoute><Layout><GitPage /></Layout></ProtectedRoute>} />
+      <Route path="/sprint-charts" element={<ProtectedRoute><Layout><SprintChartsPage /></Layout></ProtectedRoute>} />
+      <Route path="/esign" element={<ProtectedRoute><Layout><ESignPage /></Layout></ProtectedRoute>} />
+      <Route path="/report-builder" element={<ProtectedRoute><Layout><SafeReportBuilder /></Layout></ProtectedRoute>} />
+      <Route path="/nps" element={<ProtectedRoute><Layout><NPSPage /></Layout></ProtectedRoute>} />
+      <Route path="/automations" element={<ProtectedRoute><Layout><AutomationsPage /></Layout></ProtectedRoute>} />
 
-      <Route path="/scenarios" element={<ProtectedRoute roles={['admin','pm']}><Layout><ScenariosPage /></Layout></ProtectedRoute>} />
-      <Route path="/budgets" element={<ProtectedRoute roles={['admin','pm']}><Layout><BudgetsPage /></Layout></ProtectedRoute>} />
-      <Route path="/nexus-agent" element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeContecflowAgent /></Layout></ProtectedRoute>} />
-      <Route path="/oracle" element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeOracle /></Layout></ProtectedRoute>} />
+      <Route path="/scenarios" element={<ProtectedRoute><Layout><ScenariosPage /></Layout></ProtectedRoute>} />
+      <Route path="/budgets" element={<ProtectedRoute><Layout><BudgetsPage /></Layout></ProtectedRoute>} />
+      <Route path="/nexus-agent" element={<ProtectedRoute><Layout><SafeContecflowAgent /></Layout></ProtectedRoute>} />
+      <Route path="/oracle" element={<ProtectedRoute><Layout><SafeOracle /></Layout></ProtectedRoute>} />
       <Route path="/meetings-ai" element={<ProtectedRoute><Layout><SafeMeetingsAI /></Layout></ProtectedRoute>} />
-      <Route path="/contracts-ai" element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeContractsAI /></Layout></ProtectedRoute>} />
+      <Route path="/contracts-ai" element={<ProtectedRoute><Layout><SafeContractsAI /></Layout></ProtectedRoute>} />
       <Route path="/settings/workflows" element={<Navigate to="/settings/project-workflows" replace />} />
       <Route path="/workflows" element={<Navigate to="/settings/project-workflows" replace />} />
       <Route path="/calendar" element={<ProtectedRoute><Layout><CalendarPage /></Layout></ProtectedRoute>} />
@@ -561,56 +549,56 @@ function AppRoutes() {
           /wiki (WikiTagsInline); quedan como redireccion para enlaces viejos. */}
       <Route path="/fts-search"     element={<Navigate to="/search" replace />}/>
       <Route path="/wiki-tags"      element={<Navigate to="/wiki" replace />}/>
-      <Route path="/cmdb"              element={<ProtectedRoute roles={['admin','pm']}><Layout><CMDBPage/></Layout></ProtectedRoute>}/>
-      <Route path="/agent-dashboard"   element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeAgentDashboard/></Layout></ProtectedRoute>}/>
+      <Route path="/cmdb"              element={<ProtectedRoute><Layout><CMDBPage/></Layout></ProtectedRoute>}/>
+      <Route path="/agent-dashboard"   element={<ProtectedRoute><Layout><SafeAgentDashboard/></Layout></ProtectedRoute>}/>
       {/* Revisión 2026-11: «Kanban» era la misma pregunta que Tareas → vista Kanban; ahora es una sola pantalla. */}
       <Route path="/kanban-advanced"   element={<Navigate to="/tasks?view=kanban" replace />}/>
       <Route path="/sprint-planning"   element={<ProtectedRoute><Layout><SprintPlanningPage/></Layout></ProtectedRoute>}/>
       <Route path="/epic-gantt"     element={<ProtectedRoute><Layout><SafeEpicGantt/></Layout></ProtectedRoute>}/>
       {/* Menciones y notificaciones viven en la bandeja (InboxPage, pestanas). */}
       <Route path="/mentions" element={<Navigate to="/inbox?tab=mentions" replace />}/>
-      <Route path="/semantic-engine"  element={<ProtectedRoute roles={['admin','pm','hr']}><Layout><SafeSemanticEngine /></Layout></ProtectedRoute>} />
-      <Route path="/resource-forecast" element={<ProtectedRoute roles={['admin','pm','team_lead']}><Layout><ResourceForecastPage /></Layout></ProtectedRoute>} />
-      <Route path="/resource-scheduler" element={<ProtectedRoute roles={['admin','pm','team_lead']}><Layout><ResourceSchedulerPage /></Layout></ProtectedRoute>} />
-      <Route path="/milestone-billing" element={<ProtectedRoute roles={['admin','pm']}><Layout><MilestoneBillingPage /></Layout></ProtectedRoute>} />
+      <Route path="/semantic-engine"  element={<ProtectedRoute><Layout><SafeSemanticEngine /></Layout></ProtectedRoute>} />
+      <Route path="/resource-forecast" element={<ProtectedRoute><Layout><ResourceForecastPage /></Layout></ProtectedRoute>} />
+      <Route path="/resource-scheduler" element={<ProtectedRoute><Layout><ResourceSchedulerPage /></Layout></ProtectedRoute>} />
+      <Route path="/milestone-billing" element={<ProtectedRoute><Layout><MilestoneBillingPage /></Layout></ProtectedRoute>} />
       {/* Revisión 2026-11: cualquier usuario interno puede ser aprobador (rol, grupo, departamento, responsable, delegado). */}
-      <Route path="/approvals" element={<ProtectedRoute roles={['admin','pm','team_lead','hr','employee']}><Layout><ApprovalsPage mode="inbox" /></Layout></ProtectedRoute>} />
+      <Route path="/approvals" element={<ProtectedRoute><Layout><ApprovalsPage mode="inbox" /></Layout></ProtectedRoute>} />
       <Route path="/documents" element={<ProtectedRoute><Layout><DocumentsPage /></Layout></ProtectedRoute>} />
       <Route path="/timer" element={<ProtectedRoute><Layout><TimerPage /></Layout></ProtectedRoute>} />
-      <Route path="/gantt" element={<ProtectedRoute roles={['admin','pm','team_lead','employee']}><Layout><SafeGantt /></Layout></ProtectedRoute>} />
+      <Route path="/gantt" element={<ProtectedRoute><Layout><SafeGantt /></Layout></ProtectedRoute>} />
       {/* Nuevas rutas top-level (sustituyen al antiguo /bi) */}
-      <Route path="/data-explorer"   element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeDataExplorer   /></Layout></ProtectedRoute>} />
-      <Route path="/ask-company"     element={<ProtectedRoute roles={['admin','pm','team_lead','hr','employee']}><Layout><SafePreguntarALaEmpresa /></Layout></ProtectedRoute>} />
-      <Route path="/lessons"         element={<ProtectedRoute roles={['admin','pm','team_lead','hr','employee']}><Layout><LeccionesPage /></Layout></ProtectedRoute>} />
-      <Route path="/predictions"     element={<ProtectedRoute roles={['admin','pm']}><Layout><SafePredictions    /></Layout></ProtectedRoute>} />
-      <Route path="/data-platform"   element={<ProtectedRoute roles={['admin']}>     <Layout><SafeDataPlatform   /></Layout></ProtectedRoute>} />
-      <Route path="/data-governance" element={<ProtectedRoute roles={['admin']}>     <Layout><SafeDataGovernance /></Layout></ProtectedRoute>} />
-      <Route path="/projects/:id/analytics" element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeBIProjectDetail /></Layout></ProtectedRoute>} />
+      <Route path="/data-explorer"   element={<ProtectedRoute><Layout><SafeDataExplorer   /></Layout></ProtectedRoute>} />
+      <Route path="/ask-company"     element={<ProtectedRoute><Layout><SafePreguntarALaEmpresa /></Layout></ProtectedRoute>} />
+      <Route path="/lessons"         element={<ProtectedRoute><Layout><LeccionesPage /></Layout></ProtectedRoute>} />
+      <Route path="/predictions"     element={<ProtectedRoute><Layout><SafePredictions    /></Layout></ProtectedRoute>} />
+      <Route path="/data-platform"   element={<ProtectedRoute>     <Layout><SafeDataPlatform   /></Layout></ProtectedRoute>} />
+      <Route path="/data-governance" element={<ProtectedRoute>     <Layout><SafeDataGovernance /></Layout></ProtectedRoute>} />
+      <Route path="/projects/:id/analytics" element={<ProtectedRoute><Layout><SafeBIProjectDetail /></Layout></ProtectedRoute>} />
       {/* Redirects legacy */}
       <Route path="/bi" element={<Navigate to="/executive" replace />} />
       <Route path="/bi/:section" element={<BiLegacyRedirect />} />
       <Route path="/bi/project/:projectId" element={<BiProjectLegacyRedirect />} />
-      <Route path="/subcontractors" element={<ProtectedRoute roles={['admin','pm']}><Layout><SubcontractorsPage /></Layout></ProtectedRoute>} />
-      <Route path="/finance-dashboard"   element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeFinanceDashboard /></Layout></ProtectedRoute>} />
-      <Route path="/team-dashboard"     element={<ProtectedRoute roles={['admin','pm','hr','team_lead']}><Layout><SafeTeamDashboard /></Layout></ProtectedRoute>} />
-      <Route path="/clients"             element={<ProtectedRoute roles={['admin','pm']}><Layout><ClientsPage /></Layout></ProtectedRoute>} />
-      <Route path="/alm"        element={<ProtectedRoute roles={['admin','pm']}><Layout><ALMPage /></Layout></ProtectedRoute>} />
-      <Route path="/alm/altas-y-bajas" element={<ProtectedRoute roles={['admin','pm','hr','team_lead']}><Layout><ALMAltasBajasPage /></Layout></ProtectedRoute>} />
+      <Route path="/subcontractors" element={<ProtectedRoute><Layout><SubcontractorsPage /></Layout></ProtectedRoute>} />
+      <Route path="/finance-dashboard"   element={<ProtectedRoute><Layout><SafeFinanceDashboard /></Layout></ProtectedRoute>} />
+      <Route path="/team-dashboard"     element={<ProtectedRoute><Layout><SafeTeamDashboard /></Layout></ProtectedRoute>} />
+      <Route path="/clients"             element={<ProtectedRoute><Layout><ClientsPage /></Layout></ProtectedRoute>} />
+      <Route path="/alm"        element={<ProtectedRoute><Layout><ALMPage /></Layout></ProtectedRoute>} />
+      <Route path="/alm/altas-y-bajas" element={<ProtectedRoute><Layout><ALMAltasBajasPage /></Layout></ProtectedRoute>} />
       <Route path="/my-equipment" element={<ProtectedRoute><Layout><MisEquiposPage /></Layout></ProtectedRoute>} />
-      <Route path="/org-chart" element={<ProtectedRoute roles={['admin','pm','hr']}><Layout><OrgChartPage /></Layout></ProtectedRoute>} />
-      <Route path="/okrs"                element={<ProtectedRoute roles={['admin','pm','hr']}><Layout><OKRsPage /></Layout></ProtectedRoute>} />
-      <Route path="/performance-reviews" element={<ProtectedRoute roles={['admin','pm','hr']}><Layout><PerformanceReviewsPage /></Layout></ProtectedRoute>} />
+      <Route path="/org-chart" element={<ProtectedRoute><Layout><OrgChartPage /></Layout></ProtectedRoute>} />
+      <Route path="/okrs"                element={<ProtectedRoute><Layout><OKRsPage /></Layout></ProtectedRoute>} />
+      <Route path="/performance-reviews" element={<ProtectedRoute><Layout><PerformanceReviewsPage /></Layout></ProtectedRoute>} />
       <Route path="/training"            element={<ProtectedRoute><Layout><TrainingPage /></Layout></ProtectedRoute>} />
-      <Route path="/executive"           element={<ProtectedRoute roles={['admin','pm']}><Layout><SafeBIPage /></Layout></ProtectedRoute>} />
+      <Route path="/executive"           element={<ProtectedRoute><Layout><SafeBIPage /></Layout></ProtectedRoute>} />
       <Route path="/inbox"               element={<ProtectedRoute><Layout><InboxPage /></Layout></ProtectedRoute>} />
       <Route path="/notifications"       element={<Navigate to="/inbox?tab=notifications" replace />} />
       <Route path="/raci"                element={<ProtectedRoute><Layout><RACIPage /></Layout></ProtectedRoute>} />
       <Route path="/changelog"           element={<ProtectedRoute><Layout><ChangelogPage /></Layout></ProtectedRoute>} />
       <Route path="/uat"                element={<ProtectedRoute><Layout><UATPage /></Layout></ProtectedRoute>} />
       <Route path="/intake/:token"      element={<IntakeFormPage />} />
-      <Route path="/bpm" element={<ProtectedRoute roles={['admin','pm','team_lead']}><Layout><BPMPage /></Layout></ProtectedRoute>} />
+      <Route path="/bpm" element={<ProtectedRoute><Layout><BPMPage /></Layout></ProtectedRoute>} />
       <Route path="/chat" element={<ProtectedRoute><Layout><ChatPage /></Layout></ProtectedRoute>} />
-      <Route path="/chat/admin" element={<ProtectedRoute roles={['admin']}><Navigate to="/settings/chat-admin" replace /></ProtectedRoute>} />
+      <Route path="/chat/admin" element={<ProtectedRoute><Navigate to="/settings/chat-admin" replace /></ProtectedRoute>} />
       <Route path="/chat/call/:callId" element={<ProtectedRoute><CallPage /></ProtectedRoute>} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

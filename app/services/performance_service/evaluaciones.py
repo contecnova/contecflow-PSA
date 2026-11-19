@@ -9,6 +9,7 @@ import uuid as _uuid
 from app.models.performance import ReviewCycle, PerformanceReview, ReviewStatus
 from app.models.user import User
 from app.core.asignacion import es_asignable
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 # ── Eligible reviewers ────────────────────────────────────────────────────────
@@ -100,18 +101,18 @@ def create_review(db: Session, cycle_id: str, reviewee_id: str, reviewer_id: str
     if validate_eligibility:
         reviewee = db.query(User).filter(User.id == reviewee_id).first()
         if not reviewee:
-            raise ValueError("Persona evaluada no encontrada")
+            raise ErrorConCodigo("no_encontrado", detail="Persona evaluada no encontrada", que="persona_evaluada")
         valid = eligible_reviewers(db, reviewee=reviewee, review_type=review_type)
         valid_ids = {u.id for u in valid}
         if reviewer_id not in valid_ids:
             # Mensajes específicos para que la UI pueda explicar el porqué
             if review_type == "manager" and not reviewee.manager_id:
-                raise ValueError("Esta persona no tiene manager configurado en el organigrama")
+                raise ErrorConCodigo("persona_sin_manager")
             if review_type == "peer" and not reviewee.department and not reviewee.team:
-                raise ValueError("Esta persona no tiene equipo ni departamento — no es posible asignar pares")
+                raise ErrorConCodigo("persona_sin_equipo", detail="Esta persona no tiene equipo ni departamento — no es posible asignar pares")
             if review_type == "upward":
-                raise ValueError("Esta persona no tiene reportes directos en el organigrama")
-            raise ValueError(f"El evaluador no es elegible para el tipo '{review_type}'")
+                raise ErrorConCodigo("persona_sin_reportes")
+            raise ErrorConCodigo("evaluador_no_elegible", detail=f"El evaluador no es elegible para el tipo '{review_type}'", tipo=review_type)
     r = PerformanceReview(
         id=str(_uuid.uuid4()),
         cycle_id=cycle_id,

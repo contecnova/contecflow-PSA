@@ -21,7 +21,6 @@ import PageShell from '../components/layout/PageShell'
 import { TrendingUp, Plus, Trash2, CalendarDays, Wallet, Receipt, PieChart, Percent, FolderOpen, Users, Flag, Coins, ArrowRight } from 'lucide-react'
 import { fmtCurrency, fmtHours, fmtDate, extractErr } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
-import { useAuth } from '../context/AuthContext'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
 import DateInput from '../components/ui/DateInput'
@@ -282,7 +281,6 @@ function ProjectDetail({ projectId, onClose }: { projectId: string | number; onC
 
 export default function ProfitabilityPage() {
   const t = useAppT()
-  const { hasRole: _hasRole } = useAuth()
   const [selectedProject, setSelectedProject] = useState<string | number | null>(null)
   const [statusFilter, setStatusFilter] = useState('active')
 

@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import json
 from sqlalchemy.orm import Session
-from app.core.errores import ErrorDeDominio
 from app.models.advanced_config import AlertConfig
 from app.models.advanced_config import TaskType
 from app.models.advanced_config import CustomRole
@@ -20,6 +19,7 @@ from app.services.advanced_config_service.semillas import (
     seed_task_types,
 )
 from app.services.advanced_config_service._comun import NotFoundError
+from app.core.codigos_de_error import error, ErrorConCodigo
 
 
 # ── Roles ─────────────────────────────────────────────────────────────────────
@@ -49,7 +49,7 @@ _ROLES_BASE = {name for name, *_ in DEFAULT_SYSTEM_ROLES}
 def create_role(data: dict, db: Session) -> dict:
     from app.core.modulos import validar_acceso
     if data["name"] in _ROLES_BASE:
-        raise ErrorDeDominio(422, "Ese nombre es el de un rol base")
+        raise error(422, "rol_nombre_base")
     validar_acceso(data.get("module_access"))
     r = CustomRole(
         name=data["name"],
@@ -70,9 +70,9 @@ def update_role(role_id: str, data: dict, db: Session) -> dict:
     if not r:
         raise NotFoundError("Rol no encontrado")
     if "name" in data and r.is_system and data["name"] != r.name:
-        raise ValueError("No se puede renombrar un rol del sistema")
+        raise ErrorConCodigo("rol_sistema_no_renombrable")
     if "name" in data and not r.is_system and data["name"] in _ROLES_BASE:
-        raise ValueError("Ese nombre es el de un rol base")
+        raise ErrorConCodigo("rol_nombre_base")
     validar_acceso(data.get("module_access"))
     for k, v in data.items():
         if k == "module_access" and v is not None:
@@ -91,7 +91,7 @@ def delete_role(role_id: str, db: Session) -> dict:
     if not r:
         raise NotFoundError("Rol no encontrado")
     if r.is_system:
-        raise ValueError("No se pueden eliminar roles del sistema")
+        raise ErrorConCodigo("rol_sistema_no_eliminable")
     r.is_active = False
     db.commit()
     return {"ok": True}
@@ -119,7 +119,7 @@ def list_task_types(db: Session) -> list:
 
 def create_task_type(data: dict, db: Session):
     if db.query(TaskType).filter(TaskType.value == data["value"]).first():
-        raise ValueError("Ya existe un tipo con ese valor")
+        raise ErrorConCodigo("tipo_ya_existe")
     t = TaskType(**data)
     db.add(t)
     db.commit()

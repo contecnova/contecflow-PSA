@@ -150,7 +150,7 @@ def send_l1_bot_reply(conversation_id: str, current_client: ClientUser, db: Sess
     )
 
     if not latest_client_msg:
-        raise ValueError("No hay mensaje de cliente para que el bot responda")
+        raise ErrorConCodigo("bot_sin_mensaje_cliente", detail="No hay mensaje de cliente para que el bot responda")
 
     query = (latest_client_msg.body or "").strip()
     # Revisión 2026-11: antes buscaba la pregunta ENTERA como subcadena literal
@@ -229,9 +229,9 @@ def review_message(conversation_id: str, message_id: str, decision: str, note: O
     if not message:
         raise ErrorConCodigo("mensaje_no_encontrado")
     if message.grc_status != PortalConversationGRCStatus.pending_review:
-        raise ValueError("El mensaje no está pendiente de revisión")
+        raise ErrorConCodigo("mensaje_no_pendiente_revision")
     if decision not in {"approved", "rejected"}:
-        raise ValueError("Decisión no válida")
+        raise ErrorConCodigo("decision_no_valida")
     message.moderation_notes = note or message.moderation_notes
     if decision == "approved":
         message.grc_status = PortalConversationGRCStatus.redacted if message.is_redacted else PortalConversationGRCStatus.allowed

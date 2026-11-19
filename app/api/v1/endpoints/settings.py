@@ -31,13 +31,14 @@ from app.schemas.settings import (
     HolidayOut,
     LogLevelPayload,
 )
+from app.core.codigos_de_error import error_http, desde_valor
 
 router = APIRouter()
 
 
 def require_admin_or_pm(current_user: User = Depends(get_current_user)):
     if current_user.role not in [UserRole.admin, UserRole.pm]:
-        raise HTTPException(status_code=403, detail="Acceso denegado")
+        raise error_http(403, "sin_permiso", detail="Acceso denegado")
     return current_user
 
 # ── Puesta en marcha de la empresa (revisión 2026-11) ─────────────────────────
@@ -89,12 +90,12 @@ def update_setting(key: str, payload: SettingUpdate, db: Session = Depends(get_d
     # Por aqui solo los ajustes generales; el estado interno de los servicios
     # (claves con punto, secretos) lo escribe cada servicio, no esta pantalla.
     if not current_user.is_superadmin and not _svc.es_ajuste_general(key):
-        raise HTTPException(403, "Solo se pueden cambiar los ajustes generales")
+        raise error_http(403, "ajustes_solo_generales")
     try:
         return APIResponse.ok(data=_svc.update_setting(key, payload.value, current_user.organization_id, db))
     except ValueError as e:
         # 18-11-2026: moneda, zona, idioma y jornada se validan como su clave de ejecución.
-        raise HTTPException(422, str(e))
+        raise desde_valor(422, e)
 
 
 # ── Runtime-flag groups (Phase 1 of env → UI migration) ──────────────────────
@@ -107,7 +108,7 @@ def get_runtime_group(group: str, db: Session = Depends(get_db), current_user: U
     try:
         return APIResponse.ok(data={"group": group, "items": _svc.get_runtime_group(db, group, current_user.organization_id)})
     except ValueError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
 
 
 @router.put("/runtime/{group}/{key}", summary="Update a runtime-flag value (admin)")
@@ -115,7 +116,7 @@ def update_runtime_setting(group: str, key: str, payload: SettingUpdate, request
     # Revisión 2026-11: los de plataforma, sólo el superadmin y en la fila global.
     plataforma = key in _svc.AJUSTES_DE_PLATAFORMA
     if plataforma and not current_user.is_superadmin:
-        raise HTTPException(403, "Es un ajuste de la plataforma: sólo lo cambia el superadmin")
+        raise error_http(403, "ajuste_solo_superadmin", detail="Es un ajuste de la plataforma: sólo lo cambia el superadmin")
     try:
         from app.core.network import extract_client_ip
         return APIResponse.ok(data=_svc.set_runtime_value(
@@ -125,7 +126,7 @@ def update_runtime_setting(group: str, key: str, payload: SettingUpdate, request
             actor_ua=request.headers.get("user-agent"),
         ))
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
 
 
 # ── Integration credentials (Phase 2 of env → UI migration) ──────────────────
@@ -145,7 +146,7 @@ def describe_integration(provider: str, db: Session = Depends(get_db), current_u
     try:
         return APIResponse.ok(data=_creds.describe_provider(db, provider, current_user.organization_id))
     except ValueError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
 
 
 @router.get("/audit-log", summary="Read settings + integration credential audit trail (admin)")
@@ -191,7 +192,7 @@ def update_integration(provider: str, key: str, payload: SettingUpdate, request:
             olvidar_tokens(PRODUCTOS[provider])
         return APIResponse.ok(data=resultado)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
 
 
 # ── Project types ─────────────────────────────────────────────────────────────
@@ -206,14 +207,14 @@ def create_project_type(payload: ProjectTypeIn, db: Session = Depends(get_db), _
     try:
         return APIResponse.ok(data=_svc.create_project_type(payload.model_dump(), db))
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
 
 @router.patch("/project-types/{item_id}", response_model=APIResponse[ProjectTypeOut])
 def update_project_type(item_id: str, payload: ProjectTypeIn, db: Session = Depends(get_db), _: User = Depends(require_admin_or_pm)):
     try:
         return APIResponse.ok(data=_svc.update_project_type(item_id, payload.model_dump(), db))
     except ValueError:
-        raise HTTPException(404, "No encontrado")
+        raise error_http(404, "no_encontrado_generico")
 
 @router.delete("/project-types/{item_id}")
 def delete_project_type(item_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin_or_pm)):
@@ -221,7 +222,44 @@ def delete_project_type(item_id: str, db: Session = Depends(get_db), _: User = D
         enforce_abac(db, _, "custom_project_type", item_id, action="delete")
         return APIResponse.ok(data=_svc.delete_project_type(item_id, db))
     except ValueError:
-        raise HTTPException(404, "No encontrado")
+        raise error_http(404, "no_encontrado_generico")
+
+
+# ── Sectores de cliente y categorías de gasto (19-11-2026) ────────────────────
+# Catálogos de clave editables por empresa (`settings_service.catalogos_de_clave`);
+# mismo contrato que /project-types (value, label, color, sort_order).
+
+def _rutas_de_catalogo(ruta: str, nombre: str) -> None:
+    @router.get(f"/{ruta}", response_model=APIListResponse[ProjectTypeOut], name=f"listar_{nombre}")
+    def _listar(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+        items = _svc.catalogos_de_clave.listar(db, nombre)
+        return APIListResponse.ok(items=items, total=len(items))
+
+    @router.post(f"/{ruta}", response_model=APIResponse[ProjectTypeOut], name=f"crear_{nombre}")
+    def _crear(payload: ProjectTypeIn, db: Session = Depends(get_db), _: User = Depends(require_admin_or_pm)):
+        try:
+            return APIResponse.ok(data=_svc.catalogos_de_clave.crear(db, nombre, payload.model_dump()))
+        except ValueError as e:
+            raise desde_valor(400, e)
+
+    @router.patch(f"/{ruta}/{{item_id}}", response_model=APIResponse[ProjectTypeOut], name=f"actualizar_{nombre}")
+    def _actualizar(item_id: str, payload: ProjectTypeIn, db: Session = Depends(get_db),
+                    _: User = Depends(require_admin_or_pm)):
+        try:
+            return APIResponse.ok(data=_svc.catalogos_de_clave.actualizar(db, nombre, item_id, payload.model_dump()))
+        except ValueError:
+            raise error_http(404, "no_encontrado_generico")
+
+    @router.delete(f"/{ruta}/{{item_id}}", name=f"borrar_{nombre}")
+    def _borrar(item_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin_or_pm)):
+        try:
+            return APIResponse.ok(data=_svc.catalogos_de_clave.borrar(db, nombre, item_id))
+        except ValueError:
+            raise error_http(404, "no_encontrado_generico")
+
+
+_rutas_de_catalogo("client-industries", "client_industries")
+_rutas_de_catalogo("expense-categories", "expense_categories")
 
 # ── Project statuses ──────────────────────────────────────────────────────────
 
@@ -235,14 +273,14 @@ def create_project_status(payload: ProjectStatusIn, db: Session = Depends(get_db
     try:
         return APIResponse.ok(data=_svc.create_project_status(payload.model_dump(), db))
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
 
 @router.patch("/project-statuses/{item_id}", response_model=APIResponse[ProjectStatusOut])
 def update_project_status(item_id: str, payload: ProjectStatusIn, db: Session = Depends(get_db), _: User = Depends(require_admin_or_pm)):
     try:
         return APIResponse.ok(data=_svc.update_project_status(item_id, payload.model_dump(), db))
     except ValueError:
-        raise HTTPException(404, "No encontrado")
+        raise error_http(404, "no_encontrado_generico")
 
 @router.delete("/project-statuses/{item_id}")
 def delete_project_status(item_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin_or_pm)):
@@ -250,7 +288,7 @@ def delete_project_status(item_id: str, db: Session = Depends(get_db), _: User =
         enforce_abac(db, _, "custom_project_status", item_id, action="delete")
         return APIResponse.ok(data=_svc.delete_project_status(item_id, db))
     except ValueError:
-        raise HTTPException(404, "No encontrado")
+        raise error_http(404, "no_encontrado_generico")
 
 # ── Task statuses ─────────────────────────────────────────────────────────────
 
@@ -264,14 +302,14 @@ def create_task_status(payload: TaskStatusIn, db: Session = Depends(get_db), _: 
     try:
         return APIResponse.ok(data=_svc.create_task_status(payload.model_dump(), db))
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
 
 @router.patch("/task-statuses/{item_id}", response_model=APIResponse[TaskStatusOut])
 def update_task_status(item_id: str, payload: TaskStatusIn, db: Session = Depends(get_db), _: User = Depends(require_admin_or_pm)):
     try:
         return APIResponse.ok(data=_svc.update_task_status(item_id, payload.model_dump(), db))
     except ValueError:
-        raise HTTPException(404, "No encontrado")
+        raise error_http(404, "no_encontrado_generico")
 
 @router.delete("/task-statuses/{item_id}")
 def delete_task_status(item_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin_or_pm)):
@@ -279,7 +317,7 @@ def delete_task_status(item_id: str, db: Session = Depends(get_db), _: User = De
         enforce_abac(db, _, "custom_task_status", item_id, action="delete")
         return APIResponse.ok(data=_svc.delete_task_status(item_id, db))
     except ValueError:
-        raise HTTPException(404, "No encontrado")
+        raise error_http(404, "no_encontrado_generico")
 
 # ── Departments ───────────────────────────────────────────────────────────────
 
@@ -293,7 +331,7 @@ def create_department(payload: DepartmentIn, db: Session = Depends(get_db), _: U
     try:
         return APIResponse.ok(data=_svc.create_department(payload.model_dump(), db))
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
 
 @router.patch("/departments/{item_id}", response_model=APIResponse[DepartmentOut])
 def update_department(item_id: str, payload: DepartmentIn, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
@@ -301,7 +339,7 @@ def update_department(item_id: str, payload: DepartmentIn, db: Session = Depends
         # Sólo lo que llega: si no, un PATCH sin área la quitaba.
         return APIResponse.ok(data=_svc.update_department(item_id, payload.model_dump(exclude_unset=True), db))
     except ValueError:
-        raise HTTPException(404, "No encontrado")
+        raise error_http(404, "no_encontrado_generico")
 
 @router.delete("/departments/{item_id}")
 def delete_department(item_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
@@ -309,7 +347,7 @@ def delete_department(item_id: str, db: Session = Depends(get_db), _: User = Dep
         enforce_abac(db, _, "department", item_id, action="delete")
         return APIResponse.ok(data=_svc.delete_department(item_id, db))
     except ValueError:
-        raise HTTPException(404, "No encontrado")
+        raise error_http(404, "no_encontrado_generico")
 
 # ── Áreas (revisión 2026-11): agrupan departamentos; base de su presupuesto ─────
 
@@ -329,7 +367,7 @@ def update_area(area_id: str, payload: AreaIn, db: Session = Depends(get_db), cu
     try:
         return APIResponse.ok(data=_svc.guardar_area(db, payload.model_dump(exclude_unset=True), current_user.organization_id, area_id))
     except ValueError:
-        raise HTTPException(404, "No encontrado")
+        raise error_http(404, "no_encontrado_generico")
 
 
 @router.delete("/areas/{area_id}")
@@ -337,7 +375,7 @@ def delete_area(area_id: str, db: Session = Depends(get_db), _: User = Depends(r
     try:
         return APIResponse.ok(data=_svc.borrar_area(db, area_id))
     except ValueError:
-        raise HTTPException(404, "No encontrado")
+        raise error_http(404, "no_encontrado_generico")
 
 
 # ── Holidays ──────────────────────────────────────────────────────────────────
@@ -356,7 +394,7 @@ def update_holiday(item_id: str, payload: HolidayIn, db: Session = Depends(get_d
     try:
         return APIResponse.ok(data=_svc.update_holiday(item_id, payload.model_dump(), db))
     except ValueError:
-        raise HTTPException(404, "No encontrado")
+        raise error_http(404, "no_encontrado_generico")
 
 @router.delete("/holidays/{item_id}")
 def delete_holiday(item_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
@@ -364,7 +402,7 @@ def delete_holiday(item_id: str, db: Session = Depends(get_db), _: User = Depend
         enforce_abac(db, _, "holiday", item_id, action="delete")
         return APIResponse.ok(data=_svc.delete_holiday(item_id, db))
     except ValueError:
-        raise HTTPException(404, "No encontrado")
+        raise error_http(404, "no_encontrado_generico")
 
 
 # ── Log Level (runtime configurable) ─────────────────────────────────────────
@@ -392,7 +430,7 @@ def get_log_level(_: User = Depends(require_admin)):
 def set_log_level(payload: LogLevelPayload, _: User = Depends(require_admin)):
     level_name = payload.level.upper()
     if level_name not in VALID_LOG_LEVELS:
-        raise HTTPException(400, f"Nivel inválido. Use uno de: {', '.join(sorted(VALID_LOG_LEVELS))}")
+        raise error_http(400, "campo_no_valido_opciones", detail=f"Nivel inválido. Use uno de: {', '.join(sorted(VALID_LOG_LEVELS))}", campo="level", opciones=', '.join(sorted(VALID_LOG_LEVELS)))
     numeric = getattr(logging, level_name)
     if payload.logger:
         target_logger = logging.getLogger(payload.logger)

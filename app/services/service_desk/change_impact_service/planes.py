@@ -10,7 +10,6 @@ from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy.orm import Session
 from app.models.service_desk import ITSMChangeRequest
-from app.core.errores import ErrorDeDominio
 
 from app.services.service_desk.change_impact_service.riesgo import (
     _get_ci_details,
@@ -18,6 +17,7 @@ from app.services.service_desk.change_impact_service.riesgo import (
     get_risk_matrix_for_change,
     score_change_risk,
 )
+from app.core.codigos_de_error import error
 
 
 def _get_json_setting(db: Session, key: str) -> dict:
@@ -64,7 +64,7 @@ def get_cached_impact_analysis(db: Session, change_id: str) -> dict:
     """Return cached impact analysis or 404."""
     result = _get_json_setting(db, f"sd.change.impact.{change_id}")
     if not result:
-        raise ErrorDeDominio(404, "Análisis de impacto no encontrado. Ejecuta POST /impact-analysis primero.")
+        raise error(404, "no_encontrado", detail="Análisis de impacto no encontrado. Ejecuta POST /impact-analysis primero.", que="analisis_de_impacto")
     return result
 
 
@@ -76,7 +76,7 @@ def generate_rollback_plan(
     """Generate a structured rollback plan for the change."""
     change = db.query(ITSMChangeRequest).filter(ITSMChangeRequest.id == change_id).first()
     if not change:
-        raise ErrorDeDominio(404, f"Change {change_id} not found")
+        raise error(404, "no_encontrado", detail=f"Change {change_id} not found", que="cambio")
 
     cached = _get_json_setting(db, f"sd.change.impact.{change_id}")
     overall_risk = cached.get("risk_label", "medium") if cached else "medium"
@@ -280,7 +280,7 @@ def generate_testing_plan(
     """
     change = db.query(ITSMChangeRequest).filter(ITSMChangeRequest.id == change_id).first()
     if not change:
-        raise ErrorDeDominio(404, f"Change {change_id} not found")
+        raise error(404, "no_encontrado", detail=f"Change {change_id} not found", que="cambio")
 
     riesgo = score_change_risk(db, change)
     etiqueta = riesgo["risk_label"]

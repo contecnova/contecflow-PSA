@@ -25,6 +25,8 @@ from app.models.user import User as UserModel
 from app.services.audit import audit_log
 from app.core.errores import ErrorDeDominio
 from app.core.paginacion import Pagina, Paginacion, paginar
+from app.core.codigos_de_error import error
+from app.core.config import settings  # topes de tokens de IA (19-11-2026)
 
 # ── Status alias normalizer ────────────────────────────────────────────────────
 # PostgreSQL enforces enum types strictly. The frontend uses "pending" to mean
@@ -84,13 +86,12 @@ def review_expense(
     if not expense:
         raise ErrorDeDominio(404)
     if expense.status != ExpenseStatus.submitted:
-        raise ErrorDeDominio(400, "El gasto no está pendiente de revisión")
+        raise error(400, "gasto_no_pendiente")
     # Rev. 166 (#27): los niveles que pidió una política se deciden en la bandeja
     # de aprobaciones; revisar aquí los saltaría.
     from app.services.gastos_politicas import pendiente_con_pasos_de_politica
     if pendiente_con_pasos_de_politica(db, expense.id):
-        raise ErrorDeDominio(409, "Este gasto necesita la aprobación que piden sus políticas: "
-                                  "se decide en la bandeja de aprobaciones")
+        raise error(409, "gasto_requiere_aprobacion_politica")
 
     avisos: list[str] = []
     if approved:   # control presupuestario: avisa, o 409 si BUDGET_CONTROL_POLICY = bloquear
@@ -174,11 +175,14 @@ def export_expenses_excel(
         cell.font = header_font
         cell.alignment = Alignment(horizontal="center")
 
+    # 19-11-2026: etiquetas del catálogo de la empresa (incluye sus categorías propias).
+    from app.services.settings_service import catalogos_de_clave as _cat
+    _etiquetas_cat = {c.value: c.label for c in _cat.listar(db, "expense_categories")}
     for row, e in enumerate(expenses, 2):
         row_data = [
             str(e.expense_date) if e.expense_date else "",
             e.user.full_name if e.user else "",
-            _CATEGORY_LABELS.get(e.category, e.category or ""),
+            _etiquetas_cat.get(e.category, _CATEGORY_LABELS.get(e.category, e.category or "")),
             e.description or "",
             e.amount or 0,
             e.currency or _pe.moneda_de_empresa(db, registro=e),
@@ -213,14 +217,16 @@ def ocr_receipt(db: Session, usuario, image_bytes: bytes, content_type: str) -> 
     Revisión 2026-11: iba directo a Anthropic con `ANTHROPIC_API_KEY`; con otro
     proveedor no había OCR, y se saltaba la gobernanza y el tope de gasto.
     Ahora pasa por `call_ai` con el recibo como adjunto, y las categorías salen
-    del modelo (`ExpenseCategory`), no de una lista escrita en el texto.
+    del catálogo de la empresa (`custom_expense_categories`, 19-11-2026), no de
+    una lista escrita en el texto.
     """
     import base64
     import json as _json
-    from app.models.expenses import ExpenseCategory
     from app.services.ai_provider_service import call_ai, es_aviso_de_ia
+    from app.services.settings_service import catalogos_de_clave as _cat
 
-    categorias = "|".join(c.value for c in ExpenseCategory)
+    claves_cat = [c.value for c in _cat.listar(db, "expense_categories")]
+    categorias = "|".join(claves_cat)
     # 18-11-2026: la descripción en el idioma del usuario (antes, castellano fijo).
     from app.services.formato_regional import idioma_de_salida, nombre_del_idioma
     _nombre_idioma = nombre_del_idioma(idioma_de_salida(
@@ -237,17 +243,17 @@ def ocr_receipt(db: Session, usuario, image_bytes: bytes, content_type: str) -> 
                "adjuntos": [{"media": content_type, "datos": base64.b64encode(image_bytes).decode()}]}
     texto = call_ai(
         db, [mensaje], system=sistema, module="expenses_ocr", user_id=getattr(usuario, "id", None),
-        max_tokens=500, is_superadmin=bool(getattr(usuario, "is_superadmin", False)),
+        max_tokens=settings.AI_BRIEF_ANSWER_MAX_TOKENS, is_superadmin=bool(getattr(usuario, "is_superadmin", False)),
         organization_id=getattr(usuario, "organization_id", None))
     if es_aviso_de_ia(texto):
-        raise ErrorDeDominio(503, texto)
+        raise error(503, "ia_no_disponible", detail=texto)
     crudo = texto.strip()
     if crudo.startswith("```"):
         crudo = crudo.split("```")[1].removeprefix("json").strip()
     try:
         extraido = _json.loads(crudo)
     except _json.JSONDecodeError:
-        raise ErrorDeDominio(422, "La IA devolvió un formato inesperado. Intenta con otra imagen.")
+        raise error(422, "ia_formato_inesperado")
     if extraido.get("date"):
         try:
             _dt.strptime(extraido["date"], "%Y-%m-%d")
@@ -259,7 +265,7 @@ def ocr_receipt(db: Session, usuario, image_bytes: bytes, content_type: str) -> 
         "currency": extraido.get("currency") or _pe.moneda_de_empresa(db, registro=usuario),
         "merchant": extraido.get("merchant"),
         "date": extraido.get("date"),
-        "category": categoria if categoria in {c.value for c in ExpenseCategory} else ExpenseCategory.other.value,
+        "category": categoria if categoria in claves_cat else ("other" if "other" in claves_cat else None),
         "description": extraido.get("description") or "",
     }
 
@@ -462,12 +468,12 @@ def create_expense_record(db: Session, payload, user_id: str, code: str):
     if payload.project_id:
         project = db.query(Project).filter(Project.id == payload.project_id).first()
         if not project:
-            raise ErrorDeDominio(404, "Proyecto no encontrado")
+            raise error(404, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")
         if project.status in [
             ProjectStatus.completed, ProjectStatus.closed,
             ProjectStatus.cancelled, ProjectStatus.archived,
         ]:
-            raise ErrorDeDominio(400, "No se pueden generar gastos facturables en proyectos cerrados")
+            raise error(400, "gasto_facturable_proyecto_cerrado")
 
     expense = Expense(code=code, user_id=user_id, **payload.model_dump())
     from app.services.gastos_avanzados import aplicar_kilometraje
@@ -476,7 +482,7 @@ def create_expense_record(db: Session, payload, user_id: str, code: str):
     if expense.is_billable and expense.project_id:
         project = db.query(Project).filter(Project.id == expense.project_id).first()
         if project and project.status not in [ProjectStatus.active, ProjectStatus.planning]:
-            raise ErrorDeDominio(400, "No se puede marcar gasto como facturable en proyecto no activo")
+            raise error(400, "gasto_facturable_proyecto_inactivo")
 
     db.add(expense)
     db.commit()
@@ -492,12 +498,12 @@ def admin_update_expense(db: Session, expense_id: str, payload):
 
     e = db.query(Expense).filter(Expense.id == expense_id).first()
     if not e:
-        raise ErrorDeDominio(404, "Gasto no encontrado")
+        raise error(404, "no_encontrado", detail="Gasto no encontrado", que="gasto")
 
     if payload.is_billable and e.project_id:
         project = db.query(Project).filter(Project.id == e.project_id).first()
         if project and project.status not in [ProjectStatus.active, ProjectStatus.planning]:
-            raise ErrorDeDominio(400, "No se puede marcar gasto como facturable en proyecto no activo")
+            raise error(400, "gasto_facturable_proyecto_inactivo")
 
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(e, k, v)
@@ -514,9 +520,9 @@ def update_my_expense(db: Session, expense_id: str, user_id: str, payload):
         Expense.id == expense_id, Expense.user_id == user_id
     ).first()
     if not expense:
-        raise ErrorDeDominio(404, "Gasto no encontrado")
+        raise error(404, "no_encontrado", detail="Gasto no encontrado", que="gasto")
     if expense.status not in (ExpenseStatus.draft, ExpenseStatus.rejected):
-        raise ErrorDeDominio(400, "Solo se pueden editar gastos en borrador o rechazados")
+        raise error(400, "gasto_no_editable")
     if expense.status == ExpenseStatus.rejected:
         # Corregir un gasto rechazado lo devuelve a borrador para volver a enviarlo;
         # el motivo del rechazo se queda a la vista hasta entonces.
@@ -537,7 +543,7 @@ def submit_expense_record(db: Session, expense_id: str, user_id: str) -> dict:
     if not expense:
         raise ErrorDeDominio(404)
     if expense.status != ExpenseStatus.draft:
-        raise ErrorDeDominio(400, "El gasto ya ha sido enviado")
+        raise error(400, "gasto_ya_enviado")
     # Rev. 166 (#27): el motor de políticas decide aquí (ver gastos_politicas):
     # 422 solo si una política BLOQUEA o falta un requisito; un exceso pide
     # más aprobación o avisa, y eso entra en la solicitud de aprobación.
@@ -563,7 +569,7 @@ def recall_expense_record(db: Session, expense_id: str, user_id: str) -> dict:
     if not expense:
         raise ErrorDeDominio(404)
     if expense.status != ExpenseStatus.submitted:
-        raise ErrorDeDominio(400, "Solo se pueden retirar gastos enviados")
+        raise error(400, "gasto_solo_enviado_retirable")
     expense.status = ExpenseStatus.draft
     expense.submitted_at = None
     from app.services.approval_engine import fuentes
@@ -578,7 +584,7 @@ def reimburse_expense_record(db: Session, expense_id: str) -> dict:
     if not expense:
         raise ErrorDeDominio(404)
     if expense.status != ExpenseStatus.approved:
-        raise ErrorDeDominio(400, "El gasto debe estar aprobado")
+        raise error(400, "gasto_no_aprobado")
     expense.status = ExpenseStatus.reimbursed
     expense.reimbursed_at = datetime.now(timezone.utc)
     db.commit()
@@ -598,7 +604,7 @@ def delete_my_expense(db: Session, expense_id: str, user_id: str) -> dict:
     if not expense:
         raise ErrorDeDominio(404)
     if expense.status not in [ExpenseStatus.draft, ExpenseStatus.rejected]:
-        raise ErrorDeDominio(400, "Solo se pueden eliminar gastos en borrador o rechazados")
+        raise error(400, "gasto_no_eliminable")
     # audit #36 soft-delete — preserva el histórico para auditoría financiera.
     expense.is_active = False
     db.commit()
@@ -670,7 +676,7 @@ def acotar_gasto_del_externo(db: Session, payload, user: User) -> None:
     from app.models.project import Project
     from app.services.project_service import scope_projects_query
     if payload.contract_id:
-        raise ErrorDeDominio(403, "Los contratos no están disponibles para tu rol")
+        raise error(403, "contratos_no_disponibles_rol")
     if payload.project_id and not scope_projects_query(db.query(Project.id), db, user).filter(
             Project.id == payload.project_id).first():
-        raise ErrorDeDominio(404, "Proyecto no encontrado")
+        raise error(404, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")

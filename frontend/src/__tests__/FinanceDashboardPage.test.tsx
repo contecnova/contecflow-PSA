@@ -34,7 +34,7 @@ vi.mock('../services/api', () => ({
 // Periodo libre (16-11-2026): el selector pide los límites de la API; sin ellos, los de por defecto.
 vi.mock('../services/api/periodo', () => ({ periodoApi: { limites: () => Promise.resolve(null) } }))
 vi.mock('../services/api/todasLasPaginas', () => ({ todasLasPaginas: () => Promise.resolve({ data: [] }) }))
-vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ hasRole: () => true }) }))
+vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ puede: () => true }) }))
 vi.mock('../context/ToastContext', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn() }) }))
 vi.mock('../i18n/AppLangContext', () => ({ useAppLang: () => ({ t: (k: string) => k, lang: 'en' }) }))
 

@@ -155,7 +155,7 @@ def detectar_gastos(db: Session, org: str) -> int:
     ignorados = {p for f, p in _ignorados(db, org) if f == "gasto"}
     grupos: dict = {}
     cache: dict = {}
-    for g in db.query(Expense).filter(Expense.organization_id == org, Expense.category == ExpenseCategory.software,
+    for g in db.query(Expense).filter(Expense.organization_id == org, Expense.category == ExpenseCategory.software.value,
                                       Expense.expense_date >= desde, Expense.status != ExpenseStatus.rejected,
                                       Expense.is_active.is_(True)).all():
         texto = normalizar(g.description)

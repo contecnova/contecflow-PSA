@@ -6,7 +6,7 @@ from app.models.task import Task, TaskComment, TaskStatus, TaskPriority  # noqa:
 from app.models.task_movement_log import TaskMovementLog  # noqa: F401
 from app.models.imputation import Imputation, TimerSession, ImputationAlert, ImputationSnapshot  # noqa: F401
 from app.models.alert import Alert  # noqa: F401
-from app.models.settings import AppSetting, Area, CustomProjectType, CustomProjectStatus, CustomTaskStatus, Department, Holiday  # noqa: F401
+from app.models.settings import AppSetting, Area, CustomClientIndustry, CustomExpenseCategory, CustomProjectType, CustomProjectStatus, CustomTaskStatus, Department, Holiday  # noqa: F401
 from app.models.financial import Timesheet, CapacityPlan, ProjectMilestone, TimesheetStatus  # noqa: F401
 from app.models.sprints import Sprint, SprintTask, SprintStatus  # noqa: F401
 from app.models.pipeline import Opportunity, OpportunityActivity, OpportunityStage, Contract, WorkOrder, ContractType, ContractStatus, Risk, RiskProbability, RiskImpact, RiskStatus, PipelineStageConfig  # noqa: F401

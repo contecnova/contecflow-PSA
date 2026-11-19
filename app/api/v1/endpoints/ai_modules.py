@@ -16,6 +16,7 @@ from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 from app.core.deps import get_current_portal_client
 import app.services.ai_modules_service as _svc
+from app.core.codigos_de_error import error_http, desde_valor
 
 router = APIRouter()
 
@@ -97,8 +98,8 @@ def process_meeting(
         return APIResponse.ok(data=_svc.process_meeting(db, payload, current_user))
     except ValueError as e:
         if "invalid_meeting_date" in str(e):
-            raise HTTPException(400, "Formato de meeting_date inválido, se espera YYYY-MM-DD[T]HH:MM:SS")
-        raise HTTPException(400, str(e))
+            raise error_http(400, "fecha_reunion_no_valida", detail="Formato de meeting_date inválido, se espera YYYY-MM-DD[T]HH:MM:SS")
+        raise desde_valor(400, e)
 
 
 @router.post("/meetings/{meeting_id}/create-tasks", summary=f"Crear tareas en {NOMBRE_DEL_PRODUCTO} desde acciones de reunión", dependencies=[Depends(exigir_modulo_ia("meeting_assistant"))])
@@ -114,8 +115,8 @@ def create_tasks_from_meeting(
     except ValueError as e:
         err = str(e)
         if "not_found" in err: raise HTTPException(404)
-        if "project_id_required" in err: raise HTTPException(400, "Se requiere project_id para crear tareas")
-        raise HTTPException(400, err)
+        if "project_id_required" in err: raise error_http(400, "campo_obligatorio", detail="Se requiere project_id para crear tareas", campo="project_id")
+        raise desde_valor(400, e)
 
 
 @router.get("/meetings/{meeting_id}", summary="Detalle de reunión")
@@ -151,7 +152,7 @@ def get_ai_contract(
 ):
     result = _svc.get_ai_contract(db, contract_id, current_user=current_user)
     if result is None:
-        raise HTTPException(404, "Contrato no encontrado o sin permisos")
+        raise error_http(404, "no_encontrado", detail="Contrato no encontrado o sin permisos", que="contrato")
     return APIResponse.ok(data=result)
 
 
@@ -183,14 +184,11 @@ def analyze_contract_pdf(
     # tamaño leyendo por trozos, en vez de bufferizar el fichero y medirlo luego.
     pdf_bytes = read_and_validate_upload_sync(file, UploadProfile.PDF_ONLY)
     if not pdf_bytes:
-        raise HTTPException(400, "El archivo está vacío.")
+        raise error_http(400, "fichero_vacio", detail="El archivo está vacío.")
 
     text = _svc.extract_pdf_text(pdf_bytes)
     if not text or len(text) < 50:
-        raise HTTPException(
-            422,
-            "No se pudo extraer texto del PDF (¿es un PDF escaneado sin OCR?)."
-        )
+        raise error_http(422, "pdf_sin_texto", detail="No se pudo extraer texto del PDF (¿es un PDF escaneado sin OCR?).")
 
     # Construimos un payload equivalente al endpoint /analyze de texto.
     payload = ContractAnalyzePayload(
@@ -237,7 +235,7 @@ def search_kb(
     _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     query = payload.get("query", "")
-    if not query: raise HTTPException(400, "query required")
+    if not query: raise error_http(400, "consulta_vacia", detail="query required")
     return APIListResponse.ok(items=_svc.search_kb(db, query))
 
 
@@ -270,11 +268,11 @@ def update_kb(
 #: (hallazgo 18): eran cuatro `if` seguidos. Lo que no está aquí sale con el
 #: código que devolvió el proveedor, o 502 si no dio ninguno: el fallo es de un
 #: tercero y un 500 haría pensar que es nuestro.
-_ERRORES_STT: dict[int, tuple[int, str]] = {
-    504: (504, "Timeout esperando respuesta STT"),
-    401: (401, "Credenciales STT inválidas"),
-    403: (401, "Credenciales STT inválidas"),
-    422: (422, "No se pudo transcribir el audio"),
+_ERRORES_STT: dict[int, tuple[int, str, str]] = {
+    504: (504, "Timeout esperando respuesta STT", "ia_transcripcion_timeout"),
+    401: (401, "Credenciales STT inválidas", "ia_credenciales_no_validas"),
+    403: (401, "Credenciales STT inválidas", "ia_credenciales_no_validas"),
+    422: (422, "No se pudo transcribir el audio", "ia_transcripcion_fallo"),
 }
 
 
@@ -283,14 +281,10 @@ def _http_del_error_stt(exc) -> HTTPException:
     texto = str(exc)
     # Este caso no viene con código: lo dice el mensaje del factory.
     if "Ningún STT provider está disponible" in texto:
-        return HTTPException(
-            503,
-            "No hay un proveedor STT configurado. Activa OPENAI_API_KEY o "
-            "configura otro proveedor de transcripción.",
-        )
+        return error_http(503, "ia_sin_proveedor_stt", detail="No hay un proveedor STT configurado. Activa OPENAI_API_KEY o configura otro proveedor de transcripción.")
     codigo = exc.status_code or 502
-    http, motivo = _ERRORES_STT.get(codigo, (codigo, "Error de STT"))
-    return HTTPException(http, f"{motivo}: {texto[:200]}")
+    http, motivo, clave = _ERRORES_STT.get(codigo, (codigo, "Error de STT", "ia_transcripcion_error"))
+    return error_http(http, clave, detail=f"{motivo}: {texto[:200]}")
 
 
 def _puente_de_clave_openai_heredada(db: Session) -> None:
@@ -327,9 +321,9 @@ def transcribe_voice_audio(
     """
     audio_bytes = audio.file.read()
     if not audio_bytes:
-        raise HTTPException(400, "El archivo de audio está vacío.")
+        raise error_http(400, "fichero_vacio", detail="El archivo de audio está vacío.")
     if len(audio_bytes) > 25 * 1024 * 1024:
-        raise HTTPException(413, "El archivo de audio no puede superar 25 MB.")
+        raise error_http(413, "ia_audio_demasiado_grande", detail="El archivo de audio no puede superar 25 MB.", max=25)
 
     _puente_de_clave_openai_heredada(db)
 
@@ -351,12 +345,10 @@ def transcribe_voice_audio(
         # Barrido final 2026-11: el texto de la excepción ya no llega al cliente.
         import logging
         logging.getLogger(__name__).exception("Error inesperado de transcripción")
-        raise HTTPException(500, "Error inesperado de transcripción.")
+        raise error_http(500, "ia_transcripcion_error", detail="Error inesperado de transcripción.")
 
     if not transcripcion:
-        raise HTTPException(
-            422, "El proveedor STT no pudo transcribir el audio (resultado vacío).",
-        )
+        raise error_http(422, "ia_transcripcion_vacia", detail="El proveedor STT no pudo transcribir el audio (resultado vacío).")
 
     # Esta ruta entra **siempre** en modo de prueba: el usuario tiene que ver la
     # transcripción y confirmar antes de que se ejecute nada.
@@ -429,7 +421,7 @@ def client_portal_chat(
             raise ErrorDeDominio(400, "message required", code="mensaje_obligatorio", params={})
         if "invalid_token" in err:
             raise ErrorDeDominio(401, "Token de cliente inválido", code="sesion_invalida", params={})
-        raise HTTPException(400, err)
+        raise desde_valor(400, e)
 
 
 # ─── Revenue forecast (pure-Python linear regression) ────────────────────────
@@ -473,9 +465,9 @@ def overrun_prediction(
         data = _svc.get_overrun_prediction_data(db, project_id)
     except ValueError as e:
         err = str(e)
-        if "not_found" in err: raise HTTPException(404, "Proyecto no encontrado")
-        if "no_tasks" in err: raise HTTPException(422, "El proyecto no tiene tareas; sin datos suficientes para predicción.")
-        raise HTTPException(400, err)
+        if "not_found" in err: raise error_http(404, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")
+        if "no_tasks" in err: raise error_http(422, "proyecto_sin_tareas_prediccion", detail="El proyecto no tiene tareas; sin datos suficientes para predicción.")
+        raise desde_valor(400, e)
 
     project = data["project"]
     result = _svc.predict_overrun_ml(

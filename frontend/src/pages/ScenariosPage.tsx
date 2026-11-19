@@ -22,6 +22,7 @@ import { AlertTriangle, CheckCircle2, Clock, Gauge, GitBranch, Lightbulb, MouseP
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts'
 import { useAppT } from '../i18n/AppLangContext'
 import useMediaQuery from '../hooks/useMediaQuery'
+import { useTono } from '../hooks/useOrgSettings'
 import DateInput from '../components/ui/DateInput'
 import './ScenariosPage.css'
 
@@ -52,6 +53,7 @@ const ESTADOS = ['draft', 'computed', 'archived']
 export default function ScenariosPage() {
   const idCampo = useId()
   const t = useAppT()
+  const tono = useTono()
   const narrow = useMediaQuery('(max-width: 900px)')
   const qc = useQueryClient()
   const toast = useToast()
@@ -150,7 +152,7 @@ export default function ScenariosPage() {
                           <Tooltip formatter={v=>[`${v}%`, t('scenarios.utilizacion')]} />
                           <Bar dataKey="utilization_pct" radius={[3,3,0,0]}>
                             {(results.capacity_timeline||[]).slice(0,16).map((c,i)=>(
-                              <Cell key={i} fill={c.is_overloaded?'var(--danger)':c.utilization_pct>80?'var(--warning)':'var(--success)'} />
+                              <Cell key={i} fill={c.is_overloaded?'var(--danger)':tono('carga', c.utilization_pct)==='success'?'var(--success)':'var(--warning)'} />
                             ))}
                           </Bar>
                         </BarChart>

@@ -20,6 +20,7 @@ from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.services import bpmn_engine as motor
+from app.core.codigos_de_error import error_http
 
 procesos = APIRouter(tags=["BPMN Processes"])
 router = APIRouter(tags=["BPMN Instances"])
@@ -39,7 +40,7 @@ def start_instance(process_id: str, payload: Variables = Body(default_factory=Va
                    db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_pm)):
     proc = motor.proceso_para_arrancar(db, process_id, current_user)
     if proc is None:
-        raise HTTPException(404, "Proceso no encontrado")
+        raise error_http(404, "no_encontrado", detail="Proceso no encontrado", que="proceso")
     inst = motor.iniciar(db, proc, current_user, payload.variables)
     return APIResponse.ok(data=motor.detalle(db, inst))
 

@@ -18,6 +18,8 @@ from app.services.service_desk.ticket_ops_service import commit_or_rollback as _
 from app.core.errores import ErrorDeDominio
 from app.models.user import UserRole
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.core.codigos_de_error import error_http, desde_valor
+from app.core.codigos_de_error import ErrorConCodigo
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -199,7 +201,7 @@ def create_change_from_problem(
             planned_end=payload.planned_end,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise desde_valor(400, exc)
     _commit_or_rollback(db)
     return APIResponse.ok(data={'ok': True, **result})
 
@@ -235,7 +237,7 @@ def promote_problem_to_kedb(
             auto_kb=payload.auto_kb,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise desde_valor(400, exc)
     _commit_or_rollback(db)
     return APIResponse.ok(data={'ok': True, 'kedb_entry': result})
 
@@ -257,7 +259,7 @@ def approve_problem_rca(
     from app.services.service_desk.known_error_service import approve_rca
 
     if current_user.role not in (UserRole.admin, 'support'):
-        raise HTTPException(status_code=403, detail='Only admin/support can approve RCA')
+        raise error_http(403, "solo_admin_o_soporte", detail="Only admin/support can approve RCA")
 
     problem = get_scoped_problem_or_404(db, current_user, problem_id)
     result = approve_rca(db, problem, approver_user_id=current_user.id, evidence=payload.evidence)
@@ -344,7 +346,7 @@ def run_kedb_expiry_scan(
     from app.services.service_desk.known_error_service import run_kedb_expiry_scan as _scan
 
     if current_user.role != UserRole.admin:
-        raise HTTPException(status_code=403, detail='Admin only')
+        raise error_http(403, "solo_admin", detail="Admin only")
     result = _scan(db)
     _commit_or_rollback(db)
     return APIResponse.ok(data=result)
@@ -360,7 +362,7 @@ def run_kedb_effectiveness_scan(
     from app.services.service_desk.known_error_service import run_kedb_effectiveness_scan as _scan
 
     if current_user.role != UserRole.admin:
-        raise HTTPException(status_code=403, detail='Admin only')
+        raise error_http(403, "solo_admin", detail="Admin only")
     result = _scan(db)
     _commit_or_rollback(db)
     return APIResponse.ok(data=result)
@@ -393,9 +395,9 @@ def create_rca_template(
     try:
         steps = json.loads(payload.steps_json)
         if not isinstance(steps, list) or not steps:
-            raise ValueError('steps_json must be a non-empty JSON array')
+            raise ErrorConCodigo("pasos_json_no_vacio", detail="steps_json must be a non-empty JSON array")
     except (ValueError, json.JSONDecodeError) as exc:
-        raise HTTPException(status_code=400, detail=f'Invalid steps_json: {exc}')
+        raise error_http(400, "pasos_json_no_valido", detail=f'Invalid steps_json: {exc}')
 
     tpl = svc.create_rca_template(
         db,
@@ -421,9 +423,9 @@ def update_rca_template(
 
     tpl = svc.get_rca_template(db, template_id=template_id)
     if not tpl:
-        raise HTTPException(status_code=404, detail='RCA template not found')
+        raise error_http(404, "no_encontrado", detail="RCA template not found", que="plantilla_rca")
     if tpl.is_system:
-        raise HTTPException(status_code=403, detail='System templates cannot be modified')
+        raise error_http(403, "operacion_no_permitida_sistema", detail="System templates cannot be modified")
 
     if payload.name is not None:
         tpl.name = payload.name
@@ -434,9 +436,9 @@ def update_rca_template(
         try:
             steps = json.loads(payload.steps_json)
             if not isinstance(steps, list) or not steps:
-                raise ValueError('steps_json must be a non-empty JSON array')
+                raise ErrorConCodigo("pasos_json_no_vacio", detail="steps_json must be a non-empty JSON array")
         except (ValueError, json.JSONDecodeError) as exc:
-            raise HTTPException(status_code=400, detail=f'Invalid steps_json: {exc}')
+            raise error_http(400, "pasos_json_no_valido", detail=f'Invalid steps_json: {exc}')
         tpl.steps_json = payload.steps_json
     if payload.is_active is not None:
         tpl.is_active = payload.is_active
@@ -466,9 +468,9 @@ def delete_rca_template(
     enforce_abac(db, current_user, "sd_rca_template", template_id, action="delete")
     tpl = svc.get_rca_template(db, template_id=template_id)
     if not tpl:
-        raise HTTPException(status_code=404, detail='RCA template not found')
+        raise error_http(404, "no_encontrado", detail="RCA template not found", que="plantilla_rca")
     if tpl.is_system:
-        raise HTTPException(status_code=403, detail='System templates cannot be deleted')
+        raise error_http(403, "elemento_sistema_no_eliminable", detail="System templates cannot be deleted")
 
     tpl.is_active = False
     _commit_or_rollback(db)
@@ -588,6 +590,6 @@ def complete_rca_wizard(
         raise
     except Exception as exc:
         logger.warning('complete_rca_wizard: unexpected error: %s', exc)
-        raise HTTPException(status_code=500, detail='Error finalizing RCA wizard')
+        raise error_http(500, "rca_wizard_fallo", detail="Error finalizing RCA wizard")
     _commit_or_rollback(db)
     return APIResponse.ok(data={'ok': True, 'rca': result})

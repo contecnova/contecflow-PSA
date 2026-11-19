@@ -20,6 +20,8 @@ from sqlalchemy.orm import Session
 from app.core.segundo_plano import encolar
 from app.services.ai_provider_service import call_ai
 from app.core.constantes import NOMBRE_DEL_PRODUCTO
+from app.core.codigos_de_error import ErrorConCodigo
+from app.core.config import settings  # topes de tokens de IA (19-11-2026)
 
 _log = logging.getLogger(__name__)
 
@@ -154,7 +156,7 @@ def assess_change_risk_ai(
         messages=[{"role": "user", "content": change_content}],
         system=system_prompt,
         module="change_management",
-        max_tokens=500,
+        max_tokens=settings.AI_BRIEF_ANSWER_MAX_TOKENS,
     )
 
     try:
@@ -549,15 +551,15 @@ def advance_rollout_phase(
     _log = logging.getLogger(__name__)
 
     if phase_status not in _ESTADOS_DE_FASE:
-        raise ValueError(f"Estado de fase inválido: {phase_status}")
+        raise ErrorConCodigo("estado_no_valido_valor", detail=f"Estado de fase inválido: {phase_status}", estado=phase_status)
 
     state = _get_rollout_state(db, change_id)
     if not state:
-        raise ValueError(f"No hay ejecución de rollout para el cambio {change_id}")
+        raise ErrorConCodigo("rollout_sin_ejecucion_cambio", detail=f"No hay ejecución de rollout para el cambio {change_id}")
 
     fase = next((p for p in state["phases"] if p["phase"] == phase_number), None)
     if not fase:
-        raise ValueError(f"Fase {phase_number} no encontrada en el plan de rollout")
+        raise ErrorConCodigo("no_encontrado", detail=f"Fase {phase_number} no encontrada en el plan de rollout", que="fase")
 
     ahora = datetime.now(timezone.utc).isoformat()
     fase["status"] = phase_status
@@ -676,13 +678,13 @@ def fast_track_emergency_cab(
     _log = logging.getLogger(__name__)
 
     if not approver_ids:
-        raise ValueError("Se requiere al menos un aprobador para fast-track de emergencia")
+        raise ErrorConCodigo("cambio_emergencia_sin_aprobador", detail="Se requiere al menos un aprobador para fast-track de emergencia")
     if not justification or len(justification.strip()) < 10:
-        raise ValueError("Se requiere justificación de negocio para cambios de emergencia")
+        raise ErrorConCodigo("cambio_emergencia_sin_justificacion", detail="Se requiere justificación de negocio para cambios de emergencia")
 
     change = db.query(ITSMChangeRequest).filter(ITSMChangeRequest.id == change_id).first()
     if not change:
-        raise ValueError(f"Cambio {change_id} no encontrado")
+        raise ErrorConCodigo("no_encontrado", detail=f"Cambio {change_id} no encontrado", que="cambio")
 
     from app.services.approval_engine._base import exigir_que_no_sea_suyo
     exigir_que_no_sea_suyo(db, change.requester_id, current_user, "itsm_change", change.id)

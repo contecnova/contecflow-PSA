@@ -13,8 +13,10 @@ from sqlalchemy.orm import Session
 
 from app.models.documents import Document
 from app.models.esign import ESignEnvelope, ESignProvider, ESignSigner, ESignStatus
+from app.core.comprobacion_de_produccion import adobe_sign_base_url, docusign_api_base, docusign_es_demo
 from app.models.settings import AppSetting
 from app.core.config import settings
+from app.core.codigos_de_error import ErrorConCodigo
 
 _log = logging.getLogger(__name__)
 
@@ -285,10 +287,12 @@ def _get_docusign_config(db: Optional[Session]) -> dict:
         "integration_key": _get_db_setting(db, "esign.docusign_integration_key") or settings.DOCUSIGN_INTEGRATION_KEY,
         "secret_key": _get_db_setting(db, "esign.docusign_secret_key") or settings.DOCUSIGN_SECRET_KEY,
         "account_id": _get_db_setting(db, "esign.docusign_account_id") or settings.DOCUSIGN_ACCOUNT_ID,
-        "base_url": _get_db_setting(db, "esign.docusign_base_url") or settings.DOCUSIGN_BASE_URL or "https://na1.docusign.net",
+        # 19-11-2026: sin región ni modo demo fijos (`comprobacion_de_produccion`).
+        "base_url": _get_db_setting(db, "esign.docusign_base_url") or settings.DOCUSIGN_BASE_URL
+                    or docusign_api_base(docusign_es_demo(_get_db_setting(db, "esign.docusign_is_demo"))),
         "access_token": _get_db_setting(db, "esign.docusign_access_token"),
         "refresh_token": _get_db_setting(db, "esign.docusign_refresh_token"),
-        "is_demo": (_get_db_setting(db, "esign.docusign_is_demo") or "true").lower() == "true",
+        "is_demo": docusign_es_demo(_get_db_setting(db, "esign.docusign_is_demo")),
     }
 
 
@@ -297,7 +301,7 @@ def _get_adobe_config(db: Optional[Session]) -> dict:
     return {
         "client_id": _get_db_setting(db, "esign.adobe_sign_client_id") or settings.ADOBE_SIGN_CLIENT_ID,
         "client_secret": _get_db_setting(db, "esign.adobe_sign_client_secret") or settings.ADOBE_SIGN_CLIENT_SECRET,
-        "base_url": _get_db_setting(db, "esign.adobe_sign_base_url") or settings.ADOBE_SIGN_BASE_URL,
+        "base_url": adobe_sign_base_url(_get_db_setting(db, "esign.adobe_sign_base_url")),
         "access_token": _get_db_setting(db, "esign.adobe_sign_access_token"),
         "refresh_token": _get_db_setting(db, "esign.adobe_sign_refresh_token"),
     }
@@ -315,7 +319,7 @@ def _ensure_docusign_token(db: Session, cfg: dict) -> Optional[str]:
     if refresh and cfg.get("integration_key") and cfg.get("secret_key"):
         result = _ds_refresh(
             cfg["integration_key"], cfg["secret_key"], refresh,
-            is_demo=cfg.get("is_demo", True),
+            is_demo=cfg.get("is_demo"),
         )
         if result["ok"]:
             _set_db_setting(db, "esign.docusign_access_token", result["access_token"])
@@ -374,9 +378,7 @@ def _read_document_bytes(doc: Document, db: Optional[Session]) -> tuple[bytes, s
 
     if latest_version is None:
         _log.error("[eSign] Document %s has no stored versions; cannot send for signature", doc.id)
-        raise ValueError(
-            f"Document {doc.id} has no content to sign (no stored versions)."
-        )
+        raise ErrorConCodigo("firma_documento_sin_contenido", detail=f"Document {doc.id} has no content to sign (no stored versions).", documento=doc.id)
 
     file_name = latest_version.file_name or "document.pdf"
     ext = os.path.splitext(file_name)[1].lstrip(".").lower() or "pdf"
@@ -408,10 +410,8 @@ def _read_document_bytes(doc: Document, db: Optional[Session]) -> tuple[bytes, s
             return fh.read(), file_name, ext
 
     _log.error("[eSign] Could not read document %s from S3 or local path %s", doc.id, local_path)
-    raise ValueError(
-        f"Document {doc.id} content could not be retrieved from storage; refusing "
-        f"to send an empty document for signature."
-    )
+    raise ErrorConCodigo("firma_documento_sin_contenido", detail=f"Document {doc.id} content could not be retrieved from storage; refusing "
+        f"to send an empty document for signature.", documento=doc.id)
 
 
 # ── Provider helpers ───────────────────────────────────────────────────────────
@@ -473,10 +473,8 @@ def _enviar_a_proveedor(envelope, doc, db, *, nombre: str, config, asegurar_toke
 
     token = asegurar_token(db, cfg) if db else cfg.get("access_token")
     if not token:
-        raise ValueError(
-            f"{nombre} access token not available. Complete OAuth at "
-            f"/esign/auth/{nombre.lower().replace(' ', '')}/authorize"
-        )
+        raise ErrorConCodigo("firma_proveedor_sin_conectar", detail=f"{nombre} access token not available. Complete OAuth at "
+            f"/esign/auth/{nombre.lower().replace(' ', '')}/authorize", proveedor=nombre)
 
     doc_bytes, doc_name, doc_ext = _read_document_bytes(doc, db)
     resultado = crear(
@@ -493,7 +491,7 @@ def _enviar_a_proveedor(envelope, doc, db, *, nombre: str, config, asegurar_toke
     if not resultado["ok"]:
         if "401" in str(resultado.get("error", "")) and db:
             _set_db_setting(db, ajuste_a_limpiar, "")
-        raise ValueError(f"{nombre} envelope creation failed: {resultado.get('error')}")
+        raise ErrorConCodigo("servicio_externo_fallo", detail=f"{nombre} envelope creation failed: {resultado.get('error')}", servicio=nombre)
 
     _log.info("[eSign] %s envelope created: %s", nombre, resultado.get(clave_del_id))
     return {

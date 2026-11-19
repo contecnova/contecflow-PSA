@@ -28,6 +28,7 @@ from app.services.billing_reports.data_source_service import (
 )
 from app.core.constantes import NOMBRE_COMPLETO_DEL_PRODUCTO
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.core.codigos_de_error import error_http, desde_valor
 
 
 def _company_display_name(db) -> str:
@@ -201,7 +202,7 @@ def get_import_template(
     current_user: User = Depends(require_any_manager),
 ):
     if entity_type not in IMPORT_TEMPLATES:
-        raise HTTPException(400, f"Tipo no válido. Opciones: {list(IMPORT_TEMPLATES.keys())}")
+        raise error_http(400, "campo_no_valido_opciones", detail=f"Tipo no válido. Opciones: {list(IMPORT_TEMPLATES.keys())}", campo="tipo", opciones=list(IMPORT_TEMPLATES.keys()))
     tpl = IMPORT_TEMPLATES[entity_type]
     return APIResponse.ok(data={
         "entity_type": entity_type,
@@ -226,11 +227,11 @@ def validate_import(
         return APIResponse.ok(data=_svc.validate_import_csv(entity_type, content))
     except ValueError as e:
         msg = str(e)
-        if msg == "too_large":    raise HTTPException(413, "Fichero demasiado grande (máx 5 MB)")
-        if msg == "not_utf8":     raise HTTPException(400, "El fichero debe ser UTF-8")
-        if msg == "empty":        raise HTTPException(400, "El fichero está vacío")
-        if msg == "invalid_type": raise HTTPException(400, "Tipo no válido")
-        raise HTTPException(400, msg)
+        if msg == "too_large":    raise error_http(413, "fichero_demasiado_grande", detail="Fichero demasiado grande (máx 5 MB)", max=5)
+        if msg == "not_utf8":     raise error_http(400, "fichero_no_utf8", detail="El fichero debe ser UTF-8")
+        if msg == "empty":        raise error_http(400, "fichero_vacio")
+        if msg == "invalid_type": raise error_http(400, "tipo_no_valido")
+        raise desde_valor(400, e)
 
 
 @router.post("/import/execute", response_model=APIResponse[ImportExecuteOut], summary="Ejecutar importación masiva")
@@ -248,11 +249,11 @@ def execute_import(
         return APIResponse.ok(data=_svc.execute_import_csv(entity_type, content, file.filename, current_user, db))
     except ValueError as e:
         msg = str(e)
-        if msg == "too_large": raise HTTPException(413, "Fichero demasiado grande (máx 5 MB)")
-        if msg == "not_utf8":  raise HTTPException(400, "El fichero debe ser UTF-8")
-        raise HTTPException(400, msg)
+        if msg == "too_large": raise error_http(413, "fichero_demasiado_grande", detail="Fichero demasiado grande (máx 5 MB)", max=5)
+        if msg == "not_utf8":  raise error_http(400, "fichero_no_utf8", detail="El fichero debe ser UTF-8")
+        raise desde_valor(400, e)
     except RuntimeError:
-        raise HTTPException(500, "Error al finalizar la importación")
+        raise error_http(500, "error_interno", detail="Error al finalizar la importación")
 
 
 @router.get("/import/jobs", response_model=APIListResponse[ImportJobHistoryOut], summary="Historial de importaciones")
@@ -508,7 +509,7 @@ def instantiate_template(
     try:
         return APIResponse.ok(data=_svc.instantiate_template(template_id, payload, current_user, db))
     except ValueError:
-        raise HTTPException(404, "Plantilla no encontrada")
+        raise error_http(404, "no_encontrado", detail="Plantilla no encontrada", que="plantilla")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -580,7 +581,7 @@ def run_scheduled_report(
     from app.services.scheduled_reports import destinatarios_del_informe, execute_report_now
     destinatarios = destinatarios_del_informe(report_id, db)
     if destinatarios is None:
-        raise HTTPException(404, "Informe no encontrado")
+        raise error_http(404, "no_encontrado", detail="Informe no encontrado", que="informe")
     result = encolar(execute_report_now, report_id, _sesion=db)
     if result is EN_COLA:
         return respuesta_en_cola(report_id=report_id, recipients=destinatarios)
@@ -588,8 +589,9 @@ def run_scheduled_report(
         err = result.get("error", "Error al ejecutar")
         # "Informe no encontrado" → 404; cualquier otro fallo de ejecución → 500
         if "no encontrado" in err.lower() or "not found" in err.lower():
-            raise HTTPException(404, err)
-        raise HTTPException(500, err)
+            raise error_http(404, "no_encontrado", detail=err, que="informe")
+        logging.getLogger(__name__).error("Ejecucion de informe: %s", err)
+        raise error_http(500, "error_interno")
     return APIResponse.ok(data=result)
 
 
@@ -609,11 +611,11 @@ def preview_report_pdf(
 
     r = _svc.get_scheduled_report_by_id(report_id, db)
     if r is None:
-        raise HTTPException(404, "Informe no encontrado")
+        raise error_http(404, "no_encontrado", detail="Informe no encontrado", que="informe")
     try:
         pdf_bytes = build_report_pdf(r, db, org_id=current_user.organization_id)
     except ValueError as exc:
-        raise HTTPException(400, str(exc))
+        raise desde_valor(400, exc)
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",

@@ -2,7 +2,7 @@
 .poqucrme-box-1 {
   position: fixed;
   inset: 0;
-  z-index: 500;
+  z-index: calc(var(--z-popover) + 100);
 }
 .poqucrme-row-1 {
   padding: 12px 16px 8px;
@@ -58,7 +58,7 @@
   position: fixed;
   top: 52px;
   right: 16px;
-  z-index: 501;
+  z-index: calc(var(--z-popover) + 101);
   width: 300px;
   background: var(--surface-1);
   border: 1px solid var(--surface-4);

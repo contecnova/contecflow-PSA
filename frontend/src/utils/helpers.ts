@@ -5,6 +5,8 @@ import { resumenDeValidacionSinHook } from './erroresDeValidacion'
 import { textoDeErrorDelOperador } from './errorDelOperador'
 import { traducirSinHook } from '../i18n/traducirSinHook'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
+import { tonoDe, UMBRALES_POR_DEFECTO } from './umbrales'
+import type { Umbrales } from './umbrales'
 
 export type DateInput = Date | string | number | null | undefined
 export type Maybe<T> = T | null | undefined
@@ -132,10 +134,9 @@ export const fmtHours = (h: Maybe<number>): string => `${fmtNumber(h ?? 0, 1)}h`
 export const fmtPct = (n: Maybe<number>): string => `${fmtNumber(n ?? 0, 1)}%`
 
 // ── Color helpers ─────────────────────────────────────────────────────────────
-export function loadColor(pct: number): string {
-  if (pct > 100) return 'var(--danger)'
-  if (pct > 85)  return 'var(--warning)'
-  return 'var(--success)'
+/** Color de una carga (% de capacidad). 19-11-2026: cortes de `utils/umbrales` (los de la empresa con `useUmbrales()`). */
+export function loadColor(pct: number, umbrales: Umbrales = UMBRALES_POR_DEFECTO): string {
+  return `var(--${tonoDe('carga', pct, umbrales) ?? 'success'})`
 }
 
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
@@ -172,32 +173,10 @@ export function downloadBlob(blob: Blob, filename: string): void {
   URL.revokeObjectURL(url)
 }
 
-// ── Role helpers ──────────────────────────────────────────────────────────────
-export const ROLE_LABELS: Record<string, string> = {
-  admin: 'Dirección',
-  pm: 'Project Manager',
-  team_lead: 'Team Lead',
-  hr: 'RRHH',
-  employee: 'Empleado',
-  // Recurso externo (persona de un proveedor); el texto traducido: `rol_usuario.subcontractor`.
-  subcontractor: 'Externo',
-}
-
-export const PRIORITY_LABELS: Record<string, string> = {
-  critical: 'Crítica', high: 'Alta', medium: 'Normal', low: 'Baja',
-}
-
-export const STATUS_LABELS: Record<string, string> = {
-  planning: 'Planificación', active: 'Activo', paused: 'Pausado',
-  closed: 'Cerrado', cancelled: 'Cancelado',
-  todo: 'Pendiente', in_progress: 'En curso', done: 'Completada',
-  blocked: 'Bloqueada', in_review: 'En revisión', backlog: 'Backlog',
-}
-
-export const TYPE_LABELS: Record<string, string> = {
-  development: 'Desarrollo', maintenance: 'Mantenimiento',
-  rd: 'I+D', internal: 'Interno', consulting: 'Consultoría',
-}
+// 19-11-2026: PRIORITY_LABELS, STATUS_LABELS y TYPE_LABELS (etiquetas fijas en
+// castellano, distintas de las de constants.json) se borraron. Estados y
+// prioridades: `constants/catalogos.ts` + i18n `estado.*`; tipos de proyecto:
+// catálogo de la empresa (`hooks/useCatalogo`).
 
 // ── Initials ──────────────────────────────────────────────────────────────────
 export function initials(name = ''): string {

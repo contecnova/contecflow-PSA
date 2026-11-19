@@ -229,6 +229,8 @@ def audit_change_management(db: Session, days: int = 30) -> dict:
     Returns same structure as audit_incident_management.
     """
     since = datetime.now(tz=timezone.utc) - timedelta(days=days)
+    from app.core.umbrales import umbral as _umbral
+    _riesgo_alto = _umbral("RISK_LEVEL_HIGH", db)
 
     changes = (
         db.query(ITSMChangeRequest)
@@ -289,7 +291,8 @@ def audit_change_management(db: Session, days: int = 30) -> dict:
         high_risk_standard = [
             c for c in changes
             if c.change_type == ChangeType.standard
-            and getattr(c, "auto_risk_score", 0) and c.auto_risk_score >= 55
+            # 19-11-2026: «alto» = RISK_LEVEL_HIGH de la empresa (antes 55 fijo).
+            and getattr(c, "auto_risk_score", 0) and c.auto_risk_score >= _riesgo_alto
         ]
         if high_risk_standard:
             score -= min(15, len(high_risk_standard) * 3)
@@ -721,8 +724,11 @@ def get_executive_dashboard(db: Session, days: int = 30) -> dict:
     health = 100
     if critical_open:
         health -= min(30, critical_open * 10)
-    if sla_pct < 90:
-        health -= int((90 - sla_pct) // 2)
+    # 19-11-2026: cortes de SLA de la empresa (`app.core.umbrales`); antes 90/85 fijos.
+    from app.core.umbrales import cortes as _cortes
+    sla_aviso, sla_critico = _cortes("sla", db)
+    if sla_pct < sla_aviso:
+        health -= int((sla_aviso - sla_pct) // 2)
     if unresolved_problems > 5:
         health -= min(20, (unresolved_problems - 5) * 2)
     health = max(0, health)
@@ -730,8 +736,8 @@ def get_executive_dashboard(db: Session, days: int = 30) -> dict:
     top_risks: list[str] = []
     if critical_open:
         top_risks.append(f"{critical_open} open P1 incident(s) require immediate attention")
-    if sla_pct < 85:
-        top_risks.append(f"SLA compliance at {sla_pct}% — below 85% target")
+    if sla_pct < sla_critico:
+        top_risks.append(f"SLA compliance at {sla_pct}% — below {sla_critico:g}% target")
     if unresolved_problems > 10:
         top_risks.append(f"{unresolved_problems} unresolved problems in backlog")
 

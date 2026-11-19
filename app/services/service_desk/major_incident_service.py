@@ -48,7 +48,8 @@ def next_major_incident_number(db: Session) -> str:
 
 def build_major_incident(payload: dict, number: str, fallback_commander_id: str) -> MajorIncident:
     if not payload.get("title"):
-        raise ErrorDeDominio(422, "title es obligatorio")
+        from app.core.codigos_de_error import error
+        raise error(422, "campo_obligatorio", detail="title es obligatorio", campo="title")
 
     return MajorIncident(
         number=number,

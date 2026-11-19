@@ -16,6 +16,7 @@ from app.services.training_service import (
 )
 from app.schemas.training import CourseIn, EnrollmentIn, CertificationIn
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.core.codigos_de_error import error_http
 
 router = APIRouter(tags=["Training"])
 
@@ -42,7 +43,7 @@ def update_course(course_id: str, payload: CourseIn, db: Session = Depends(get_d
                   cu: User = Depends(require_admin_or_hr), response: Response = None):
     c = training_service.get_course(db, course_id)
     if not c:
-        raise HTTPException(404, "Curso no encontrado")
+        raise error_http(404, "no_encontrado", detail="Curso no encontrado", que="curso")
     training_service.update_course(db, c, payload.model_dump(exclude_unset=True))
     return APIResponse.ok(data={"id": c.id})
 
@@ -52,7 +53,7 @@ def delete_course(course_id: str, db: Session = Depends(get_db),
                   cu: User = Depends(require_admin_or_hr), response: Response = None):
     c = training_service.get_course(db, course_id)
     if not c:
-        raise HTTPException(404, "Curso no encontrado")
+        raise error_http(404, "no_encontrado", detail="Curso no encontrado", que="curso")
     enforce_abac(db, cu, "training_course", course_id, action="delete")
     training_service.soft_delete_course(db, c)
     return APIResponse.ok(data={"ok": True, "message": "Curso eliminado correctamente"})
@@ -82,7 +83,7 @@ def update_enrollment(enroll_id: str, payload: EnrollmentIn, db: Session = Depen
                       cu: User = Depends(require_any_manager), response: Response = None):
     e = training_service.get_enrollment(db, enroll_id)
     if not e:
-        raise HTTPException(404, "Inscripción no encontrada")
+        raise error_http(404, "no_encontrado", detail="Inscripción no encontrada", que="inscripcion")
     training_service.update_enrollment(db, e, payload.model_dump(exclude_unset=True))
     return APIResponse.ok(data={"id": e.id})
 
@@ -92,7 +93,7 @@ def delete_enrollment(enroll_id: str, db: Session = Depends(get_db),
                       cu: User = Depends(require_any_manager), response: Response = None):
     e = training_service.get_enrollment(db, enroll_id)
     if not e:
-        raise HTTPException(404, "Inscripción no encontrada")
+        raise error_http(404, "no_encontrado", detail="Inscripción no encontrada", que="inscripcion")
     enforce_abac(db, cu, "training_enrollment", enroll_id, action="delete")
     training_service.delete_enrollment(db, e)
     return APIResponse.ok(data={"ok": True, "message": "Inscripción eliminada correctamente"})
@@ -140,9 +141,9 @@ def update_certification(cert_id: str, payload: CertificationIn, db: Session = D
                          cu: User = Depends(get_current_user), response: Response = None):
     c = training_service.get_certification(db, cert_id)
     if not c:
-        raise HTTPException(404, "Certificación no encontrada")
+        raise error_http(404, "no_encontrado", detail="Certificación no encontrada", que="certificacion")
     if c.user_id != cu.id and cu.role not in (UserRole.admin, UserRole.hr):
-        raise HTTPException(403, "Solo puedes editar tus propias certificaciones")
+        raise error_http(403, "sin_permiso", detail="Solo puedes editar tus propias certificaciones")
     cambios = payload.model_dump(exclude_unset=True)
     # Segunda auditoria 2026-11: como al crear, solo admin y RR. HH. eligen el
     # titular; si no, el dueno podia pasarle su certificacion a otro usuario.
@@ -159,8 +160,8 @@ def delete_certification(cert_id: str, db: Session = Depends(get_db),
                          cu: User = Depends(get_current_user), response: Response = None):
     c = training_service.get_certification(db, cert_id)
     if not c:
-        raise HTTPException(404, "Certificación no encontrada")
+        raise error_http(404, "no_encontrado", detail="Certificación no encontrada", que="certificacion")
     if c.user_id != cu.id and cu.role not in (UserRole.admin, UserRole.hr):
-        raise HTTPException(403, "Solo puedes eliminar tus propias certificaciones")
+        raise error_http(403, "sin_permiso", detail="Solo puedes eliminar tus propias certificaciones")
     training_service.delete_certification(db, c)
     return APIResponse.ok(data={"deleted": True})

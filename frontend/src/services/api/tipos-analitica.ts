@@ -312,6 +312,8 @@ export type SaludDeProyecto = {
   tasks_done: number
   progress_pct: number
   health_score: number
+  /** Semáforo del presupuesto consumido calculado por el servidor (UMBRAL_PRESUPUESTO_*, 19-11-2026). */
+  budget_tone?: 'success' | 'warning' | 'danger' | null
 }
 
 /** schemas/dashboard.ResourceLoadItem (GET /dashboard/resource-load). */
@@ -636,12 +638,27 @@ export type TareasDeReunionCreadas = {
 }
 
 /** Sugerencia del modelo (task_id traducido al UUID real). */
-export type FechaSugerida = { task_id: string; suggested_start: string; suggested_due: string; rationale?: string }
+/** Motivo de una propuesta del motor de auto-planificación (19-11-2026, `planificador/sin_fecha.py`). */
+export type MotivoDePlanificacion = {
+  codigo: 'planificada' | 'sin_hueco'
+  horas: number
+  origen_horas?: 'estimacion' | 'puntos' | 'jornada'
+  dias?: number
+  espera_predecesora?: boolean
+  persona?: string | null
+  sin_responsable?: boolean
+}
+export type FechaSugerida = {
+  task_id: string; suggested_start: string | null; suggested_due: string | null; rationale?: string
+  title?: string; project_id?: string; priority?: string; assignee_id?: string | null; assignee_name?: string | null
+  motivo?: MotivoDePlanificacion
+}
 
 /** ai_modules/client_portal.smart_schedule (POST /ai-modules/smart-schedule). */
 export type PlanificacionSugerida = {
   scheduled: FechaSugerida[]
   message?: string
+  message_code?: 'planificadas' | 'sin_tareas'
   error?: string
   unscheduled_count?: number
   capacity_summary?: Array<{ name: string; available_hours_per_week: number }>

@@ -13,6 +13,7 @@ import { useState, useMemo } from 'react'
 import type { CSSProperties, KeyboardEvent } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr, fmtDate } from '../utils/helpers'
+import { useTono } from '../hooks/useOrgSettings'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -175,6 +176,7 @@ function EntryForm({ tableId, entry, onClose }: { tableId: string | number; entr
 // ── Detalle de tabla ──────────────────────────────────────────────────────────
 function RateTableDetail({ tableId, onBack }: { tableId: string | number; onBack: () => void }) {
   const fmtMoneda = useFormatoMoneda()
+  const tono = useTono()
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
@@ -277,7 +279,7 @@ function RateTableDetail({ tableId, onBack }: { tableId: string | number; onBack
                       </td>
                       <td className="rc-td">
                         {margin !== null && (
-                          <span className="rc-margen" style={{ '--rc-color': margin > 50 ? 'var(--success)' : margin > 30 ? 'var(--warning)' : 'var(--danger)' } as CSSProperties}>
+                          <span className="rc-margen" style={{ '--rc-color': `var(--${tono('margen', margin)})` } as CSSProperties}>
                             {margin}%
                           </span>
                         )}

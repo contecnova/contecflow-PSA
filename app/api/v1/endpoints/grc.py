@@ -71,6 +71,7 @@ from app.services.grc_sod import record_sod_violation as _record_sod_violation
 import app.services.grc_service as grc_svc
 from app.core.responses import APIListResponse, APIResponse
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.core.codigos_de_error import error
 
 router = APIRouter(tags=["GRC"])
 
@@ -290,7 +291,7 @@ def update_permission(
     # un rol inexistente) se guardaba igual y no gobernaba nada.
     if (role, module, action) not in grc_svc.celdas_vivas(request.app, DEFAULT_MATRIX):
         from app.core.errores import ErrorDeDominio
-        raise ErrorDeDominio(422, f"'{role}/{module}/{action}' no corresponde a ningún rol y operación de la API")
+        raise error(422, "grc_permiso_no_valido", rol=role, recurso=module, operacion=action)
     row, old_val = grc_svc.upsert_permission(db, role, module, action, body.allowed, current_user.id,
                                              _org(current_user))
     _log_grc(db, current_user.id, "permission_changed", "role_permission",
@@ -471,7 +472,7 @@ def resolve_violation(
     v = grc_svc.get_violation_or_404(db, violation_id, _org(current_user))
     if v.resolved:   # revisión GRC 16-11-2026: resolver dos veces pisaba la nota y la fecha
         from app.core.errores import ErrorDeDominio
-        raise ErrorDeDominio(409, "La violación ya está resuelta")
+        raise error(409, "violacion_ya_resuelta")
     _log_grc(db, current_user.id, "sod_violation_resolved", "sod_violation", violation_id,
              {"note": payload.resolution_note}, severity="info")
     grc_svc.resolve_violation_db(db, v, payload.resolution_note)

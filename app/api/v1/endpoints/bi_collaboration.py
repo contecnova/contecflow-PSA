@@ -25,6 +25,7 @@ from app.db.session import SessionLocal, publicar_contexto_de_tenant
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.services import bi_collaboration_service as svc
+from app.core.codigos_de_error import desde_valor, error_http
 
 router = APIRouter()
 
@@ -124,7 +125,7 @@ def resolve_bi_comment(
         )
         return APIResponse.ok(data={"ok": True, "comment": comment})
     except ValueError:
-        raise HTTPException(status_code=404, detail="Comentario no encontrado")
+        raise error_http(404, "no_encontrado", detail="Comentario no encontrado", que="comentario")
 
 
 @router.get("/bi/governance/overview", summary="Overview de governance BI Collaboration")
@@ -223,7 +224,7 @@ def patch_shared_view(
             payload={k: v for k, v in payload.model_dump().items() if v is not None},
         )
     except ValueError:
-        raise HTTPException(status_code=404, detail="Vista compartida no encontrada")
+        raise error_http(404, "no_encontrado", detail="Vista compartida no encontrada", que="vista")
     return APIResponse.ok(data={"ok": True, "view": item})
 
 
@@ -281,7 +282,7 @@ def restore_dashboard_version(
             current_user=current_user,
         )
     except ValueError:
-        raise HTTPException(status_code=404, detail="Versión no encontrada")
+        raise error_http(404, "no_encontrado", detail="Versión no encontrada", que="version")
     return APIResponse.ok(data={"ok": True, "version": item})
 
 
@@ -325,7 +326,7 @@ def mark_notification_read(
         )
         return APIResponse.ok(data={"ok": True, "notification": item})
     except ValueError:
-        raise HTTPException(status_code=404, detail="Notificación no encontrada")
+        raise error_http(404, "no_encontrado", detail="Notificación no encontrada", que="notificacion")
 
 
 # ── Dashboard sharing ──────────────────────────────────────────────────────────
@@ -361,7 +362,7 @@ def share_dashboard(
             shared_by=current_user,
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise desde_valor(400, e)
     return APIResponse.ok(data={"ok": True, "share": item})
 
 
@@ -382,7 +383,7 @@ def revoke_dashboard_share(
         db, organization_id=org_id, dashboard_key=dashboard_key, share_id=share_id
     )
     if not deleted:
-        raise HTTPException(status_code=404, detail="Acceso compartido no encontrado")
+        raise error_http(404, "no_encontrado", detail="Acceso compartido no encontrado", que="acceso_compartido")
     return APIResponse.ok(data={"ok": True})
 
 

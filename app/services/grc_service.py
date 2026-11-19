@@ -12,6 +12,7 @@ from typing import Optional, List
 from sqlalchemy.orm import Session
 from app.models.billing_reports import RolePermission, SodRule, SodViolation, GrcAuditLog
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 
 # NOTE (audit #110): an earlier version of this file used a ``_models()``
@@ -327,25 +328,25 @@ def validar_regla_sod(db: Session, fastapi_app, roles, organization_id: Optional
     for lado in ("a", "b"):
         modulo, accion = datos.get(f"module_{lado}"), datos.get(f"action_{lado}")
         if modulo is not None and modulo not in catalogo:
-            raise ErrorDeDominio(422, f"Módulo desconocido: {modulo}")
+            raise error(422, "modulo_desconocido", modulo=modulo)
         # La acción es del vocabulario GRC, no necesariamente una casilla de la
         # matriz: «aprobar» una factura o un gasto no tiene ruta propia en su
         # módulo y es justo lo que vigila el registro de autoaprobaciones
         # (`grc_sod`). `/sod-check` dice qué reglas no puede evaluar.
         if accion is not None and accion not in GRC_ACTIONS:
-            raise ErrorDeDominio(422, f"Acción desconocida: {accion}")
+            raise error(422, "accion_desconocida_valor", accion=accion)
     if "module_a" in datos and             (datos["module_a"], datos.get("action_a")) == (datos.get("module_b"), datos.get("action_b")):
-        raise ErrorDeDominio(422, "Una regla SoD necesita dos operaciones distintas")
+        raise error(422, "sod_dos_operaciones", detail="Una regla SoD necesita dos operaciones distintas")
     desconocidos = sorted(set(datos.get("roles_conflict") or ()) - set(roles))
     if desconocidos:
-        raise ErrorDeDominio(422, f"Roles desconocidos: {', '.join(desconocidos)}")
+        raise error(422, "roles_desconocidos", roles=', '.join(desconocidos))
     flujo = datos.get("mitigated_by_workflow_id")
     if flujo:
         q = db.query(ApprovalWorkflow.id).filter(ApprovalWorkflow.id == flujo)
         if organization_id:
             q = q.filter(ApprovalWorkflow.organization_id == organization_id)
         if q.first() is None:
-            raise ErrorDeDominio(404, "El flujo de mitigación no existe")
+            raise error(404, "no_encontrado", detail="El flujo de mitigación no existe", que="flujo_de_mitigacion")
 
 
 def _de_la_empresa(db: Session, modelo, organization_id: Optional[str]):

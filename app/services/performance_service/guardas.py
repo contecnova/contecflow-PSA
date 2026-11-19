@@ -21,6 +21,7 @@ from app.core.errores import ErrorDeDominio
 
 
 from app.models.performance import DevGoal, DevelopmentPlan  # noqa: E402
+from app.core.codigos_de_error import error
 
 
 def _org_de(user) -> "str | None":
@@ -38,7 +39,7 @@ def pregunta_propia(db: Session, user, question_id: str) -> ReviewQuestion:
         .first()
     )
     if not fila:
-        raise ErrorDeDominio(404, "Pregunta no encontrada")
+        raise error(404, "no_encontrado", detail="Pregunta no encontrada", que="pregunta")
     return fila
 
 
@@ -53,7 +54,7 @@ def objetivo_propio(db: Session, user, goal_id: str) -> DevGoal:
         .first()
     )
     if not fila:
-        raise ErrorDeDominio(404, "Objetivo no encontrado")
+        raise error(404, "no_encontrado", detail="Objetivo no encontrado", que="objetivo")
     return fila
 
 
@@ -68,7 +69,7 @@ def plan_propio(db: Session, user, plan_id: str) -> DevelopmentPlan:
         .first()
     )
     if not fila:
-        raise ErrorDeDominio(404, "Plan no encontrado")
+        raise error(404, "no_encontrado", detail="Plan no encontrado", que="plan")
     return fila
 
 
@@ -84,7 +85,7 @@ def usuario_propio(db: Session, user, user_id: str) -> User:
         .first()
     )
     if not fila:
-        raise ErrorDeDominio(404, "Usuario no encontrado")
+        raise error(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
     return fila
 
 

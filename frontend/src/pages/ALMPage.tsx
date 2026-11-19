@@ -36,7 +36,9 @@ import { fmtCurrency, fmtDate, extractErr } from '../utils/helpers'
 import { sanitizeUrl } from '../utils/security'
 import { useAppT } from '../i18n/AppLangContext'
 import { useFormValidation } from '../hooks/useFormValidation'
-import { useOrgSettings } from '../hooks/useOrgSettings'
+import { useOrgSettings, useUmbrales } from '../hooks/useOrgSettings'
+import { tonoDe } from '../utils/umbrales'
+import type { Umbrales } from '../utils/umbrales'
 import DsBadge from '../components/ui/StatusBadge'
 import DateInput from '../components/ui/DateInput'
 import { POLL_DEFAULT_MS, SEARCH_DEBOUNCE_MS } from '../constants/timings'
@@ -128,8 +130,11 @@ const etiquetaDe = (t: Traductor, prefijo: string, catalogo: Record<string, unkn
   (clave in catalogo ? t(`alm.${prefijo}_${clave}`) : clave)
 
 /** Tono (clase .alm-tone--*) según días que faltan: rojo, ámbar o el de por defecto. */
-const tonoPorDias = (dias: number, rojo: number, ambar: number, resto: 'success' | 'muted') =>
-  `alm-tone--${dias <= rojo ? 'danger' : dias <= ambar ? 'warning' : resto}`
+/** 19-11-2026: días que faltan con UMBRAL_VENCIMIENTO_* de la empresa (antes 14/30 y 7/30 aquí). */
+const tonoPorDias = (dias: number, umbrales: Umbrales, resto: 'success' | 'muted') => {
+  const tono = tonoDe('vencimiento', dias, umbrales)
+  return `alm-tone--${tono === 'success' || !tono ? resto : tono}`
+}
 
 /** Respuesta paginada de /alm/*: los elementos y el total (meta.total o X-Total-Count). */
 type PaginaAlm<T> = { items: T[]; total: number }
@@ -180,6 +185,7 @@ const SectionTitle = ({ children, action }: { children: ReactNode; action?: Reac
 // ── Dashboard ALM ─────────────────────────────────────────────────────────────
 function ALMDashboard({ onNavigate }: { onNavigate: (tab: string) => void }) {
   const t = useAppT()
+  const umbrales = useUmbrales()
   const { data: dash, isLoading } = useQuery({
     queryKey: ['alm-dashboard'],
     queryFn: () => almExtApi.dashboard().then(r => r.data),
@@ -230,7 +236,7 @@ function ALMDashboard({ onNavigate }: { onNavigate: (tab: string) => void }) {
                     <div className="u-text2-xs">{c.vendor_name}</div>
                   </div>
                   <div className="alm-renewal__when">
-                    <div className={`alm-renewal__days ${tonoPorDias(c.days_to_renewal, 14, 30, 'success')}`}>
+                    <div className={`alm-renewal__days ${tonoPorDias(c.days_to_renewal, umbrales, 'success')}`}>
                         {c.days_to_renewal === 0 ? t('alm.dashboard_today') : `${c.days_to_renewal}${t('alm.dashboard_days_short')}`}
                     </div>
                     <div className="u-text2-xs">{fmtDate(c.renewal_date)}</div>
@@ -949,6 +955,7 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }: { l
 
 function LicensesTab() {
   const t = useAppT()
+  const umbrales = useUmbrales()
   const toast = useToast()
   const qc = useQueryClient()
   const [modal, setModal] = useState<Partial<License> | null>(null)
@@ -1038,7 +1045,7 @@ function LicensesTab() {
                       {lic.tier && <span className="alm-compliance-tag">{lic.tier}</span>}
                       {lic.pending_count > 0 && <span className="alm-flag">{t('alm.pending_n', { n: lic.pending_count })}</span>}
                       {lic.is_compliance_req && <span className="alm-compliance-tag">{t('alm.compliance_badge')}</span>}
-                      {daysLeft !== null && daysLeft <= 30 && daysLeft >= 0 && (
+                      {daysLeft !== null && daysLeft >= 0 && tonoDe('vencimiento', daysLeft, umbrales) !== 'success' && (
                         <span className="alm-flag alm-meta-ico"><AlertTriangle size={12} aria-hidden="true" />{t('alm.licenses_expires_in', { n: daysLeft })}</span>
                       )}
                     </div>
@@ -1276,6 +1283,7 @@ const VENCIMIENTO_KEY: Record<string, string> = {
 /** Lo que vence pronto: garantía, fin de vida, leasing o mantenimiento. */
 function ExpiringPanel({ assets, onRenew }: { assets: Asset[]; onRenew: (a: Pick<Asset, 'id' | 'name'>) => void }) {
   const t = useAppT()
+  const umbrales = useUmbrales()
   // Periodo libre (16-11-2026): horizonte hacia delante; las fechas de vencimiento son de calendario (sin hora).
   const periodo = usePeriodo({ sentido: 'futuro', defecto: 'prox90d', granularidades: SIN_HORA, prefijo: 'venc_' })
   const { data: filas = [] } = useQuery({
@@ -1292,7 +1300,7 @@ function ExpiringPanel({ assets, onRenew }: { assets: Asset[]; onRenew: (a: Pick
         <div className="alm-expiring__list">
           {filas.map(f => (
             <div key={`${f.asset_id}-${f.expiry_type}`} className="alm-expiring__row">
-              <span className={`alm-expiring__days ${tonoPorDias(f.days_remaining, 7, 30, 'muted')}`}>
+              <span className={`alm-expiring__days ${tonoPorDias(f.days_remaining, umbrales, 'muted')}`}>
                 {t('alm.expiring_in', { n: f.days_remaining })}
               </span>
               <span className="alm-expiring__what">{f.name} · {t(VENCIMIENTO_KEY[f.expiry_type] ?? f.expiry_type)} {fmtDate(f.expiry_date)}</span>

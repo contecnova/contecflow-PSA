@@ -142,6 +142,10 @@ export type CuelloDeBotella = {
   pending_count: number
   avg_pending_age_hours: number
   sla_risk_pct: number
+  /** 19-11-2026: tonos y «crítico» calculados por el servidor con UMBRAL_APROBACION_* de la empresa. */
+  sla_risk_tone?: 'success' | 'warning' | 'danger'
+  rejection_tone?: 'success' | 'warning' | 'danger'
+  is_critical?: boolean
   bottleneck_score: number
 }
 

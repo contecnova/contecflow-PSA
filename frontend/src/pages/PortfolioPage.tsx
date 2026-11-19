@@ -32,6 +32,7 @@ import {
 import DateInput from '../components/ui/DateInput'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
+import { useTono } from '../hooks/useOrgSettings'
 import { POLL_DEFAULT_MS } from '../constants/timings'
 import './PortfolioPage.css'
 type PortfolioStatus = 'planning' | 'active' | 'archived' | string
@@ -199,6 +200,7 @@ function AddProjectModal({ portfolioId, existingIds, onClose, onAdded }: { portf
 // ── Portfolio dashboard ────────────────────────────────────────────────────────
 function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | number; onClose: () => void }) {
   const fmtMoneda = useFormatoMoneda()
+  const tono = useTono()
   const toast = useToast();
   const t = useAppT()
   const qc = useQueryClient();
@@ -249,8 +251,8 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
             <KpiCard icon={<DollarSign size={16} />} label={t('portfolio_ui.presupuesto_total')} value={fmtMoneda(dash.budget_envelope, { decimales: 0 })}
               sub={t('portfolio_ui.gastado_importe', { importe: fmtMoneda(dash.budget_spent, { decimales: 0 }) })} danger={dash.budget_pct > 100} />
             <KpiCard icon={<BarChart2 size={16} />} label={t('portfolio_ui.pct_gastado')} value={`${dash.budget_pct}%`}
-              sub={dash.budget_pct > 90 ? t('portfolio_ui.cerca_limite') : t('portfolio_ui.dentro_presupuesto')}
-              danger={dash.budget_pct > 100} warning={dash.budget_pct > 85 && dash.budget_pct <= 100} />
+              sub={tono('presupuesto', dash.budget_pct) === 'success' ? t('portfolio_ui.dentro_presupuesto') : t('portfolio_ui.cerca_limite')}
+              danger={tono('presupuesto', dash.budget_pct) === 'danger'} warning={tono('presupuesto', dash.budget_pct) === 'warning'} />
             <KpiCard icon={<AlertTriangle size={16} />} label={t('portfolio_ui.rag_red')} value={dash.health_counts.red || 0}
               sub={t('portfolio_ui.n_en_atencion', { n: dash.health_counts.yellow || 0 })} danger={(dash.health_counts.red || 0) > 0} />
             <KpiCard icon={<CheckCircle size={16} />} label={t('portfolio_ui.rag_green')} value={dash.health_counts.green || 0}

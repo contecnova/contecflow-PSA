@@ -33,6 +33,7 @@ from sqlalchemy.orm import Session
 
 from app.core import timeutil
 from app.core.codigos_de_error import error as error_con_codigo
+from app.core.errores import ErrorDeDominio
 from app.models.horas_extra import EventoDeHorasExtra, PeticionDeHorasExtra
 from app.services.horas_extra import calculo, config, reglas
 
@@ -292,7 +293,20 @@ def vista_previa(db: Session, usuario, datos: dict) -> dict:
     actual = None
     if datos.get("id"):
         actual = db.query(PeticionDeHorasExtra).filter(PeticionDeHorasExtra.id == datos["id"]).first()
-    p = construir(db, usuario, datos, cfg)
+    try:
+        p = construir(db, usuario, datos, cfg)
+    except ErrorDeDominio as e:
+        # 19-11-2026: la vista previa se pide mientras se escribe; un dato a
+        # medias (sin horas ni franja, tipo no válido…) no es un error de la
+        # petición, es lo que falta: se devuelve como error a enseñar, sin 422.
+        if e.status_code != 422:
+            raise
+        return {"decision": "incompleta", "horas": None, "clase_dia": None, "horario": None,
+                "horas_fuera_de_horario": None, "acumulados": None, "presupuesto_restante": None,
+                "presupuestos": None, "descanso_horas": None, "dias_seguidos": None, "antelacion_horas": None,
+                "compensacion": None, "factor": None, "horas_ponderadas": None, "aprobaciones": [],
+                "avisos": [], "bloqueos": [], "requisitos": [], "errores": [e.detail],
+                "codigo_error": getattr(e, "code", None), "explicacion": None}
     if actual is not None:
         p.id = actual.id
     p.created_at = _ahora()
@@ -483,7 +497,7 @@ def revisar(db: Session, usuario, p: PeticionDeHorasExtra, aprobado: bool, nota:
         return p
     if not (es_gestion(usuario) or es_responsable_de(db, usuario, p.user_id)):
         from app.core.errores import ErrorDeDominio
-        raise ErrorDeDominio(403, "Solo su responsable, RRHH o administración")
+        raise error_con_codigo(403, "solo_responsable_rrhh_admin")
     return aplicar_decision(db, p, aprobado, usuario, nota, horas_autorizadas)
 
 

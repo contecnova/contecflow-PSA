@@ -50,7 +50,8 @@ def _render(notifs, user_name: str) -> str:
         body = (n.body or "")[:160].replace("<", "&lt;")
         lines.append(f"<li><b>{title}</b><br><span style='color:#666'>{body}</span></li>")
     lines.append("</ul>")
-    base_url = settings.APP_PUBLIC_URL
+    from app.core.comprobacion_de_produccion import url_publica_de_la_app
+    base_url = url_publica_de_la_app()  # APP_PUBLIC_URL o FRONTEND_URL (19-11-2026)
     lines.append(f"<p><a href='{base_url}/chat'>Abrir el chat</a></p>")
     lines.append("<p style='color:#999;font-size:12px'>Configura tu frecuencia de digest en /chat → admin → reglas.</p>")
     return "\n".join(lines)

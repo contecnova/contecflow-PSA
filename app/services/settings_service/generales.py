@@ -209,4 +209,8 @@ def defaults_de_organizacion(db: Session, org_id: Optional[str], audiencia: Audi
     datos = {campo: lectores[tipo](db, clave, org_id)
              for campo, (clave, tipo, quien) in DEFAULTS_DE_ORGANIZACION.items() if quien <= audiencia}
     datos["currencies"] = monedas(db, org_id)
+    # 19-11-2026: umbrales de semáforo por métrica (`app/core/umbrales.py`); no
+    # son sensibles y los pinta cualquier pantalla (useUmbrales()).
+    from app.core.umbrales import umbrales_de_empresa
+    datos["umbrales"] = umbrales_de_empresa(db, org_id)
     return datos

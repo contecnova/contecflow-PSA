@@ -14,6 +14,8 @@ import { CondicionDePaso, EditorDeReglasDeAutoaprobacion } from '../components/a
 import { lazy, Suspense, useId, useState } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr, fmtDate, fmtDateTime } from '../utils/helpers'
+import { useTono } from '../hooks/useOrgSettings'
+import type { Tono } from '../utils/umbrales'
 import { useToast } from '../context/ToastContext'
 import { useAuth } from '../context/AuthContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -36,6 +38,7 @@ import { UserSelect } from '../components/ui/EntitySelect'
 import DateInput from '../components/ui/DateInput'
 import { POLL_FREQUENT_MS } from '../constants/timings'
 import './ApprovalsPage.css'
+import { useRolesReales } from '../hooks/useRolesReales'
 
 // Diseñador gráfico (tarea #26): carga @xyflow/react solo al abrirlo.
 const DisenadorDeFlujo = lazy(() => import('../components/aprobaciones/DisenadorDeFlujo'))
@@ -85,12 +88,13 @@ const approverTypeLabels = (t: T): Record<string, string> => ({
   group: t('approvals.grupo_de_aprobadores'),
 })
 
-const ROLES = ['admin', 'pm', 'team_lead', 'hr', 'developer', 'designer', 'finance']
 const CATEGORIAS_DE_DOCUMENTO = ['contract', 'deliverable', 'proposal', 'sop', 'requirements', 'meeting_notes', 'legal', 'other']
 const COLORES_DE_PASO = ['var(--accent)', 'var(--success)', 'var(--warning)', 'var(--purple)', 'var(--danger)']
 const color = (c: string) => ({ '--apv-color': c } as CSSProperties)
 /** Umbral → clase de nivel (alto/medio/bajo). */
-const nivel = (v: number, alto: number, medio: number) => v >= alto ? 'apv-nivel--alto' : v >= medio ? 'apv-nivel--medio' : 'apv-nivel--bajo'
+/** 19-11-2026: clase del tono (umbrales UMBRAL_APROBACION_* de la empresa; antes 80/50 y 25/10 aquí). */
+const NIVEL_DE_TONO: Record<Tono, string> = { danger: 'apv-nivel--alto', warning: 'apv-nivel--medio', success: 'apv-nivel--bajo' }
+const nivel = (tono: Tono | null | undefined) => NIVEL_DE_TONO[tono ?? 'success']
 
 // Formas de las respuestas de /approvals: services/api/tipos-rendimiento.ts.
 type ApprovalStep = PasoDeAprobacion
@@ -125,6 +129,8 @@ interface GroupForm {
 // ── Modal de paso ─────────────────────────────────────────────────────────────
 function StepModal({ workflowId, step, onClose }: { workflowId: string; step: ApprovalStep | null; onClose: () => void }) {
   const t = useAppT()
+  // 19-11-2026: roles reales del backend (`GET /auth/roles`); la lista local tenía roles inexistentes.
+  const roles = useRolesReales({ soloInternos: true })
   const idPrefix = useId()
   const toast = useToast()
   const qc = useQueryClient()
@@ -201,7 +207,7 @@ function StepModal({ workflowId, step, onClose }: { workflowId: string; step: Ap
             <label htmlFor={id('approver-role')} className="apv-label">{t('approvals.required_role')}</label>
             <Select suelto placeholder={false} id={id('approver-role')} value={form.approver_role} onChange={e => { campos.limpiar('approver_role'); setForm(f => ({ ...f, approver_role: e.target.value })) }} className="apv-input">
               <option value="">{t('approvals.select_role')}</option>
-              {ROLES.map(r => <option key={r} value={r}>{t(`pol.rol_${r}`, r)}</option>)}
+              {roles.map(r => <option key={r.id} value={r.id}>{r.etiqueta}</option>)}
             </Select>{msg('approver_role')}
           </div>
         )}
@@ -673,6 +679,8 @@ const pasoNuevo = (name: string): PasoBorrador => ({
 
 function WorkflowTemplatesTab() {
   const t = useAppT()
+  // 19-11-2026: roles reales del backend (`GET /auth/roles`); la lista local tenía roles inexistentes.
+  const roles = useRolesReales({ soloInternos: true })
   const toast = useToast()
   const idPrefix = useId()
   const qc = useQueryClient()
@@ -853,7 +861,7 @@ function WorkflowTemplatesTab() {
                     <label htmlFor={id(`step-role-${idx}`)} className="apv-label">{t('approvals.required_role')}</label>
                     <Select suelto placeholder={false} id={id(`step-role-${idx}`)} value={step.approver_role || ''} onChange={e => updateScratchStep(idx, 'approver_role', e.target.value)} className="apv-input">
                       <option value="">{t('approvals.select_role')}</option>
-                      {ROLES.map(r => <option key={r} value={r}>{t(`pol.rol_${r}`, r)}</option>)}
+                      {roles.map(r => <option key={r.id} value={r.id}>{r.etiqueta}</option>)}
                     </Select>
                   </div>
                 )}
@@ -1001,6 +1009,7 @@ function exportBottlenecksCSV(t: T, items: BottleneckItem[], recommendations: Re
 
 function WorkflowBottlenecksTab() {
   const t = useAppT()
+  const tono = useTono()
   const idCampo = useId()
   // Periodo libre (16-11-2026): antes 30/60/90/180 días propios y tendencia semanal fija.
   const periodo = usePeriodo({ defecto: '90d', granularidades: CON_HORA, prefijo: 'cb_' })
@@ -1022,7 +1031,7 @@ function WorkflowBottlenecksTab() {
   const items: BottleneckItem[] = data?.items || []
   const summary: BottleneckSummary = data?.summary || {
     steps_analyzed: items.length,
-    critical_steps: items.filter(it => it.sla_risk_pct >= 80 || it.pending_count >= 3 || it.rejection_rate_pct >= 25).length,
+    critical_steps: items.filter(it => it.is_critical).length,
     pending_total: items.reduce((acc: number, it) => acc + (it.pending_count || 0), 0),
     avg_decision_time_hours: items.length ? Number((items.reduce((acc: number, it) => acc + (it.avg_decision_time_hours || 0), 0) / items.length).toFixed(2)) : 0,
   }
@@ -1081,7 +1090,7 @@ function WorkflowBottlenecksTab() {
                     <div key={wf.workflow_id || idx} className="apv-riesgo">
                       <span className="u-sm-700">{wf.workflow_name}</span>
                       <span className="u-text2-xs">{t('approvals.cb_puntuacion_n', { n: wf.avg_bottleneck_score })}</span>
-                      <span className={`apv-xs ${nivel(wf.max_sla_risk_pct, 80, 50)}`}>{t('approvals.cb_sla_n', { n: wf.max_sla_risk_pct })}</span>
+                      <span className={`apv-xs ${nivel(tono('aprobacion_riesgo_sla', wf.max_sla_risk_pct))}`}>{t('approvals.cb_sla_n', { n: wf.max_sla_risk_pct })}</span>
                       <span className="apv-xs apv-nivel--medio">{t('approvals.cb_pend_n', { n: wf.pending_total })}</span>
                     </div>
                   ))}
@@ -1098,7 +1107,7 @@ function WorkflowBottlenecksTab() {
                       <div key={row.t} className="apv-tendencia">
                         <span className="u-text2-mono-xs">{formatearTramo(row.t, periodo.granularidad)}</span>
                         <div className="apv-tendencia__pista" role="img" aria-label={t('approvals.cb_rechazo_semana', { semana: formatearTramo(row.t, periodo.granularidad, true), pct: row.rejection_rate_pct })}>
-                          <div className={`apv-tendencia__barra ${nivel(row.rejection_rate_pct, 25, 10)}`}
+                          <div className={`apv-tendencia__barra ${nivel(tono('aprobacion_rechazo', row.rejection_rate_pct))}`}
                             style={{ '--apv-pct': `${Math.min(100, row.rejection_rate_pct)}%` } as CSSProperties} />
                         </div>
                         <span className="u-text2-xs">{row.rejection_rate_pct}%</span>
@@ -1142,9 +1151,9 @@ function WorkflowBottlenecksTab() {
                 </div>
                 <span className="u-sm" role="cell">{it.decisions_total}</span>
                 <span className="u-sm" role="cell">{it.avg_decision_time_hours}</span>
-                <span role="cell" className={`apv-sm ${it.rejection_rate_pct >= 20 ? 'apv-nivel--alto' : 'apv-nivel--neutro'}`}>{it.rejection_rate_pct}%</span>
+                <span role="cell" className={`apv-sm ${(it.rejection_tone ?? tono('aprobacion_rechazo', it.rejection_rate_pct)) === 'danger' ? 'apv-nivel--alto' : 'apv-nivel--neutro'}`}>{it.rejection_rate_pct}%</span>
                 <span role="cell" className={`apv-sm ${it.pending_count > 0 ? 'apv-nivel--medio' : 'apv-nivel--neutro'}`}>{it.pending_count}</span>
-                <span role="cell" className={`apv-sm ${nivel(it.sla_risk_pct, 80, 50)}`}>{it.sla_risk_pct}%</span>
+                <span role="cell" className={`apv-sm ${nivel(it.sla_risk_tone ?? tono('aprobacion_riesgo_sla', it.sla_risk_pct))}`}>{it.sla_risk_pct}%</span>
                 <span className="u-sm-700" role="cell">{it.bottleneck_score}</span>
               </div>
             ))}

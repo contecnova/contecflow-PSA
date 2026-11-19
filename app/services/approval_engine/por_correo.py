@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models.billing_reports import ApprovalRequest
 from app.models.user import User
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 _TIPO = "approval_email"
 
@@ -44,19 +44,19 @@ def _leer(db: Session, token: str):
     from app.db.session import publicar_contexto_de_tenant, sin_filtro_de_tenant
     datos = decode_token(token or "")
     if not datos or datos.get("type") != _TIPO:
-        raise ErrorDeDominio(410, "El enlace ha caducado o no es válido: decide desde la bandeja de aprobaciones")
+        raise error(410, "aprobacion_enlace_caducado")
     with sin_filtro_de_tenant(db):
         usuario = db.get(User, datos["sub"])
         req = db.get(ApprovalRequest, datos["req"])
     if usuario is None or not usuario.is_active:
-        raise ErrorDeDominio(410, "El enlace ya no es válido")
+        raise error(410, "enlace_ya_no_valido")
     if req is None:
-        raise ErrorDeDominio(404, "Solicitud no encontrada")
+        raise error(404, "no_encontrado", detail="Solicitud no encontrada", que="solicitud")
     # La sesión es la del aprobador en la empresa de la solicitud (puede ser
     # suya por pertenencia, no por su ficha). Si ya no pertenece, no vale.
     from app.services.entrada_service import pertenece
     if not usuario.is_superadmin and req.organization_id and not pertenece(db, usuario, req.organization_id):
-        raise ErrorDeDominio(410, "El enlace ya no es válido")
+        raise error(410, "enlace_ya_no_valido")
     # Segunda auditoría 2026-11 (#10): la empresa de la SOLICITUD desactivada → 403
     # (antes solo se miraba la de ficha del aprobador).
     from app.db.session import exigir_organizacion_activa
@@ -67,7 +67,7 @@ def _leer(db: Session, token: str):
         db.info["organization_id"] = req.organization_id
         set_committed_value(usuario, "organization_id", req.organization_id)
     if req.status != "pending" or req.current_step != datos.get("step"):
-        raise ErrorDeDominio(410, "Esta solicitud ya se decidió o cambió de paso")
+        raise error(410, "aprobacion_ya_decidida_o_cambio_paso")
     return req, usuario
 
 
@@ -80,9 +80,9 @@ def resumen(db: Session, token: str) -> dict:
 def decidir(db: Session, token: str, decision: str, nota) -> dict:
     from app.services.approval_engine.requests import decide_approval_request
     if decision not in ("approved", "rejected"):
-        raise ErrorDeDominio(422, "Decisión no válida")
+        raise error(422, "decision_no_valida")
     if decision == "rejected" and not (nota or "").strip():
-        raise ErrorDeDominio(422, "Para rechazar indica el motivo")
+        raise error(422, "motivo_de_rechazo_obligatorio", detail="Para rechazar indica el motivo")
     req, usuario = _leer(db, token)
     req = decide_approval_request(req.id, decision, nota, None, db, usuario)
     return {"request_id": req.id, "status": req.status}

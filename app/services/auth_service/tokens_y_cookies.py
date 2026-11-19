@@ -12,7 +12,6 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models.user import User
 from app.services.key_management import get_jwt_signing_key, get_jwt_verification_keys
-from app.core.errores import ErrorDeDominio
 
 from app.services.auth_service.estado_efimero import (
     PASSWORD_RESET_TTL_SECONDS,
@@ -21,6 +20,7 @@ from app.services.auth_service.estado_efimero import (
 )
 from app.services.auth_service._comun import logger
 from app.core.constantes import NOMBRE_COMPLETO_DEL_PRODUCTO
+from app.core.codigos_de_error import error
 
 
 # ── Base64url helpers ─────────────────────────────────────────────────────────
@@ -65,15 +65,15 @@ def read_ephemeral_token(token: str, expected_type: str) -> dict:
         except jwt.PyJWTError:
             continue
     if payload is None:
-        raise ErrorDeDominio(401, "Token de challenge inválido o expirado")
+        raise error(401, "token_no_valido", detail="Token de challenge inválido o expirado")
     if payload.get("type") != expected_type:
-        raise ErrorDeDominio(401, "Token de challenge inválido")
+        raise error(401, "token_no_valido", detail="Token de challenge inválido")
 
     if expected_type == "password_reset":
         user_id = payload.get("sub")
         token_jti = payload.get("jti")
         if not user_id or not token_jti or not is_current_password_reset_jti(user_id, token_jti):
-            raise ErrorDeDominio(401, "Token de restablecimiento inválido o reemplazado")
+            raise error(401, "reset_token_no_valido", detail="Token de restablecimiento inválido o reemplazado")
     return payload
 
 

@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 
 from app.models.settings import AppSetting
 import logging
+from app.core.codigos_de_error import ErrorConCodigo
 
 logger = logging.getLogger(__name__)
 
@@ -192,7 +193,7 @@ def resolve_dsr(
 ) -> dict:
     dsrs: dict = _get_setting(db, _KEY_DSR, org_id, {})
     if dsr_id not in dsrs:
-        raise ValueError(f"DSR '{dsr_id}' not found")
+        raise ErrorConCodigo("no_encontrado", detail=f"DSR '{dsr_id}' not found", que="solicitud_rgpd")
     dsrs[dsr_id]["status"] = "completed"
     dsrs[dsr_id]["resolved_at"] = _iso_now()
     dsrs[dsr_id]["resolution_notes"] = resolution_notes

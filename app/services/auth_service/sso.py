@@ -13,9 +13,9 @@ from sqlalchemy.orm import Session
 from app.models.mfa import Organization
 from app.models.user import User, UserRole, UserStatus
 from app.models.enterprise import SSOConfig
-from app.core.errores import ErrorDeDominio
 
 from app.services.auth_service._comun import logger
+from app.core.codigos_de_error import error
 
 
 # ── SSO helpers ───────────────────────────────────────────────────────────────
@@ -36,26 +36,23 @@ def resolve_sso_organization_id(db: Session, config, email: str) -> str:
         ).first()
         if org:
             return org.id
-        raise ErrorDeDominio(409, "La organización asignada al proveedor SSO no existe o está inactiva")
+        raise error(409, "sso_empresa_inactiva", detail="La organización asignada al proveedor SSO no existe o está inactiva")
 
-    raise ErrorDeDominio(
-        409,
-        "La configuración SSO no tiene organization_id asignado; no se pueden autocrear usuarios sin tenant",
-    )
+    raise error(409, "sso_sin_empresa", detail="La configuración SSO no tiene organization_id asignado; no se pueden autocrear usuarios sin tenant")
 
 
 def validate_https_discovery_url(discovery_url: str) -> str:
     """Validate OIDC discovery URL to avoid SSRF to private/internal networks."""
     parsed = urlparse(discovery_url or "")
     if parsed.scheme.lower() != "https" or not parsed.netloc:
-        raise ErrorDeDominio(400, "oidc_discovery_url debe ser una URL HTTPS válida")
+        raise error(400, "url_debe_ser_https", campo="oidc_discovery_url")
 
     hostname = (parsed.hostname or "").strip().lower()
     if not hostname:
-        raise ErrorDeDominio(400, "oidc_discovery_url debe incluir hostname")
+        raise error(400, "url_sin_host", detail="oidc_discovery_url debe incluir hostname", campo="oidc_discovery_url")
 
     if hostname in {"localhost", "localhost.localdomain"} or hostname.endswith(".local"):
-        raise ErrorDeDominio(400, "oidc_discovery_url no puede apuntar a hosts locales")
+        raise error(400, "url_host_local", detail="oidc_discovery_url no puede apuntar a hosts locales", campo="oidc_discovery_url")
 
     try:
         ip_obj = ipaddress.ip_address(hostname)
@@ -71,7 +68,7 @@ def validate_https_discovery_url(discovery_url: str) -> str:
         or ip_obj.is_reserved
         or ip_obj.is_unspecified
     ):
-        raise ErrorDeDominio(400, "oidc_discovery_url apunta a una red no permitida")
+        raise error(400, "url_red_no_permitida", campo="oidc_discovery_url")
 
     try:
         addrinfo = socket.getaddrinfo(hostname, parsed.port or 443, proto=socket.IPPROTO_TCP)
@@ -90,7 +87,7 @@ def validate_https_discovery_url(discovery_url: str) -> str:
             or resolved_ip.is_reserved
             or resolved_ip.is_unspecified
         ):
-            raise ErrorDeDominio(400, "oidc_discovery_url resuelve a una red no permitida")
+            raise error(400, "url_red_no_permitida", detail="oidc_discovery_url resuelve a una red no permitida", campo="oidc_discovery_url")
 
     return discovery_url
 
@@ -193,7 +190,7 @@ def get_sso_config_or_404(db: Session, config_id: str):
         SSOConfig.id == config_id, SSOConfig.is_active == True
     ).first()
     if not config:
-        raise ErrorDeDominio(404, "SSO no encontrado")
+        raise error(404, "no_encontrado", detail="SSO no encontrado", que="configuracion_sso")
     return config
 
 
@@ -236,17 +233,17 @@ def create_or_update_sso_user(db: Session, config, email: str, name, claims: dic
     """
     # Organization ya viene importado arriba (app.models.mfa).
     if not _dominio_permitido(config, email):
-        raise ErrorDeDominio(403, "El dominio de este correo no está permitido en este proveedor SSO")
+        raise error(403, "sso_dominio_no_permitido")
     email = email.strip().lower()
     from sqlalchemy import func as _func
     q = db.query(User).filter(_func.lower(User.email) == email)
     user = q.first()
     if user is not None and config.organization_id and user.organization_id != config.organization_id:
-        raise ErrorDeDominio(409, "Este correo pertenece a otra organización")
+        raise error(409, "correo_de_otra_empresa", detail="Este correo pertenece a otra organización")
     rol_mapeado = rol_desde_grupos(config, claims)
     if not user:
         if not config.auto_create_users:
-            raise ErrorDeDominio(403, "El proveedor SSO no permite autocrear usuarios")
+            raise error(403, "sso_sin_autoalta", detail="El proveedor SSO no permite autocrear usuarios")
         org_id = resolve_sso_organization_id(db, config, email)
         org = db.query(Organization).filter(Organization.id == org_id).first()
         if org is not None:
@@ -275,19 +272,19 @@ def create_or_update_sso_user(db: Session, config, email: str, name, claims: dic
         db.refresh(user)
         return user
     if not user.is_active:
-        raise ErrorDeDominio(403, "Usuario desactivado")
+        raise error(403, "usuario_desactivado")
     # Auditoria 2026-11: el IdP lo controla el admin de una empresa; no puede
     # emitir la identidad del superadmin de la plataforma.
     if user.is_superadmin:
-        raise ErrorDeDominio(403, "El superadministrador no puede entrar por SSO")
+        raise error(403, "sso_superadmin_no_permitido")
     # Patron nOAuth: si la cuenta ya esta ligada a un `sub`, otro `sub` con el
     # mismo email (p. ej. otro tenant de Azure) no entra.
     sub = claims.get("sub")
     if user.sso_subject and sub and user.sso_subject != sub:
-        raise ErrorDeDominio(403, "Esta cuenta está vinculada a otra identidad del proveedor SSO")
+        raise error(403, "sso_identidad_distinta")
     org = db.query(Organization).filter(Organization.id == user.organization_id).first()
     if org is not None and not org.is_active:
-        raise ErrorDeDominio(403, "La organización de este usuario está desactivada")
+        raise error(403, "empresa_desactivada", detail="La organización de este usuario está desactivada")
     cambios = False
     if rol_mapeado is not None and user.role != rol_mapeado and not user.is_superadmin:
         user.role = rol_mapeado

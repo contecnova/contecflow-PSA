@@ -18,6 +18,7 @@ from app.core.responses import APIResponse
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.services import branding_service as svc
+from app.core.codigos_de_error import ErrorConCodigo
 
 router = APIRouter()
 
@@ -56,7 +57,7 @@ class BrandingUpdate(BaseModel):
     @classmethod
     def validate_color(cls, v: Optional[str]) -> Optional[str]:
         if v is not None and not (v.startswith("#") and len(v) in (4, 7, 9)):
-            raise ValueError("Color must be a valid hex value like #RRGGBB")
+            raise ErrorConCodigo("color_hex_no_valido", detail="Color must be a valid hex value like #RRGGBB")
         return v
 
     @field_validator("custom_domain", mode="before")
@@ -64,7 +65,7 @@ class BrandingUpdate(BaseModel):
     def validate_domain(cls, v: Optional[str]) -> Optional[str]:
         if v is not None:
             if "/" in v or " " in v:
-                raise ValueError("custom_domain must be a bare hostname, e.g. pm.company.com")
+                raise ErrorConCodigo("dominio_no_valido", detail="custom_domain must be a bare hostname, e.g. pm.company.com")
         return v
 
 

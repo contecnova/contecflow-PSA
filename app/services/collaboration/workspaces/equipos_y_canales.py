@@ -29,6 +29,7 @@ from app.core.errores import ErrorDeDominio
 
 from app.services.collaboration.workspaces._comun import _nombre_de, _usuarios_por_id
 from app.core.constantes import NOMBRE_DEL_PRODUCTO
+from app.core.codigos_de_error import error
 
 
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
@@ -129,7 +130,7 @@ def create_team(db: Session, user, *, name: str, slug: Optional[str], descriptio
         CollaborationTeam.workspace_id == ws.id,
         CollaborationTeam.slug == final_slug,
     ).first():
-        raise ErrorDeDominio(409, "Ya existe un equipo con ese slug")
+        raise error(409, "equipo_ya_existe", detail="Ya existe un equipo con ese slug")
     team = CollaborationTeam(
         organization_id=org, workspace_id=ws.id,
         name=name, slug=final_slug, description=description,
@@ -187,7 +188,7 @@ def remove_team_member(db: Session, user, team_id: str, target_user_id: str) -> 
         CollaborationTeamMember.organization_id == org,
     ).first()
     if not row:
-        raise ErrorDeDominio(404, "No es miembro")
+        raise error(404, "no_es_miembro")
     db.delete(row)
     audit_log.write(
         db, organization_id=org, actor_user_id=user.id, actor_client_id=None,
@@ -213,13 +214,13 @@ def create_channel(
     org = _org(user)
     team = db.query(CollaborationTeam).filter(CollaborationTeam.id == team_id, CollaborationTeam.organization_id == org).first()
     if not team:
-        raise ErrorDeDominio(404, "Equipo no encontrado")
+        raise error(404, "no_encontrado", detail="Equipo no encontrado", que="equipo")
     if not is_team_member(db, user, team_id):
-        raise ErrorDeDominio(403, "No eres miembro del equipo")
+        raise error(403, "no_eres_miembro_equipo", detail="No eres miembro del equipo")
 
     final_slug = slug or slugify(name)
     if db.query(CollaborationChannel).filter(CollaborationChannel.team_id == team_id, CollaborationChannel.slug == final_slug).first():
-        raise ErrorDeDominio(409, "Ya existe un canal con ese slug en este equipo")
+        raise error(409, "canal_ya_existe", detail="Ya existe un canal con ese slug en este equipo")
 
     conv = CollaborationConversation(
         organization_id=org, kind="channel", workspace_id=team.workspace_id,
@@ -287,7 +288,7 @@ def add_channel_members(db: Session, user, channel_id: str, user_ids: list[str])
     org = _org(user)
     ch = db.query(CollaborationChannel).filter(CollaborationChannel.id == channel_id, CollaborationChannel.organization_id == org).first()
     if not ch:
-        raise ErrorDeDominio(404, "Canal no encontrado")
+        raise error(404, "no_encontrado", detail="Canal no encontrado", que="canal")
     assert_team_access(db, user, ch.team_id)
     added = 0
     for uid in user_ids:
@@ -412,7 +413,7 @@ def update_team(db: Session, user, team_id: str, cambios: dict) -> Collaboration
         .first()
     )
     if not t:
-        raise ErrorDeDominio(404, "Equipo no encontrado")
+        raise error(404, "no_encontrado", detail="Equipo no encontrado", que="equipo")
     for k, v in cambios.items():
         setattr(t, k, v)
     db.commit()
@@ -485,9 +486,9 @@ def update_channel(db: Session, user, channel_id: str, cambios: dict) -> Collabo
         .first()
     )
     if not ch:
-        raise ErrorDeDominio(404, "Canal no encontrado")
+        raise error(404, "no_encontrado", detail="Canal no encontrado", que="canal")
     if not is_team_member(db, user, ch.team_id):
-        raise ErrorDeDominio(403, "No eres miembro del equipo")
+        raise error(403, "no_eres_miembro_equipo", detail="No eres miembro del equipo")
     for k, v in cambios.items():
         setattr(ch, k, v)
     db.commit()
@@ -504,7 +505,7 @@ def list_channel_members(db: Session, user, channel_id: str) -> list[dict]:
         .first()
     )
     if not ch:
-        raise ErrorDeDominio(404, "Canal no encontrado")
+        raise error(404, "no_encontrado", detail="Canal no encontrado", que="canal")
     filas = (
         db.query(CollaborationChannelMember)
         .filter(CollaborationChannelMember.channel_id == channel_id)

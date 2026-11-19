@@ -39,6 +39,7 @@ from sqlalchemy.orm import Session
 
 from app.core.errores import ErrorDeDominio
 from app.models.user import User, UserRole
+from app.core.codigos_de_error import error
 
 #: Lo único que un externo ve de otra persona. Basta para pintar un selector de
 #: responsable o una mención: quién es, su cara y qué hace.
@@ -126,8 +127,8 @@ def ve_ficha_completa_de(db: Session, viewer, objetivo) -> bool:
     if es_externo(viewer):
         if objetivo.id in ids_de_personas_visibles(db, viewer):
             return False
-        raise ErrorDeDominio(status_code=404, detail="Usuario no encontrado")
-    raise ErrorDeDominio(status_code=403, detail="Acceso denegado")
+        raise error(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
+    raise error(403, "sin_permiso", detail="Acceso denegado")
 
 
 def ve_tarifas(viewer) -> bool:
@@ -150,7 +151,7 @@ def exigir_organigrama(viewer) -> None:
     para quien ve la ficha ajena (la pantalla `/org-chart` ya excluía al
     empleado y al externo; la API no)."""
     if not ve_contacto_ajeno(viewer):
-        raise ErrorDeDominio(status_code=403, detail="El organigrama no está disponible para tu rol")
+        raise error(403, "organigrama_no_disponible")
 
 
 #: Lo que ve un empleado de otra persona en un listado (`GET /users`): la ficha
@@ -209,7 +210,7 @@ def ve_modulo_financiero(db: Session, viewer, modulo: str) -> bool:
 def exigir_estadisticas_de(viewer, user_id: str) -> None:
     """Productividad: la propia siempre; la ajena, solo roles de gestión."""
     if viewer.id != user_id and not _es_superadmin(viewer) and _rol(viewer) in _ROLES_SIN_ESTADISTICAS_AJENAS:
-        raise ErrorDeDominio(status_code=403, detail="Acceso denegado")
+        raise error(403, "sin_permiso", detail="Acceso denegado")
 
 
 def exigir_proyecto_visible(db: Session, viewer, project_id: str) -> None:
@@ -220,7 +221,7 @@ def exigir_proyecto_visible(db: Session, viewer, project_id: str) -> None:
     from app.models.project import Project
     from app.services.project_service import scope_projects_query
     if not scope_projects_query(db.query(Project.id), db, viewer).filter(Project.id == project_id).first():
-        raise ErrorDeDominio(status_code=404, detail="Proyecto no encontrado")
+        raise error(404, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")
 
 
 #: De un miembro de proyecto (`list_members_payload`), lo que ve el externo:

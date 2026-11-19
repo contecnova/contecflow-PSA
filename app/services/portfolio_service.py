@@ -13,6 +13,7 @@ from app.models.portfolio import Portfolio, PortfolioProject
 from app.models.project import Project
 from app.models.financial import ProjectMilestone
 from app.models.user import User
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 # ── EVM ───────────────────────────────────────────────────────────────────────
@@ -81,7 +82,7 @@ def delete_portfolio(db: Session, p: Portfolio) -> None:
         PortfolioProject.is_active == True,
     ).scalar() or 0
     if active_members > 0:
-        raise ValueError(f"No se puede eliminar: la cartera tiene {active_members} proyecto(s) vinculados")
+        raise ErrorConCodigo("cartera_con_proyectos", n=active_members)
     p.is_active = False
     p.status = "archived"
     db.commit()

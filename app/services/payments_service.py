@@ -25,8 +25,8 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.core import timeutil
-from app.core.errores import ErrorDeDominio
 from app.models.billing_reports import Invoice
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -62,14 +62,14 @@ def handle_stripe_webhook(raw_body: bytes, stripe_signature: Optional[str], db: 
     secreto = _secreto(db)
     if not secreto:
         # Sin secreto no se puede autenticar: no se procesa nada.
-        raise ErrorDeDominio(status_code=503, detail="Webhook de Stripe no configurado (STRIPE_WEBHOOK_SECRET).")
+        raise error(503, "webhook_secreto_no_configurado", detail="Webhook de Stripe no configurado (STRIPE_WEBHOOK_SECRET).", servicio="Stripe")
     if not verificar_firma(raw_body, stripe_signature, secreto):
-        raise ErrorDeDominio(status_code=400, detail="Firma de Stripe invalida")
+        raise error(400, "firma_no_valida", detail="Firma de Stripe invalida")
 
     try:
         event = json.loads(raw_body)
     except json.JSONDecodeError:
-        raise ErrorDeDominio(status_code=400, detail="JSON invalido")
+        raise error(400, "json_no_valido", detail="JSON invalido")
 
     event_type = event.get("type", "")
     data = (event.get("data") or {}).get("object") or {}

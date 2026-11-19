@@ -22,7 +22,7 @@ export default function EditorDeDependencias({ projectId }: { projectId: string 
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const puedeEditar = useAuth().hasRole('admin', 'pm')
+  const puedeEditar = useAuth().puede('proyectos.gestionar')
   const [nueva, setNueva] = useState({ predecessor_id: '', successor_id: '', dependency_type: 'FS', lag_days: 0, link_type: 'schedule' })
 
   const { data: deps = [], isLoading } = useQuery({

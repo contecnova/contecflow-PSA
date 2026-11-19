@@ -219,7 +219,7 @@ export default function ContecflowAssistPanel({ open, onClose, context }: Props)
         )}
         {messages.map((m, i) => (
           <div className={`neaspa-stack-4 ${m.role === 'user' ? 'nexus-assist-panel-m3' : 'nexus-assist-panel-m4'}`} key={i}>
-            <div className={`neaspa-box-12 nexus-assist-panel-e5 ${m.role === 'user' ? 'nexus-assist-panel-m6' : 'nexus-assist-panel-m7'}`} style={{ '--nexus-assist-panel-border': `.5px solid ${m.role === 'user' ? 'rgba(0,212,255,0.25)' : 'var(--surface-4)'}` } as CSSProperties}>
+            <div className={`neaspa-box-12 nexus-assist-panel-e5 ${m.role === 'user' ? 'nexus-assist-panel-m6' : 'nexus-assist-panel-m7'}`} style={{ '--nexus-assist-panel-border': `.5px solid ${m.role === 'user' ? 'color-mix(in srgb, var(--accent) 25%, transparent)' : 'var(--surface-4)'}` } as CSSProperties}>
               {m.content}
             </div>
             {m.role === 'assistant' && i > 0 && messages[i - 1]?.role === 'user' && (

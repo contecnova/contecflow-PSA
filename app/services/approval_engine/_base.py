@@ -13,6 +13,7 @@ from app.models.billing_reports import ApprovalRequest
 from app.models.billing_reports import ApprovalWorkflow
 from app.models.billing_reports import ApprovalGroup
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 
 logger = logging.getLogger(__name__)
@@ -511,7 +512,7 @@ def exigir_que_no_sea_suyo(db: Session, solicitante_id, usuario: User, modulo: s
         return
     try:
         if db is None:  # sin sesion no hay donde registrar; la regla se aplica igual
-            raise ErrorDeDominio(403, "SoD: no puedes aprobar lo que has pedido tú (segregación de funciones)")
+            raise error(403, "sod_no_puedes_aprobar_lo_tuyo", detail="SoD: no puedes aprobar lo que has pedido tú (segregación de funciones)")
         # Revisión GRC 2026-11b: un solo registrador (grc_sod), con el módulo
         # GRC de la entidad (`absence` → `absences`) y la regla de SU empresa.
         # Antes se buscaba `module_a == "absence"` y ninguna regla por defecto
@@ -526,7 +527,7 @@ def exigir_que_no_sea_suyo(db: Session, solicitante_id, usuario: User, modulo: s
     except Exception:
         db.rollback()
         logger.warning("No se pudo registrar la infracción SoD de %s %s", modulo, entidad_id, exc_info=True)
-    raise ErrorDeDominio(403, "SoD: no puedes aprobar lo que has pedido tú (segregación de funciones)")
+    raise error(403, "sod_no_puedes_aprobar_lo_tuyo", detail="SoD: no puedes aprobar lo que has pedido tú (segregación de funciones)")
 
 
 def _empresa_de(db: Session, usuario: User, entidad=None):

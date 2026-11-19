@@ -13,6 +13,7 @@ from app.services.risk_service import (
     serialize_risk as _risk_out,
 )
 from app.schemas.risks import RiskIn, RiskUpdate
+from app.core.codigos_de_error import error_http
 
 router = APIRouter()
 
@@ -70,7 +71,7 @@ def create_risk(
     _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: dominio: riesgos de proyecto
 ):
     if current_user.role not in [UserRole.admin, UserRole.pm]:
-        raise HTTPException(403, "Acceso denegado")
+        raise error_http(403, "sin_permiso", detail="Acceso denegado")
     risk = risk_service.create_risk(
         db,
         project_id=project_id,
@@ -102,7 +103,7 @@ def get_risk(
     """
     risk = risk_service.get_risk(db, risk_id, project_id)
     if not risk:
-        raise HTTPException(404, "Riesgo no encontrado")
+        raise error_http(404, "no_encontrado", detail="Riesgo no encontrado", que="riesgo")
     return APIResponse.ok(data=_risk_out(risk))
 
 
@@ -116,10 +117,10 @@ def update_risk(
     _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: dominio: riesgos de proyecto
 ):
     if current_user.role not in [UserRole.admin, UserRole.pm]:
-        raise HTTPException(403, "Acceso denegado")
+        raise error_http(403, "sin_permiso", detail="Acceso denegado")
     risk = risk_service.get_risk(db, risk_id, project_id)
     if not risk:
-        raise HTTPException(404, "Riesgo no encontrado")
+        raise error_http(404, "no_encontrado", detail="Riesgo no encontrado", que="riesgo")
     risk = risk_service.update_risk(db, risk, payload.model_dump(exclude_unset=True))
     return APIResponse.ok(data=_risk_out(risk))
 
@@ -133,10 +134,10 @@ def delete_risk(
     _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: dominio: riesgos de proyecto
 ):
     if current_user.role not in [UserRole.admin, UserRole.pm]:
-        raise HTTPException(403, "Acceso denegado")
+        raise error_http(403, "sin_permiso", detail="Acceso denegado")
     risk = risk_service.get_risk(db, risk_id, project_id)
     if not risk:
-        raise HTTPException(404, "Riesgo no encontrado")
+        raise error_http(404, "no_encontrado", detail="Riesgo no encontrado", que="riesgo")
     enforce_abac(db, current_user, "risk", risk_id, action="delete")
     risk_service.delete_risk(db, risk)
     return APIResponse.ok(data={"ok": True, "message": "Riesgo eliminado correctamente"})

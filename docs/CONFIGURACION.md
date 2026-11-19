@@ -10,8 +10,11 @@ Reorganizada el 18-11-2026. El estado de antes, medido, está en
   para quien tiene permiso, un botón **Configurar** que lleva a su sección.
 - **Cada ajuste está en un solo sitio.** Lo que estaba en dos sitios se ha
   quitado de uno (ver «Duplicados resueltos»); el otro sitio enlaza.
-- **Solo ves lo que puedes usar.** Cada sección declara sus roles, alineados con
-  lo que el backend deja escribir. Una sección que daría 403 no aparece. Pedirla
+- **Solo ves lo que puedes usar.** Cada sección declara su **capacidad** de la
+  matriz de permisos (19-11-2026; `app/core/capacidades.py`, p. ej.
+  `ausencias.config`, `sd.config`, `proyectos.config`; `org.administrar` para lo
+  de administración; `plataforma.empresas` solo superadmin; MFA sin capacidad),
+  alineada con lo que el backend deja escribir. Una sección que daría 403 no aparece. Pedirla
   por URL lleva a `/403`. El bloqueo por ruta de cada usuario (`blocked_routes`)
   se aplica también con la ruta antigua de la pantalla.
 - **Mismo aspecto.** Las secciones propias usan `SeccionDeAjustes` y el kit. Las

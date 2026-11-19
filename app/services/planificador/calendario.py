@@ -29,6 +29,7 @@ from typing import Iterable, Mapping, Optional
 from sqlalchemy.orm import Session
 
 from app.core import timeutil
+from app.core.codigos_de_error import ErrorConCodigo, desde_valor
 
 
 def interpretar_dias_laborables(texto: Optional[str]) -> frozenset[int]:
@@ -43,7 +44,7 @@ def interpretar_dias_laborables(texto: Optional[str]) -> frozenset[int]:
         if trozo.isdigit() and 1 <= int(trozo) <= 7:
             dias.add(int(trozo))
     if not dias:
-        raise ValueError("PLANNING_WORKDAYS no tiene ningún día laborable válido (1-7)")
+        raise ErrorConCodigo("error_interno", detail="PLANNING_WORKDAYS no tiene ningún día laborable válido (1-7)")
     return frozenset(dias)
 
 
@@ -64,9 +65,9 @@ class Calendario:
 
     def __post_init__(self) -> None:
         if not self.dias_laborables:
-            raise ValueError("Un calendario necesita al menos un día laborable")
+            raise ErrorConCodigo("calendario_sin_dias_laborables")
         if self.horas_por_dia <= 0:
-            raise ValueError("La jornada tiene que ser mayor que cero")
+            raise ErrorConCodigo("jornada_mayor_que_cero")
 
     # ── Consultas de un día ──────────────────────────────────────────────────
     def es_laborable(self, d: date) -> bool:
@@ -188,11 +189,10 @@ def calendario_de_empresa(db: Session, org_id: Optional[str]) -> Calendario:
     from app.models.settings import Holiday
     from app.services.settings_service import get_runtime_float, get_runtime_str
 
-    from app.core.errores import ErrorDeDominio
     try:
         dias = interpretar_dias_laborables(get_runtime_str(db, "PLANNING_WORKDAYS", org_id))
     except ValueError as exc:
-        raise ErrorDeDominio(422, str(exc))
+        raise desde_valor(422, exc)
     horas = get_runtime_float(db, "DEFAULT_WORKING_HOURS_PER_DAY", org_id) or 0
     q = db.query(Holiday.date, Holiday.applies_to)
     if org_id:

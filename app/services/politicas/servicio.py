@@ -30,6 +30,7 @@ from app.models.politicas import (EvaluacionDePolitica, FilaDeTablaDeReferencia,
                                   TablaDeReferencia)
 from app.services.politicas import catalogo, motor, resultados as res
 from app.services.politicas.condiciones import validar_arbol
+from app.core.codigos_de_error import error
 
 AMBITO_CLAVES = ("departamentos", "equipos", "roles", "ubicaciones", "personas",
                  # Rev. 180: grupos y excepciones (personas o grupos que quedan fuera).
@@ -50,7 +51,7 @@ def _fecha(v) -> Optional[date]:
     try:
         return date.fromisoformat(str(v)[:10])
     except ValueError:
-        raise ErrorDeDominio(422, f"Fecha no válida: {v}")
+        raise error(422, "fecha_no_valida_formato", detail=f"Fecha no válida: {v}")
 
 
 def _dump(v) -> Optional[str]:
@@ -74,9 +75,9 @@ def guardar_tipos_de_documento(db: Session, usuario, tipos: list[str]) -> list[s
     limpios = list(dict.fromkeys(str(t).strip().lower() for t in tipos or [] if str(t).strip()))
     malos = [t for t in limpios if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,39}", t)]
     if malos:
-        raise ErrorDeDominio(422, f"Tipo de documento no válido (letras, números, _ o -): {malos}")
+        raise error(422, "tipo_documento_no_valido", tipo=malos)
     if not limpios:
-        raise ErrorDeDominio(422, "Hace falta al menos un tipo de documento")
+        raise error(422, "tipo_documento_al_menos_uno")
     quitados = set(tipos_de_documento(db, _org(usuario))) - set(limpios)
     en_uso = set()
     for p in db.query(Politica).filter(Politica.estado != "retirada").all():
@@ -85,7 +86,7 @@ def guardar_tipos_de_documento(db: Session, usuario, tipos: list[str]) -> list[s
     en_uso |= {t for (t,) in db.query(ExpenseAttachment.document_type)
                .filter(ExpenseAttachment.document_type.in_(quitados or [""])).distinct()}
     if en_uso:
-        raise ErrorDeDominio(409, f"Están en uso (políticas o justificantes): {sorted(en_uso)}")
+        raise error(409, "tipos_documento_en_uso", tipos=sorted(en_uso))
     s.set_runtime_value(db, "politicas", "POLICY_DOCUMENT_TYPES", ",".join(limpios), _org(usuario),
                         actor_id=usuario.id)
     db.commit()
@@ -205,7 +206,7 @@ def _exigir_valida(db, usuario, doc) -> None:
 def _politica(db: Session, politica_id: str) -> Politica:
     p = db.query(Politica).filter(Politica.id == politica_id).first()
     if p is None:
-        raise ErrorDeDominio(404, "Política no encontrada")
+        raise error(404, "no_encontrado", detail="Política no encontrada", que="politica")
     return p
 
 
@@ -273,7 +274,7 @@ def guardar(db: Session, usuario, politica_id: str, doc: dict) -> dict:
     """Guarda un BORRADOR completo (cabecera y reglas)."""
     p = _politica(db, politica_id)
     if p.estado != "borrador":
-        raise ErrorDeDominio(409, "Solo se edita un borrador: crea una versión nueva")
+        raise error(409, "politica_solo_borrador_editable")
     doc = {**doc, "dominio": p.dominio}
     _exigir_valida(db, usuario, doc)
     _aplicar_doc(p, doc)
@@ -286,7 +287,7 @@ def guardar(db: Session, usuario, politica_id: str, doc: dict) -> dict:
 def publicar(db: Session, usuario, politica_id: str) -> dict:
     p = _politica(db, politica_id)
     if p.estado != "borrador":
-        raise ErrorDeDominio(409, "Solo se publica un borrador")
+        raise error(409, "politica_solo_borrador_publicable")
     _exigir_valida(db, usuario, {**politica_dict(p), "dominio": p.dominio})
     ahora = datetime.now(timezone.utc)
     for v in db.query(Politica).filter(Politica.familia_id == p.familia_id, Politica.estado == "publicada").all():
@@ -304,7 +305,7 @@ def publicar(db: Session, usuario, politica_id: str) -> dict:
 def nueva_version(db: Session, usuario, politica_id: str) -> dict:
     base = _politica(db, politica_id)
     if db.query(Politica.id).filter(Politica.familia_id == base.familia_id, Politica.estado == "borrador").first():
-        raise ErrorDeDominio(409, "Ya hay un borrador de esta política: edítalo")
+        raise error(409, "politica_ya_hay_borrador")
     ultima = max(v for (v,) in db.query(Politica.version).filter(Politica.familia_id == base.familia_id).all())
     nueva = Politica(id=str(uuid.uuid4()), familia_id=base.familia_id, version=ultima + 1, estado="borrador",
                      dominio=base.dominio, organization_id=base.organization_id, created_by=usuario.id, nombre="")
@@ -362,7 +363,7 @@ def historial(db: Session, politica_id: str) -> list[dict]:
 def _borrador_de(db, politica_id) -> Politica:
     p = _politica(db, politica_id)
     if p.estado != "borrador":
-        raise ErrorDeDominio(409, "Solo se editan las reglas de un borrador")
+        raise error(409, "politica_reglas_solo_borrador")
     return p
 
 
@@ -378,7 +379,7 @@ def editar_regla(db: Session, usuario, politica_id: str, regla_id: str, cambios:
     doc = politica_dict(p)
     actual = next((r for r in doc["reglas"] if r["id"] == regla_id), None)
     if actual is None:
-        raise ErrorDeDominio(404, "Regla no encontrada")
+        raise error(404, "no_encontrado", detail="Regla no encontrada", que="regla")
     actual.update({k: v for k, v in cambios.items() if k != "id"})
     return guardar(db, usuario, politica_id, doc)
 
@@ -389,7 +390,7 @@ def borrar_regla(db: Session, usuario, politica_id: str, regla_id: str) -> dict:
     antes = len(doc["reglas"])
     doc["reglas"] = [r for r in doc["reglas"] if r["id"] != regla_id]
     if len(doc["reglas"]) == antes:
-        raise ErrorDeDominio(404, "Regla no encontrada")
+        raise error(404, "no_encontrado", detail="Regla no encontrada", que="regla")
     return guardar(db, usuario, politica_id, doc)
 
 
@@ -411,7 +412,7 @@ def tabla_dict(t: TablaDeReferencia, con_filas: bool = True) -> dict:
 def _tabla(db, tabla_id) -> TablaDeReferencia:
     t = db.query(TablaDeReferencia).filter(TablaDeReferencia.id == tabla_id).first()
     if t is None:
-        raise ErrorDeDominio(404, "Tabla de referencia no encontrada")
+        raise error(404, "no_encontrado", detail="Tabla de referencia no encontrada", que="tabla_de_referencia")
     return t
 
 
@@ -425,9 +426,9 @@ def tabla(db: Session, tabla_id: str) -> dict:
 
 def _cabecera_de_tabla(t: TablaDeReferencia, datos: dict) -> None:
     if not (datos.get("nombre") or "").strip():
-        raise ErrorDeDominio(422, "La tabla necesita nombre")
+        raise error(422, "tabla_sin_nombre")
     if datos.get("tipo_de_valor", t.tipo_de_valor or "importe") not in ("importe", "numero"):
-        raise ErrorDeDominio(422, "Tipo de valor: importe o número")
+        raise error(422, "tabla_tipo_valor_no_valido")
     if datos.get("dominio"):
         catalogo.dominio(datos["dominio"])
     t.nombre = datos["nombre"].strip()[:200]
@@ -440,7 +441,7 @@ def _cabecera_de_tabla(t: TablaDeReferencia, datos: dict) -> None:
     if uso:
         usos = {o.valor for o in catalogo.dominio(t.dominio).usos_de_tabla} if t.dominio else set()
         if uso not in usos:
-            raise ErrorDeDominio(422, "Ese uso no existe en el dominio de la tabla")
+            raise error(422, "tabla_uso_no_existe")
     t.uso = uso
     t.updated_at = datetime.now(timezone.utc)
 
@@ -466,7 +467,8 @@ def borrar_tabla(db: Session, usuario, tabla_id: str) -> None:
     en_uso = [p.nombre for p in db.query(Politica).filter(Politica.estado != "retirada").all()
               if tabla_id in json.dumps([regla_dict(r) for r in p.reglas])]
     if en_uso:
-        raise ErrorDeDominio(409, "La usan estas políticas: " + ", ".join(sorted(set(en_uso))))
+        nombres = ", ".join(sorted(set(en_uso)))
+        raise error(409, "en_uso_por_politicas", detail="La usan estas políticas: " + nombres, politicas=nombres)
     org = t.organization_id
     db.delete(t)
     db.commit()
@@ -545,11 +547,11 @@ def importar(db: Session, usuario, tabla_id: str, contenido: bytes, nombre: str)
         dialecto = csv.Sniffer().sniff(texto[:2048], delimiters=",;\t") if texto.strip() else csv.excel
         filas = list(csv.reader(io.StringIO(texto), dialecto))
     if not filas:
-        raise ErrorDeDominio(422, "El fichero está vacío")
+        raise error(422, "fichero_vacio")
     cab = [c.strip().lower() for c in filas[0]]
     indice = {k: next((cab.index(a) for a in alias if a in cab), None) for k, alias in _COLUMNAS.items()}
     if indice["valor"] is None:
-        raise ErrorDeDominio(422, "Falta la columna «valor»")
+        raise error(422, "tabla_falta_columna_valor")
     leidas = [{k: (fila[i].strip() if i is not None and i < len(fila) else "") for k, i in indice.items()}
               for fila in filas[1:] if any((c or "").strip() for c in fila)]
     limpias, errores = validar_filas(t, leidas)
@@ -568,11 +570,11 @@ def explicaciones(db: Session, usuario, dominio_clave: str, entidad_id: str) -> 
     dominio = catalogo.dominio(dominio_clave)
     entidad = dominio.cargar(db, entidad_id)
     if entidad is None:
-        raise ErrorDeDominio(404, "No encontrado")
+        raise error(404, "no_encontrado_generico")
     rol = getattr(usuario.role, "value", usuario.role)
     if not (usuario.is_superadmin or rol == "admin" or dominio.propietario(entidad) == usuario.id
             or _es_aprobador(db, usuario, dominio, entidad_id)):
-        raise ErrorDeDominio(403, "No puedes ver por qué se decidió esto")
+        raise error(403, "politica_sin_permiso_explicacion")
     filas = db.query(EvaluacionDePolitica).filter(EvaluacionDePolitica.dominio == dominio.clave,
                                                   EvaluacionDePolitica.entidad_id == str(entidad_id)) \
         .order_by(EvaluacionDePolitica.created_at.desc()).limit(20).all()
@@ -670,7 +672,7 @@ def cargar_ejemplos(db: Session, usuario, dominio_clave: str) -> dict:
     """
     dominio = catalogo.dominio(dominio_clave)
     if dominio.ejemplos is None:
-        raise ErrorDeDominio(404, "Este dominio no tiene ejemplos")
+        raise error(404, "politica_dominio_sin_ejemplos")
     datos = dominio.ejemplos(db, usuario)
     ids: dict = {}
     creadas_t, creadas_p, existentes = [], [], []

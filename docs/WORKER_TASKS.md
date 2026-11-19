@@ -52,10 +52,10 @@ Horas en `DEFAULT_TIMEZONE`. Día de la semana en notación Celery (0 = domingo)
 
 | Clave beat | Tarea | Cadencia | Forma | Qué hace |
 |---|---|---|---|---|
-| `perf-reminders-daily` | `run_perf_reminders` | diaria 09:00 | organización | Recordatorios de evaluaciones de desempeño pendientes |
-| `run-alert-engine-daily` | `run_alert_engine` | diaria 08:00 | organización | Motor de alertas |
-| `budget-campaign-reminder` | `recordar_campana_de_presupuestos` | diaria 08:30 | organización | Aviso a responsables con presupuestos sin enviar al cerrar la campaña |
-| `check-missing-imputations` | `check_missing_imputations` | lun–vie 18:00 | organización | Quién no ha imputado horas hoy |
+| `perf-reminders-daily` | `run_perf_reminders` | cada 15 min; cada empresa a su `NOTIFICATIONS_PERF_REMINDERS_TIME` local (09:00) | organización | Recordatorios de evaluaciones de desempeño pendientes |
+| `run-alert-engine-daily` | `run_alert_engine` | cada 15 min; cada empresa a su `NOTIFICATIONS_ALERTS_TIME` local (08:00) | organización | Motor de alertas |
+| `budget-campaign-reminder` | `recordar_campana_de_presupuestos` | cada 15 min; cada empresa a su `NOTIFICATIONS_BUDGET_CAMPAIGN_TIME` local (08:30) | organización | Aviso a responsables con presupuestos sin enviar al cerrar la campaña |
+| `check-missing-imputations` | `check_missing_imputations` | cada 15 min; cada empresa a su `NOTIFICATIONS_MISSING_IMPUTATIONS_TIME` local (18:00), a quien ese día trabaja según su horario | organización | Quién no ha imputado horas hoy |
 | `generate-retainer-invoices` | `generate_retainer_invoices` | diaria 07:00 | organización | Facturas de proyectos `recurring_retainer` en su día |
 | `run-scheduled-reports` | `run_scheduled_reports` | cada hora :00 | organización | Informes programados vencidos |
 | `run-key-rotation` | `run_scheduled_rotation` | diaria `KEY_ROTATION_RUN_HOUR`:17 (por defecto 02:17) | global | Rotación del material de claves |

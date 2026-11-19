@@ -4,6 +4,7 @@ from typing import Optional
 from datetime import date
 import logging
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.core.codigos_de_error import error_http
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +63,7 @@ def suggest_task_assignee(
 
     title = str(payload.get("title") or "").strip()
     if not title:
-        raise HTTPException(status_code=422, detail="title es obligatorio")
+        raise error_http(422, "campo_obligatorio", detail="title es obligatorio", campo="title")
 
     description = str(payload.get("description") or "")
     project_id = payload.get("project_id")
@@ -372,7 +373,7 @@ def bulk_update_tasks(
     current_user: User = Depends(get_current_user),
 ):
     if not any([payload.status, payload.assignee_id, payload.priority]):
-        raise HTTPException(status_code=422, detail="Debe especificar al menos un campo a actualizar")
+        raise error_http(422, "tarea_sin_campos", detail="Debe especificar al menos un campo a actualizar")
     updates = {
         "status": payload.status,
         "assignee_id": payload.assignee_id,

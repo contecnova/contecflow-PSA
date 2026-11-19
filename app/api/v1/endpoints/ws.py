@@ -28,6 +28,7 @@ from app.core.security import verify_client_token
 import app.services.ws_service as _ws_svc
 from app.db.session import publicar_contexto_de_tenant
 from app.core.async_db import run_db
+from app.core.codigos_de_error import error_http
 
 router = APIRouter(prefix="/ws", tags=["WebSocket"])
 log    = logging.getLogger(__name__)
@@ -366,7 +367,7 @@ async def get_ws_ticket(
             str(current_user.id), getattr(current_user, "organization_id", None))
     except Exception as exc:
         log.error("No se pudo emitir WS ticket (Redis error): %s", exc)
-        raise HTTPException(503, "Servicio no disponible temporalmente")
+        raise error_http(503, "servicio_no_disponible_temporal", detail="Servicio no disponible temporalmente")
     return {"ticket": ticket, "expires_in": _WS_TICKET_TTL}
 
 
@@ -381,14 +382,14 @@ async def get_portal_ws_ticket(
     elif portal_access_token:
         token = portal_access_token
     if not token:
-        raise HTTPException(401, "Autenticación requerida")
+        raise error_http(401, "no_autenticado", detail="Autenticación requerida")
 
     from app.db.session import SessionLocal
     db = SessionLocal()
     try:
         client = await run_db(verify_client_token, token, db)
         if not client or not getattr(client, "is_active", False):
-            raise HTTPException(401, "Token de cliente inválido")
+            raise error_http(401, "token_no_valido", detail="Token de cliente inválido")
         # Auditoria 2026-08 (hallazgo 22): sesion creada a mano. Aqui solo se
         # emite un ticket y no hay mas consultas, pero el contexto se publica
         # igual: una sesion autenticada sin contexto es la forma exacta en la
@@ -398,7 +399,7 @@ async def get_portal_ws_ticket(
             ticket = await _issue_portal_ws_ticket(str(client.id))
         except Exception as exc:
             log.error("No se pudo emitir portal WS ticket (Redis error): %s", exc)
-            raise HTTPException(503, "Servicio no disponible temporalmente")
+            raise error_http(503, "servicio_no_disponible_temporal", detail="Servicio no disponible temporalmente")
         return {"ticket": ticket, "expires_in": _WS_TICKET_TTL}
     finally:
         db.close()

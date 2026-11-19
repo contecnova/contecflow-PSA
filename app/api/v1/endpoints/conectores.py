@@ -21,6 +21,7 @@ from app.core.responses import APIResponse
 from app.models.user import User
 from app.services.conectores import anfitrion, contecintelligence as ci, contecmind as cm
 from app.services.conectores.anfitrion import ErrorDeConector
+from app.core.codigos_de_error import error_http
 
 router = APIRouter()
 
@@ -33,12 +34,13 @@ def _traducir():
     try:
         yield
     except ErrorDeConector as e:
-        raise HTTPException(_HTTP.get(e.codigo, 502), e.detalle, headers={"X-Conector-Codigo": e.codigo}) from e
+        codigo = f"conector_{e.codigo}" if e.codigo in _HTTP else "conector_rechazado"
+        raise error_http(_HTTP.get(e.codigo, 502), codigo, {"X-Conector-Codigo": e.codigo}, detail=e.detalle) from e
 
 
 def _producto(clave: str) -> anfitrion.Producto:
     if clave not in anfitrion.PRODUCTOS:
-        raise HTTPException(404, f"Conector desconocido: {clave}")
+        raise error_http(404, "conector_desconocido", conector=clave)
     return anfitrion.PRODUCTOS[clave]
 
 
@@ -171,7 +173,7 @@ def cm_preguntar(entidad: str, entidad_id: str, body: PreguntaCarpetaIn, db: Ses
                  current_user: User = Depends(require_internal_user)):
     carpeta = cm.carpeta_de(db, current_user, entidad, entidad_id, crear=False)
     if carpeta is None:
-        raise HTTPException(409, "Esta ficha todavía no tiene documentos en contecmind")
+        raise error_http(409, "ficha_sin_documentos_mind")
     with _traducir():
         return APIResponse.ok(data=cm.preguntar_carpeta(db, current_user, carpeta["folder_id"], body.pregunta))
 

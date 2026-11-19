@@ -13,6 +13,7 @@ from app.core.timeutil import utcnow
 from app.models.user import User
 from app.services.collaboration._permissions import _org
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 
 # ── Busquedas guardadas ──────────────────────────────────────────────────────
@@ -52,7 +53,7 @@ def save_search(db: Session, user, *, name: str, query: str, is_pinned: bool) ->
     name = (name or "").strip()
     query = (query or "").strip()
     if not name or not query:
-        raise ErrorDeDominio(400, "name + query requeridos")
+        raise error(400, "nombre_y_consulta_obligatorios", detail="name + query requeridos")
     parsed = parse_query(query).to_dict()
     fila = CollaborationSavedSearch(
         organization_id=_org(user), user_id=user.id,
@@ -97,7 +98,7 @@ def registrar_uso_de_busqueda(db: Session, user, saved_id: str) -> str:
         .first()
     )
     if not fila:
-        raise ErrorDeDominio(404, "No encontrada")
+        raise error(404, "no_encontrado_generico", detail="No encontrada")
     consulta = fila.query
     fila.use_count = (fila.use_count or 0) + 1
     fila.last_used_at = utcnow()

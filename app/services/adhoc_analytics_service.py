@@ -25,6 +25,7 @@ from app.models.imputation import Imputation
 from app.models.service_desk import Ticket
 from app.models.task import Task
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 _ADHOC_METRICS: dict = {
     "hours_logged": {
@@ -108,7 +109,7 @@ def _coerce_date(value) -> Optional[date]:
     try:
         return date.fromisoformat(str(value)[:10])
     except ValueError:
-        raise ErrorDeDominio(400, f"Fecha no válida: {value!r}. Usa formato ISO (YYYY-MM-DD).")
+        raise error(400, "fecha_no_valida", detail=f"Fecha no válida: {value!r}. Usa formato ISO (YYYY-MM-DD).", valor=value)
 
 
 def _enum_str(value):
@@ -225,15 +226,12 @@ def run_adhoc_query(
     de aquí es la decisión de cuál toca.
     """
     if db is None:
-        raise ErrorDeDominio(500, "run_adhoc_query requiere una sesión de base de datos")
+        raise error(500, "error_interno", detail="run_adhoc_query requiere una sesión de base de datos")
 
     spec = _ADHOC_METRICS.get(metric)
     if spec is None:
-        raise ErrorDeDominio(
-            400,
-            f"Métrica no soportada: {metric!r}. Disponibles: "
-            f"{', '.join(sorted(_ADHOC_METRICS))}.",
-        )
+        raise error(400, "metrica_no_soportada", detail=f"Métrica no soportada: {metric!r}. Disponibles: "
+            f"{', '.join(sorted(_ADHOC_METRICS))}.", metrica=metric, opciones=', '.join(sorted(_ADHOC_METRICS)))
 
     model = spec["model"]()
     filters = filters or {}
@@ -337,9 +335,7 @@ def run_analytics_drilldown(
     """Las filas que hay detrás de una celda de un informe analítico."""
     spec = _DRILLDOWNS.get(metric)
     if spec is None:
-        raise ErrorDeDominio(
-            status_code=400, detail=f"Metric '{metric}' not supported for drilldown",
-        )
+        raise error(400, "metrica_sin_desglose", detail=f"Metric '{metric}' not supported for drilldown", metrica=metric)
 
     q = db.query(spec["modelo"]())
     if spec["base"]:

@@ -506,7 +506,7 @@ h3.chat-section-btn { margin: 0; }
 .chat-dropzone {
   position: absolute;
   inset: 0;
-  z-index: 20;
+  z-index: calc(var(--z-content) + 19);
   background: color-mix(in srgb, var(--accent) 8%, transparent);
   border: 2px dashed var(--accent);
   border-radius: 8px;

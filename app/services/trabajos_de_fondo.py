@@ -99,6 +99,63 @@ def en_cada_organizacion(tarea: str, trabajo: Trabajo, *,
     return {"organizaciones": len(organizaciones), "por_organizacion": resultados}
 
 
+# ── Avisos a la hora de cada empresa (19-11-2026) ────────────────────────────
+#
+# Alertas (08:00), campaña de presupuestos (08:30) e imputaciones (18:00 L-V)
+# corrían a una hora fija en la zona global del worker (`DEFAULT_TIMEZONE` del
+# entorno) y de lunes a viernes: una empresa en Tokio recibía el aviso de las
+# 18:00 a las 02:00, y una que trabaja de martes a sábado no lo recibía el
+# sábado. Ahora la entrada de beat corre cada `TRAMO_DE_AVISOS_MINUTOS` y cada
+# pasada procesa solo las empresas cuya hora local (su `DEFAULT_TIMEZONE`) cae
+# en el tramo de su ajuste (`NOTIFICATIONS_*_TIME`, HH:MM). El de imputaciones
+# corre todos los días a su hora y avisa solo a quien hoy trabaja según SU
+# horario efectivo (jornada o turno, `PLANNING_WORKDAYS`, festivos de empresa y
+# sede, ausencias): ver `imputaciones_pendientes_de_hoy`.
+
+#: Cada cuánto corre la entrada de beat de estos avisos; la hora configurada se
+#: redondea hacia abajo a este tramo (08:20 → la pasada de las 08:15).
+TRAMO_DE_AVISOS_MINUTOS = 15
+
+
+def tramo_de_hora(hhmm: str) -> int:
+    """'08:30' → número de tramo del día (0..95). Error si no es HH:MM."""
+    from app.services.horario import tramos as tr
+    return tr.minutos(hhmm) // TRAMO_DE_AVISOS_MINUTOS
+
+
+def organizaciones_a_su_hora(clave_hora: str, *, ahora=None) -> list[str]:
+    """Empresas activas a las que ahora les toca el aviso de `clave_hora`.
+
+    `ahora` (UTC, por defecto el instante actual) se pasa a la zona de cada
+    empresa (`zona_de_empresa`); le toca si su tramo coincide con el de su
+    ajuste `clave_hora`. Una empresa con zona u hora ilegibles se
+    registra y se salta (no tumba el aviso de las demás).
+    """
+    from zoneinfo import ZoneInfo
+
+    from app.core.timeutil import utcnow
+    from app.db import session as _sesion
+    from app.services.service_desk.ticket_events import como_organizacion
+    from app.services.settings_service.por_empresa import ajuste_de_empresa, zona_de_empresa
+
+    ahora = ahora or utcnow()
+    salida = []
+    with _sesion.worker_db_session() as db:
+        for org_id in organizaciones_activas(db):
+            with como_organizacion(db, org_id):
+                try:
+                    local = ahora.astimezone(ZoneInfo(zona_de_empresa(db, org_id)))
+                    tramo = (local.hour * 60 + local.minute) // TRAMO_DE_AVISOS_MINUTOS
+                    if tramo != tramo_de_hora(str(ajuste_de_empresa(db, clave_hora, org_id))):
+                        continue
+                except Exception:
+                    logger.warning("%s: la empresa %s tiene zona u hora ilegibles; se salta",
+                                   clave_hora, org_id, exc_info=True)
+                    continue
+            salida.append(org_id)
+    return salida
+
+
 # ── Cuerpos que vivian dentro de `app/worker.py` (#37) ───────────────────────
 
 
@@ -108,6 +165,11 @@ def imputaciones_pendientes_de_hoy(db: Session, org_id: str) -> dict:
     «Hoy» es el dia de CADA empleado, no el del servidor (auditoria 2026-08,
     P2-14), y el fin de semana tambien: en el sabado del servidor puede ser
     viernes por la tarde para alguien.
+
+    19-11-2026 (semana laboral): si hoy le toca trabajar y cuantas horas salen
+    de SU horario efectivo (`horario.efectivo`: turno, jornada —p. ej. martes a
+    sabado—, festivos de empresa y sede, ausencias aprobadas); antes, L-V fijo y
+    capacidad/5. Quien hoy no trabaja (o esta de vacaciones) no sale.
     """
     from sqlalchemy import func
 
@@ -122,24 +184,29 @@ def imputaciones_pendientes_de_hoy(db: Session, org_id: str) -> dict:
     # imputa como todos y recibe el mismo recordatorio; el que no tiene acceso
     # no (sus horas las registra el PM).
     from app.services.externos.ciclo import acceso_vigente
-    from app.services.settings_service.por_empresa import capacidad_semanal
+    from app.services.horario import efectivo as hor
     empleados = [u for u in db.query(User).filter(
         User.is_active.is_(True), User.status == UserStatus.active,
         User.role.in_((UserRole.employee, UserRole.subcontractor)),
     ).all() if u.role != UserRole.subcontractor or acceso_vigente(db, u)]
-    faltan = []
+    hoy_de = {}
     for emp in empleados:
         with using_zone(zone_for_user(emp, org)):
-            hoy = timeutil.today()
-            if hoy.weekday() >= 5:
-                continue
-            # 18-11-2026: la capacidad de la persona o la de su empresa, no la global.
-            capacidad = capacidad_semanal(db, emp) / 5
-            horas = db.query(func.sum(Imputation.hours)).filter(
-                Imputation.user_id == emp.id, Imputation.date == hoy,
-            ).scalar() or 0.0
-            if horas < capacidad:
-                faltan.append(emp.email)
+            hoy_de[emp.id] = timeutil.today()
+    planes = hor.horarios(db, list(hoy_de), min(hoy_de.values()), max(hoy_de.values()),
+                          org=org_id) if hoy_de else {}
+    faltan = []
+    for emp in empleados:
+        hoy = hoy_de[emp.id]
+        dia = (planes.get(emp.id) or {}).get(hoy)
+        capacidad = dia.horas if dia is not None else 0.0
+        if capacidad <= 0:
+            continue
+        horas = db.query(func.sum(Imputation.hours)).filter(
+            Imputation.user_id == emp.id, Imputation.date == hoy,
+        ).scalar() or 0.0
+        if horas < capacidad:
+            faltan.append(emp.email)
     return {"missing_today": len(faltan), "users": faltan}
 
 

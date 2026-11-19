@@ -26,14 +26,15 @@ from app.services.collaboration.workspaces.equipos_y_canales import (
     get_or_create_workspace,
     list_channels,
 )
+from app.core.codigos_de_error import error
 
 
 # ── Direct ──────────────────────────────────────────────────────────────────
 def open_direct(db: Session, user, *, target_user_id: Optional[str] = None, target_client_id: Optional[str] = None) -> CollaborationDirectConversation:
     if not target_user_id and not target_client_id:
-        raise ErrorDeDominio(400, "Indica user_id o client_user_id")
+        raise error(400, "indica_persona", detail="Indica user_id o client_user_id")
     if target_user_id == user.id:
-        raise ErrorDeDominio(400, "No puedes abrir un chat directo contigo mismo")
+        raise error(400, "chat_contigo_mismo")
     org = _org(user)
     ws = get_or_create_workspace(db, user)
     if target_user_id:
@@ -41,7 +42,7 @@ def open_direct(db: Session, user, *, target_user_id: Optional[str] = None, targ
         from app.models.user import User as _U
         target = db.query(_U).filter(_U.id == target_user_id, _U.organization_id == org).first()
         if not target:
-            raise ErrorDeDominio(404, "Usuario no encontrado")
+            raise error(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
         a, b = sorted([user.id, target_user_id])
         existing = db.query(CollaborationDirectConversation).filter(
             CollaborationDirectConversation.organization_id == org,
@@ -222,15 +223,11 @@ def _grupo_de_conversacion(db: Session, conversation_id: str, *, verbo: str):
         .first()
     )
     if not conv:
-        raise ErrorDeDominio(404, "Conversación no encontrada")
+        raise error(404, "no_encontrado", detail="Conversación no encontrada", que="conversacion")
     if conv.kind != "group":
         if verbo == "añadir":
-            raise ErrorDeDominio(
-                400,
-                "Solo se pueden añadir miembros a grupos. Para canales usa "
-                "/channels/{id}/members.",
-            )
-        raise ErrorDeDominio(400, "Solo se pueden quitar miembros de grupos.")
+            raise error(400, "solo_grupos_miembros", detail="Solo se pueden añadir miembros a grupos. Para canales usa /channels/{id}/members.")
+        raise error(400, "solo_grupos_miembros", detail="Solo se pueden quitar miembros de grupos.")
     return conv
 
 
@@ -286,9 +283,9 @@ def add_conversation_members(
         .first()
     )
     if not g:
-        raise ErrorDeDominio(404, "Grupo no encontrado")
+        raise error(404, "no_encontrado", detail="Grupo no encontrado", que="grupo")
     if not user_ids and not client_user_ids:
-        raise ErrorDeDominio(400, "Indica user_ids o client_user_ids")
+        raise error(400, "indica_persona", detail="Indica user_ids o client_user_ids")
 
     org = _org(user)
     ya = db.query(
@@ -353,7 +350,7 @@ def remove_conversation_member(
         .first()
     )
     if not member:
-        raise ErrorDeDominio(404, "Miembro no encontrado")
+        raise error(404, "no_encontrado", detail="Miembro no encontrado", que="miembro")
 
     if target_user_id != user.id:
         actor = (
@@ -365,7 +362,7 @@ def remove_conversation_member(
             .first()
         )
         if not actor or not actor.is_admin:
-            raise ErrorDeDominio(403, "Solo un admin del grupo puede quitar miembros")
+            raise error(403, "solo_admin_grupo")
 
     db.delete(member)
     audit_log.write(
@@ -396,7 +393,7 @@ def conversation_detail(db: Session, user, conversation_id: str) -> dict:
         .first()
     )
     if not conv:
-        raise ErrorDeDominio(404, "Conversación no encontrada")
+        raise error(404, "no_encontrado", detail="Conversación no encontrada", que="conversacion")
 
     titulo = None
     extra: dict = {}
@@ -471,6 +468,6 @@ def conversaciones_accesibles(db: Session, user, conversation_id: Optional[str] 
     accesibles = [c["id"] for c in list_conversations_for_user(db, user)]
     if conversation_id:
         if conversation_id not in accesibles:
-            raise ErrorDeDominio(403, "No tienes acceso a esa conversación")
+            raise error(403, "sin_acceso_a_conversacion", detail="No tienes acceso a esa conversación")
         return [conversation_id]
     return accesibles

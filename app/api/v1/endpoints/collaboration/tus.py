@@ -29,6 +29,7 @@ from app.core.deps import get_current_user, require_internal_user
 from app.db.session import get_db
 from app.models.user import User
 from app.services.collaboration import tus as svc
+from app.core.codigos_de_error import error_http
 
 router = APIRouter()
 
@@ -104,7 +105,7 @@ async def tus_patch(
     de hilos.
     """
     if content_type != svc.CONTENT_TYPE_DE_TROZO:
-        raise HTTPException(415, "Content-Type inválido")
+        raise error_http(415, "content_type_no_valido", detail="Content-Type inválido")
 
     cuerpo = await request.body()
     meta = await run_in_threadpool(

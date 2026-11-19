@@ -41,6 +41,7 @@ from app.schemas import UserLoad, UserPublic
 from app.core import timeutil
 from app.core.errores import ErrorDeDominio
 from app.services import politica_de_visibilidad
+from app.core.codigos_de_error import error
 
 
 # ── Query helpers ──────────────────────────────────────────────────────────────
@@ -63,7 +64,7 @@ def ensure_same_org_user_access(target_user, current_user) -> None:
     if not current_user.organization_id:
         return
     if not target_user.belongs_to_organization(current_user.organization_id):
-        raise ErrorDeDominio(status_code=404, detail="Usuario no encontrado")
+        raise error(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
 
 
 def _normalize_org_ids(org_ids: Optional[list[str]]) -> list[str]:
@@ -81,7 +82,7 @@ def _validate_org_ids(org_ids: list[str], db: Session) -> list[str]:
     }
     missing = [org_id for org_id in org_ids if org_id not in found]
     if missing:
-        raise ErrorDeDominio(status_code=400, detail=f"Organizaciones no encontradas: {', '.join(missing)}")
+        raise error(400, "no_encontrado", detail=f"Organizaciones no encontradas: {', '.join(missing)}", que="organizacion")
     return org_ids
 
 
@@ -254,7 +255,7 @@ def _resolver_organizaciones_del_alta(user_data: dict, requested_org_ids: list,
     if permitidas is not None:
         pedidas = {str(o) for o in requested_org_ids} | ({str(principal)} if principal else set())
         if pedidas - permitidas:
-            raise ErrorDeDominio(403, "No puedes crear usuarios en otra organización")
+            raise error(403, "usuario_otra_empresa", detail="No puedes crear usuarios en otra organización")
         if not pedidas:
             propia = current_user.organization_id
             user_data["organization_id"] = propia
@@ -286,9 +287,9 @@ def _empresas_permitidas(current_user):
 def create_user_record(payload, current_user, db: Session):
     """Da de alta un usuario, con sus pertenencias a organizaciones."""
     if db.query(User).filter(User.username == payload.username).first():
-        raise ErrorDeDominio(status_code=400, detail="Username ya existe")
+        raise error(400, "usuario_ya_existe", detail="Username ya existe")
     if db.query(User).filter(User.email == payload.email).first():
-        raise ErrorDeDominio(status_code=400, detail="Email ya registrado")
+        raise error(400, "email_ya_registrado", detail="Email ya registrado")
 
     if payload.password:
         ok, err = validate_password_policy(
@@ -296,7 +297,9 @@ def create_user_record(payload, current_user, db: Session):
             org_id=getattr(current_user, "organization_id", None),
         )
         if not ok:
-            raise ErrorDeDominio(status_code=400, detail=err)
+            from app.core.security import codigo_de_politica_de_contrasena
+            _cod, _par = codigo_de_politica_de_contrasena(err)
+            raise error(400, _cod, detail=err, **_par)
 
     # Externos como internos (migracion 178): un externo se da de alta con su
     # proveedor (`POST /enterprise/subcontractors/{id}/workers`, tambien desde
@@ -319,7 +322,7 @@ def create_user_record(payload, current_user, db: Session):
     if current_user.role != UserRole.admin and (
         user_data.get("hourly_rate") is not None or user_data.get("custom_role_id")
     ):
-        raise ErrorDeDominio(403, "Solo un administrador puede fijar la tarifa o el rol personalizado")
+        raise error(403, "solo_admin_tarifa_rol")
     if user_data.get("custom_role_id"):
         _exigir_rol_personalizado(db, user_data["custom_role_id"], user_data.get("organization_id"))
     else:
@@ -427,17 +430,15 @@ def _autorizar_edicion(user: User, payload, current_user) -> None:
     es_admin = current_user.role == UserRole.admin
 
     if current_user.id != user.id and not es_admin:
-        raise ErrorDeDominio(
-            status_code=403, detail="No tienes permiso para editar este usuario"
-        )
+        raise error(403, "sin_permiso", detail="No tienes permiso para editar este usuario")
     if es_admin:
         return
 
     enviados = set(payload.model_dump(exclude_unset=True))
     reservados = sorted(enviados - _campos_de_autoedicion())
     if reservados:
-        raise ErrorDeDominio(
-            status_code=403,
+        raise error(
+            403, "campos_solo_admin", campos=", ".join(reservados),
             detail=(
                 "Solo un administrador puede cambiar estos campos: "
                 + ", ".join(reservados)
@@ -464,14 +465,10 @@ def _autorizar_y_validar_organizaciones(payload, current_user, db: Session):
     if permitidas is not None:
         pedidas = set(map(str, payload_org_ids or [])) | ({str(payload_org_id)} if payload_org_id else set())
         if pedidas - permitidas:
-            raise ErrorDeDominio(
-                status_code=403, detail="No puedes mover usuarios a otra organización"
-            )
+            raise error(403, "usuario_otra_empresa", detail="No puedes mover usuarios a otra organización")
 
     if (payload_org_id is not None or payload_org_ids is not None) and current_user.role != UserRole.admin:
-        raise ErrorDeDominio(
-            status_code=403, detail="Solo admin puede cambiar organizaciones"
-        )
+        raise error(403, "solo_admin", detail="Solo admin puede cambiar organizaciones")
 
     if payload_org_ids is not None:
         _validate_org_ids(payload_org_ids, db)
@@ -498,7 +495,7 @@ def _validar_correo_unico(payload, user: User, db: Session) -> None:
                    .filter(func.lower(User.email) == normalizado, User.id != user.id)
                    .first())
     if existente:
-        raise ErrorDeDominio(status_code=400, detail="Email ya registrado")
+        raise error(400, "email_ya_registrado", detail="Email ya registrado")
 
 
 def _validar_rol(payload, user: User, db: Session) -> None:
@@ -509,7 +506,7 @@ def _validar_rol(payload, user: User, db: Session) -> None:
     """
     enviados = payload.model_dump(exclude_unset=True)
     if enviados.get("role") is not None and enviados["role"] not in {r.value for r in UserRole}:
-        raise ErrorDeDominio(422, f"Rol base desconocido: {enviados['role']}")
+        raise error(422, "valor_no_valido", detail=f"Rol base desconocido: {enviados['role']}", valor=enviados['role'])
     if "custom_role_id" not in enviados:
         return
     if not enviados["custom_role_id"]:
@@ -525,7 +522,7 @@ def _exigir_rol_personalizado(db: Session, custom_role_id: str, organization_id)
                                       CustomRole.is_active.is_(True),
                                       CustomRole.organization_id == organization_id).first()
     if rol is None or rol.is_system:
-        raise ErrorDeDominio(422, "Rol personalizado no encontrado en la organización del usuario")
+        raise error(422, "no_encontrado", detail="Rol personalizado no encontrado en la organización del usuario", que="rol")
 
 
 def _aplicar_campos(payload, user: User) -> None:
@@ -568,7 +565,7 @@ def _sincronizar_organizaciones(user: User, payload_org_id, payload_org_ids, db:
 def update_user_record(user_id: str, payload, current_user, db: Session):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise ErrorDeDominio(status_code=404, detail="Usuario no encontrado")
+        raise error(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
     ensure_same_org_user_access(user, current_user)
 
     _autorizar_edicion(user, payload, current_user)
@@ -627,7 +624,7 @@ def get_user_productivity_payload(
 
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise ErrorDeDominio(status_code=404, detail="Usuario no encontrado")
+        raise error(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
     ensure_same_org_user_access(user, current_user)
 
     if not date_from:
@@ -676,19 +673,19 @@ def set_manager_record(user_id: str, manager_id: Optional[str], current_user, db
 
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise ErrorDeDominio(404, "Usuario no encontrado")
+        raise error(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
     ensure_same_org_user_access(user, current_user)
 
     if manager_id:
         manager = db.query(User).filter(User.id == manager_id).first()
         if not manager:
-            raise ErrorDeDominio(404, "Manager no encontrado")
+            raise error(404, "no_encontrado", detail="Manager no encontrado", que="responsable_directo")
         ensure_same_org_user_access(manager, current_user)
         # Detect cycles
         check = manager
         while check.manager_id:
             if check.manager_id == user_id:
-                raise ErrorDeDominio(400, "Ciclo detectado en la jerarquía")
+                raise error(400, "jerarquia_ciclica")
             check = db.query(User).filter(User.id == check.manager_id).first()
             if not check:
                 break
@@ -798,7 +795,7 @@ def update_self_profile(user, update_data: dict, db: Session):
         normalized_email = incoming_email.strip().lower()
         existing = db.query(User).filter(func.lower(User.email) == normalized_email, User.id != user.id).first()
         if existing:
-            raise ErrorDeDominio(status_code=400, detail="Email ya registrado")
+            raise error(400, "email_ya_registrado", detail="Email ya registrado")
 
     for field, value in update_data.items():
         if field in allowed_fields:
@@ -846,12 +843,12 @@ def update_preferences_record(user_id: str, payload: dict, db: Session) -> dict:
     if "dashboard_widgets" in payload:
         pref.dashboard_widgets = json.dumps(payload["dashboard_widgets"]) if payload["dashboard_widgets"] is not None else None
     if payload.get("accent_color") is not None and not re.fullmatch(r"#[0-9a-fA-F]{6}", str(payload["accent_color"])):
-        raise ErrorDeDominio(422, "El acento es un color #rrggbb, o vacío para usar el del tema")
+        raise error(422, "color_hex_no_valido", detail="El acento es un color #rrggbb, o vacío para usar el del tema")
     if "accent_color"      in payload: pref.accent_color      = payload["accent_color"] or None
     if payload.get("theme_mode") is not None and payload["theme_mode"] not in TEMAS:
-        raise ErrorDeDominio(422, f"Tema desconocido: {payload['theme_mode']}")
+        raise error(422, "valor_no_valido", detail=f"Tema desconocido: {payload['theme_mode']}", valor=payload['theme_mode'])
     if payload.get("ui_density") is not None and payload["ui_density"] not in DENSIDADES:
-        raise ErrorDeDominio(422, f"Densidad desconocida: {payload['ui_density']}")
+        raise error(422, "valor_no_valido", detail=f"Densidad desconocida: {payload['ui_density']}", valor=payload['ui_density'])
     if "theme_mode"        in payload: pref.theme_mode        = payload["theme_mode"]
     if "sidebar_collapsed" in payload: pref.sidebar_collapsed = payload["sidebar_collapsed"]
     if "language"          in payload: pref.language          = payload["language"]
@@ -863,7 +860,7 @@ def update_preferences_record(user_id: str, payload: dict, db: Session) -> dict:
             pref.extra = None
         else:
             if not isinstance(payload["extra"], dict):
-                raise ErrorDeDominio(422, "extra es un objeto de claves")
+                raise error(422, "extra_no_es_objeto", detail="extra es un objeto de claves")
             actual = json.loads(pref.extra) if pref.extra else {}
             for clave, valor in payload["extra"].items():
                 if valor is None:

@@ -27,7 +27,8 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import GanttChart from '../components/GanttChart'
 import DocumentsPanel from '../components/DocumentsPanel'
-import { fmtDate, fmtCurrency, TYPE_LABELS, extractErr} from '../utils/helpers'
+import { fmtDate, fmtCurrency, extractErr} from '../utils/helpers'
+import { EtiquetaDeCatalogo, OpcionesDeCatalogo } from '../components/catalogos/Catalogo'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { BILLING_TYPES } from '../constants/api'
 import { useAuth } from '../context/AuthContext'
@@ -41,6 +42,7 @@ import { alpha } from '../constants/theme'
 import DateInput from '../components/ui/DateInput'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
+import { useTono } from '../hooks/useOrgSettings'
 import './ProjectsPage.css'
 const PROJ_COLS = [
   { id: 'name',     label: 'proyectos_ui.col_proyecto',     width: '2fr',   sortKey: 'name' },
@@ -146,7 +148,7 @@ const PROJECT_STATUSES = [
   { value: 'cancelled', label: 'proyectos_ui.estado_cancelled' },
   { value: 'archived',  label: 'proyectos_ui.estado_archived' },
 ]
-const PROJECT_TYPES = Object.keys(TYPE_LABELS).map(v => ({ value: v }))
+// 19-11-2026: los tipos de proyecto salen del catálogo de la empresa (`/settings/project-types`).
 const RISK_LEVELS = [
   { value: 'low', label: 'proyectos_ui.riesgo_low' },
   { value: 'medium', label: 'proyectos_ui.riesgo_medium' },
@@ -234,6 +236,7 @@ function StatusDropdown({ project, onUpdate }: { project: Pick<ProjectSummary, '
 
 function ProjectCard({ project, onClick, onStatusChange, onEdit }: { project: ProjectSummary; onClick: (p: ProjectSummary) => void; onStatusChange: (id: string, s: string) => void; onEdit: (p: ProjectSummary) => void }) {
   const traducir = useAppT()
+  const tono = useTono()
   return (
     <div className="ds-card prj-tarjeta"
     >
@@ -254,7 +257,7 @@ function ProjectCard({ project, onClick, onStatusChange, onEdit }: { project: Pr
 
       <Pulsable className="prj-btn-ghost-2" onClick={() => onClick(project)}>
         <div className="prj-row-muted">
-          <span>{etiquetaCodigo(traducir, 'tipo_proyecto', project.project_type, TYPE_LABELS[project.project_type])}</span>
+          <span><EtiquetaDeCatalogo catalogo="project-types" clave={project.project_type} /></span>
           <span>{traducir('proyectos_ui.pct_completado', { n: project.progress_pct?.toFixed(0) ?? 0 })}</span>
         </div>
         <LoadBar value={project.progress_pct ?? 0} label={undefined} />
@@ -264,7 +267,7 @@ function ProjectCard({ project, onClick, onStatusChange, onEdit }: { project: Pr
         <Pulsable className="prj-btn-ghost-3" onClick={() => onClick(project)}>
           <span className="ds-muted">{traducir('proyectos_ui.equipo')} <span className="u-text1">{project.team_size}</span></span>
           {project.budget_amount && (
-            <span className="prj-text-mono" style={{ '--prj-text-mono-color': project.budget_used_pct > 90 ? 'var(--danger)' : 'var(--text-2)' } as CSSProperties}>
+            <span className="prj-text-mono" style={{ '--prj-text-mono-color': tono('presupuesto', project.budget_used_pct) === 'danger' ? 'var(--danger)' : 'var(--text-2)' } as CSSProperties}>
               {traducir('proyectos_ui.pct_presupuesto', { n: project.budget_used_pct?.toFixed(0) ?? 0 })}
             </span>
           )}
@@ -407,7 +410,7 @@ function ProjectFormModal({ open, onClose, project = null }: { open: boolean; on
           <label className="prj-ls-2" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{t('proyectos_ui.tipo_req')}</label>
           <Select suelto placeholder={false} className="prj-fs-2" id={`${idCampo}-1`} value={form.project_type} onChange={set('project_type')}>
             <option value="">{t('proyectos_ui.seleccionar')}</option>
-            {PROJECT_TYPES.map(o => <option key={o.value} value={o.value}>{etiquetaCodigo(traducir, 'tipo_proyecto', o.value, TYPE_LABELS[o.value])}</option>)}
+            <OpcionesDeCatalogo catalogo="project-types" />
           </Select>
           {err('project_type') && <div className="u-field-error">{err('project_type')}</div>}
         </div>
@@ -997,8 +1000,9 @@ function GanttWithDeps({ projectId, tasks }: { projectId: string; tasks: GanttTa
 
 export default function ProjectsPage() {
   const traducir = useAppT()
+  const tono = useTono()
   const t = useAppT()
-  const { hasRole } = useAuth()
+  const { puede } = useAuth()
   const toast = useToast()
   const qc = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -1052,7 +1056,7 @@ export default function ProjectsPage() {
     total: projects.length,
     active: projects.filter(p => p.status === 'active').length,
     atRisk: projects.filter(p => p.risk_level === 'high' || p.risk_level === 'critical').length,
-    overBudget: projects.filter(p => p.budget_used_pct > 90).length,
+    overBudget: projects.filter(p => tono('presupuesto', p.budget_used_pct) === 'danger').length,
   }
 
   return (
@@ -1078,7 +1082,7 @@ export default function ProjectsPage() {
                 </Pulsable>
               ))}
             </div>
-            {hasRole('admin', 'pm') && (
+            {puede('proyectos.gestionar') && (
               <Button onClick={() => setShowCreate(true)}>
                 <Plus size={13} /> {traducir('projects.nuevo_proyecto')}
               </Button>
@@ -1118,7 +1122,7 @@ export default function ProjectsPage() {
         </Select>
         <Select suelto placeholder={false} aria-label={traducir('proyectos_ui.filtro_tipo')} value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="prj-input-5">
           <option value="">{traducir('projects.todos_los_tipos')}</option>
-          {PROJECT_TYPES.map(o => <option key={o.value} value={o.value}>{etiquetaCodigo(traducir, 'tipo_proyecto', o.value, TYPE_LABELS[o.value])}</option>)}
+          <OpcionesDeCatalogo catalogo="project-types" />
         </Select>
       </div>
 
@@ -1158,10 +1162,10 @@ export default function ProjectsPage() {
                   <div className="u-text2-mono-xs">{p.code}</div>
                 </Pulsable>
               )}
-              {visCols.includes('type') && <span className="u-text2-sm">{etiquetaCodigo(traducir, 'tipo_proyecto', p.project_type, TYPE_LABELS[p.project_type])}</span>}
+              {visCols.includes('type') && <span className="u-text2-sm"><EtiquetaDeCatalogo catalogo="project-types" clave={p.project_type} /></span>}
               {visCols.includes('pm') && <span className="u-sm">{p.pm_name || '—'}</span>}
               {visCols.includes('status') && <StatusDropdown project={p} onUpdate={status => updateStatus({ id: p.id, status })} />}
-              {visCols.includes('budget') && <span className="prj-text-sm-mono" style={{ '--prj-text-sm-mono-color': (p.budget_used_pct ?? 0) > 90 ? 'var(--danger)' : 'var(--text-2)' } as CSSProperties}>{p.budget_used_pct?.toFixed(0) ?? 0}%</span>}
+              {visCols.includes('budget') && <span className="prj-text-sm-mono" style={{ '--prj-text-sm-mono-color': tono('presupuesto', p.budget_used_pct ?? 0) === 'danger' ? 'var(--danger)' : 'var(--text-2)' } as CSSProperties}>{p.budget_used_pct?.toFixed(0) ?? 0}%</span>}
               {visCols.includes('progress') && <span className="u-text2-sm">{p.progress_pct?.toFixed(0) ?? 0}%</span>}
               {visCols.includes('risk') && <Badge label={p.risk_level} display={undefined} _color={undefined} />}
             </div>

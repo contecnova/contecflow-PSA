@@ -40,14 +40,14 @@ function resolveTokens(): ChartThemeTokens {
     surface2: get('--surface-2') || '#1f2228',
     surface3: get('--surface-3') || '#2a2e36',
     surface4: get('--surface-4') || '#3a3f49',
-    accent:   get('--accent')    || '#caa34c',
+    accent:   get('--accent')    || '#4f8ef7',
     success:  get('--success')   || '#59c08c',
     danger:   get('--danger')    || '#e68b8b',
     warning:  get('--warning')   || '#d5a441',
     info:     get('--info')      || '#77b5ff',
     textColor: get('--text-2')   || '#c3c7cf',
     tooltipBg: get('--surface-2') || '#1f2228',
-    primary:   get('--accent')    || '#caa34c',
+    primary:   get('--accent')    || '#4f8ef7',
   }
 }
 

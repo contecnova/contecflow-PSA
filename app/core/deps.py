@@ -1,10 +1,11 @@
-from fastapi import Cookie, Depends, Header, HTTPException, Request, status
+from fastapi import Cookie, Depends, Header, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
 from app.core.security import decode_token
+from app.core.codigos_de_error import error_http
 from app.models.user import User, UserRole
 
 security = HTTPBearer(auto_error=False)
@@ -32,28 +33,18 @@ def get_current_user(
         return _usuario_de_credencial_delegada(db, request, *delegada)
 
     if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No autenticado",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise error_http(status.HTTP_401_UNAUTHORIZED, "no_autenticado", {"WWW-Authenticate": "Bearer"},
+                         detail="No autenticado")
     payload = decode_token(token)
 
     if not payload or payload.get("type") != "access":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token inválido o expirado",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise error_http(status.HTTP_401_UNAUTHORIZED, "token_no_valido", {"WWW-Authenticate": "Bearer"},
+                         detail="Token inválido o expirado")
     # Auditoria 2026-11: los tokens de uso concreto (incrustar un panel BI, el
     # flujo en tiempo real, el WebSocket) eran tokens de acceso completos: con
     # uno se llamaba a toda la API. Cada uno lo valida su propio receptor.
     if any(payload.get(c) for c in TOKENS_DE_USO_CONCRETO):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Este token solo vale para su uso concreto",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise error_http(status.HTTP_401_UNAUTHORIZED, "token_uso_restringido", {"WWW-Authenticate": "Bearer"})
 
     user_id = payload.get("sub")
     user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
@@ -66,10 +57,8 @@ def get_current_user(
         db.info["suplantado_por"] = suplantador
 
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuario no encontrado o inactivo",
-        )
+        raise error_http(status.HTTP_401_UNAUTHORIZED, "usuario_no_encontrado_o_inactivo",
+                         detail="Usuario no encontrado o inactivo")
 
     # Store tenant context in the session so query scoping can enforce row-level isolation.
     # is_superadmin=True  → bypass all tenant filters (full cross-tenant visibility)
@@ -93,10 +82,8 @@ def get_current_user(
     if user.role == UserRole.subcontractor and not user.is_superadmin:
         from app.services.externos.ciclo import acceso_vigente
         if not acceso_vigente(db, user):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Acceso de externo caducado o retirado",
-            )
+            raise error_http(status.HTTP_401_UNAUTHORIZED, "acceso_externo_caducado",
+                             detail="Acceso de externo caducado o retirado")
 
     # Make the authenticated user available to the service layer so events
     # can be emitted without passing actor as an explicit parameter.
@@ -116,8 +103,8 @@ def _usuario_de_credencial_delegada(db: Session, request: Request, user_id: str,
     from app.core import credenciales_delegadas as _delegadas
     user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                            detail="El dueño de la credencial no existe o está inactivo")
+        raise error_http(status.HTTP_401_UNAUTHORIZED, "usuario_no_encontrado_o_inactivo",
+                         detail="El dueño de la credencial no existe o está inactivo")
     _delegadas.comprobar_alcance(request.method, request.url.path, alcances)
     db.commit()  # contadores de uso de la clave
     if getattr(user, "is_superadmin", False):
@@ -130,8 +117,8 @@ def _usuario_de_credencial_delegada(db: Session, request: Request, user_id: str,
         # pertenece a ella, la credencial no vale.
         from app.services.entrada_service import organizacion_de_la_peticion, pertenece
         if empresa and empresa != user.organization_id and not pertenece(db, user, empresa):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                                detail="El dueño de la credencial ya no pertenece a su organización")
+            raise error_http(status.HTTP_401_UNAUTHORIZED, "credencial_dueno_fuera_de_empresa",
+                             detail="El dueño de la credencial ya no pertenece a su organización")
         db.info["organization_id"] = organizacion_de_la_peticion(
             db, user, {"org": empresa} if empresa else {}, request)
         db.info["is_superadmin"] = False
@@ -160,10 +147,9 @@ class RequireRole:
         if current_user.is_superadmin:
             return current_user
         if current_user.role not in self.roles:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Acceso denegado. Roles requeridos: {[r.value for r in self.roles]}",
-            )
+            raise error_http(status.HTTP_403_FORBIDDEN, "roles_requeridos",
+                             detail=f"Acceso denegado. Roles requeridos: {[r.value for r in self.roles]}",
+                             roles=", ".join(r.value for r in self.roles))
         return current_user
 
 
@@ -177,10 +163,8 @@ def require_superadmin(current_user: User = Depends(get_current_user)) -> User:
     dependency instead. See app/db/session.py::TenantSession.
     """
     if not getattr(current_user, "is_superadmin", False):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Acceso denegado. Requiere superadministrador de plataforma.",
-        )
+        raise error_http(status.HTTP_403_FORBIDDEN, "solo_superadmin",
+                         detail="Acceso denegado. Requiere superadministrador de plataforma.")
     return current_user
 
 
@@ -228,11 +212,11 @@ def get_current_client(
         token = request.cookies.get("portal_access_token")
 
     if not token:
-        raise HTTPException(status_code=401, detail="Token de cliente requerido")
+        raise error_http(401, "token_requerido", detail="Token de cliente requerido")
     from app.core.security import verify_client_token
     client = verify_client_token(token, db)
     if not client:
-        raise HTTPException(status_code=401, detail="Token de cliente inválido")
+        raise error_http(401, "sesion_invalida", detail="Token de cliente inválido")
     # Revision 2026-11: no publicaba el tenant, y `TenantSession` sin contexto
     # no filtra (las rutas de colaboracion y conversaciones del portal).
     from app.db.session import publicar_contexto_de_tenant

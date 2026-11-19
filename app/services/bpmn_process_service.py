@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.models.bpmn_process import BPMNProcess, BPMNProcessVersion, BPMNProcessStatus
 from app.core.asignacion import es_asignable
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 
 # ── Seed catalogue ────────────────────────────────────────────────────────────
@@ -473,16 +473,16 @@ def validar_xml(db: Session, organization_id, xml: str) -> None:
     tope = get_runtime_int(db, "BPMN_MAX_XML_BYTES", organization_id)
     tamano = len((xml or "").encode("utf8"))
     if tope and tamano > tope:
-        raise ErrorDeDominio(413, f"El diagrama ocupa {tamano} bytes; el máximo es {tope}")
+        raise error(413, "bpm_diagrama_demasiado_grande", bytes=tamano, max=tope)
     try:
         raiz = fromstring(xml or "")
     except Exception as exc:   # ParseError y los rechazos de defusedxml
-        raise ErrorDeDominio(422, f"El diagrama no es un XML válido: {exc}") from exc
+        raise error(422, "bpm_xml_no_valido", detail=f"El diagrama no es un XML válido: {exc}") from exc
     if raiz.tag != "{http://www.omg.org/spec/BPMN/20100524/MODEL}definitions":
-        raise ErrorDeDominio(422, "El diagrama no es BPMN 2.0 (falta bpmn:definitions)")
+        raise error(422, "bpm_no_es_bpmn")
     if raiz.find("{http://www.omg.org/spec/BPMN/20100524/MODEL}process") is None \
             and raiz.find("{http://www.omg.org/spec/BPMN/20100524/MODEL}collaboration") is None:
-        raise ErrorDeDominio(422, "El diagrama no contiene ningún proceso")
+        raise error(422, "bpm_sin_procesos")
 
 
 # ── Service helpers ───────────────────────────────────────────────────────────
@@ -627,10 +627,7 @@ def create_process(db: Session, *, name: str, category: str, key: str,
         # entre medias; la rechazan los indices unicos (#33). Es un conflicto
         # (409), no un fallo del servidor.
         db.rollback()
-        raise ErrorDeDominio(
-            status_code=409,
-            detail=f"Ya existe un proceso con la clave '{key}'. Reintenta la operación.",
-        ) from exc
+        raise error(409, "bpm_clave_proceso_duplicada", detail=f"Ya existe un proceso con la clave '{key}'. Reintenta la operación.", clave=key) from exc
     xml = bpmn_xml or empty_bpmn_xml(name)
     v = BPMNProcessVersion(
         process_id=proc.id, version=1, bpmn_xml=xml,
@@ -647,7 +644,7 @@ def save_new_version(db: Session, *, process_id: str, bpmn_xml: str,
                      created_by_user_id: Optional[str] = None) -> BPMNProcessVersion:
     proc = get_process(db, process_id)
     if not proc:
-        raise ErrorDeDominio(404, "Process not found")
+        raise error(404, "no_encontrado", detail="Process not found", que="proceso")
     validar_xml(db, proc.organization_id, bpmn_xml)
     next_version = (proc.latest_version or 0) + 1
     v = BPMNProcessVersion(
@@ -699,7 +696,7 @@ def publish_version(db: Session, process_id: str, version: int) -> Optional[BPMN
         return None
     problemas = motor.leer(v.bpmn_xml).problemas
     if problemas:
-        raise ErrorDeDominio(422, "El diagrama no se puede ejecutar: " + "; ".join(map(str, problemas[:20])))
+        raise error(422, "bpm_diagrama_no_ejecutable", problemas="; ".join(map(str, problemas[:20])))
     (db.query(BPMNProcessVersion)
      .filter(BPMNProcessVersion.process_id == process_id, BPMNProcessVersion.id != v.id,
              BPMNProcessVersion.is_published.is_(True))

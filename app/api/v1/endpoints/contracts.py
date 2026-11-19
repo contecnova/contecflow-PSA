@@ -12,6 +12,7 @@ from app.services import contract_service
 from app.services.contract_service import horas_usadas as _horas_usadas, serialize_contract as _contract_out
 from app.schemas.contracts import ContractIn, ContractUpdate, WorkOrderIn
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.core.codigos_de_error import error_http, desde_valor
 
 router = APIRouter()
 
@@ -48,12 +49,12 @@ def create_contract(
 ):
     if not current_user.is_superadmin and current_user.organization_id:
         if not contract_service.check_project_access(db, payload.project_id, current_user.organization_id):
-            raise HTTPException(403, "No puedes crear contratos para proyectos fuera de tu organización")
+            raise error_http(403, "contrato_proyecto_otra_org", detail="No puedes crear contratos para proyectos fuera de tu organización")
 
     try:
         c = contract_service.create_contract(db, current_user.id, **payload.model_dump())
     except IntegrityError:
-        raise HTTPException(status_code=409, detail="Código de contrato duplicado. Inténtalo de nuevo.")
+        raise error_http(409, "contrato_codigo_duplicado", detail="Código de contrato duplicado. Inténtalo de nuevo.")
     return APIResponse.ok(data=_contract_out(c, _horas_usadas(db, [c])[c.id]))
 
 
@@ -75,7 +76,7 @@ def get_contract(
     """
     c = contract_service.get_contract(db, contract_id, current_user)
     if not c:
-        raise HTTPException(404, "Contrato no encontrado")
+        raise error_http(404, "no_encontrado", detail="Contrato no encontrado", que="contrato")
     return APIResponse.ok(data=_contract_out(c, _horas_usadas(db, [c])[c.id]))
 
 
@@ -88,7 +89,7 @@ def update_contract(
 ):
     c = contract_service.get_contract(db, contract_id, current_user)
     if not c:
-        raise HTTPException(404, "Contrato no encontrado")
+        raise error_http(404, "no_encontrado", detail="Contrato no encontrado", que="contrato")
     c = contract_service.update_contract(db, c, payload.model_dump(exclude_unset=True))
     return APIResponse.ok(data=_contract_out(c, _horas_usadas(db, [c])[c.id]))
 
@@ -101,12 +102,12 @@ def delete_contract(
 ):
     c = contract_service.get_contract(db, contract_id, current_user)
     if not c:
-        raise HTTPException(404, "Contrato no encontrado")
+        raise error_http(404, "no_encontrado", detail="Contrato no encontrado", que="contrato")
     enforce_abac(db, current_user, "contract", contract_id, action="delete")
     try:
         contract_service.delete_contract(db, c)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
     return APIResponse.ok(data={"ok": True, "message": "Contrato eliminado correctamente"})
 
 
@@ -119,7 +120,7 @@ def create_work_order(
 ):
     c = contract_service.get_contract(db, contract_id, current_user)
     if not c:
-        raise HTTPException(404, "Contrato no encontrado")
+        raise error_http(404, "no_encontrado", detail="Contrato no encontrado", que="contrato")
     wo = contract_service.create_work_order(
         db, contract_id=contract_id, project_id=c.project_id, **payload.model_dump()
     )
@@ -136,7 +137,7 @@ def update_work_order(
 ):
     wo = contract_service.get_work_order(db, wo_id, contract_id, current_user)
     if not wo:
-        raise HTTPException(404, "Orden de trabajo no encontrada")
+        raise error_http(404, "no_encontrado", detail="Orden de trabajo no encontrada", que="orden_de_trabajo")
     wo = contract_service.update_work_order(db, wo, payload.model_dump(exclude_unset=True))
     return APIResponse.ok(data={"id": wo.id, "code": wo.code, "status": wo.status})
 
@@ -151,6 +152,6 @@ def change_wo_status(
 ):
     wo = contract_service.get_work_order(db, wo_id, contract_id, current_user)
     if not wo:
-        raise HTTPException(404, "OT no encontrada")
+        raise error_http(404, "no_encontrado", detail="OT no encontrada", que="orden_de_trabajo")
     contract_service.change_work_order_status(db, wo, status)
     return APIResponse.ok(data={"ok": True})

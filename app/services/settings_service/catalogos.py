@@ -7,8 +7,8 @@ from __future__ import annotations
 
 from typing import Optional
 from sqlalchemy.orm import Session
-from app.core.errores import ErrorDeDominio
 from app.models.settings import CustomProjectType, CustomProjectStatus, CustomTaskStatus, Department, Holiday
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 DEFAULT_PROJECT_TYPES = [
@@ -46,7 +46,7 @@ def _exigir_propio(db: Session, item) -> None:
         return
     org = db.info.get("organization_id")
     if item.organization_id is None:
-        raise ErrorDeDominio(403, "Es un valor del sistema, común a todas las empresas: crea uno propio en lugar de cambiarlo")
+        raise error_con_codigo(403, "valor_sistema_no_editable")
     if not org or item.organization_id != org:
         raise ValueError("not_found")
 
@@ -72,7 +72,7 @@ def create_project_type(payload_dict: dict, db: Session) -> CustomProjectType:
         CustomProjectType.value == payload_dict["value"],
         CustomProjectType.is_active == True
     ).first():
-        raise ValueError("Ya existe un tipo con ese valor")
+        raise ErrorConCodigo("tipo_ya_existe")
     item = CustomProjectType(**_sellar(db, payload_dict))
     db.add(item); db.commit(); db.refresh(item)
     return item
@@ -116,7 +116,7 @@ def create_project_status(payload_dict: dict, db: Session) -> CustomProjectStatu
         CustomProjectStatus.value == payload_dict["value"],
         CustomProjectStatus.is_active == True
     ).first():
-        raise ValueError("Ya existe un estado con ese valor")
+        raise ErrorConCodigo("estado_ya_existe")
     item = CustomProjectStatus(**_sellar(db, payload_dict))
     db.add(item); db.commit(); db.refresh(item)
     return item
@@ -160,7 +160,7 @@ def create_task_status(payload_dict: dict, db: Session) -> CustomTaskStatus:
         CustomTaskStatus.value == payload_dict["value"],
         CustomTaskStatus.is_active == True
     ).first():
-        raise ValueError("Ya existe un estado con ese valor")
+        raise ErrorConCodigo("estado_ya_existe")
     item = CustomTaskStatus(**_sellar(db, payload_dict))
     db.add(item); db.commit(); db.refresh(item)
     return item
@@ -237,7 +237,7 @@ def create_department(payload_dict: dict, db: Session) -> Department:
         Department.name == payload_dict["name"],
         Department.is_active == True
     ).first():
-        raise ValueError("Ya existe un departamento con ese nombre")
+        raise ErrorConCodigo("departamento_ya_existe")
     item = Department(**payload_dict)
     db.add(item); db.commit(); db.refresh(item)
     return item

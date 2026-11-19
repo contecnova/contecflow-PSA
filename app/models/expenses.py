@@ -44,7 +44,7 @@ class Expense(Base):
     contract_id = Column(String(36), ForeignKey("contracts.id"), nullable=True, index=True)
 
     # Expense details
-    category    = Column(Enum(ExpenseCategory), nullable=False)
+    category    = Column(String(50), nullable=False)  # clave de `custom_expense_categories` (19-11-2026)
     description = Column(String(500), nullable=False)
     amount      = Column(Money, nullable=False)
     currency    = Column(String(3), default=settings.DEFAULT_CURRENCY)

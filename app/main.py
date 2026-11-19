@@ -567,6 +567,9 @@ async def lifespan(_app: FastAPI):
         _enforce_scheduler_mode_safety()
         _enforce_superadmin_bypass_safety()
         _enforce_security_switches_safety()
+        # 19-11-2026: sin respaldos de desarrollo (localhost, *.local, DocuSign demo) en producción.
+        from app.core.comprobacion_de_produccion import exigir as _exigir_config_de_produccion
+        _exigir_config_de_produccion()
     except RuntimeError as _sched_exc:
         logger.error("❌ Startup safety check failed: %s", _sched_exc)
         raise

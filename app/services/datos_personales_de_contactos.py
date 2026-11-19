@@ -91,7 +91,9 @@ def exigir_sin_bloqueo_legal(db: Session, email: str, org: Optional[str]) -> Non
     from app.core.errores import ErrorDeDominio
     casos = sorted({b.case_reference for b in bloqueos(db, email, org)})
     if casos:
-        raise ErrorDeDominio(409, "El contacto está bajo bloqueo legal y no se puede suprimir: " + ", ".join(casos))
+        from app.core.codigos_de_error import error
+        raise error(409, "bloqueo_legal_no_suprimible", casos=", ".join(casos),
+                    detail="El contacto está bajo bloqueo legal y no se puede suprimir: " + ", ".join(casos))
 
 
 def anonimizar(db: Session, email: str, org: Optional[str]) -> dict:

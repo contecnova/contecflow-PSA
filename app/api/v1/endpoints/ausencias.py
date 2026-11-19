@@ -378,6 +378,6 @@ def dar_plaza(absence_id: str, db: Session = Depends(get_db), current_user: User
     a = consultas.visible(db, current_user, absence_id)
     documentos.exigir_gestion(db, current_user, a)
     if a.user_id == current_user.id:
-        raise ErrorDeDominio(403, "No puedes darte plaza a ti")
+        raise error_con_codigo(403, "no_puedes_contigo", detail="No puedes darte plaza a ti")
     a = solicitudes.dar_plaza(db, current_user, a)
     return APIResponse.ok(data=consultas.detalle(db, current_user, a))

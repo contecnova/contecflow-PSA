@@ -38,6 +38,8 @@ import logging
 from app.core import timeutil
 from app.core.asignacion import es_asignable
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
+from app.core.codigos_de_error import ErrorConCodigo
 
 logger = logging.getLogger(__name__)
 
@@ -378,14 +380,14 @@ def get_project_scoped_or_404(db: Session, project_id: str, current_user):
         .first()
     )
     if not project:
-        raise ErrorDeDominio(404, "Proyecto no encontrado")
+        raise error(404, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")
     if (
         not current_user.is_superadmin
         and current_user.organization_id
         and project.organization_id
         and project.organization_id != current_user.organization_id
     ):
-        raise ErrorDeDominio(404, "Proyecto no encontrado")
+        raise error(404, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")
     return project
 
 
@@ -446,12 +448,9 @@ def apply_project_update(db: Session, project, data: dict) -> None:
     if "version" in data:
         client_version = data.pop("version")
         if project.version is not None and client_version != project.version:
-            raise ErrorDeDominio(
-                409,
-                f"Conflicto de edición: el proyecto fue modificado por otro usuario "
+            raise error(409, "conflicto_concurrente", detail=f"Conflicto de edición: el proyecto fue modificado por otro usuario "
                 f"(versión esperada {client_version}, versión actual {project.version}). "
-                "Recarga y reintenta.",
-            )
+                "Recarga y reintenta.")
 
     if "client_id" in data and data["client_id"] and data["client_id"] != project.client_id:
         new_client = db.query(Client).filter(Client.id == data["client_id"]).first()
@@ -467,9 +466,9 @@ def cancel_project_record(db: Session, project_id: str) -> dict:
 
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
-        raise ErrorDeDominio(404, "Proyecto no encontrado")
+        raise error(404, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")
     if project.status == ProjectStatus.cancelled:
-        raise ValueError("El proyecto ya esta cancelado")
+        raise ErrorConCodigo("proyecto_ya_cancelado", detail="El proyecto ya esta cancelado")
     project.status = ProjectStatus.cancelled
     db.commit()
     from app.core.events import emit, EventType
@@ -484,7 +483,7 @@ def add_project_phase_record(db: Session, project_id: str, payload):
 
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
-        raise ErrorDeDominio(404, "Proyecto no encontrado")
+        raise error(404, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")
     phase = ProjectPhase(**payload.model_dump(), project_id=project_id)
     db.add(phase)
     db.commit()
@@ -535,13 +534,13 @@ def add_member_record(db: Session, project_id: str, data: dict):
     """Valida, persiste y retorna un nuevo ProjectMember. Lanza error si ya existe."""
 
     if not data.get("user_id"):
-        raise ErrorDeDominio(422, "user_id es obligatorio")
+        raise error(422, "campo_obligatorio", detail="user_id es obligatorio", campo="user_id")
     existing = db.query(ProjectMember).filter(
         ProjectMember.project_id == project_id,
         ProjectMember.user_id == data["user_id"],
     ).first()
     if existing and existing.is_active:
-        raise ErrorDeDominio(409, "El usuario ya es miembro del proyecto")
+        raise error(409, "ya_es_miembro_proyecto")
     if existing and not existing.is_active:
         existing.is_active = True
         existing.role = data.get("role", existing.role or "developer")
@@ -579,7 +578,7 @@ def get_member_or_404(db: Session, project_id: str, member_id: str):
         ProjectMember.is_active == True,
     ).first()
     if not m:
-        raise ErrorDeDominio(404, "Miembro no encontrado")
+        raise error(404, "no_encontrado", detail="Miembro no encontrado", que="miembro")
     return m
 
 

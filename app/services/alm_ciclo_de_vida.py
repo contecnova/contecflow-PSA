@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 from app.core import timeutil
 from app.models.alm import ALMAsset, ALMAssetHistory
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 #: Fechas que vencen, en el orden en que se leen.
 VENCIMIENTOS = ("warranty_expiry", "eol_date", "lease_expiry", "next_maintenance_date")
@@ -65,13 +66,13 @@ def exigir_ci(db: Session, ci_id: Optional[str], current_user) -> None:
         return
     from app.services.service_desk.cmdb_service import get_scoped_ci_by_id
     if get_scoped_ci_by_id(db, current_user, ci_id) is None:
-        raise ErrorDeDominio(422, "El CI no existe")
+        raise error(422, "no_encontrado", detail="El CI no existe", que="ci")
 
 
 def activo_o_404(db: Session, activo_id: str) -> ALMAsset:
     a = db.query(ALMAsset).filter(ALMAsset.id == activo_id, ALMAsset.is_active.is_(True)).first()
     if a is None:
-        raise ErrorDeDominio(404, "Activo no encontrado")
+        raise error(404, "no_encontrado", detail="Activo no encontrado", que="activo")
     return a
 
 

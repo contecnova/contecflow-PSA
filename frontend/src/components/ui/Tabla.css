@@ -2,7 +2,7 @@
    aquí solo van los modificadores. Solo tokens de index.css. */
 .ui-tabla-marco { overflow-x: auto; max-width: 100%; }
 .ui-tabla-marco:has(.ui-tabla--cabecera-fija) { overflow-y: auto; max-height: var(--tabla-alto-max, 70vh); }
-.ui-tabla--cabecera-fija thead th { position: sticky; top: 0; z-index: 1; background: var(--surface-2); }
+.ui-tabla--cabecera-fija thead th { position: sticky; top: 0; z-index: var(--z-content); background: var(--surface-2); }
 
 .ui-tabla th, .ui-tabla td { vertical-align: middle; }
 .ui-tabla tbody th { text-align: left; font-weight: 600; color: var(--text-1); text-transform: none; letter-spacing: normal; font-size: inherit; }

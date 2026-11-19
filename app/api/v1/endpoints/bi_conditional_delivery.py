@@ -22,6 +22,7 @@ from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.services import bi_conditional_delivery_service as svc
+from app.core.codigos_de_error import desde_valor
 
 router = APIRouter()
 
@@ -119,7 +120,7 @@ def update_rule(
     try:
         return APIResponse.ok(data=svc.update_rule(db, org_id=org_id, rule_id=rule_id, updates=body.model_dump(exclude_none=True)))
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise desde_valor(404, exc)
 
 
 @router.delete("/bi/delivery/rules/{rule_id}", summary="Eliminar regla de entrega", status_code=204)
@@ -136,7 +137,7 @@ def delete_rule(
     try:
         svc.delete_rule(db, org_id=org_id, rule_id=rule_id)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise desde_valor(404, exc)
 
 
 @router.post("/bi/delivery/rules/{rule_id}/evaluate", summary="Evaluar si la regla debe dispararse")
@@ -160,4 +161,4 @@ def evaluate_rule(
             current_metric_value=payload.current_metric_value,
         ))
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise desde_valor(404, exc)

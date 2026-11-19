@@ -14,6 +14,8 @@ from app.services.service_desk.scoping import (
 )
 from app.services.sla_service import next_problem_number as _next_problem_number
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
+from app.core.config import settings  # topes de tokens de IA (19-11-2026)
 
 logger = logging.getLogger(__name__)
 
@@ -97,13 +99,13 @@ def _validate_problem_org_constraints(db: Session, current_user: User, project_i
         ).first()
         if not project:
             if update:
-                raise ErrorDeDominio(403, "No puedes mover problemas fuera de tu organización")
-            raise ErrorDeDominio(403, "No puedes crear problemas para proyectos fuera de tu organización")
+                raise error(403, "mover_fuera_de_empresa", detail="No puedes mover problemas fuera de tu organización")
+            raise error(403, "proyecto_fuera_de_empresa", detail="No puedes crear problemas para proyectos fuera de tu organización")
 
     if owner_user_id:
         owner = db.query(User).filter(User.id == owner_user_id).first()
         if not owner or owner.organization_id != current_user.organization_id:
-            raise ErrorDeDominio(403, "No puedes asignar un owner fuera de tu organización")
+            raise error(403, "responsable_fuera_de_empresa", detail="No puedes asignar un owner fuera de tu organización")
 
 
 def create_problem_record(db: Session, current_user: User, payload: ProblemIn) -> Problem:
@@ -199,7 +201,7 @@ def suggest_rca_from_ai(db: Session, problem: Problem) -> dict:
             db=db,
             messages=[{"role": "user", "content": prompt}],
             system="You are an ITIL problem manager. Respond only with valid JSON.",
-            max_tokens=512,
+            max_tokens=settings.AI_BRIEF_ANSWER_MAX_TOKENS,
             # Segunda auditoria 2026-11 (#33): desde el worker no hay usuario;
             # sin la organizacion no aplicaban su tope de gasto ni su proveedor.
             organization_id=getattr(problem, "organization_id", None),
@@ -257,7 +259,7 @@ def create_problem_from_correlation(
     # Build a descriptive title from the most common words in ticket titles
     tickets = db.query(Ticket).filter(Ticket.id.in_(ticket_ids)).all()
     if not tickets:
-        raise ErrorDeDominio(400, "No tickets found for correlation")
+        raise error(400, "sin_tickets_para_correlacion", detail="No tickets found for correlation")
 
     # Use the first ticket title as a base if we have few tickets
     base_title = tickets[0].title if tickets else "Recurring incidents"

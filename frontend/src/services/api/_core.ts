@@ -14,6 +14,7 @@ import type { AdopcionO365, AlertaDisparadaBi, AvisoDePanelBi, BorradoDeDsr, Cap
 import type { AlertasDeMetricas, AnomaliasDeImputacion, DesgloseDeMargen, FiltroDeMargen, BusquedaGlobal, CargaDeRecurso, CargaOlapRealizada, Cartera, CatalogoDeMetricas, CierreAutomatico, ClusterFusionado, ClustersDeAlertas, ComandoDeVoz, ComandoDeVozTranscrito, ConfigDeAutoResolucion, ConfigDelAgenteDeVoz, ConfigDelMotorSemantico, ConfigDelMotorSemanticoGuardada, ConfirmacionAnalitica, ConsultaDeMetrica, Conversacion, ConversacionResumen, ConversacionesArchivadas, EjecucionDelAgente, EjecucionDelAgenteEnCola, EjecucionDelAgenteResumen, EjemploDeAskGuardado, EmbeddingsReconstruidos, EntrenamientoDelModelo, EscaneoDeCorrelacion, EstadisticasDeAutoResolucion, EstadisticasDeCorrelacion, EstadisticasDelMotorSemantico, EstadoDelAgente, EstadoDelAlmacenOlap, EstimacionDelBacklog, EtapaDelEmbudoOlap, HorasPorSemana, InstantaneasDeAgotamiento, KpisDelCuadroDeMando, KpisOlap, MargenMensualOlap, ModeloDePrediccion, MonitorDeAgotamiento, NarrativaEjecutiva, OpcionesDeFiltroAnalitico, PanelDeCartera, PerfilSemantico, PerfilSemanticoGuardado, PerfilesSemanticosGenerados, PlanificacionSugerida, PrediccionDeDesvio, PrediccionImposible, ProductividadDelEquipo, RegistroDePrediccion, RentabilidadDeProyecto, RespuestaDeAskTheData, RespuestaDelAsistente, Reunion, ReunionProcesada, ReunionResumen, RiesgoDeLaCartera, SaludDeProyecto, SaludDeProyectoOlap, SesionDeVoz, SesionDeVozCreada, SesionesDeVoz, SugerenciaDeAsignacionDeTicket, SugerenciasDelGantt, TareasDeReunionCreadas, TextoTransformado, TicketDeSesionDeVoz, TrabajoDeAutoResolucion, UtilizacionAvanzada, UtilizacionOlap, ValoracionDeRespuesta } from './tipos-analitica'
 import type { ParamsPeriodoApi } from '../../utils/periodo'
 import { API_BASE_URL } from './urls'
+import { TIMEOUT_API_MS } from './clienteBase'
 import { trasEscritura } from './refrescoTrasEscritura'
 import { ESCALATION_LOGS_LIMIT, GOVERNANCE_LOGS_LIMIT, INBOUND_MESSAGES_LIMIT, MONITORING_ALERTS_LIMIT } from '../../constants/pagination'
 
@@ -30,7 +31,7 @@ const api = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,  // send httpOnly cookies on every request
-  timeout: 30000,
+  timeout: TIMEOUT_API_MS,  // límite común (clienteBase.ts, 19-11-2026)
 })
 
 /** Rutas que esperan a un modelo de IA y su límite de espera. */

@@ -1,0 +1,3042 @@
+{
+ "codigos": {
+  "conflicto_concurrente": {
+   "es": "Otra persona lo ha cambiado a la vez: recarga y vuelve a intentarlo",
+   "en": "Someone else changed it at the same time: reload and try again",
+   "zh": "其他人同时进行了修改：请刷新后重试"
+  },
+  "nombre_obligatorio": {
+   "es": "Ponle un nombre",
+   "en": "Give it a name",
+   "zh": "请填写名称"
+  },
+  "motivo_obligatorio": {
+   "es": "Explica el motivo",
+   "en": "Give a reason",
+   "zh": "请说明原因"
+  },
+  "valor_no_valido": {
+   "es": "Valor no válido: {valor}",
+   "en": "Invalid value: {valor}",
+   "zh": "值无效：{valor}"
+  },
+  "tipo_de_dependencia_no_valido": {
+   "es": "Tipo de dependencia no válido: {valor} (FS, SS, FF o SF)",
+   "en": "Invalid dependency type: {valor} (FS, SS, FF or SF)",
+   "zh": "依赖类型无效：{valor}（FS、SS、FF 或 SF）"
+  },
+  "formato_no_soportado": {
+   "es": "Formato no admitido: {formato}. Admitidos: {opciones}",
+   "en": "Unsupported format: {formato}. Allowed: {opciones}",
+   "zh": "不支持的格式：{formato}。允许：{opciones}"
+  },
+  "transicion_no_permitida": {
+   "es": "No se puede pasar de «{desde}» a «{hasta}»",
+   "en": "Cannot move from “{desde}” to “{hasta}”",
+   "zh": "不能从“{desde}”变更为“{hasta}”"
+  },
+  "fecha_no_valida": {
+   "es": "Fecha no válida: usa el formato AAAA-MM-DD",
+   "en": "Invalid date: use the YYYY-MM-DD format",
+   "zh": "日期无效：请使用 YYYY-MM-DD 格式"
+  },
+  "hora_no_valida": {
+   "es": "Hora no válida: {valor} (usa HH:MM)",
+   "en": "Invalid time: {valor} (use HH:MM)",
+   "zh": "时间无效：{valor}（请使用 HH:MM）"
+  },
+  "sin_acceso_a_conversacion": {
+   "es": "No tienes acceso a esta conversación",
+   "en": "You don't have access to this conversation",
+   "zh": "你无权访问此会话"
+  },
+  "solo_estado_borrador": {
+   "es": "Solo se puede cambiar en borrador",
+   "en": "It can only be changed while in draft",
+   "zh": "只能在草稿状态下修改"
+  },
+  "vacaciones_insuficientes": {
+   "es": "Pides {pedidos} días de vacaciones y te quedan {quedan} en {anio}",
+   "en": "You are asking for {pedidos} days of holiday and have {quedan} left in {anio}",
+   "zh": "你申请 {pedidos} 天休假，{anio} 年只剩 {quedan} 天"
+  },
+  "tipo_de_ausencia_desactivado": {
+   "es": "El tipo «{tipo}» está desactivado",
+   "en": "The type “{tipo}” is deactivated",
+   "zh": "类型“{tipo}”已停用"
+  },
+  "clave_formato_no_valido": {
+   "es": "La clave va en minúsculas, números y _ (2 a 50)",
+   "en": "The key uses lowercase letters, numbers and _ (2 to 50)",
+   "zh": "键只能包含小写字母、数字和 _（2 到 50 个字符）"
+  },
+  "tipo_de_documento_ya_existe": {
+   "es": "Ya hay un tipo de documento con la clave {clave}",
+   "en": "There is already a document type with the key {clave}",
+   "zh": "已存在键为 {clave} 的文档类型"
+  },
+  "persona_no_activa_en_empresa": {
+   "es": "Esa persona no existe en tu empresa o no está activa",
+   "en": "That person does not exist in your company or is not active",
+   "zh": "此人不在你的公司或未激活"
+  },
+  "solo_rrhh_admin_o_responsable": {
+   "es": "Solo RRHH, un administrador o su responsable",
+   "en": "Only HR, an administrator or their manager",
+   "zh": "仅限人力资源、管理员或其主管"
+  },
+  "elige_tipo_de_documento": {
+   "es": "Elige el tipo de documento",
+   "en": "Choose the document type",
+   "zh": "请选择文档类型"
+  },
+  "adjuntar_solo_persona_rrhh_responsable_admin": {
+   "es": "Solo la persona, RRHH, su responsable o un administrador pueden adjuntar",
+   "en": "Only the person, HR, their manager or an administrator can attach files",
+   "zh": "仅限本人、人力资源、其主管或管理员上传附件"
+  },
+  "ausencia_cancelada": {
+   "es": "La ausencia está cancelada",
+   "en": "The absence is cancelled",
+   "zh": "该缺勤已取消"
+  },
+  "antivirus_bloqueado": {
+   "es": "El antivirus ha bloqueado el archivo",
+   "en": "The antivirus blocked the file",
+   "zh": "杀毒软件已拦截该文件"
+  },
+  "sin_acceso_documento": {
+   "es": "No puedes ver este documento",
+   "en": "You cannot view this document",
+   "zh": "你无法查看此文档"
+  },
+  "documento_sin_fichero": {
+   "es": "El documento no tiene fichero",
+   "en": "The document has no file",
+   "zh": "该文档没有文件"
+  },
+  "ausencia_solapada": {
+   "es": "Ya tienes una ausencia solapada del {desde} al {hasta}",
+   "en": "You already have an overlapping absence from {desde} to {hasta}",
+   "zh": "你在 {desde} 至 {hasta} 已有重叠的缺勤"
+  },
+  "ausencia_solapada_otra": {
+   "es": "Se solapa con otra ausencia del {desde} al {hasta}",
+   "en": "It overlaps with another absence from {desde} to {hasta}",
+   "zh": "与 {desde} 至 {hasta} 的另一项缺勤重叠"
+  },
+  "ausencia_solo_pendientes_revisables": {
+   "es": "Solo se pueden revisar ausencias pendientes",
+   "en": "Only pending absences can be reviewed",
+   "zh": "只能审核待处理的缺勤"
+  },
+  "ausencia_iniciada_no_cancelable": {
+   "es": "No puedes cancelar una ausencia ya iniciada",
+   "en": "You cannot cancel an absence that has already started",
+   "zh": "不能取消已开始的缺勤"
+  },
+  "ausencia_solo_pendientes_editables": {
+   "es": "Solo se pueden editar ausencias pendientes. Esta está «{estado}»",
+   "en": "Only pending absences can be edited. This one is “{estado}”",
+   "zh": "只能编辑待处理的缺勤。此缺勤状态为“{estado}”"
+  },
+  "ausencia_solo_aprobada_ampliable": {
+   "es": "Solo se amplía una ausencia aprobada",
+   "en": "Only an approved absence can be extended",
+   "zh": "只能延长已批准的缺勤"
+  },
+  "ausencia_nueva_fin_posterior": {
+   "es": "La nueva fecha de fin tiene que ser posterior a la actual",
+   "en": "The new end date must be after the current one",
+   "zh": "新的结束日期必须晚于当前结束日期"
+  },
+  "ausencia_no_en_espera": {
+   "es": "Esa ausencia no está en lista de espera",
+   "en": "That absence is not on the waiting list",
+   "zh": "该缺勤不在候补名单中"
+  },
+  "sustituto_uno_mismo": {
+   "es": "No puedes ser tu propio sustituto",
+   "en": "You cannot be your own substitute",
+   "zh": "你不能成为自己的代理人"
+  },
+  "sustituto_no_valido": {
+   "es": "El sustituto no existe en tu empresa o no está activo",
+   "en": "The substitute does not exist in your company or is not active",
+   "zh": "代理人不在你的公司或未激活"
+  },
+  "solo_responsable_rrhh_admin": {
+   "es": "Solo su responsable, RRHH o administración",
+   "en": "Only their manager, HR or administration",
+   "zh": "仅限其主管、人力资源或管理员"
+  },
+  "dia_semana_no_valido": {
+   "es": "Días de la semana del 1 (lunes) al 7 (domingo)",
+   "en": "Days of the week go from 1 (Monday) to 7 (Sunday)",
+   "zh": "星期取值为 1（周一）到 7（周日）"
+  },
+  "personas_requeridas_negativas": {
+   "es": "Las personas requeridas no pueden ser negativas",
+   "en": "Required people cannot be negative",
+   "zh": "所需人数不能为负数"
+  },
+  "rotacion_ciclo_dias": {
+   "es": "El ciclo tiene de 1 a {max} días",
+   "en": "The cycle has 1 to {max} days",
+   "zh": "周期为 1 到 {max} 天"
+  },
+  "rotacion_turno_inexistente": {
+   "es": "El ciclo usa un turno que no existe",
+   "en": "The cycle uses a shift that does not exist",
+   "zh": "周期使用了不存在的班次"
+  },
+  "rotacion_persona_inexistente": {
+   "es": "Una persona de la rotación no existe en tu empresa",
+   "en": "A person in the rotation does not exist in your company",
+   "zh": "轮换中的某人不在你的公司"
+  },
+  "rotacion_salida_antes_de_entrada": {
+   "es": "Una persona sale de la rotación antes de entrar",
+   "en": "A person leaves the rotation before joining it",
+   "zh": "某人退出轮换的日期早于加入日期"
+  },
+  "factura_enviada_a_aprobacion": {
+   "es": "La factura necesita aprobación: se ha enviado a la bandeja de aprobaciones",
+   "en": "The invoice needs approval: it has been sent to the approvals inbox",
+   "zh": "发票需要审批：已发送到审批收件箱"
+  },
+  "factura_ya_pagada": {
+   "es": "La factura ya está pagada.",
+   "en": "The invoice is already paid.",
+   "zh": "发票已付款。"
+  },
+  "factura_solo_borrador_editable": {
+   "es": "Sólo se modifica un borrador: una factura emitida se anula y se hace otra",
+   "en": "Only a draft can be changed: an issued invoice is voided and a new one is made",
+   "zh": "只能修改草稿：已开具的发票需作废后重新开具"
+  },
+  "factura_pendiente_aprobacion": {
+   "es": "La factura está pendiente de aprobación en la bandeja",
+   "en": "The invoice is pending approval in the inbox",
+   "zh": "发票在收件箱中等待审批"
+  },
+  "aprovisionamiento_url_no_valida": {
+   "es": "La URL de aprovisionamiento tiene que ser una URL HTTPS válida",
+   "en": "The provisioning URL must be a valid HTTPS URL",
+   "zh": "配置 URL 必须是有效的 HTTPS URL"
+  },
+  "aprovisionamiento_url_no_permitida": {
+   "es": "La URL de aprovisionamiento apunta a una red no permitida",
+   "en": "The provisioning URL points to a network that is not allowed",
+   "zh": "配置 URL 指向不允许的网络"
+  },
+  "aprovisionamiento_comando_no_permitido": {
+   "es": "El comando «{comando}» no está permitido",
+   "en": "The command “{comando}” is not allowed",
+   "zh": "不允许命令“{comando}”"
+  },
+  "aprovisionamiento_ruta_no_permitida": {
+   "es": "«{campo}» apunta fuera de la carpeta de aprovisionamiento",
+   "en": "“{campo}” points outside the provisioning folder",
+   "zh": "“{campo}”指向配置目录之外"
+  },
+  "reintentos_fuera_de_rango": {
+   "es": "Los reintentos van de 0 a 10",
+   "en": "Retries must be between 0 and 10",
+   "zh": "重试次数必须在 0 到 10 之间"
+  },
+  "espera_fuera_de_rango": {
+   "es": "La espera va de 0 a 120 segundos",
+   "en": "The delay must be between 0 and 120 seconds",
+   "zh": "延迟必须在 0 到 120 秒之间"
+  },
+  "backoff_no_valido": {
+   "es": "La espera entre reintentos es none, linear o exponential",
+   "en": "Backoff must be none, linear or exponential",
+   "zh": "退避方式必须为 none、linear 或 exponential"
+  },
+  "tipo_de_cambio_positivo": {
+   "es": "El tipo de cambio debe ser mayor que cero",
+   "en": "The exchange rate must be greater than zero",
+   "zh": "汇率必须大于零"
+  },
+  "tipo_de_cambio_no_configurado": {
+   "es": "Sin tipo de cambio {desde}→{hasta}. Configura los tipos en Configuración → Monedas.",
+   "en": "No exchange rate {desde}→{hasta}. Set the rates in Settings → Currencies.",
+   "zh": "没有 {desde}→{hasta} 的汇率。请在 设置 → 货币 中配置。"
+  },
+  "factura_recurrente_inactiva": {
+   "es": "Factura recurrente inactiva",
+   "en": "Recurring invoice inactive",
+   "zh": "定期发票未启用"
+  },
+  "reserva_supera_capacidad": {
+   "es": "Semana del {semana}: ya tiene {comprometidas} h comprometidas y esta reserva suma {reserva} h; su capacidad es {capacidad} h. Resérvala como tentativa (soft) o ajusta las horas.",
+   "en": "Week of {semana}: {comprometidas} h already committed and this booking adds {reserva} h; capacity is {capacidad} h. Book it as tentative (soft) or adjust the hours.",
+   "zh": "{semana} 这一周：已承诺 {comprometidas} 小时，此预订再增加 {reserva} 小时；容量为 {capacidad} 小时。请改为暂定预订（soft）或调整小时数。"
+  },
+  "reserva_ya_existe": {
+   "es": "Este usuario ya tiene una reserva para este proyecto en las fechas indicadas.",
+   "en": "This user already has a booking for this project on those dates.",
+   "zh": "该用户在这些日期已有此项目的预订。"
+  },
+  "presupuestos_rol_no_gestiona": {
+   "es": "Tu rol no gestiona presupuestos (se decide en Admin)",
+   "en": "Your role does not manage budgets (set in Admin)",
+   "zh": "你的角色不能管理预算（在管理设置中配置）"
+  },
+  "elige_departamento": {
+   "es": "Elige el departamento",
+   "en": "Choose the department",
+   "zh": "请选择部门"
+  },
+  "elige_area": {
+   "es": "Elige el área",
+   "en": "Choose the area",
+   "zh": "请选择领域"
+  },
+  "elige_proyecto": {
+   "es": "Elige el proyecto",
+   "en": "Choose the project",
+   "zh": "请选择项目"
+  },
+  "presupuesto_techo_solo_area_o_departamento": {
+   "es": "Sólo un área o un departamento tiene techo para sus presupuestos hijos",
+   "en": "Only an area or a department has a ceiling for its child budgets",
+   "zh": "只有领域或部门可以为子预算设置上限"
+  },
+  "presupuesto_techo_negativo": {
+   "es": "El techo no puede ser negativo",
+   "en": "The ceiling cannot be negative",
+   "zh": "上限不能为负数"
+  },
+  "indica_periodo": {
+   "es": "Indica el periodo",
+   "en": "Give the period",
+   "zh": "请填写期间"
+  },
+  "presupuesto_solo_borrador_o_rechazado": {
+   "es": "Sólo se cambia un presupuesto en borrador o rechazado: haz una versión nueva",
+   "en": "Only a draft or rejected budget can be changed: create a new version",
+   "zh": "只能修改草稿或被拒绝的预算：请创建新版本"
+  },
+  "partida_gasto_o_ingreso": {
+   "es": "Una partida es de gasto o de ingreso",
+   "en": "A line item is either expense or income",
+   "zh": "条目只能是支出或收入"
+  },
+  "partida_tipo_no_valido": {
+   "es": "Tipo de partida no válido: {tipo} (los de {opciones})",
+   "en": "Invalid line item type: {tipo} (allowed: {opciones})",
+   "zh": "条目类型无效：{tipo}（允许：{opciones}）"
+  },
+  "partida_naturaleza_no_valida": {
+   "es": "La naturaleza es OPEX o CAPEX",
+   "en": "The nature is OPEX or CAPEX",
+   "zh": "性质必须为 OPEX 或 CAPEX"
+  },
+  "partida_capex_sin_vida": {
+   "es": "Una partida CAPEX necesita su vida en meses para amortizarla",
+   "en": "A CAPEX line item needs its useful life in months to depreciate it",
+   "zh": "CAPEX 条目需要填写摊销月数"
+  },
+  "partida_sin_descripcion": {
+   "es": "Describe la partida",
+   "en": "Describe the line item",
+   "zh": "请描述该条目"
+  },
+  "presupuesto_sin_partidas": {
+   "es": "Un presupuesto sin partidas no se envía",
+   "en": "A budget without line items cannot be submitted",
+   "zh": "没有条目的预算不能提交"
+  },
+  "presupuestos_rol_no_aprueba": {
+   "es": "Tu rol no aprueba presupuestos",
+   "en": "Your role cannot approve budgets",
+   "zh": "你的角色不能审批预算"
+  },
+  "presupuesto_solo_enviado_decidible": {
+   "es": "Sólo se decide un presupuesto enviado",
+   "en": "Only a submitted budget can be decided",
+   "zh": "只能对已提交的预算做出决定"
+  },
+  "presupuesto_version_en_curso": {
+   "es": "Ya hay una versión en curso de este presupuesto",
+   "en": "There is already a version of this budget in progress",
+   "zh": "此预算已有进行中的版本"
+  },
+  "escenario_nombre_repetido": {
+   "es": "Ponle un nombre distinto al escenario",
+   "en": "Give the scenario a different name",
+   "zh": "请为情景设置不同的名称"
+  },
+  "presupuesto_solo_proyecto_previsto": {
+   "es": "Sólo se vincula el presupuesto de un proyecto previsto",
+   "en": "Only the budget of a planned project can be linked",
+   "zh": "只能关联计划中项目的预算"
+  },
+  "campana_campos_obligatorios": {
+   "es": "La campaña necesita nombre, ejercicio y fecha límite",
+   "en": "The campaign needs a name, fiscal year and deadline",
+   "zh": "活动需要名称、财年和截止日期"
+  },
+  "reparto_mensual_no_cuadra": {
+   "es": "El reparto por meses suma {suma} y la partida es {importe}",
+   "en": "The monthly split adds up to {suma} and the line item is {importe}",
+   "zh": "按月分配合计 {suma}，而条目金额为 {importe}"
+  },
+  "plantilla_partida_incompleta": {
+   "es": "Cada partida de la plantilla necesita un tipo válido y una descripción",
+   "en": "Each template line item needs a valid type and a description",
+   "zh": "模板中的每个条目都需要有效类型和描述"
+  },
+  "vacante_sin_pais": {
+   "es": "Una vacante necesita el país (para sus cargas sociales)",
+   "en": "A vacancy needs the country (for its social charges)",
+   "zh": "空缺职位需要填写国家（用于计算社保费用）"
+  },
+  "sin_cargas_sociales": {
+   "es": "No hay cargas sociales para {pais}: dalas de alta en Estructura de costes",
+   "en": "There are no social charges for {pais}: add them in Cost structure",
+   "zh": "{pais} 没有社保费用：请在成本结构中添加"
+  },
+  "partida_fuera_de_periodo": {
+   "es": "La partida no tiene ningún mes dentro del periodo",
+   "en": "The line item has no month within the period",
+   "zh": "该条目在期间内没有任何月份"
+  },
+  "dedicacion_fuera_de_rango": {
+   "es": "La dedicación va de 1 a 100 %",
+   "en": "Allocation goes from 1 to 100 %",
+   "zh": "投入比例为 1% 到 100%"
+  },
+  "presupuesto_padre_nivel": {
+   "es": "El padre tiene que ser de un nivel superior (área > departamento > proyecto)",
+   "en": "The parent must be of a higher level (area > department > project)",
+   "zh": "上级必须属于更高层级（领域 > 部门 > 项目）"
+  },
+  "partidas_sin_justificacion": {
+   "es": "Las partidas de {umbral} o más necesitan justificación: {partidas}",
+   "en": "Line items of {umbral} or more need a justification: {partidas}",
+   "zh": "金额达到 {umbral} 及以上的条目需要说明理由：{partidas}"
+  },
+  "base_plan_o_real": {
+   "es": "La base es «plan» o «real»",
+   "en": "The base is “plan” or “actual”",
+   "zh": "基准必须为“计划”或“实际”"
+  },
+  "persona_sin_estructura_de_coste": {
+   "es": "La persona no tiene estructura de coste vigente en {fecha}",
+   "en": "The person has no cost structure in force on {fecha}",
+   "zh": "此人在 {fecha} 没有有效的成本结构"
+  },
+  "horas_sin_coste": {
+   "es": "Con horas hace falta el coste o la tarifa por hora (o una persona con su coste)",
+   "en": "With hours you need the cost or the hourly rate (or a person with their cost)",
+   "zh": "按小时计算时需要成本或小时费率（或带有成本的人员）"
+  },
+  "meses_fuera_de_periodo": {
+   "es": "Meses fuera del periodo de la partida: {meses}",
+   "en": "Months outside the line item's period: {meses}",
+   "zh": "超出条目期间的月份：{meses}"
+  },
+  "mes_cierre_solo_aprobado": {
+   "es": "Se cierran los meses de un presupuesto aprobado",
+   "en": "Months are closed on an approved budget",
+   "zh": "只能对已批准的预算关闭月份"
+  },
+  "mes_no_terminado": {
+   "es": "Sólo se cierra un mes ya terminado",
+   "en": "Only a finished month can be closed",
+   "zh": "只能关闭已结束的月份"
+  },
+  "mes_fuera_de_periodo": {
+   "es": "El mes no es del periodo del presupuesto",
+   "en": "The month is not in the budget period",
+   "zh": "该月份不在预算期间内"
+  },
+  "mes_ya_cerrado": {
+   "es": "Ese mes ya está cerrado",
+   "en": "That month is already closed",
+   "zh": "该月份已关闭"
+  },
+  "mes_no_cerrado": {
+   "es": "Ese mes no está cerrado",
+   "en": "That month is not closed",
+   "zh": "该月份未关闭"
+  },
+  "pedido_solo_presupuesto_aprobado": {
+   "es": "Los pedidos se comprometen contra un presupuesto aprobado",
+   "en": "Orders are committed against an approved budget",
+   "zh": "订单只能针对已批准的预算承诺"
+  },
+  "pedido_incompleto": {
+   "es": "El pedido necesita descripción, importe y mes",
+   "en": "The order needs a description, amount and month",
+   "zh": "订单需要描述、金额和月份"
+  },
+  "traspaso_solo_presupuesto_aprobado": {
+   "es": "Los traspasos son de un presupuesto aprobado (si no, edítalo)",
+   "en": "Transfers are for an approved budget (otherwise, edit it)",
+   "zh": "只有已批准的预算才能转移（否则请直接编辑）"
+  },
+  "traspaso_incompleto": {
+   "es": "El traspaso necesita importe y motivo",
+   "en": "The transfer needs an amount and a reason",
+   "zh": "转移需要金额和原因"
+  },
+  "traspaso_partida_ajena": {
+   "es": "La partida de origen no es de este presupuesto",
+   "en": "The source line item is not from this budget",
+   "zh": "源条目不属于此预算"
+  },
+  "traspaso_partida_destino_ajena": {
+   "es": "La partida de destino no es de este presupuesto",
+   "en": "The target line item is not from this budget",
+   "zh": "目标条目不属于此预算"
+  },
+  "traspaso_sin_destino": {
+   "es": "Elige la partida de destino o el tipo de una nueva",
+   "en": "Choose the target line item or the type of a new one",
+   "zh": "请选择目标条目或新条目的类型"
+  },
+  "traspaso_ya_decidido": {
+   "es": "Ese traspaso ya está decidido",
+   "en": "That transfer has already been decided",
+   "zh": "该转移已做出决定"
+  },
+  "traspaso_saldo_insuficiente": {
+   "es": "A la partida de origen le quedan {queda} de aquí al final",
+   "en": "The source line item has {queda} left from now to the end",
+   "zh": "源条目从现在到期末只剩 {queda}"
+  },
+  "traspaso_saldo_insuficiente_total": {
+   "es": "A la partida de origen sólo le quedan {queda}",
+   "en": "The source line item only has {queda} left",
+   "zh": "源条目只剩 {queda}"
+  },
+  "pedido_estado_no_valido": {
+   "es": "Un pedido pasa a facturado o anulado",
+   "en": "An order moves to invoiced or cancelled",
+   "zh": "订单只能变为已开票或已取消"
+  },
+  "peso_negativo": {
+   "es": "El peso no puede ser negativo",
+   "en": "The weight cannot be negative",
+   "zh": "权重不能为负数"
+  },
+  "cartera_sin_fases": {
+   "es": "La empresa no tiene fases de cartera: créalas en la configuración de la cartera",
+   "en": "The company has no portfolio stages: create them in the portfolio settings",
+   "zh": "公司没有项目组合阶段：请在项目组合设置中创建"
+  },
+  "propuesta_no_enviable": {
+   "es": "Solo se envía una propuesta en borrador o entre fases",
+   "en": "Only a draft proposal or one between stages can be submitted",
+   "zh": "只能提交草稿或处于阶段之间的提案"
+  },
+  "propuesta_fases_superadas": {
+   "es": "La propuesta ya superó todas las fases",
+   "en": "The proposal has already passed all stages",
+   "zh": "提案已通过所有阶段"
+  },
+  "propuesta_puntuacion_insuficiente": {
+   "es": "La puntuación ({puntuacion}) no llega al mínimo de la fase ({minimo})",
+   "en": "The score ({puntuacion}) does not reach the stage minimum ({minimo})",
+   "zh": "得分（{puntuacion}）未达到该阶段的最低要求（{minimo}）"
+  },
+  "propuesta_no_pendiente": {
+   "es": "La propuesta no está esperando decisión",
+   "en": "The proposal is not awaiting a decision",
+   "zh": "提案未在等待决定"
+  },
+  "fase_decide_flujo": {
+   "es": "Esta fase la decide su flujo de aprobación: hazlo desde la bandeja",
+   "en": "This stage is decided by its approval workflow: do it from the inbox",
+   "zh": "此阶段由审批流程决定：请在收件箱中处理"
+  },
+  "propuesta_solo_aprobada_convertible": {
+   "es": "Solo se convierte una propuesta aprobada",
+   "en": "Only an approved proposal can be converted",
+   "zh": "只能转换已批准的提案"
+  },
+  "propuesta_no_editable": {
+   "es": "Una propuesta en revisión, aprobada o convertida no se edita",
+   "en": "A proposal under review, approved or converted cannot be edited",
+   "zh": "审核中、已批准或已转换的提案不能编辑"
+  },
+  "cr_no_eliminable": {
+   "es": "No se puede eliminar una CR aprobada o implementada",
+   "en": "An approved or implemented change request cannot be deleted",
+   "zh": "不能删除已批准或已实施的变更请求"
+  },
+  "estado_de_cliente_no_valido": {
+   "es": "Estado de cliente no válido: {estado}. Válidos: {opciones}",
+   "en": "Invalid client status: {estado}. Valid: {opciones}",
+   "zh": "客户状态无效：{estado}。有效值：{opciones}"
+  },
+  "no_se_puede_eliminar": {
+   "es": "No se puede eliminar: {motivo}",
+   "en": "Cannot be deleted: {motivo}",
+   "zh": "无法删除：{motivo}"
+  },
+  "contacto_ya_en_portal": {
+   "es": "Este contacto ya tiene acceso al portal",
+   "en": "This contact already has portal access",
+   "zh": "该联系人已有门户访问权限"
+  },
+  "contacto_sin_email": {
+   "es": "El contacto necesita un email para acceder al portal",
+   "en": "The contact needs an email to access the portal",
+   "zh": "联系人需要邮箱才能访问门户"
+  },
+  "licencia_ya_vinculada": {
+   "es": "Licencia ya vinculada a este cliente",
+   "en": "License already linked to this client",
+   "zh": "许可证已关联到此客户"
+  },
+  "contrato_ya_vinculado": {
+   "es": "Contrato ya vinculado",
+   "en": "Contract already linked",
+   "zh": "合同已关联"
+  },
+  "proyecto_ya_vinculado_a_cliente": {
+   "es": "El proyecto ya está vinculado al cliente «{cliente}»",
+   "en": "The project is already linked to the client “{cliente}”",
+   "zh": "项目已关联到客户“{cliente}”"
+  },
+  "proyecto_no_vinculado_a_cliente": {
+   "es": "Proyecto no encontrado o no vinculado a este cliente",
+   "en": "Project not found or not linked to this client",
+   "zh": "项目不存在或未关联到此客户"
+  },
+  "no_eres_miembro_equipo": {
+   "es": "No eres miembro de este equipo",
+   "en": "You are not a member of this team",
+   "zh": "你不是此团队的成员"
+  },
+  "suscripcion_push_incompleta": {
+   "es": "La suscripción de avisos está incompleta",
+   "en": "The push subscription is incomplete",
+   "zh": "推送订阅不完整"
+  },
+  "proveedor_sin_oauth": {
+   "es": "Proveedor sin OAuth",
+   "en": "This provider does not use OAuth",
+   "zh": "该提供商不使用 OAuth"
+  },
+  "limite_llamadas": {
+   "es": "Demasiadas llamadas. Inténtalo de nuevo en {segundos} s",
+   "en": "Too many calls. Try again in {segundos} s",
+   "zh": "通话过多。请在 {segundos} 秒后重试"
+  },
+  "retencion_supera_maximo": {
+   "es": "La retención supera el máximo de la empresa ({max} meses)",
+   "en": "The retention exceeds the company maximum ({max} months)",
+   "zh": "保留期超过公司上限（{max} 个月）"
+  },
+  "indica_conversacion": {
+   "es": "Indica conversation_id / channel_id / direct_id / group_id",
+   "en": "Say which conversation, channel, chat or group",
+   "zh": "请指定会话、频道、私聊或群组"
+  },
+  "solo_mensajes_propios_editables": {
+   "es": "Solo puedes editar tus propios mensajes",
+   "en": "You can only edit your own messages",
+   "zh": "你只能编辑自己的消息"
+  },
+  "mensaje_borrado": {
+   "es": "Mensaje borrado",
+   "en": "Message deleted",
+   "zh": "消息已删除"
+  },
+  "enlace_tipo_no_valido": {
+   "es": "El tipo de enlace es tarea, ticket, entregable o riesgo",
+   "en": "The link type must be task, ticket, deliverable or risk",
+   "zh": "链接类型必须为任务、工单、交付物或风险"
+  },
+  "enlazado_no_existe": {
+   "es": "El {tipo} enlazado no existe en tu organizacion",
+   "en": "The linked {tipo} does not exist in your organization",
+   "zh": "关联的 {tipo} 在你的组织中不存在"
+  },
+  "no_borrar_mensajes_ajenos": {
+   "es": "No puedes borrar mensajes de otros",
+   "en": "You cannot delete other people's messages",
+   "zh": "你不能删除他人的消息"
+  },
+  "subida_sin_conversacion": {
+   "es": "La subida tiene que indicar la conversación",
+   "en": "The upload must say which conversation it belongs to",
+   "zh": "上传必须指明所属会话"
+  },
+  "subida_desfasada": {
+   "es": "La subida se ha desfasado: vuelve a intentarlo",
+   "en": "The upload got out of step: try again",
+   "zh": "上传进度不一致：请重试"
+  },
+  "subida_excede_tamano": {
+   "es": "La subida supera el tamaño declarado",
+   "en": "The upload exceeds the declared size",
+   "zh": "上传超过声明的大小"
+  },
+  "nombre_y_consulta_obligatorios": {
+   "es": "El nombre y la consulta son obligatorios",
+   "en": "Name and query are required",
+   "zh": "名称和查询为必填项"
+  },
+  "indica_persona": {
+   "es": "Indica la persona",
+   "en": "Say which person",
+   "zh": "请指定人员"
+  },
+  "chat_contigo_mismo": {
+   "es": "No puedes abrir un chat directo contigo mismo",
+   "en": "You cannot open a direct chat with yourself",
+   "zh": "你不能与自己私聊"
+  },
+  "solo_grupos_miembros": {
+   "es": "Solo se pueden añadir o quitar miembros en grupos",
+   "en": "Members can only be added to or removed from groups",
+   "zh": "只能在群组中添加或移除成员"
+  },
+  "solo_admin_grupo": {
+   "es": "Solo un admin del grupo puede quitar miembros",
+   "en": "Only a group admin can remove members",
+   "zh": "只有群组管理员可以移除成员"
+  },
+  "equipo_ya_existe": {
+   "es": "Ya existe un equipo con ese identificador",
+   "en": "A team with that identifier already exists",
+   "zh": "已存在具有该标识的团队"
+  },
+  "no_es_miembro": {
+   "es": "No es miembro",
+   "en": "Not a member",
+   "zh": "不是成员"
+  },
+  "canal_ya_existe": {
+   "es": "Ya existe un canal con ese identificador en este equipo",
+   "en": "A channel with that identifier already exists in this team",
+   "zh": "此团队中已存在具有该标识的频道"
+  },
+  "contrato_con_ordenes": {
+   "es": "No se puede eliminar: {n} orden(es) de trabajo vinculadas",
+   "en": "Cannot be deleted: {n} linked work order(s)",
+   "zh": "无法删除：有 {n} 个关联的工单"
+  },
+  "contrato_con_clientes": {
+   "es": "No se puede eliminar: {n} vínculo(s) de cliente activos",
+   "en": "Cannot be deleted: {n} active client link(s)",
+   "zh": "无法删除：有 {n} 个有效的客户关联"
+  },
+  "preajuste_global_no_borrable": {
+   "es": "Los preajustes globales no se borran: sobrescríbelos para tu empresa",
+   "en": "Global presets cannot be deleted; override them for your company",
+   "zh": "全局预设不能删除；请为你的公司覆盖它"
+  },
+  "campo_clave_ya_existe_proyecto": {
+   "es": "Ya existe un campo con clave «{clave}» en este proyecto",
+   "en": "A field with the key “{clave}” already exists in this project",
+   "zh": "此项目中已存在键为“{clave}”的字段"
+  },
+  "estado_en_uso": {
+   "es": "No se puede eliminar: {n} tareas usan este estado. Reasígnalas primero.",
+   "en": "Cannot be deleted: {n} tasks use this status. Reassign them first.",
+   "zh": "无法删除：有 {n} 个任务使用此状态。请先重新分配。"
+  },
+  "proyecto_ya_tiene_flujo": {
+   "es": "Este proyecto ya tiene un flujo definido",
+   "en": "This project already has a workflow",
+   "zh": "此项目已定义工作流"
+  },
+  "transicion_requiere_comentario": {
+   "es": "Esta transición requiere un comentario",
+   "en": "This transition requires a comment",
+   "zh": "此转换需要填写评论"
+  },
+  "transicion_requiere_rol": {
+   "es": "Solo usuarios con rol «{rol}» pueden ejecutar esta transición",
+   "en": "Only users with the role “{rol}” can perform this transition",
+   "zh": "只有角色为“{rol}”的用户可以执行此转换"
+  },
+  "documento_acceso_insuficiente": {
+   "es": "Tu nivel de acceso a este documento no basta",
+   "en": "Your access level to this document is not enough",
+   "zh": "你对此文档的访问级别不足"
+  },
+  "documento_acceso_un_destino": {
+   "es": "Elige solo uno: usuario, rol o departamento",
+   "en": "Choose exactly one: user, role or department",
+   "zh": "请只选择一项：用户、角色或部门"
+  },
+  "documento_acceso_ya_existe": {
+   "es": "Ese acceso ya existe",
+   "en": "That access already exists",
+   "zh": "该访问权限已存在"
+  },
+  "documento_sin_aprobacion": {
+   "es": "Este documento no necesita aprobación",
+   "en": "This document does not require approval",
+   "zh": "此文档无需审批"
+  },
+  "documento_sin_flujo_aprobacion": {
+   "es": "No hay flujo de aprobación para esta categoría de documento. Configúralo en Configuración > Flujos de aprobación.",
+   "en": "There is no approval workflow for this document category. Set one up in Settings > Approval workflows.",
+   "zh": "此文档类别没有审批流程。请在 设置 > 审批流程 中配置。"
+  },
+  "documento_aprobacion_en_curso": {
+   "es": "El documento ya tiene una aprobación en curso",
+   "en": "The document already has an approval request in progress",
+   "zh": "该文档已有进行中的审批请求"
+  },
+  "eleccion_de_empresa_caducada": {
+   "es": "La elección de organización ha caducado: vuelve a entrar",
+   "en": "The company choice has expired: sign in again",
+   "zh": "公司选择已过期：请重新登录"
+  },
+  "empresa_desactivada_o_ajena": {
+   "es": "La organización está desactivada o ya no perteneces a ella",
+   "en": "The company is deactivated or you no longer belong to it",
+   "zh": "公司已停用或你已不属于该公司"
+  },
+  "entrar_como_desactivado": {
+   "es": "«Entrar como» está desactivado en este despliegue",
+   "en": "“Sign in as” is disabled in this deployment",
+   "zh": "此部署已停用“以他人身份登录”"
+  },
+  "entrar_como_no_permitido": {
+   "es": "No se puede entrar como ese usuario",
+   "en": "You cannot sign in as that user",
+   "zh": "不能以该用户身份登录"
+  },
+  "usuario_no_en_empresa": {
+   "es": "El usuario no pertenece a esa empresa activa",
+   "en": "The user does not belong to that active company",
+   "zh": "该用户不属于该有效公司"
+  },
+  "no_disponible_entrando_como": {
+   "es": "No disponible mientras se entra como otro usuario",
+   "en": "Not available while signed in as another user",
+   "zh": "以其他用户身份登录时不可用"
+  },
+  "sesion_otra_empresa": {
+   "es": "Esta sesión es de otra organización",
+   "en": "This session belongs to another company",
+   "zh": "此会话属于其他公司"
+  },
+  "espacio_ya_existe": {
+   "es": "Ya existe un espacio con el identificador «{slug}»",
+   "en": "A space with the identifier “{slug}” already exists",
+   "zh": "已存在标识为“{slug}”的空间"
+  },
+  "espacio_con_paginas": {
+   "es": "No se puede eliminar: el espacio tiene {n} página(s) activas",
+   "en": "Cannot be deleted: the space has {n} active page(s)",
+   "zh": "无法删除：该空间有 {n} 个活动页面"
+  },
+  "visibilidad_no_valida": {
+   "es": "Visibilidad no válida",
+   "en": "Invalid visibility",
+   "zh": "可见性无效"
+  },
+  "pagina_con_subpaginas": {
+   "es": "Esta página tiene {n} subpáginas — elimínalas primero",
+   "en": "This page has {n} subpages: delete them first",
+   "zh": "此页面有 {n} 个子页面：请先删除它们"
+  },
+  "epica_con_tareas": {
+   "es": "No se puede eliminar: {tareas} tareas, {dependencias} dependencias",
+   "en": "Cannot be deleted: {tareas} tasks, {dependencias} dependencies",
+   "zh": "无法删除：{tareas} 个任务，{dependencias} 个依赖"
+  },
+  "tipo_de_entidad_no_soportado": {
+   "es": "Tipo de elemento «{tipo}» no admitido. Usa: {opciones}",
+   "en": "Unsupported item type “{tipo}”. Use: {opciones}",
+   "zh": "不支持的项目类型“{tipo}”。请使用：{opciones}"
+  },
+  "comentario_con_respuestas": {
+   "es": "No se puede eliminar un comentario con respuestas",
+   "en": "A comment with replies cannot be deleted",
+   "zh": "有回复的评论不能删除"
+  },
+  "firma_documento_sin_contenido": {
+   "es": "No se ha podido leer el contenido del documento: no se envía a firmar un documento vacío",
+   "en": "The document content could not be read: an empty document is not sent for signature",
+   "zh": "无法读取文档内容：不会发送空文档进行签署"
+  },
+  "firma_proveedor_sin_conectar": {
+   "es": "{proveedor} no está conectado: completa la autorización primero",
+   "en": "{proveedor} is not connected: complete the authorization first",
+   "zh": "{proveedor} 未连接：请先完成授权"
+  },
+  "gasto_no_pendiente": {
+   "es": "El gasto no está pendiente de revisión",
+   "en": "The expense is not pending review",
+   "zh": "该费用未在等待审核"
+  },
+  "gasto_requiere_aprobacion_politica": {
+   "es": "Este gasto necesita la aprobación que piden sus políticas: se decide en la bandeja de aprobaciones",
+   "en": "This expense needs the approval its policies require: it is decided in the approvals inbox",
+   "zh": "此费用需要按其策略审批：请在审批收件箱中处理"
+  },
+  "gasto_no_editable": {
+   "es": "Solo se pueden editar gastos en borrador o rechazados",
+   "en": "Only draft or rejected expenses can be edited",
+   "zh": "只能编辑草稿或被拒绝的费用"
+  },
+  "gasto_ya_enviado": {
+   "es": "El gasto ya ha sido enviado",
+   "en": "The expense has already been submitted",
+   "zh": "该费用已提交"
+  },
+  "gasto_solo_enviado_retirable": {
+   "es": "Solo se pueden retirar gastos enviados",
+   "en": "Only submitted expenses can be withdrawn",
+   "zh": "只能撤回已提交的费用"
+  },
+  "gasto_no_aprobado": {
+   "es": "El gasto debe estar aprobado",
+   "en": "The expense must be approved",
+   "zh": "费用必须已批准"
+  },
+  "gasto_no_eliminable": {
+   "es": "Solo se pueden eliminar gastos en borrador o rechazados",
+   "en": "Only draft or rejected expenses can be deleted",
+   "zh": "只能删除草稿或被拒绝的费用"
+  },
+  "contratos_no_disponibles_rol": {
+   "es": "Los contratos no están disponibles para tu rol",
+   "en": "Contracts are not available for your role",
+   "zh": "你的角色无法使用合同"
+  },
+  "ia_formato_inesperado": {
+   "es": "La IA devolvió un formato inesperado. Intenta con otra imagen.",
+   "en": "The AI returned an unexpected format. Try another image.",
+   "zh": "AI 返回了意外的格式。请尝试其他图片。"
+  },
+  "gasto_facturable_proyecto_cerrado": {
+   "es": "No se pueden generar gastos facturables en proyectos cerrados",
+   "en": "Billable expenses cannot be created in closed projects",
+   "zh": "不能在已关闭的项目中生成可计费费用"
+  },
+  "gasto_facturable_proyecto_inactivo": {
+   "es": "No se puede marcar gasto como facturable en proyecto no activo",
+   "en": "An expense cannot be marked billable in an inactive project",
+   "zh": "不能在非活动项目中将费用标记为可计费"
+  },
+  "kilometros_positivos": {
+   "es": "Los kilómetros tienen que ser positivos",
+   "en": "Kilometres must be positive",
+   "zh": "公里数必须为正数"
+  },
+  "tipo_de_documento_no_configurado": {
+   "es": "Tipo de documento no configurado: {tipo}",
+   "en": "Document type not configured: {tipo}",
+   "zh": "未配置文档类型：{tipo}"
+  },
+  "reparto_proyecto_repetido": {
+   "es": "Un proyecto aparece dos veces en el reparto",
+   "en": "A project appears twice in the split",
+   "zh": "分摊中有项目重复出现"
+  },
+  "reparto_parte_cero": {
+   "es": "Cada parte tiene que ser mayor que cero",
+   "en": "Each share must be greater than zero",
+   "zh": "每一部分都必须大于零"
+  },
+  "reparto_no_suma_100": {
+   "es": "El reparto suma {suma} %, tiene que sumar 100 %",
+   "en": "The split adds up to {suma} %, it must add up to 100 %",
+   "zh": "分摊合计 {suma}%，必须为 100%"
+  },
+  "tarifa_km_sin_tipo_de_cambio": {
+   "es": "La tarifa por km de «{nombre}» está en {moneda} y no hay tipo de cambio {desde}→{hasta} a {fecha}",
+   "en": "The per-km rate of “{nombre}” is in {moneda} and there is no exchange rate {desde}→{hasta} on {fecha}",
+   "zh": "“{nombre}”的每公里费率以 {moneda} 计，且 {fecha} 没有 {desde}→{hasta} 的汇率"
+  },
+  "tramo_no_valido": {
+   "es": "Un tramo tiene que acabar después de empezar",
+   "en": "A segment must end after it starts",
+   "zh": "时段的结束时间必须晚于开始时间"
+  },
+  "tramos_solapados": {
+   "es": "Los tramos se solapan",
+   "en": "The segments overlap",
+   "zh": "时段重叠"
+  },
+  "imputar_proyecto_no_asignado": {
+   "es": "No puedes imputar horas en un proyecto al que no estás asignado.",
+   "en": "You cannot log hours on a project you are not assigned to.",
+   "zh": "你不能在未分配给你的项目中记录工时。"
+  },
+  "imputar_fecha_bloqueada": {
+   "es": "No puedes imputar en fechas anteriores a hace {dias} días ({fecha}). Contacta con tu manager si necesitas una corrección.",
+   "en": "You cannot log time before {dias} days ago ({fecha}). Ask your manager if you need a correction.",
+   "zh": "不能记录 {dias} 天前（{fecha}）之前的工时。如需更正请联系你的主管。"
+  },
+  "imputar_fecha_bloqueada_cronometro": {
+   "es": "No puedes imputar en fechas anteriores a hace {dias} días ({fecha}). El temporizador empezó en una fecha bloqueada.",
+   "en": "You cannot log time before {dias} days ago ({fecha}). The timer started on a locked date.",
+   "zh": "不能记录 {dias} 天前（{fecha}）之前的工时。计时器开始于已锁定的日期。"
+  },
+  "imputar_fecha_futura": {
+   "es": "No puedes imputar en fechas futuras.",
+   "en": "You cannot log time on future dates.",
+   "zh": "不能记录未来日期的工时。"
+  },
+  "imputar_proyecto_estado": {
+   "es": "No puedes imputar horas a un proyecto en estado «{estado}». Contacta con el PM si necesitas registrar horas históricas.",
+   "en": "You cannot log hours on a project with status “{estado}”. Ask the PM if you need to record past hours.",
+   "zh": "不能在状态为“{estado}”的项目中记录工时。如需补录请联系项目经理。"
+  },
+  "sin_tarifa_horaria": {
+   "es": "No puedes imputar horas sin tener una tarifa horaria asignada. Contacta con Recursos Humanos.",
+   "en": "You cannot log hours without an hourly rate assigned. Contact Human Resources.",
+   "zh": "未分配小时费率，不能记录工时。请联系人力资源。"
+  },
+  "imputar_mas_de_24h": {
+   "es": "No puedes imputar más de 24h en un día. Ya tienes {horas}h registradas.",
+   "en": "You cannot log more than 24 h in a day. You already have {horas} h.",
+   "zh": "一天不能记录超过 24 小时。你已记录 {horas} 小时。"
+  },
+  "imputar_tarea_estado": {
+   "es": "No puedes imputar horas en una tarea con estado «{estado}».",
+   "en": "You cannot log hours on a task with status “{estado}”.",
+   "zh": "不能在状态为“{estado}”的任务上记录工时。"
+  },
+  "imputar_supera_capacidad": {
+   "es": "Excederías la capacidad semanal ({capacidad} h). Semana actual: {semana} h, nueva imputación: {nueva} h.",
+   "en": "You would exceed the weekly capacity ({capacidad} h). Current week: {semana} h, new entry: {nueva} h.",
+   "zh": "将超出每周容量（{capacidad} 小时）。本周：{semana} 小时，新记录：{nueva} 小时。"
+  },
+  "imputacion_ajena": {
+   "es": "No puedes editar imputaciones de otros",
+   "en": "You cannot edit other people's time entries",
+   "zh": "你不能编辑他人的工时记录"
+  },
+  "imputacion_aprobada": {
+   "es": "No se puede editar una imputación ya aprobada",
+   "en": "An approved time entry cannot be edited",
+   "zh": "不能编辑已批准的工时记录"
+  },
+  "imputacion_hoja_enviada": {
+   "es": "No se puede editar imputaciones en una hoja de tiempo ya enviada o aprobada",
+   "en": "Time entries in a submitted or approved timesheet cannot be edited",
+   "zh": "已提交或已批准的工时表中的记录不能编辑"
+  },
+  "imputacion_duplicada": {
+   "es": "Ya existe una imputación para esta tarea en esa fecha.",
+   "en": "There is already a time entry for this task on that date.",
+   "zh": "该任务在该日期已有工时记录。"
+  },
+  "imputacion_demasiado_antigua": {
+   "es": "No puedes editar imputaciones de hace más de {dias} días.",
+   "en": "You cannot edit time entries older than {dias} days.",
+   "zh": "不能编辑超过 {dias} 天的工时记录。"
+  },
+  "alerta_ajena": {
+   "es": "No puedes descartar el aviso de otra persona",
+   "en": "You cannot dismiss another user's alert",
+   "zh": "你不能关闭其他用户的警报"
+  },
+  "cronometro_ya_activo": {
+   "es": "Ya tienes un cronómetro en marcha",
+   "en": "You already have a timer running",
+   "zh": "你已有正在运行的计时器"
+  },
+  "cronometro_tarea_no_asignada": {
+   "es": "No puedes iniciar el cronómetro en una tarea que no está asignada a ti.",
+   "en": "You cannot start the timer on a task that is not assigned to you.",
+   "zh": "不能在未分配给你的任务上启动计时器。"
+  },
+  "incidente_seguridad_solo_admin": {
+   "es": "Los incidentes de seguridad sólo los abre un administrador",
+   "en": "Only an administrator opens security incidents",
+   "zh": "只有管理员可以创建安全事件"
+  },
+  "categoria_no_valida": {
+   "es": "Categoría no válida: {valor}",
+   "en": "Invalid category: {valor}",
+   "zh": "类别无效：{valor}"
+  },
+  "leccion_no_editable": {
+   "es": "Sólo quien la escribió (antes de validarla) o quien valida puede editarla",
+   "en": "Only its author (before validation) or a validator can edit it",
+   "zh": "只有作者（验证前）或验证人可以编辑"
+  },
+  "leccion_borrar_solo_admin": {
+   "es": "Sólo un administrador borra lecciones (lo normal es archivarlas)",
+   "en": "Only an administrator deletes lessons (the usual thing is to archive them)",
+   "zh": "只有管理员可以删除经验教训（通常应归档）"
+  },
+  "leccion_sin_permiso_acciones": {
+   "es": "No puedes añadir acciones a esta lección",
+   "en": "You cannot add actions to this lesson",
+   "zh": "你不能为此经验教训添加行动"
+  },
+  "leccion_solo_responsable_o_editor": {
+   "es": "Sólo el responsable o quien edita la lección",
+   "en": "Only the owner or someone who edits the lesson",
+   "zh": "仅限负责人或经验教训的编辑者"
+  },
+  "campo_vacio": {
+   "es": "«{campo}» no puede quedar vacío",
+   "en": "“{campo}” cannot be empty",
+   "zh": "“{campo}”不能为空"
+  },
+  "falta_origen": {
+   "es": "Falta el origen",
+   "en": "The source is missing",
+   "zh": "缺少来源"
+  },
+  "leccion_rol_no_valida": {
+   "es": "Tu rol no valida ni archiva lecciones",
+   "en": "Your role cannot validate or archive lessons",
+   "zh": "你的角色不能验证或归档经验教训"
+  },
+  "leccion_sin_permiso": {
+   "es": "No puedes cambiar esta lección",
+   "en": "You cannot change this lesson",
+   "zh": "你不能修改此经验教训"
+  },
+  "hito_no_completable": {
+   "es": "No se puede completar en estado «{estado}»",
+   "en": "It cannot be completed with status “{estado}”",
+   "zh": "状态为“{estado}”时不能完成"
+  },
+  "hito_no_revertible": {
+   "es": "No se puede revertir un hito aprobado o facturado",
+   "en": "An approved or invoiced milestone cannot be reverted",
+   "zh": "不能撤销已批准或已开票的里程碑"
+  },
+  "hito_no_completado": {
+   "es": "El hito debe estar completado antes de solicitar aprobación",
+   "en": "The milestone must be completed before requesting approval",
+   "zh": "申请审批前里程碑必须已完成"
+  },
+  "hito_no_pendiente": {
+   "es": "El hito no está pendiente de aprobación (estado: {estado})",
+   "en": "The milestone is not pending approval (status: {estado})",
+   "zh": "里程碑未在等待审批（状态：{estado}）"
+  },
+  "hito_no_aprobado": {
+   "es": "El hito debe estar aprobado para facturar (estado: {estado})",
+   "en": "The milestone must be approved to invoice (status: {estado})",
+   "zh": "里程碑必须已批准才能开票（状态：{estado}）"
+  },
+  "hito_ya_facturado": {
+   "es": "Este hito ya tiene una factura generada",
+   "en": "This milestone already has an invoice",
+   "zh": "该里程碑已生成发票"
+  },
+  "hito_sin_importe": {
+   "es": "El hito no tiene importe de facturación definido",
+   "en": "The milestone has no billing amount",
+   "zh": "该里程碑没有设置开票金额"
+  },
+  "okr_objetivo_sin_proyecto": {
+   "es": "El objetivo del resultado clave no tiene proyecto. Asígnale un proyecto antes de sincronizar.",
+   "en": "The objective of this key result has no project. Set the objective's project before syncing.",
+   "zh": "该关键结果的目标没有关联项目。同步前请为目标设置项目。"
+  },
+  "campana_ciclo_cerrado": {
+   "es": "No se puede crear una campaña en un ciclo cerrado",
+   "en": "A campaign cannot be created in a closed cycle",
+   "zh": "不能在已关闭的周期中创建活动"
+  },
+  "manager_no_directo": {
+   "es": "El manager indicado no figura como manager directo en el organigrama",
+   "en": "That manager is not the direct manager in the org chart",
+   "zh": "该经理在组织架构中不是直属经理"
+  },
+  "campana_sin_evaluadores": {
+   "es": "La campaña debe incluir al menos un evaluador",
+   "en": "The campaign must include at least one reviewer",
+   "zh": "活动至少需要一名评估人"
+  },
+  "preguntas_solo_borrador": {
+   "es": "Las preguntas solo se cambian o añaden en ciclos en borrador",
+   "en": "Questions can only be changed or added in draft cycles",
+   "zh": "只能在草稿周期中修改或添加问题"
+  },
+  "evaluador_no_elegible": {
+   "es": "El evaluador no es elegible para el tipo «{tipo}»",
+   "en": "The reviewer is not eligible for the type “{tipo}”",
+   "zh": "该评估人不适用于类型“{tipo}”"
+  },
+  "persona_sin_manager": {
+   "es": "Esta persona no tiene manager configurado en el organigrama",
+   "en": "This person has no manager in the org chart",
+   "zh": "此人在组织架构中没有经理"
+  },
+  "persona_sin_equipo": {
+   "es": "Esta persona no tiene equipo ni departamento: no se pueden asignar pares",
+   "en": "This person has no team or department: peers cannot be assigned",
+   "zh": "此人没有团队或部门：无法分配同事"
+  },
+  "persona_sin_reportes": {
+   "es": "Esta persona no tiene reportes directos en el organigrama",
+   "en": "This person has no direct reports in the org chart",
+   "zh": "此人在组织架构中没有直接下属"
+  },
+  "oportunidad_vinculada": {
+   "es": "No se puede eliminar: la oportunidad está vinculada a un proyecto",
+   "en": "Cannot be deleted: the opportunity is linked to a project",
+   "zh": "无法删除：该商机已关联项目"
+  },
+  "oportunidad_ya_vinculada": {
+   "es": "Esta oportunidad ya está vinculada al proyecto {proyecto}",
+   "en": "This opportunity is already linked to project {proyecto}",
+   "zh": "该商机已关联项目 {proyecto}"
+  },
+  "oportunidad_no_convertible": {
+   "es": "Una oportunidad perdida o cancelada no se convierte en proyecto",
+   "en": "A lost or cancelled opportunity is not converted into a project",
+   "zh": "已丢失或已取消的商机不能转为项目"
+  },
+  "etapa_ya_existe": {
+   "es": "La etapa «{etapa}» ya existe",
+   "en": "The stage “{etapa}” already exists",
+   "zh": "阶段“{etapa}”已存在"
+  },
+  "plantilla_dependencia_rota": {
+   "es": "Una dependencia de la plantilla apunta a una tarea que no está",
+   "en": "A template dependency points to a task that is not there",
+   "zh": "模板中的某个依赖指向不存在的任务"
+  },
+  "organigrama_no_disponible": {
+   "es": "El organigrama no está disponible para tu rol",
+   "en": "The org chart is not available for your role",
+   "zh": "你的角色无法查看组织架构"
+  },
+  "cartera_con_proyectos": {
+   "es": "No se puede eliminar: la cartera tiene {n} proyecto(s) vinculados",
+   "en": "Cannot be deleted: the portfolio has {n} linked project(s)",
+   "zh": "无法删除：该项目组合有 {n} 个关联项目"
+  },
+  "proyecto_ya_cancelado": {
+   "es": "El proyecto ya está cancelado",
+   "en": "The project is already cancelled",
+   "zh": "项目已取消"
+  },
+  "ya_es_miembro_proyecto": {
+   "es": "El usuario ya es miembro del proyecto",
+   "en": "The user is already a project member",
+   "zh": "该用户已是项目成员"
+  },
+  "propuesta_sin_generar": {
+   "es": "Genera la propuesta antes de marcarla como enviada",
+   "en": "Generate the proposal before marking it as sent",
+   "zh": "请先生成提案再标记为已发送"
+  },
+  "formulario_sin_proyecto": {
+   "es": "Un formulario de tareas necesita un proyecto destino",
+   "en": "A task form needs a target project",
+   "zh": "任务表单需要目标项目"
+  },
+  "raci_rol_no_valido": {
+   "es": "Rol RACI inválido: «{rol}». Usa R, A, C o I.",
+   "en": "Invalid RACI role: “{rol}”. Use R, A, C or I.",
+   "zh": "RACI 角色无效：“{rol}”。请使用 R、A、C 或 I。"
+  },
+  "indica_cliente_o_proyecto": {
+   "es": "Elige un cliente o un proyecto",
+   "en": "Choose a client or a project",
+   "zh": "请选择客户或项目"
+  },
+  "reserva_documento_ajena": {
+   "es": "La reserva es de otra persona: solo quien administra el documento puede forzarla",
+   "en": "The checkout belongs to someone else: only the document administrator can force it",
+   "zh": "该签出属于他人：只有文档管理员可以强制解除"
+  },
+  "contrato_con_asientos": {
+   "es": "No se puede eliminar un contrato con entradas contables",
+   "en": "A contract with accounting entries cannot be deleted",
+   "zh": "不能删除有会计分录的合同"
+  },
+  "precio_independiente_negativo": {
+   "es": "El precio de venta independiente no puede ser negativo",
+   "en": "The standalone selling price cannot be negative",
+   "zh": "单独售价不能为负数"
+  },
+  "precio_independiente_no_numerico": {
+   "es": "El precio de venta independiente debe ser un número",
+   "en": "The standalone selling price must be a number",
+   "zh": "单独售价必须为数字"
+  },
+  "periodo_ya_cerrado": {
+   "es": "El período {anio}-{mes} ya está cerrado",
+   "en": "The period {anio}-{mes} is already closed",
+   "zh": "期间 {anio}-{mes} 已关闭"
+  },
+  "periodo_no_cerrado": {
+   "es": "Período no encontrado o no cerrado",
+   "en": "Period not found or not closed",
+   "zh": "期间不存在或未关闭"
+  },
+  "asiento_reversion_no_revertible": {
+   "es": "No se puede revertir una entrada de reversión",
+   "en": "A reversal entry cannot be reversed",
+   "zh": "冲销分录不能再冲销"
+  },
+  "asiento_ya_revertido": {
+   "es": "La entrada ya está revertida",
+   "en": "The entry is already reversed",
+   "zh": "该分录已冲销"
+  },
+  "asiento_periodo_cerrado": {
+   "es": "No se puede revertir una entrada de un período cerrado",
+   "en": "An entry from a closed period cannot be reversed",
+   "zh": "不能冲销已关闭期间的分录"
+  },
+  "jornada_fin_antes_de_inicio": {
+   "es": "La jornada tiene que acabar después de empezar",
+   "en": "The working day must end after it starts",
+   "zh": "工作日结束时间必须晚于开始时间"
+  },
+  "tarea_ya_cancelada": {
+   "es": "La tarea ya está cancelada",
+   "en": "The task is already cancelled",
+   "zh": "任务已取消"
+  },
+  "tarea_depende_de_si_misma": {
+   "es": "Una tarea no puede depender de sí misma",
+   "en": "A task cannot depend on itself",
+   "zh": "任务不能依赖自身"
+  },
+  "dependencia_mismo_proyecto": {
+   "es": "Una dependencia que planifica une tareas del mismo proyecto",
+   "en": "A scheduling dependency links tasks from the same project",
+   "zh": "计划依赖只能连接同一项目中的任务"
+  },
+  "dependencia_ciclo": {
+   "es": "Esa dependencia cerraría un ciclo: la tarea siguiente ya va antes que la anterior",
+   "en": "That dependency would create a loop: the next task already comes before the previous one",
+   "zh": "该依赖会形成循环：后续任务已在前置任务之前"
+  },
+  "dependencia_no_invertible": {
+   "es": "Para invertir una dependencia, bórrala y créala al revés",
+   "en": "To reverse a dependency, delete it and create it the other way round",
+   "zh": "要反转依赖，请删除后反向重新创建"
+  },
+  "sin_tareas_en_proyecto": {
+   "es": "No tienes tareas en este proyecto",
+   "en": "You have no tasks in this project",
+   "zh": "你在此项目中没有任务"
+  },
+  "sin_acceso_tarea": {
+   "es": "No tienes acceso a esta tarea",
+   "en": "You don't have access to this task",
+   "zh": "你无权访问此任务"
+  },
+  "tarea_raiz_sin_fin": {
+   "es": "La tarea raíz no tiene fecha de fin definida",
+   "en": "The root task has no end date",
+   "zh": "根任务没有结束日期"
+  },
+  "solo_admin_tarifa_rol": {
+   "es": "Solo un administrador puede fijar la tarifa o el rol personalizado",
+   "en": "Only an administrator can set the rate or the custom role",
+   "zh": "只有管理员可以设置费率或自定义角色"
+  },
+  "usuario_otra_empresa": {
+   "es": "No puedes crear ni mover usuarios a otra organización",
+   "en": "You cannot create or move users into another company",
+   "zh": "你不能在其他公司创建或移入用户"
+  },
+  "jerarquia_ciclica": {
+   "es": "Ciclo detectado en la jerarquía",
+   "en": "Loop detected in the hierarchy",
+   "zh": "层级中检测到循环"
+  },
+  "extra_no_es_objeto": {
+   "es": "Los datos extra tienen que ser un objeto",
+   "en": "Extra data must be an object",
+   "zh": "额外数据必须是对象"
+  },
+  "vista_config_no_objeto": {
+   "es": "La configuración de la vista tiene que ser un objeto",
+   "en": "The view configuration must be an object",
+   "zh": "视图配置必须是对象"
+  },
+  "vista_compartir_solo_admin_pm": {
+   "es": "Solo admin o PM comparten vistas con toda la empresa",
+   "en": "Only admins or PMs share views with the whole company",
+   "zh": "只有管理员或项目经理可以与全公司共享视图"
+  },
+  "vista_solo_autor": {
+   "es": "Solo quien creó la vista la cambia",
+   "en": "Only the person who created the view can change it",
+   "zh": "只有视图的创建者可以修改"
+  },
+  "metrica_sin_desglose": {
+   "es": "La métrica «{metrica}» no tiene desglose",
+   "en": "The metric “{metrica}” has no drill-down",
+   "zh": "指标“{metrica}”不支持下钻"
+  },
+  "puntuacion_0_a_10": {
+   "es": "«{campo}» va de 0 a 10",
+   "en": "“{campo}” must be from 0 to 10",
+   "zh": "“{campo}”必须在 0 到 10 之间"
+  }
+ },
+ "que": {
+  "rol": {
+   "es": "Rol",
+   "en": "Role",
+   "zh": "角色"
+  }
+ },
+ "textos": {
+  "La fecha final es anterior a la inicial": {
+   "code": "fecha_final_anterior"
+  },
+  "Como mucho {} días de una vez": {
+   "code": "maximo_de_dias",
+   "vars": [
+    "max"
+   ]
+  },
+  "Esa persona no existe en tu empresa": {
+   "code": "persona_no_existe_en_empresa"
+  },
+  "Fecha no válida en «{}»: {}": {
+   "code": "fecha_no_valida_en",
+   "vars": [
+    "nombre"
+   ],
+   "ignora_huecos": true
+  },
+  "Hora no válida en «{}» (HH:MM): {}": {
+   "code": "hora_no_valida_en",
+   "vars": [
+    "nombre"
+   ],
+   "ignora_huecos": true
+  },
+  "Currency codes must be 3-letter ISO codes (e.g. EUR, USD)": {
+   "code": "moneda_codigo_no_valido"
+  },
+  "Métrica no soportada: {}. Disponibles: {}.": {
+   "code": "metrica_no_soportada",
+   "vars": [
+    "metrica",
+    "opciones"
+   ]
+  },
+  "El acento es un color #rrggbb, o vacío para usar el del tema": {
+   "code": "color_hex_no_valido"
+  },
+  "El nombre es obligatorio": {
+   "code": "nombre_vacio"
+  },
+  "No tienes permiso para editar esta tarea": {
+   "code": "sin_permiso"
+  },
+  "No tienes permiso para editar este usuario": {
+   "code": "sin_permiso"
+  },
+  "No tienes permiso para editar campos críticos de la imputación": {
+   "code": "sin_permiso"
+  },
+  "Solo admin o PM pueden crear clientes": {
+   "code": "solo_admin_o_pm"
+  },
+  "Solo admin o PM pueden editar clientes": {
+   "code": "solo_admin_o_pm"
+  },
+  "Solo admin o PM pueden eliminar clientes": {
+   "code": "solo_admin_o_pm"
+  },
+  "Solo admin puede cambiar organizaciones": {
+   "code": "solo_admin"
+  },
+  "El usuario no tiene organización asignada": {
+   "code": "sin_empresa"
+  },
+  "No perteneces a ninguna organización activa": {
+   "code": "sin_empresa"
+  },
+  "El archivo supera el máximo de {} MB": {
+   "code": "fichero_demasiado_grande",
+   "vars": [
+    "max"
+   ]
+  },
+  "Tamaño no permitido: el máximo es {} MB": {
+   "code": "fichero_demasiado_grande",
+   "vars": [
+    "max"
+   ]
+  },
+  "La fecha de fin no puede ser anterior a la de inicio": {
+   "code": "fecha_fin_anterior_a_inicio"
+  },
+  "La fecha inicio no puede ser posterior al fin": {
+   "code": "fecha_fin_anterior_a_inicio"
+  },
+  "El fin deseado es anterior al inicio": {
+   "code": "fecha_fin_anterior_a_inicio"
+  },
+  "El periodo acaba antes de empezar": {
+   "code": "fecha_fin_anterior_a_inicio"
+  },
+  "No encontrada": {
+   "code": "no_encontrado_generico"
+  },
+  "Direct no encontrada": {
+   "code": "no_encontrado",
+   "params": {
+    "que": "conversacion"
+   },
+   "ignora_huecos": true
+  },
+  "Concurrent financial update detected. Please retry.": {
+   "code": "conflicto_concurrente"
+  },
+  "Task state conflict. Please reload and try again.": {
+   "code": "conflicto_concurrente"
+  },
+  "Cannot cancel task. State conflict.": {
+   "code": "conflicto_concurrente"
+  },
+  "Cannot add comment. Conflict.": {
+   "code": "conflicto_concurrente"
+  },
+  "Constraint violation in bulk date update.": {
+   "code": "conflicto_concurrente"
+  },
+  "Código de tarea duplicado. Inténtalo de nuevo.": {
+   "code": "conflicto_concurrente"
+  },
+  "run_adhoc_query requiere una sesión de base de datos": {
+   "code": "error_interno"
+  },
+  "Ponle un nombre": {
+   "code": "nombre_obligatorio"
+  },
+  "El tipo necesita un nombre": {
+   "code": "nombre_obligatorio"
+  },
+  "El turno necesita un nombre": {
+   "code": "nombre_obligatorio"
+  },
+  "La rotación necesita un nombre": {
+   "code": "nombre_obligatorio"
+  },
+  "Ponle un nombre a la plantilla": {
+   "code": "nombre_obligatorio"
+  },
+  "La plantilla necesita un nombre": {
+   "code": "nombre_obligatorio"
+  },
+  "La obligacion necesita un nombre": {
+   "code": "nombre_obligatorio"
+  },
+  "Indica el motivo": {
+   "code": "motivo_obligatorio"
+  },
+  "Escribe la explicación": {
+   "code": "motivo_obligatorio"
+  },
+  "Tipo no válido: {}": {
+   "code": "tipo_no_valido_valor",
+   "vars": [
+    "tipo"
+   ]
+  },
+  "Estado no válido: {}": {
+   "code": "estado_no_valido_valor",
+   "vars": [
+    "estado"
+   ]
+  },
+  "Valor no válido: {}": {
+   "code": "valor_no_valido",
+   "vars": [
+    "valor"
+   ]
+  },
+  "Nivel inválido: {}": {
+   "code": "valor_no_valido",
+   "vars": [
+    "valor"
+   ]
+  },
+  "Recurrencia no válida: {}": {
+   "code": "valor_no_valido",
+   "vars": [
+    "valor"
+   ]
+  },
+  "Ámbito no válido: {}": {
+   "code": "valor_no_valido",
+   "vars": [
+    "valor"
+   ]
+  },
+  "Método de previsión no válido: {}": {
+   "code": "valor_no_valido",
+   "vars": [
+    "valor"
+   ]
+  },
+  "Metodo de reconocimiento desconocido: {}": {
+   "code": "valor_no_valido",
+   "vars": [
+    "valor"
+   ]
+  },
+  "desglose no admitido: {}": {
+   "code": "valor_no_valido",
+   "vars": [
+    "valor"
+   ]
+  },
+  "Contexto desconocido: {}": {
+   "code": "valor_no_valido",
+   "vars": [
+    "valor"
+   ]
+  },
+  "Origen desconocido: {}": {
+   "code": "valor_no_valido",
+   "vars": [
+    "valor"
+   ]
+  },
+  "Severidad no válida: {}": {
+   "code": "valor_no_valido",
+   "vars": [
+    "valor"
+   ]
+  },
+  "Tema desconocido: {}": {
+   "code": "valor_no_valido",
+   "vars": [
+    "valor"
+   ]
+  },
+  "Densidad desconocida: {}": {
+   "code": "valor_no_valido",
+   "vars": [
+    "valor"
+   ]
+  },
+  "Rol base desconocido: {}": {
+   "code": "valor_no_valido",
+   "vars": [
+    "valor"
+   ]
+  },
+  "Invalid role: {}": {
+   "code": "valor_no_valido",
+   "vars": [
+    "valor"
+   ]
+  },
+  "Tipo de vista no válido: {}": {
+   "code": "valor_no_valido",
+   "vars": [
+    "valor"
+   ]
+  },
+  "Tipo de vínculo no válido: {}": {
+   "code": "valor_no_valido",
+   "vars": [
+    "valor"
+   ]
+  },
+  "Unsupported action type: {}": {
+   "code": "valor_no_valido",
+   "vars": [
+    "valor"
+   ]
+  },
+  "Tipo de ausencia desconocido: {}": {
+   "code": "valor_no_valido",
+   "vars": [
+    "valor"
+   ]
+  },
+  "Tipo de dependencia no válido: {}": {
+   "code": "tipo_de_dependencia_no_valido",
+   "vars": [
+    "valor"
+   ]
+  },
+  "Tipo de dependencia no válido: {} (FS, SS, FF o SF)": {
+   "code": "tipo_de_dependencia_no_valido",
+   "vars": [
+    "valor"
+   ]
+  },
+  "Formato no soportado: {}. Admitidos: {}": {
+   "code": "formato_no_soportado",
+   "vars": [
+    "formato",
+    "opciones"
+   ]
+  },
+  "Transición de estado no permitida: {} → {}": {
+   "code": "transicion_no_permitida",
+   "vars": [
+    "desde",
+    "hasta"
+   ]
+  },
+  "Transición inválida: {} → {}.": {
+   "code": "transicion_no_permitida",
+   "vars": [
+    "desde",
+    "hasta"
+   ]
+  },
+  "Transición de etapa no permitida: '{}' → '{}'": {
+   "code": "transicion_no_permitida",
+   "vars": [
+    "desde",
+    "hasta"
+   ]
+  },
+  "No existe transición de '{}' a '{}'": {
+   "code": "transicion_no_permitida",
+   "vars": [
+    "desde",
+    "hasta"
+   ]
+  },
+  "Fecha no válida: {}. Usa formato ISO (YYYY-MM-DD).": {
+   "code": "fecha_no_valida",
+   "vars": [
+    "valor"
+   ]
+  },
+  "Fecha límite no válida": {
+   "code": "fecha_no_valida",
+   "ignora_huecos": true
+  },
+  "start_date must be YYYY-MM-DD": {
+   "code": "fecha_no_valida",
+   "ignora_huecos": true
+  },
+  "Formato de fecha inválido en start_date/end_date, se espera YYYY-MM-DD": {
+   "code": "fecha_no_valida",
+   "ignora_huecos": true
+  },
+  "hora no válida: {}": {
+   "code": "hora_no_valida",
+   "vars": [
+    "valor"
+   ]
+  },
+  "hora inválida: {} (usa HH:MM)": {
+   "code": "hora_no_valida",
+   "vars": [
+    "valor"
+   ]
+  },
+  "No tienes acceso a esta conversación": {
+   "code": "sin_acceso_a_conversacion"
+  },
+  "No tienes acceso a esa conversación": {
+   "code": "sin_acceso_a_conversacion"
+  },
+  "Proyecto no encontrado o no accesible": {
+   "code": "no_encontrado",
+   "params": {
+    "que": "proyecto"
+   },
+   "ignora_huecos": true
+  },
+  "Usuario no encontrado para la imputación": {
+   "code": "no_encontrado",
+   "params": {
+    "que": "usuario"
+   },
+   "ignora_huecos": true
+  },
+  "El proyecto asociado ya no existe.": {
+   "code": "no_encontrado",
+   "params": {
+    "que": "proyecto"
+   },
+   "ignora_huecos": true
+  },
+  "Ese turno no existe": {
+   "code": "no_encontrado",
+   "params": {
+    "que": "turno"
+   },
+   "ignora_huecos": true
+  },
+  "Esa oficina no existe": {
+   "code": "sede_no_existe"
+  },
+  "El presupuesto padre no existe": {
+   "code": "no_encontrado",
+   "params": {
+    "que": "presupuesto"
+   },
+   "ignora_huecos": true
+  },
+  "Ese flujo de aprobación no existe": {
+   "code": "no_encontrado",
+   "params": {
+    "que": "flujo"
+   },
+   "ignora_huecos": true
+  },
+  "El documento a sustituir no existe": {
+   "code": "no_encontrado",
+   "params": {
+    "que": "documento"
+   },
+   "ignora_huecos": true
+  },
+  "Rol personalizado no encontrado en la organización del usuario": {
+   "code": "no_encontrado",
+   "params": {
+    "que": "rol"
+   },
+   "ignora_huecos": true
+  },
+  "Estado {} no encontrado en este proyecto": {
+   "code": "no_encontrado",
+   "ignora_huecos": true,
+   "params": {
+    "que": "estado"
+   }
+  },
+  "Organizaciones no encontradas: {}": {
+   "code": "no_encontrado",
+   "ignora_huecos": true,
+   "params": {
+    "que": "organizacion"
+   }
+  },
+  "No open tasks found": {
+   "code": "no_encontrado",
+   "params": {
+    "que": "tarea"
+   },
+   "ignora_huecos": true
+  },
+  "No paused timer found": {
+   "code": "cronometro_sin_activo"
+  },
+  "Pides {} días de vacaciones y te quedan {} en {}": {
+   "code": "vacaciones_insuficientes",
+   "vars": [
+    "pedidos",
+    "quedan",
+    "anio"
+   ]
+  },
+  "El tipo «{}» está desactivado": {
+   "code": "tipo_de_ausencia_desactivado",
+   "vars": [
+    "tipo"
+   ]
+  },
+  "La clave va en minúsculas, números y _ (2 a 50)": {
+   "code": "clave_formato_no_valido"
+  },
+  "Ya hay un tipo de documento con la clave {}": {
+   "code": "tipo_de_documento_ya_existe",
+   "vars": [
+    "clave"
+   ]
+  },
+  "Esa persona no existe en tu empresa o no está activa": {
+   "code": "persona_no_activa_en_empresa"
+  },
+  "Solo RRHH, un administrador o su responsable": {
+   "code": "solo_rrhh_admin_o_responsable"
+  },
+  "Elige el tipo de documento": {
+   "code": "elige_tipo_de_documento"
+  },
+  "Solo la persona, RRHH, su responsable o un administrador pueden adjuntar": {
+   "code": "adjuntar_solo_persona_rrhh_responsable_admin"
+  },
+  "La ausencia está cancelada": {
+   "code": "ausencia_cancelada"
+  },
+  "El antivirus ha bloqueado el archivo": {
+   "code": "antivirus_bloqueado"
+  },
+  "No puedes ver este documento": {
+   "code": "sin_acceso_documento"
+  },
+  "El documento no tiene fichero": {
+   "code": "documento_sin_fichero"
+  },
+  "Las horas tienen que ser más de 0": {
+   "code": "horas_mayor_que_cero"
+  },
+  "Ya tienes una ausencia solapada del {} al {}": {
+   "code": "ausencia_solapada",
+   "vars": [
+    "desde",
+    "hasta"
+   ]
+  },
+  "Se solapa con otra ausencia del {} al {}": {
+   "code": "ausencia_solapada_otra",
+   "vars": [
+    "desde",
+    "hasta"
+   ]
+  },
+  "Solo se pueden revisar ausencias pendientes": {
+   "code": "ausencia_solo_pendientes_revisables"
+  },
+  "No puedes cancelar una ausencia ya iniciada": {
+   "code": "ausencia_iniciada_no_cancelable"
+  },
+  "Solo se pueden editar ausencias pendientes. Esta está '{}'": {
+   "code": "ausencia_solo_pendientes_editables",
+   "vars": [
+    "estado"
+   ]
+  },
+  "Solo se amplía una ausencia aprobada": {
+   "code": "ausencia_solo_aprobada_ampliable"
+  },
+  "La nueva fecha de fin tiene que ser posterior a la actual": {
+   "code": "ausencia_nueva_fin_posterior"
+  },
+  "Esa ausencia no está en lista de espera": {
+   "code": "ausencia_no_en_espera"
+  },
+  "No puedes ser tu propio sustituto": {
+   "code": "sustituto_uno_mismo"
+  },
+  "El sustituto no existe en tu empresa o no está activo": {
+   "code": "sustituto_no_valido"
+  },
+  "Solo su responsable, RRHH o administración": {
+   "code": "solo_responsable_rrhh_admin"
+  },
+  "Días de la semana del 1 (lunes) al 7 (domingo)": {
+   "code": "dia_semana_no_valido"
+  },
+  "Las personas requeridas no pueden ser negativas": {
+   "code": "personas_requeridas_negativas"
+  },
+  "El ciclo tiene de 1 a {} días": {
+   "code": "rotacion_ciclo_dias",
+   "vars": [
+    "max"
+   ]
+  },
+  "El ciclo usa un turno que no existe": {
+   "code": "rotacion_turno_inexistente"
+  },
+  "Una persona de la rotación no existe en tu empresa": {
+   "code": "rotacion_persona_inexistente"
+  },
+  "Una persona sale de la rotación antes de entrar": {
+   "code": "rotacion_salida_antes_de_entrada"
+  },
+  "La factura necesita aprobación: se ha enviado a la bandeja de aprobaciones": {
+   "code": "factura_enviada_a_aprobacion"
+  },
+  "El cobro con Stripe no está disponible: configura STRIPE_SECRET_KEY.": {
+   "code": "integracion_no_configurada",
+   "params": {
+    "nombre": "Stripe"
+   }
+  },
+  "La factura ya está pagada.": {
+   "code": "factura_ya_pagada"
+  },
+  "Sólo se modifica un borrador: una factura emitida se anula y se hace otra": {
+   "code": "factura_solo_borrador_editable"
+  },
+  "La factura está pendiente de aprobación en la bandeja": {
+   "code": "factura_pendiente_aprobacion"
+  },
+  "empty": {
+   "code": "fichero_vacio"
+  },
+  "Campos no editables: {}": {
+   "code": "campos_no_editables",
+   "vars": [
+    "campos"
+   ]
+  },
+  "Provision URL must be a valid HTTPS URL": {
+   "code": "aprovisionamiento_url_no_valida"
+  },
+  "Provision URL must include a hostname": {
+   "code": "aprovisionamiento_url_no_valida"
+  },
+  "Provision URL cannot target local hosts": {
+   "code": "aprovisionamiento_url_no_permitida"
+  },
+  "Provision URL targets a disallowed network range": {
+   "code": "aprovisionamiento_url_no_permitida"
+  },
+  "Provision URL resolves to a disallowed network range": {
+   "code": "aprovisionamiento_url_no_permitida"
+  },
+  "Provision action requires 'url'": {
+   "code": "campo_obligatorio",
+   "params": {
+    "campo": "url"
+   }
+  },
+  "Terraform command '{}' is not in allowed_commands": {
+   "code": "aprovisionamiento_comando_no_permitido",
+   "vars": [
+    "comando"
+   ]
+  },
+  "Terraform command '{}' is not allowed by runtime policy": {
+   "code": "aprovisionamiento_comando_no_permitido",
+   "vars": [
+    "comando"
+   ]
+  },
+  "Ansible playbook '{}' is not in allowed_playbooks": {
+   "code": "aprovisionamiento_comando_no_permitido",
+   "vars": [
+    "comando"
+   ]
+  },
+  "Provisioning '{}' is required": {
+   "code": "campo_obligatorio",
+   "vars": [
+    "campo"
+   ]
+  },
+  "Provisioning '{}' escapes the provisioning root": {
+   "code": "aprovisionamiento_ruta_no_permitida",
+   "vars": [
+    "campo"
+   ]
+  },
+  "max_retries must be between 0 and 10": {
+   "code": "reintentos_fuera_de_rango"
+  },
+  "delay_seconds must be between 0 and 120": {
+   "code": "espera_fuera_de_rango"
+  },
+  "backoff must be one of: none, linear, exponential": {
+   "code": "backoff_no_valido"
+  },
+  "El tipo de cambio debe ser mayor que cero": {
+   "code": "tipo_de_cambio_positivo"
+  },
+  "Sin tipo de cambio {}→{}. Configura los tipos en Configuración → Monedas.": {
+   "code": "tipo_de_cambio_no_configurado",
+   "vars": [
+    "desde",
+    "hasta"
+   ]
+  },
+  "Factura recurrente inactiva": {
+   "code": "factura_recurrente_inactiva"
+  },
+  "Semana del {}: ya tiene {} h comprometidas y esta reserva suma {} h; su capacidad es {} h. Resérvala como tentativa (soft) o ajusta las horas.": {
+   "code": "reserva_supera_capacidad",
+   "vars": [
+    "semana",
+    "comprometidas",
+    "reserva",
+    "capacidad"
+   ]
+  },
+  "Este usuario ya tiene una reserva para este proyecto en las fechas indicadas.": {
+   "code": "reserva_ya_existe"
+  },
+  "Tu rol no gestiona presupuestos (lo decide BUDGET_MANAGER_ROLES en Admin)": {
+   "code": "presupuestos_rol_no_gestiona"
+  },
+  "Elige el departamento": {
+   "code": "elige_departamento"
+  },
+  "Elige el área": {
+   "code": "elige_area"
+  },
+  "Elige el proyecto": {
+   "code": "elige_proyecto"
+  },
+  "Sólo un área o un departamento tiene techo para sus presupuestos hijos": {
+   "code": "presupuesto_techo_solo_area_o_departamento"
+  },
+  "El techo no puede ser negativo": {
+   "code": "presupuesto_techo_negativo"
+  },
+  "Indica el periodo": {
+   "code": "indica_periodo"
+  },
+  "Sólo se cambia un presupuesto en borrador o rechazado: haz una versión nueva": {
+   "code": "presupuesto_solo_borrador_o_rechazado"
+  },
+  "Una partida es de gasto o de ingreso": {
+   "code": "partida_gasto_o_ingreso"
+  },
+  "Tipo de partida no válido: {} (los de {})": {
+   "code": "partida_tipo_no_valido",
+   "vars": [
+    "tipo",
+    "opciones"
+   ]
+  },
+  "La naturaleza es OPEX o CAPEX": {
+   "code": "partida_naturaleza_no_valida"
+  },
+  "Una partida CAPEX necesita su vida en meses para amortizarla": {
+   "code": "partida_capex_sin_vida"
+  },
+  "Describe la partida": {
+   "code": "partida_sin_descripcion"
+  },
+  "Un presupuesto sin partidas no se envía": {
+   "code": "presupuesto_sin_partidas"
+  },
+  "Aprobar presupuestos es de los roles de BUDGET_APPROVER_ROLES": {
+   "code": "presupuestos_rol_no_aprueba"
+  },
+  "Abrir y cerrar campañas es de los roles de BUDGET_APPROVER_ROLES": {
+   "code": "presupuestos_rol_no_aprueba"
+  },
+  "Reabrir un mes cerrado es de los roles de BUDGET_APPROVER_ROLES": {
+   "code": "presupuestos_rol_no_aprueba"
+  },
+  "Decidir traspasos es de los roles de BUDGET_APPROVER_ROLES": {
+   "code": "presupuestos_rol_no_aprueba"
+  },
+  "Sólo se decide un presupuesto enviado": {
+   "code": "presupuesto_solo_enviado_decidible"
+  },
+  "Ya hay una versión en curso de este presupuesto": {
+   "code": "presupuesto_version_en_curso"
+  },
+  "Ponle un nombre distinto al escenario": {
+   "code": "escenario_nombre_repetido"
+  },
+  "Sólo se vincula el presupuesto de un proyecto previsto": {
+   "code": "presupuesto_solo_proyecto_previsto"
+  },
+  "La campaña necesita nombre, ejercicio y fecha límite": {
+   "code": "campana_campos_obligatorios"
+  },
+  "El reparto por meses suma {} y la partida es {}": {
+   "code": "reparto_mensual_no_cuadra",
+   "vars": [
+    "suma",
+    "importe"
+   ]
+  },
+  "Cada partida de la plantilla necesita un tipo válido y una descripción": {
+   "code": "plantilla_partida_incompleta"
+  },
+  "Una vacante necesita el país (para sus cargas sociales)": {
+   "code": "vacante_sin_pais"
+  },
+  "No hay cargas sociales para {}: dalas de alta en Estructura de costes": {
+   "code": "sin_cargas_sociales",
+   "vars": [
+    "pais"
+   ]
+  },
+  "La partida no tiene ningún mes dentro del periodo": {
+   "code": "partida_fuera_de_periodo"
+  },
+  "La dedicación va de 1 a 100 %": {
+   "code": "dedicacion_fuera_de_rango"
+  },
+  "El padre tiene que ser de un nivel superior (área > departamento > proyecto)": {
+   "code": "presupuesto_padre_nivel"
+  },
+  "Las partidas de {} o más necesitan justificación: {}": {
+   "code": "partidas_sin_justificacion",
+   "vars": [
+    "umbral",
+    "partidas"
+   ]
+  },
+  "base es «plan» o «real»": {
+   "code": "base_plan_o_real"
+  },
+  "La persona no tiene estructura de coste vigente en {}": {
+   "code": "persona_sin_estructura_de_coste",
+   "vars": [
+    "fecha"
+   ]
+  },
+  "Con horas hace falta el coste o la tarifa por hora (o una persona con su coste)": {
+   "code": "horas_sin_coste"
+  },
+  "Meses fuera del periodo de la partida: {}": {
+   "code": "meses_fuera_de_periodo",
+   "vars": [
+    "meses"
+   ]
+  },
+  "El importe tiene que ser cero o positivo": {
+   "code": "importe_negativo"
+  },
+  "Se cierran los meses de un presupuesto aprobado": {
+   "code": "mes_cierre_solo_aprobado"
+  },
+  "Sólo se cierra un mes ya terminado": {
+   "code": "mes_no_terminado"
+  },
+  "El mes no es del periodo del presupuesto": {
+   "code": "mes_fuera_de_periodo"
+  },
+  "Ese mes ya está cerrado": {
+   "code": "mes_ya_cerrado"
+  },
+  "Ese mes no está cerrado": {
+   "code": "mes_no_cerrado"
+  },
+  "Los pedidos se comprometen contra un presupuesto aprobado": {
+   "code": "pedido_solo_presupuesto_aprobado"
+  },
+  "El pedido necesita descripción, importe y mes": {
+   "code": "pedido_incompleto"
+  },
+  "Los traspasos son de un presupuesto aprobado (si no, edítalo)": {
+   "code": "traspaso_solo_presupuesto_aprobado"
+  },
+  "El traspaso necesita importe y motivo": {
+   "code": "traspaso_incompleto"
+  },
+  "La partida de origen no es de este presupuesto": {
+   "code": "traspaso_partida_ajena"
+  },
+  "La partida de destino no es de este presupuesto": {
+   "code": "traspaso_partida_destino_ajena"
+  },
+  "Elige la partida de destino o el tipo de una nueva": {
+   "code": "traspaso_sin_destino"
+  },
+  "Ese traspaso ya está decidido": {
+   "code": "traspaso_ya_decidido"
+  },
+  "A la partida de origen le quedan {} de aquí al final": {
+   "code": "traspaso_saldo_insuficiente",
+   "vars": [
+    "queda"
+   ]
+  },
+  "A la partida de origen sólo le quedan {}": {
+   "code": "traspaso_saldo_insuficiente_total",
+   "vars": [
+    "queda"
+   ]
+  },
+  "Un pedido pasa a facturado o anulado": {
+   "code": "pedido_estado_no_valido"
+  },
+  "El peso no puede ser negativo": {
+   "code": "peso_negativo"
+  },
+  "La empresa no tiene fases de cartera: créalas en la configuración de la cartera": {
+   "code": "cartera_sin_fases"
+  },
+  "Solo se envía una propuesta en borrador o entre fases": {
+   "code": "propuesta_no_enviable"
+  },
+  "La propuesta ya superó todas las fases": {
+   "code": "propuesta_fases_superadas"
+  },
+  "La puntuación ({}) no llega al mínimo de la fase ({})": {
+   "code": "propuesta_puntuacion_insuficiente",
+   "vars": [
+    "puntuacion",
+    "minimo"
+   ]
+  },
+  "La propuesta no está esperando decisión": {
+   "code": "propuesta_no_pendiente"
+  },
+  "Esta fase la decide su flujo de aprobación: hazlo desde la bandeja": {
+   "code": "fase_decide_flujo"
+  },
+  "Solo se convierte una propuesta aprobada": {
+   "code": "propuesta_solo_aprobada_convertible"
+  },
+  "Una propuesta en revisión, aprobada o convertida no se edita": {
+   "code": "propuesta_no_editable"
+  },
+  "No se puede eliminar una CR aprobada o implementada": {
+   "code": "cr_no_eliminable"
+  },
+  "Estado de cliente no válido: {}. Válidos: {}": {
+   "code": "estado_de_cliente_no_valido",
+   "vars": [
+    "estado",
+    "opciones"
+   ]
+  },
+  "No se puede eliminar: {}": {
+   "code": "no_se_puede_eliminar",
+   "vars": [
+    "motivo"
+   ]
+  },
+  "Este contacto ya tiene acceso al portal": {
+   "code": "contacto_ya_en_portal"
+  },
+  "El contacto necesita un email para acceder al portal": {
+   "code": "contacto_sin_email"
+  },
+  "Licencia ya vinculada a este cliente": {
+   "code": "licencia_ya_vinculada"
+  },
+  "Contrato ya vinculado": {
+   "code": "contrato_ya_vinculado"
+  },
+  "El proyecto ya está vinculado al cliente '{}'": {
+   "code": "proyecto_ya_vinculado_a_cliente",
+   "vars": [
+    "cliente"
+   ]
+  },
+  "Proyecto no encontrado o no vinculado a este cliente": {
+   "code": "proyecto_no_vinculado_a_cliente"
+  },
+  "No eres miembro de este equipo": {
+   "code": "no_eres_miembro_equipo"
+  },
+  "No eres miembro del equipo": {
+   "code": "no_eres_miembro_equipo"
+  },
+  "subscription.endpoint + keys.p256dh + keys.auth requeridos": {
+   "code": "suscripcion_push_incompleta"
+  },
+  "Proveedor sin OAuth": {
+   "code": "proveedor_sin_oauth"
+  },
+  "Faltan credenciales OAuth para {}": {
+   "code": "integracion_no_configurada",
+   "vars": [
+    "nombre"
+   ]
+  },
+  "Call {} rate limit exceeded. Retry in {}s": {
+   "code": "limite_llamadas",
+   "vars": [
+    "llamada",
+    "segundos"
+   ]
+  },
+  "retention_months exceeds tenant max ({})": {
+   "code": "retencion_supera_maximo",
+   "vars": [
+    "max"
+   ]
+  },
+  "Indica conversation_id / channel_id / direct_id / group_id": {
+   "code": "indica_conversacion"
+  },
+  "Solo puedes editar tus propios mensajes": {
+   "code": "solo_mensajes_propios_editables"
+  },
+  "Mensaje borrado": {
+   "code": "mensaje_borrado"
+  },
+  "kind debe ser task|ticket|deliverable|risk": {
+   "code": "enlace_tipo_no_valido"
+  },
+  "El {} enlazado no existe en tu organizacion": {
+   "code": "enlazado_no_existe",
+   "vars": [
+    "tipo"
+   ]
+  },
+  "No puedes borrar mensajes de otros": {
+   "code": "no_borrar_mensajes_ajenos"
+  },
+  "Upload-Metadata debe incluir 'conversationId'": {
+   "code": "subida_sin_conversacion"
+  },
+  "Offset no coincide": {
+   "code": "subida_desfasada"
+  },
+  "Excede tamaño declarado": {
+   "code": "subida_excede_tamano"
+  },
+  "name + query requeridos": {
+   "code": "nombre_y_consulta_obligatorios"
+  },
+  "Indica user_id o client_user_id": {
+   "code": "indica_persona"
+  },
+  "Indica user_ids o client_user_ids": {
+   "code": "indica_persona"
+  },
+  "No puedes abrir un chat directo contigo mismo": {
+   "code": "chat_contigo_mismo"
+  },
+  "Solo se pueden quitar miembros de grupos.": {
+   "code": "solo_grupos_miembros"
+  },
+  "Solo se pueden añadir miembros a grupos. Para canales usa /channels/{id}/members.": {
+   "code": "solo_grupos_miembros",
+   "ignora_huecos": true
+  },
+  "Solo un admin del grupo puede quitar miembros": {
+   "code": "solo_admin_grupo"
+  },
+  "Ya existe un equipo con ese slug": {
+   "code": "equipo_ya_existe"
+  },
+  "No es miembro": {
+   "code": "no_es_miembro"
+  },
+  "Ya existe un canal con ese slug en este equipo": {
+   "code": "canal_ya_existe"
+  },
+  "No se puede eliminar: {} orden(es) de trabajo vinculadas": {
+   "code": "contrato_con_ordenes",
+   "vars": [
+    "n"
+   ]
+  },
+  "No se puede eliminar: {} vinculo(s) de cliente activos": {
+   "code": "contrato_con_clientes",
+   "vars": [
+    "n"
+   ]
+  },
+  "Global presets cannot be deleted; override per-org instead.": {
+   "code": "preajuste_global_no_borrable"
+  },
+  "Ya existe un campo con clave '{}' en este proyecto": {
+   "code": "campo_clave_ya_existe_proyecto",
+   "vars": [
+    "clave"
+   ]
+  },
+  "Ya existe un estado con valor '{}'": {
+   "code": "estado_ya_existe",
+   "vars": [
+    "valor"
+   ]
+  },
+  "No se puede eliminar: {} tareas usan este estado. Reasígnalas primero.": {
+   "code": "estado_en_uso",
+   "vars": [
+    "n"
+   ]
+  },
+  "Este proyecto ya tiene un workflow definido": {
+   "code": "proyecto_ya_tiene_flujo"
+  },
+  "Esta transición requiere un comentario": {
+   "code": "transicion_requiere_comentario"
+  },
+  "Solo usuarios con rol '{}' pueden ejecutar esta transición": {
+   "code": "transicion_requiere_rol",
+   "vars": [
+    "rol"
+   ]
+  },
+  "Insufficient access level to this document": {
+   "code": "documento_acceso_insuficiente"
+  },
+  "Provide exactly one of user_id, role or department": {
+   "code": "documento_acceso_un_destino"
+  },
+  "A grant already exists for this subject": {
+   "code": "documento_acceso_ya_existe"
+  },
+  "This document does not require approval": {
+   "code": "documento_sin_aprobacion"
+  },
+  "No approval workflow configured for this document category. Please configure a workflow in Settings > Approval Workflows.": {
+   "code": "documento_sin_flujo_aprobacion"
+  },
+  "Document already has an active approval request": {
+   "code": "documento_aprobacion_en_curso"
+  },
+  "La elección de organización ha caducado: vuelve a entrar": {
+   "code": "eleccion_de_empresa_caducada"
+  },
+  "La organización está desactivada o ya no perteneces a ella": {
+   "code": "empresa_desactivada_o_ajena"
+  },
+  "«Entrar como» está desactivado en este despliegue": {
+   "code": "entrar_como_desactivado"
+  },
+  "No se puede entrar como ese usuario": {
+   "code": "entrar_como_no_permitido"
+  },
+  "El usuario no pertenece a esa empresa activa": {
+   "code": "usuario_no_en_empresa"
+  },
+  "No disponible mientras se entra como otro usuario": {
+   "code": "no_disponible_entrando_como"
+  },
+  "Esta sesión es de otra organización": {
+   "code": "sesion_otra_empresa"
+  },
+  "entity_id requerido": {
+   "code": "campo_obligatorio",
+   "params": {
+    "campo": "entity_id"
+   }
+  },
+  "Ya existe un espacio con slug '{}'": {
+   "code": "espacio_ya_existe",
+   "vars": [
+    "slug"
+   ]
+  },
+  "No se puede eliminar: el espacio tiene {} pagina(s) activas": {
+   "code": "espacio_con_paginas",
+   "vars": [
+    "n"
+   ]
+  },
+  "Visibilidad no valida": {
+   "code": "visibilidad_no_valida"
+  },
+  "Esta página tiene {} subpáginas — elimínalas primero": {
+   "code": "pagina_con_subpaginas",
+   "vars": [
+    "n"
+   ]
+  },
+  "No se puede eliminar: tareas={}, dependencias={}": {
+   "code": "epica_con_tareas",
+   "vars": [
+    "tareas",
+    "dependencias"
+   ]
+  },
+  "Una épica no puede depender de sí misma": {
+   "code": "epica_depende_de_si_misma"
+  },
+  "entity_type '{}' no soportado. Usa: {}": {
+   "code": "tipo_de_entidad_no_soportado",
+   "vars": [
+    "tipo",
+    "opciones"
+   ]
+  },
+  "No se puede eliminar un comentario con respuestas": {
+   "code": "comentario_con_respuestas"
+  },
+  "Document {} content could not be retrieved from storage; refusing to send an empty document for signature.": {
+   "code": "firma_documento_sin_contenido",
+   "vars": [
+    "documento"
+   ]
+  },
+  "Document {} has no content to sign (no stored versions).": {
+   "code": "firma_documento_sin_contenido",
+   "vars": [
+    "documento"
+   ]
+  },
+  "{} access token not available. Complete OAuth at /esign/auth/{}/authorize": {
+   "code": "firma_proveedor_sin_conectar",
+   "vars": [
+    "proveedor"
+   ],
+   "ignora_huecos": true
+  },
+  "{} envelope creation failed: {}": {
+   "code": "servicio_externo_fallo",
+   "vars": [
+    "servicio"
+   ],
+   "ignora_huecos": true
+  },
+  "El gasto no está pendiente de revisión": {
+   "code": "gasto_no_pendiente"
+  },
+  "Este gasto necesita la aprobación que piden sus políticas: se decide en la bandeja de aprobaciones": {
+   "code": "gasto_requiere_aprobacion_politica"
+  },
+  "Solo se pueden editar gastos en borrador o rechazados": {
+   "code": "gasto_no_editable"
+  },
+  "El gasto ya ha sido enviado": {
+   "code": "gasto_ya_enviado"
+  },
+  "Solo se pueden retirar gastos enviados": {
+   "code": "gasto_solo_enviado_retirable"
+  },
+  "El gasto debe estar aprobado": {
+   "code": "gasto_no_aprobado"
+  },
+  "Solo se pueden eliminar gastos en borrador o rechazados": {
+   "code": "gasto_no_eliminable"
+  },
+  "Los contratos no están disponibles para tu rol": {
+   "code": "contratos_no_disponibles_rol"
+  },
+  "La IA devolvió un formato inesperado. Intenta con otra imagen.": {
+   "code": "ia_formato_inesperado"
+  },
+  "No se pueden generar gastos facturables en proyectos cerrados": {
+   "code": "gasto_facturable_proyecto_cerrado"
+  },
+  "No se puede marcar gasto como facturable en proyecto no activo": {
+   "code": "gasto_facturable_proyecto_inactivo"
+  },
+  "Sólo se cambia un gasto en borrador": {
+   "code": "solo_estado_borrador"
+  },
+  "Los kilómetros tienen que ser positivos": {
+   "code": "kilometros_positivos"
+  },
+  "Tipo de documento no configurado: {}": {
+   "code": "tipo_de_documento_no_configurado",
+   "vars": [
+    "tipo"
+   ]
+  },
+  "Un proyecto aparece dos veces en el reparto": {
+   "code": "reparto_proyecto_repetido"
+  },
+  "Cada parte tiene que ser mayor que cero": {
+   "code": "reparto_parte_cero"
+  },
+  "El reparto suma {} %, tiene que sumar 100 %": {
+   "code": "reparto_no_suma_100",
+   "vars": [
+    "suma"
+   ]
+  },
+  "La tarifa por km de «{}» está en {} y no hay tipo de cambio {}→{} a {}": {
+   "code": "tarifa_km_sin_tipo_de_cambio",
+   "vars": [
+    "nombre",
+    "moneda",
+    "desde",
+    "hasta",
+    "fecha"
+   ]
+  },
+  "un tramo acaba después de empezar": {
+   "code": "tramo_no_valido"
+  },
+  "los tramos se solapan": {
+   "code": "tramos_solapados"
+  },
+  "No puedes imputar horas en un proyecto al que no estás asignado.": {
+   "code": "imputar_proyecto_no_asignado"
+  },
+  "No puedes imputar en fechas anteriores a hace {} días ({}). Contacta con tu manager si necesitas una corrección.": {
+   "code": "imputar_fecha_bloqueada",
+   "vars": [
+    "dias",
+    "fecha"
+   ]
+  },
+  "No puedes imputar en fechas anteriores a hace {} días ({}). El temporizador empezó en una fecha bloqueada.": {
+   "code": "imputar_fecha_bloqueada_cronometro",
+   "vars": [
+    "dias",
+    "fecha"
+   ]
+  },
+  "No puedes imputar en fechas futuras.": {
+   "code": "imputar_fecha_futura"
+  },
+  "No puedes imputar horas a un proyecto en estado '{}'. Contacta con el PM si necesitas registrar horas históricas.": {
+   "code": "imputar_proyecto_estado",
+   "vars": [
+    "estado"
+   ]
+  },
+  "No puedes imputar horas sin tener una tarifa horaria asignada. Contacta con Recursos Humanos.": {
+   "code": "sin_tarifa_horaria"
+  },
+  "No puedes iniciar el cronómetro sin tener una tarifa horaria asignada. Contacta con Recursos Humanos.": {
+   "code": "sin_tarifa_horaria"
+  },
+  "No puedes registrar horas sin tener una tarifa horaria asignada. Contacta con Recursos Humanos.": {
+   "code": "sin_tarifa_horaria"
+  },
+  "No puedes imputar más de 24h en un día. Ya tienes {}h registradas.": {
+   "code": "imputar_mas_de_24h",
+   "vars": [
+    "horas"
+   ]
+  },
+  "No puedes imputar más de 24h en un día. Ya tienes {}h registradas para el {}.": {
+   "code": "imputar_mas_de_24h",
+   "vars": [
+    "horas"
+   ],
+   "ignora_huecos": true
+  },
+  "No puedes imputar horas en una tarea con estado '{}'.": {
+   "code": "imputar_tarea_estado",
+   "vars": [
+    "estado"
+   ]
+  },
+  "Excederías la capacidad semanal ({}h). Semana actual: {}h, nueva imputación: {}h.": {
+   "code": "imputar_supera_capacidad",
+   "vars": [
+    "capacidad",
+    "semana",
+    "nueva"
+   ]
+  },
+  "No puedes editar imputaciones de otros": {
+   "code": "imputacion_ajena"
+  },
+  "No se puede editar una imputación ya aprobada": {
+   "code": "imputacion_aprobada"
+  },
+  "No se puede editar imputaciones en una hoja de tiempo ya enviada o aprobada": {
+   "code": "imputacion_hoja_enviada"
+  },
+  "Ya existe una imputación para esta tarea en esa fecha.": {
+   "code": "imputacion_duplicada"
+  },
+  "Ya existe una imputación sin tarea para este proyecto en esa fecha.": {
+   "code": "imputacion_duplicada"
+  },
+  "No puedes editar imputaciones de hace más de {} días.": {
+   "code": "imputacion_demasiado_antigua",
+   "vars": [
+    "dias"
+   ]
+  },
+  "Cannot dismiss another user's alert": {
+   "code": "alerta_ajena"
+  },
+  "La tarea '{}' está en estado '{}' y no admite nuevas imputaciones.": {
+   "code": "imputar_tarea_estado",
+   "vars": [
+    "tarea",
+    "estado"
+   ]
+  },
+  "User already has an active timer": {
+   "code": "cronometro_ya_activo"
+  },
+  "No puedes iniciar el cronómetro en una tarea que no está asignada a ti.": {
+   "code": "cronometro_tarea_no_asignada"
+  },
+  "El proyecto '{}' está en estado '{}' y no admite nuevas imputaciones.": {
+   "code": "imputar_proyecto_estado",
+   "vars": [
+    "proyecto",
+    "estado"
+   ]
+  },
+  "Los incidentes de seguridad sólo los abre un administrador": {
+   "code": "incidente_seguridad_solo_admin"
+  },
+  "Categoría no válida: {} (las de LESSONS_CATEGORIES)": {
+   "code": "categoria_no_valida",
+   "vars": [
+    "valor"
+   ]
+  },
+  "Sólo quien la escribió (antes de validarla) o quien valida puede editarla": {
+   "code": "leccion_no_editable"
+  },
+  "Sólo un administrador borra lecciones (lo normal es archivarlas)": {
+   "code": "leccion_borrar_solo_admin"
+  },
+  "No puedes añadir acciones a esta lección": {
+   "code": "leccion_sin_permiso_acciones"
+  },
+  "Sólo el responsable o quien edita la lección": {
+   "code": "leccion_solo_responsable_o_editor"
+  },
+  "«{}» no puede quedar vacío": {
+   "code": "campo_vacio",
+   "vars": [
+    "campo"
+   ]
+  },
+  "Falta el origen": {
+   "code": "falta_origen"
+  },
+  "Validar o archivar es de los roles de LESSONS_VALIDATOR_ROLES": {
+   "code": "leccion_rol_no_valida"
+  },
+  "No puedes cambiar esta lección": {
+   "code": "leccion_sin_permiso"
+  },
+  "No se puede completar en estado '{}'": {
+   "code": "hito_no_completable",
+   "vars": [
+    "estado"
+   ]
+  },
+  "No se puede revertir un milestone aprobado o facturado": {
+   "code": "hito_no_revertible"
+  },
+  "El milestone debe estar completado antes de solicitar aprobación": {
+   "code": "hito_no_completado"
+  },
+  "El milestone no está pendiente de aprobación (estado: {})": {
+   "code": "hito_no_pendiente",
+   "vars": [
+    "estado"
+   ]
+  },
+  "El milestone debe estar aprobado para facturar (estado: {})": {
+   "code": "hito_no_aprobado",
+   "vars": [
+    "estado"
+   ]
+  },
+  "Este milestone ya tiene una factura generada": {
+   "code": "hito_ya_facturado"
+  },
+  "El milestone no tiene importe de facturación definido": {
+   "code": "hito_sin_importe"
+  },
+  "No se puede eliminar un hito ya facturado": {
+   "code": "hito_facturado_no_eliminable"
+  },
+  "El Objetivo vinculado al KR no tiene proyecto asociado. Establece project_id en el Objetivo antes de sincronizar.": {
+   "code": "okr_objetivo_sin_proyecto"
+  },
+  "No se puede crear una campaña en un ciclo cerrado": {
+   "code": "campana_ciclo_cerrado"
+  },
+  "El manager indicado no figura como manager directo en el organigrama": {
+   "code": "manager_no_directo"
+  },
+  "La campaña debe incluir al menos un evaluador": {
+   "code": "campana_sin_evaluadores"
+  },
+  "Las preguntas solo se pueden modificar en ciclos en borrador": {
+   "code": "preguntas_solo_borrador"
+  },
+  "Solo se pueden añadir preguntas a ciclos en borrador": {
+   "code": "preguntas_solo_borrador"
+  },
+  "El evaluador no es elegible para el tipo '{}'": {
+   "code": "evaluador_no_elegible",
+   "vars": [
+    "tipo"
+   ]
+  },
+  "Esta persona no tiene manager configurado en el organigrama": {
+   "code": "persona_sin_manager"
+  },
+  "Esta persona no tiene equipo ni departamento — no es posible asignar pares": {
+   "code": "persona_sin_equipo"
+  },
+  "Esta persona no tiene reportes directos en el organigrama": {
+   "code": "persona_sin_reportes"
+  },
+  "No se puede eliminar: la oportunidad esta vinculada a un proyecto": {
+   "code": "oportunidad_vinculada"
+  },
+  "Esta oportunidad ya está vinculada al proyecto {}": {
+   "code": "oportunidad_ya_vinculada",
+   "vars": [
+    "proyecto"
+   ]
+  },
+  "Una oportunidad perdida o cancelada no se convierte en proyecto": {
+   "code": "oportunidad_no_convertible"
+  },
+  "La etapa '{}' ya existe": {
+   "code": "etapa_ya_existe",
+   "vars": [
+    "etapa"
+   ]
+  },
+  "Una dependencia de la plantilla apunta a una tarea que no está": {
+   "code": "plantilla_dependencia_rota"
+  },
+  "El organigrama no está disponible para tu rol": {
+   "code": "organigrama_no_disponible"
+  },
+  "No se puede eliminar: la cartera tiene {} proyecto(s) vinculados": {
+   "code": "cartera_con_proyectos",
+   "vars": [
+    "n"
+   ]
+  },
+  "El proyecto ya esta cancelado": {
+   "code": "proyecto_ya_cancelado"
+  },
+  "user_id es obligatorio": {
+   "code": "campo_obligatorio",
+   "params": {
+    "campo": "user_id"
+   }
+  },
+  "El usuario ya es miembro del proyecto": {
+   "code": "ya_es_miembro_proyecto"
+  },
+  "Conflicto de edición: el proyecto fue modificado por otro usuario (versión esperada {}, versión actual {}). Recarga y reintenta.": {
+   "code": "conflicto_concurrente",
+   "ignora_huecos": true
+  },
+  "Conflicto de edición: la tarea fue modificada por otro usuario (versión {}). Recarga y reintenta.": {
+   "code": "conflicto_concurrente",
+   "ignora_huecos": true
+  },
+  "El campo 'name' es obligatorio para crear una plantilla de propuesta": {
+   "code": "nombre_obligatorio"
+  },
+  "Genera la propuesta antes de marcarla como enviada": {
+   "code": "propuesta_sin_generar"
+  },
+  "Un formulario de tareas necesita un proyecto destino": {
+   "code": "formulario_sin_proyecto"
+  },
+  "422:Tipo de entrada inválido: '{}'": {
+   "code": "valor_no_valido",
+   "vars": [
+    "valor"
+   ]
+  },
+  "422:Rol RACI inválido: '{}'. Usa R, A, C o I.": {
+   "code": "raci_rol_no_valido",
+   "vars": [
+    "rol"
+   ]
+  },
+  "422:Tipo inválido: '{}'": {
+   "code": "tipo_no_valido_valor",
+   "vars": [
+    "tipo"
+   ]
+  },
+  "Debe especificar client_id o project_id": {
+   "code": "indica_cliente_o_proyecto"
+  },
+  "La reserva es de otra persona: solo quien administra el documento puede forzarla": {
+   "code": "reserva_documento_ajena"
+  },
+  "No se puede eliminar un contrato con entradas contables": {
+   "code": "contrato_con_asientos"
+  },
+  "El precio de venta independiente no puede ser negativo": {
+   "code": "precio_independiente_negativo"
+  },
+  "El precio de venta independiente debe ser un número": {
+   "code": "precio_independiente_no_numerico"
+  },
+  "El período {}-{} ya está cerrado": {
+   "code": "periodo_ya_cerrado",
+   "vars": [
+    "anio",
+    "mes"
+   ]
+  },
+  "Período no encontrado o no cerrado": {
+   "code": "periodo_no_cerrado"
+  },
+  "No se puede revertir una entrada de tipo 'reversal'": {
+   "code": "asiento_reversion_no_revertible"
+  },
+  "La entrada ya está revertida": {
+   "code": "asiento_ya_revertido"
+  },
+  "No se puede revertir una entrada de un período cerrado": {
+   "code": "asiento_periodo_cerrado"
+  },
+  "el calendario no tiene ningún día laborable": {
+   "code": "calendario_sin_dias_laborables"
+  },
+  "work_end must be after work_start": {
+   "code": "jornada_fin_antes_de_inicio"
+  },
+  "jornada inválida en el calendario {}: {}-{}": {
+   "code": "jornada_fin_antes_de_inicio",
+   "ignora_huecos": true
+  },
+  "jornada inválida: {}-{}": {
+   "code": "jornada_fin_antes_de_inicio",
+   "ignora_huecos": true
+  },
+  "día laborable inválido: {} (1 = lunes ... 7 = domingo)": {
+   "code": "dia_semana_no_valido",
+   "ignora_huecos": true
+  },
+  "La tarea ya esta cancelada": {
+   "code": "tarea_ya_cancelada"
+  },
+  "Una tarea no puede depender de sí misma": {
+   "code": "tarea_depende_de_si_misma"
+  },
+  "Una dependencia que planifica une tareas del mismo proyecto": {
+   "code": "dependencia_mismo_proyecto"
+  },
+  "Esa dependencia cerraría un ciclo: la tarea siguiente ya va antes que la anterior": {
+   "code": "dependencia_ciclo"
+  },
+  "La dependencia ya existe": {
+   "code": "dependencia_ya_existe"
+  },
+  "Para invertir una dependencia, bórrala y créala al revés": {
+   "code": "dependencia_no_invertible"
+  },
+  "No tienes tareas en este proyecto": {
+   "code": "sin_tareas_en_proyecto"
+  },
+  "No tienes acceso a esta tarea": {
+   "code": "sin_acceso_tarea"
+  },
+  "La tarea raíz no tiene fecha de fin definida": {
+   "code": "tarea_raiz_sin_fin"
+  },
+  "Username ya existe": {
+   "code": "usuario_ya_existe"
+  },
+  "Solo un administrador puede fijar la tarifa o el rol personalizado": {
+   "code": "solo_admin_tarifa_rol"
+  },
+  "No puedes crear usuarios en otra organización": {
+   "code": "usuario_otra_empresa"
+  },
+  "No puedes mover usuarios a otra organización": {
+   "code": "usuario_otra_empresa"
+  },
+  "Ciclo detectado en la jerarquía": {
+   "code": "jerarquia_ciclica"
+  },
+  "extra es un objeto de claves": {
+   "code": "extra_no_es_objeto"
+  },
+  "La configuración de la vista tiene que ser un objeto": {
+   "code": "vista_config_no_objeto"
+  },
+  "Solo admin o PM comparten vistas con toda la empresa": {
+   "code": "vista_compartir_solo_admin_pm"
+  },
+  "Solo quien creó la vista la cambia": {
+   "code": "vista_solo_autor"
+  },
+  "Metric '{}' not supported for drilldown": {
+   "code": "metrica_sin_desglose",
+   "vars": [
+    "metrica"
+   ]
+  },
+  "Invalid freq: {}. Use: daily, weekly, monthly, custom": {
+   "code": "frecuencia_no_valida",
+   "vars": [
+    "frecuencia"
+   ],
+   "params": {
+    "opciones": "daily, weekly, monthly, custom"
+   }
+  },
+  "{} must be 0-10": {
+   "code": "puntuacion_0_a_10",
+   "vars": [
+    "campo"
+   ]
+  }
+ }
+}

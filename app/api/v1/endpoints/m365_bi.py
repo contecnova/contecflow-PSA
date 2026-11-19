@@ -23,6 +23,7 @@ from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.services import m365_bi_embed_service as svc
+from app.core.codigos_de_error import error_http
 
 router = APIRouter(tags=["M365 BI Embed"])
 
@@ -217,7 +218,7 @@ def export_excel(
 
     if upload_to_onedrive:
         if not user_upn:
-            raise HTTPException(400, "user_upn requerido cuando upload_to_onedrive=True")
+            raise error_http(400, "campo_obligatorio_si", detail="user_upn requerido cuando upload_to_onedrive=True", campo="user_upn", condicion="upload_to_onedrive=True")
         file_bytes = buf.read()
         filename = f"contecflow-bi-{dashboard_id}.xlsx"
         return svc.upload_to_onedrive(file_bytes, filename=filename, user_upn=user_upn)
@@ -257,7 +258,7 @@ def export_word(
 
     if upload_to_onedrive:
         if not user_upn:
-            raise HTTPException(400, "user_upn requerido cuando upload_to_onedrive=True")
+            raise error_http(400, "campo_obligatorio_si", detail="user_upn requerido cuando upload_to_onedrive=True", campo="user_upn", condicion="upload_to_onedrive=True")
         file_bytes = buf.read()
         filename = f"contecflow-bi-{dashboard_id}.rtf"
         return svc.upload_to_onedrive(file_bytes, filename=filename, user_upn=user_upn)

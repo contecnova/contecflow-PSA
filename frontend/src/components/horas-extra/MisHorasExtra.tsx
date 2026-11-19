@@ -69,7 +69,7 @@ function Formulario({ editar, onHecho }: { editar: PeticionHe | null; onHecho: (
   const { th } = useTh()
   const qc = useQueryClient()
   const toast = useToast()
-  const { hasRole } = useAuth()
+  const { puede } = useAuth()
   const cfg = useConfigHe().data
   const hoy = new Date().toISOString().slice(0, 10)
   const [b, setB] = useState<Borrador>(() => borradorDe(editar, hoy))
@@ -78,7 +78,7 @@ function Formulario({ editar, onHecho }: { editar: PeticionHe | null; onHecho: (
   useEffect(() => {
     if (!b.compensacion && cfg?.compensacion_por_defecto) setB(x => ({ ...x, compensacion: cfg.compensacion_por_defecto }))
   }, [cfg?.compensacion_por_defecto, b.compensacion])
-  const enNombreDeOtro = Boolean(cfg?.pedir_en_nombre) && hasRole('admin', 'hr', 'pm', 'team_lead')
+  const enNombreDeOtro = Boolean(cfg?.pedir_en_nombre) && puede('horas_extra.gestionar')
   const horasDeLaFranja = horasDeFranja(b.hora_inicio, b.hora_fin)
   const horasEscritas = leerHoras(b.horas)
   const peticion = useMemo<PeticionHeIn>(() => ({
@@ -91,10 +91,14 @@ function Formulario({ editar, onHecho }: { editar: PeticionHe | null; onHecho: (
   }), [b, enNombreDeOtro, horasEscritas])
   const completa = Boolean(b.fecha && b.tipo && ((horasEscritas ?? 0) > 0 || horasDeLaFranja))
   const consulta = useRetrasado(peticion, ESPERA_MS)
+  // 19-11-2026: se pide con la versión RETRASADA; si `enabled` miraba la actual,
+  // salía la petición vieja (aún sin horas) y el servidor contestaba 422.
+  const consultaCompleta = Boolean(consulta.fecha && consulta.tipo
+    && ((consulta.horas ?? 0) > 0 || horasDeFranja(consulta.hora_inicio, consulta.hora_fin)))
   const previa = useQuery({
     queryKey: ['horas-extra', 'previa', consulta],
     queryFn: () => horasExtraApi.vistaPrevia(consulta),
-    enabled: completa,
+    enabled: completa && consultaCompleta,
     retry: false,
   })
   const guardar = useMutation({
@@ -161,13 +165,14 @@ function Formulario({ editar, onHecho }: { editar: PeticionHe | null; onHecho: (
         {!completa && <p className="hext-ayuda">{th('vista_previa_ayuda')}</p>}
         {completa && previa.isFetching && !v && <Spinner label={th('calculando')} />}
         {completa && previa.isError && <AvisoDeError error={previa.error} />}
-        {completa && v && <VistaPrevia v={v} th={th} />}
+        {completa && v && v.decision === 'incompleta' && v.errores.map((e, i) => <p key={i} className="hext-ayuda">{e}</p>)}
+        {completa && v && v.decision !== 'incompleta' && <VistaPrevia v={v} th={th} />}
       </aside>
     </form>
   )
 }
 
-const ICONO_DECISION = { allow: CheckCircle2, auto_approve: CheckCircle2, review: Scale, block: Ban } as const
+const ICONO_DECISION = { allow: CheckCircle2, auto_approve: CheckCircle2, review: Scale, block: Ban, incompleta: Clock } as const
 
 function VistaPrevia({ v, th }: { v: VistaPreviaHe; th: Th }) {
   const Icono = ICONO_DECISION[v.decision] ?? Clock

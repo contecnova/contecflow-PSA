@@ -58,8 +58,8 @@ export default function MiPanel({ onAbrir }: { onAbrir: (ticketId: string) => vo
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const { user } = useAuth()
-  const esAdmin = user?.role === 'admin'
+  const { puede } = useAuth()
+  const esAdmin = puede('sd.administrar')
   const [rol, setRol] = useState<RolDePanel>('operation')
   const [editando, setEditando] = useState(false)
   const { data, isLoading } = useQuery({ queryKey: ['sdm-panel', rol], queryFn: () => puestoDelAgenteApi.panel(rol) })

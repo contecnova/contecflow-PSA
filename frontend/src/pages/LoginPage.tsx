@@ -10,6 +10,8 @@ import type { ConfiguracionDeEntrada, LoginResponse } from '../services/api/auth
 import { resolveLoginResponse } from '../utils/loginFlow'
 import type { OrganizacionElegible } from '../utils/loginFlow'
 import { startAuthentication, webauthnSupported } from '../lib/webauthn'
+import { paginaDeInicio } from '../permisos/navegacion'
+import { tieneCapacidad } from '../permisos/capacidades'
 import './LoginPage.css'
 import { Pulsable } from '../components/ui'
 
@@ -47,7 +49,7 @@ const st: Record<string, CSSProperties> = {
     padding: '24px 16px',
     position: 'relative',
   },
-  langWrap: { position: 'absolute', top: 20, right: 24, zIndex: 10 },
+  langWrap: { position: 'absolute', top: 20, right: 24, zIndex: 'calc(var(--z-content) + 9)' },
   card: {
     width: '100%',
     maxWidth: 400,
@@ -65,29 +67,29 @@ const st: Record<string, CSSProperties> = {
     width: 40, height: 40, background: 'var(--accent)', borderRadius: 12,
     display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
-  logoText: { fontSize: 22, fontWeight: 800, color: 'var(--text-1)', letterSpacing: '-0.03em' },
+  logoText: { fontSize: 'var(--text-xl-em)', fontWeight: 800, color: 'var(--text-1)', letterSpacing: '-0.03em' },
   label: {
-    display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-3)',
+    display: 'block', fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-3)',
     marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em',
   },
   input: {
     width: '100%', height: 44, padding: '0 14px',
     background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-    borderRadius: 12, color: 'var(--text-1)', fontSize: 14,
+    borderRadius: 12, color: 'var(--text-1)', fontSize: 'var(--text-md)',
     fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
     transition: 'border-color 0.15s',
   },
   inputTracked: {
     width: '100%', height: 44, padding: '0 14px',
     background: 'var(--surface-2)', border: '1px solid var(--surface-4)',
-    borderRadius: 12, color: 'var(--text-1)', fontSize: 18,
+    borderRadius: 12, color: 'var(--text-1)', fontSize: 'var(--text-lg-em)',
     fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
     textAlign: 'center', letterSpacing: '0.3em', transition: 'border-color 0.15s',
   },
   btnPrimary: {
     width: '100%', height: 44,
     background: 'var(--accent)', color: 'var(--on-accent)', border: 'none',
-    borderRadius: 12, fontWeight: 700, fontSize: 14, cursor: 'pointer',
+    borderRadius: 12, fontWeight: 700, fontSize: 'var(--text-md)', cursor: 'pointer',
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
     transition: 'opacity 0.15s', fontFamily: 'inherit',
   },
@@ -95,39 +97,39 @@ const st: Record<string, CSSProperties> = {
     width: '100%', height: 44,
     background: 'transparent', color: 'var(--text-2)',
     border: '1px solid var(--surface-4)', borderRadius: 12,
-    fontWeight: 600, fontSize: 14, cursor: 'pointer',
+    fontWeight: 600, fontSize: 'var(--text-md)', cursor: 'pointer',
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
     transition: 'background 0.15s, border-color 0.15s', fontFamily: 'inherit',
   },
   errorBanner: {
     background: 'var(--danger-bg)', border: '1px solid var(--danger-border)',
     borderRadius: 'var(--radius-md)', padding: '10px 14px', color: 'var(--danger)',
-    fontSize: 13, display: 'flex', alignItems: 'flex-start', gap: 8,
+    fontSize: 'var(--text-base)', display: 'flex', alignItems: 'flex-start', gap: 8,
   },
   successBanner: {
     background: 'var(--success-bg)', border: '1px solid var(--success-border)',
     borderRadius: 'var(--radius-md)', padding: '10px 14px', color: 'var(--success)',
-    fontSize: 13, display: 'flex', alignItems: 'flex-start', gap: 8,
+    fontSize: 'var(--text-base)', display: 'flex', alignItems: 'flex-start', gap: 8,
   },
   warningBanner: {
     background: 'var(--warning-bg)', border: '1px solid var(--warning-border)',
     borderRadius: 'var(--radius-md)', padding: '10px 14px', color: 'var(--warning)',
-    fontSize: 13, display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 16,
+    fontSize: 'var(--text-base)', display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 16,
   },
   divider: { display: 'flex', alignItems: 'center', gap: 12, margin: '4px 0' },
   dividerLine: { flex: 1, height: 1, background: 'var(--surface-4)' },
   dividerText: {
-    fontSize: 11, fontWeight: 600, color: 'var(--text-4)',
+    fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-4)',
     textTransform: 'uppercase', letterSpacing: '0.1em',
   },
   footer: {
     marginTop: 24, paddingTop: 20,
     borderTop: '1px solid var(--surface-4)',
-    textAlign: 'center', fontSize: 12, color: 'var(--text-4)',
+    textAlign: 'center', fontSize: 'var(--text-sm)', color: 'var(--text-4)',
   },
   linkBtn: {
     background: 'none', border: 'none', color: 'var(--accent)',
-    fontSize: 13, cursor: 'pointer', padding: 0, fontFamily: 'inherit', fontWeight: 500,
+    fontSize: 'var(--text-base)', cursor: 'pointer', padding: 0, fontFamily: 'inherit', fontWeight: 500,
   },
   form: { display: 'flex', flexDirection: 'column', gap: 16 },
 }
@@ -252,8 +254,8 @@ export default function LoginPage(): JSX.Element {
 
   // ── navigation helper ──────────────────────────────────────────────────────
   function navAfterLogin(user: User) {
-    // El externo (subcontractor) aterriza en «Mi día», como un interno.
-    navigate(user.role === 'employee' ? '/imputar' : user.role === 'subcontractor' ? '/work-dashboard' : '/tasks', { replace: true })
+    // 19-11-2026: la misma página de inicio que la raíz (`paginaDeInicio`, por capacidades).
+    navigate(paginaDeInicio(c => tieneCapacidad(user.capacidades, c)), { replace: true })
   }
 
   /** Una respuesta de login (contraseña, SSO, passkey o empresa elegida): sesión, segundo factor o selector. */

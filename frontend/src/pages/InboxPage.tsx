@@ -39,9 +39,9 @@ type InboxTab = 'notifications' | 'mentions' | 'approvals' | 'processes'
 
 export default function InboxPage(): JSX.Element {
   const t = useAppT()
-  const { hasRole } = useAuth()
+  const { puede } = useAuth()
   // Los pasos BPM son de usuarios internos (la API exige `require_internal_user`).
-  const veProcesos = hasRole('admin', 'pm', 'team_lead', 'hr', 'employee')
+  const veProcesos = puede('procesos.bandeja')
   const [params, setParams] = useSearchParams()
   // La pestaña sale de la URL (16-11-2026): «Ver todas» de la campana lleva a
   // `?tab=notifications` y, si ya se estaba en /inbox con otra pestaña, antes

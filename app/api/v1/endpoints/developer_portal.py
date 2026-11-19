@@ -30,6 +30,7 @@ from app.models.user import User, UserRole
 from app.services import developer_portal_service as svc
 from app.core.responses import APIListResponse, APIResponse
 from app.core.credenciales_delegadas import ALCANCES_VALIDOS, huella, ttl_de_token
+from app.core.codigos_de_error import error_http
 
 router = APIRouter(prefix="/developer", tags=["Developer Portal"])
 
@@ -75,7 +76,7 @@ _app_out = svc.serialize_app
 def _alcances_validos(scopes) -> None:
     invalidos = sorted(set(scopes or []) - set(ALCANCES_VALIDOS))
     if invalidos:
-        raise HTTPException(422, f"Alcances no válidos: {', '.join(invalidos)}. Válidos: {', '.join(ALCANCES_VALIDOS)}")
+        raise error_http(422, "oauth_alcances_no_validos", alcances=', '.join(invalidos), validos=', '.join(ALCANCES_VALIDOS))
 
 
 # ── App management endpoints ────────────────────────────────────────────────────
@@ -96,7 +97,7 @@ def create_app(
 ):
     app_count = svc.count_apps_for_user(db, current_user.id)
     if app_count >= _MAX_APPS_PER_USER:
-        raise HTTPException(400, f"Límite máximo de {_MAX_APPS_PER_USER} aplicaciones por usuario alcanzado")
+        raise error_http(400, "oauth_limite_apps", detail=f"Límite máximo de {_MAX_APPS_PER_USER} aplicaciones por usuario alcanzado", max=_MAX_APPS_PER_USER)
 
     _alcances_validos(payload.scopes)
     raw_secret = secrets.token_urlsafe(32)
@@ -117,9 +118,9 @@ def create_app(
 def get_app(app_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     app = svc.get_app_by_id(db, app_id)
     if not app:
-        raise HTTPException(404, "Aplicación no encontrada")
+        raise error_http(404, "no_encontrado", detail="Aplicación no encontrada", que="aplicacion")
     if app.owner_id != current_user.id and current_user.role != UserRole.admin:
-        raise HTTPException(403, "Acceso denegado")
+        raise error_http(403, "sin_permiso", detail="Acceso denegado")
     return APIResponse.ok(data=_app_out(app))
 
 
@@ -133,9 +134,9 @@ def update_app(
 ):
     app = svc.get_app_by_id(db, app_id)
     if not app:
-        raise HTTPException(404, "Aplicación no encontrada")
+        raise error_http(404, "no_encontrado", detail="Aplicación no encontrada", que="aplicacion")
     if app.owner_id != current_user.id and current_user.role != UserRole.admin:
-        raise HTTPException(403, "Acceso denegado")
+        raise error_http(403, "sin_permiso", detail="Acceso denegado")
     _alcances_validos(payload.scopes)
     app = svc.update_app(db, app, payload.model_dump(exclude_none=True))
     return APIResponse.ok(data=_app_out(app))
@@ -147,9 +148,9 @@ def delete_app(app_id: str, db: Session = Depends(get_db), current_user: User = 
 ):
     app = svc.get_app_by_id(db, app_id)
     if not app:
-        raise HTTPException(404, "Aplicación no encontrada")
+        raise error_http(404, "no_encontrado", detail="Aplicación no encontrada", que="aplicacion")
     if app.owner_id != current_user.id and current_user.role != UserRole.admin:
-        raise HTTPException(403, "Acceso denegado")
+        raise error_http(403, "sin_permiso", detail="Acceso denegado")
     enforce_abac(db, current_user, "oauth_app", app_id, action="delete")
     svc.delete_app(db, app)
     return APIResponse.ok(data={"ok": True, "message": "Aplicación eliminada correctamente"})
@@ -161,9 +162,9 @@ def rotate_secret(app_id: str, db: Session = Depends(get_db), current_user: User
 ):
     app = svc.get_app_by_id(db, app_id)
     if not app:
-        raise HTTPException(404, "Aplicación no encontrada")
+        raise error_http(404, "no_encontrado", detail="Aplicación no encontrada", que="aplicacion")
     if app.owner_id != current_user.id and current_user.role != UserRole.admin:
-        raise HTTPException(403, "Acceso denegado")
+        raise error_http(403, "sin_permiso", detail="Acceso denegado")
     raw_secret = secrets.token_urlsafe(32)
     svc.rotate_app_secret(db, app, _hash_secret(raw_secret))
     # Revisión GRC 2026-11b: rotar el secreto de cliente OAuth no dejaba rastro.
@@ -181,7 +182,7 @@ def oauth_token(
 ):
     app = svc.get_app_by_client_id(db, payload.client_id)
     if not app or not _verify_secret(payload.client_secret, app.client_secret_hash):
-        raise HTTPException(401, "client_id o client_secret inválido")
+        raise error_http(401, "oauth_credenciales_no_validas", detail="client_id o client_secret inválido")
 
     if payload.grant_type == "client_credentials":
         # Validate requested scopes against the app's registered scopes
@@ -189,12 +190,12 @@ def oauth_token(
         requested_scopes = set(payload.scope.split() if payload.scope else ["read"])
         invalid_scopes = requested_scopes - allowed_scopes
         if invalid_scopes:
-            raise HTTPException(400, f"Scopes no permitidos: {', '.join(sorted(invalid_scopes))}")
+            raise error_http(400, "oauth_alcances_no_permitidos", detail=f"Scopes no permitidos: {', '.join(sorted(invalid_scopes))}", alcances=', '.join(sorted(invalid_scopes)))
 
         # Issue token on behalf of the app owner
         owner_id = app.owner_id
         if not owner_id:
-            raise HTTPException(400, "Esta app no tiene propietario configurado")
+            raise error_http(400, "oauth_app_sin_propietario", detail="Esta app no tiene propietario configurado")
 
         raw_token = secrets.token_urlsafe(32)
         vida = ttl_de_token(db)
@@ -218,7 +219,7 @@ def oauth_token(
             "scope": payload.scope or "read",
         }
 
-    raise HTTPException(400, f"grant_type '{payload.grant_type}' no soportado")
+    raise error_http(400, "oauth_grant_no_soportado", detail=f"grant_type '{payload.grant_type}' no soportado", grant=payload.grant_type)
 
 
 @router.post("/token/revoke", summary="Revocar token OAuth2")
@@ -229,7 +230,7 @@ def revoke_token(
     """Revoke a token by its raw value (provided in Authorization: Bearer header)."""
     auth = request.headers.get("authorization", "")
     if not auth.startswith("Bearer "):
-        raise HTTPException(401, "Token requerido en cabecera Authorization: Bearer <token>")
+        raise error_http(401, "oauth_token_bearer_requerido", detail="Token requerido en cabecera Authorization: Bearer <token>")
     raw_token = auth.removeprefix("Bearer ").strip()
     token = svc.get_token_by_hash(db, huella(raw_token))
     if token:
@@ -245,18 +246,18 @@ def oauth_userinfo(
     """Returns basic profile for the user whose OAuth token is presented."""
     auth = request.headers.get("authorization", "")
     if not auth.startswith("Bearer "):
-        raise HTTPException(401, "Token requerido")
+        raise error_http(401, "token_requerido", detail="Token requerido")
     raw_token = auth.removeprefix("Bearer ").strip()
     token_obj = svc.get_active_token_by_hash(db, huella(raw_token))
     if not token_obj:
-        raise HTTPException(401, "Token inválido o revocado")
+        raise error_http(401, "oauth_token_revocado", detail="Token inválido o revocado")
     vence = token_obj.expires_at
     if vence and (vence if vence.tzinfo else vence.replace(tzinfo=timezone.utc)) < datetime.now(timezone.utc):
-        raise HTTPException(401, "Token expirado")
+        raise error_http(401, "token_caducado", detail="Token expirado")
 
     user = svc.get_user_by_id(db, token_obj.user_id)
     if not user:
-        raise HTTPException(404, "Usuario no encontrado")
+        raise error_http(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
 
     return {
         "sub": user.id,

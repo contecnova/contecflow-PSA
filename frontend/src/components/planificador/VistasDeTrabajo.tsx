@@ -31,6 +31,7 @@ import { useAuth } from '../../context/AuthContext'
 import { extractErr, fmtDate, fmtNumber, formateadorDeFecha } from '../../utils/helpers'
 import { SCHEDULE_TASKS_LIST_SIZE } from '../../constants/pagination'
 import { STALE_DEFAULT_MS } from '../../constants/timings'
+import { ESTADOS_DE_TAREA } from '../../constants/catalogos'
 import './planificador.css'
 
 // Rev. 180: el modo «Horario» de la carga por persona reutiliza el horario efectivo de ausencias (carga diferida).
@@ -39,7 +40,8 @@ const PanelDeHorario = lazy(() => import('../ausencias/HorarioEfectivo'))
 export const VISTAS_DE_TRABAJO = ['table', 'timeline', 'calendar', 'workload'] as const
 export type VistaDeTrabajo = typeof VISTAS_DE_TRABAJO[number]
 
-const ESTADOS = ['backlog', 'todo', 'in_progress', 'blocked', 'in_review', 'done'] as const
+// 19-11-2026: estados de tarea de una sola fuente (`constants/catalogos`), sin «cancelada».
+const ESTADOS = ESTADOS_DE_TAREA.filter(e => e !== 'cancelled')
 const PRIORIDADES = ['critical', 'high', 'medium', 'low'] as const
 const COLUMNAS = ['status', 'assignee', 'priority', 'estimated_hours', 'progress_pct', 'start_date', 'due_date', 'total_float_days'] as const
 type Columna = typeof COLUMNAS[number]
@@ -73,7 +75,7 @@ export default function VistasDeTrabajo({ projectId, vista: vistaExterna, onVist
   const toast = useToast()
   const { pedirTexto } = useConfirm()
   const qc = useQueryClient()
-  const { hasRole } = useAuth()
+  const { puede } = useAuth()
   const [vistaLocal, setVistaLocal] = useState<VistaDeTrabajo>('table')
   const vista = vistaExterna ?? vistaLocal
   const cambiarVista = (v: VistaDeTrabajo) => (onVista ? onVista(v) : setVistaLocal(v))
@@ -126,7 +128,7 @@ export default function VistasDeTrabajo({ projectId, vista: vistaExterna, onVist
     if (filtros && onFiltros) onFiltros({ status: guardada.status, assignee: guardada.assignee })
   }
 
-  const puedeEditar = hasRole('admin', 'pm', 'team_lead', 'employee')
+  const puedeEditar = puede('tareas.editar')
   const iconos: Record<VistaDeTrabajo, JSX.Element> = {
     table: <Table2 size={14} />, timeline: <GanttChartSquare size={14} />, calendar: <CalendarDays size={14} />, workload: <Users size={14} />,
   }

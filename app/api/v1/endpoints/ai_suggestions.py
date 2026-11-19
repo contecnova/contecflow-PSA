@@ -7,6 +7,7 @@ from app.services.ai_copilot_service import get_ai_gantt_suggestions, get_ai_tim
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error_http
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -19,7 +20,7 @@ def gantt_suggestions(project_id: str, db: Session = Depends(get_db), user=Depen
         raise  # preserve the original status/detail
     except Exception:
         logger.exception("AI gantt suggestions failed for project=%s", project_id)
-        raise HTTPException(status_code=500, detail="Error generating gantt suggestions")
+        raise error_http(500, "ia_sugerencias_gantt_fallo", detail="Error generating gantt suggestions")
 
 @router.get("/timesheets/{user_id}", status_code=status.HTTP_200_OK)
 def timesheet_anomalies(user_id: str, db: Session = Depends(get_db), user=Depends(get_current_user)):
@@ -29,4 +30,4 @@ def timesheet_anomalies(user_id: str, db: Session = Depends(get_db), user=Depend
         raise
     except Exception:
         logger.exception("AI timesheet anomalies failed for user=%s", user_id)
-        raise HTTPException(status_code=500, detail="Error analysing timesheet anomalies")
+        raise error_http(500, "ia_anomalias_horas_fallo", detail="Error analysing timesheet anomalies")

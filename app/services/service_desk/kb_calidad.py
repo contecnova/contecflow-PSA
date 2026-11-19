@@ -31,6 +31,8 @@ from sqlalchemy.orm import Session
 
 from app.models.service_desk import KBArticle, KBStatus
 from app.models.service_desk.kb_calidad import KBCorrection, KBFinding, KBGap
+from app.core.codigos_de_error import ErrorConCodigo
+from app.core.config import settings  # topes de tokens de IA (19-11-2026)
 
 logger = logging.getLogger(__name__)
 
@@ -232,7 +234,7 @@ def preguntar_contradiccion(db: Session, a: KBArticle, b: KBArticle, org: str) -
                "dan instrucciones o datos incompatibles sobre lo mismo (no si uno amplía al otro).")
     texto = f"ARTÍCULO A [{a.number}] {a.title}\n{(a.body or '')[:2500]}\n\nARTÍCULO B [{b.number}] {b.title}\n{(b.body or '')[:2500]}"
     bruto = call_ai(db, [{"role": "user", "content": texto}], system=sistema, module="knowledge_base",
-                    max_tokens=300, organization_id=org)
+                    max_tokens=settings.AI_BRIEF_ANSWER_MAX_TOKENS, organization_id=org)
     limpio = re.sub(r"^```(json)?|```$", "", (bruto or "").strip(), flags=re.M).strip()
     datos = json.loads(limpio[limpio.find("{"): limpio.rfind("}") + 1])
     return {"contradicts": bool(datos.get("contradicts")), "explanation": str(datos.get("explanation") or "")[:1000]}
@@ -342,7 +344,7 @@ def cerrar(db: Session, modelo, fila_id: str, estado: str, usuario) -> None:
     validos = {KBGap: {"dismissed", "open", "answered"}, KBFinding: {"resolved", "dismissed"},
                KBCorrection: {"archived", "active"}}[modelo]
     if estado not in validos:
-        raise ValueError("estado")
+        raise ErrorConCodigo("estado_no_valido", detail="estado")
     fila = db.get(modelo, fila_id)
     if fila is None:
         raise LookupError("no_encontrado")

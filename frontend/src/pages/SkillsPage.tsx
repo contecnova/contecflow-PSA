@@ -401,12 +401,12 @@ function UserSkillPreview({ userId }: { userId: string }) {
 export default function SkillsPage() {
   const t = useAppT()
   const catLabel = useCatLabel()
-  const { hasRole } = useAuth()
+  const { puede } = useAuth()
   const toast = useToast()
   const qc = useQueryClient()
   // Matriz, Staffing y Catálogo leen endpoints de admin y hr; el resto entra
   // por Perfiles (revisión 2026-11: antes la pestaña inicial les daba 403).
-  const esGestor = hasRole('admin', 'hr')
+  const esGestor = puede('competencias.gestionar')
   const [tab, setTab] = useState(esGestor ? 'matrix' : 'profiles')
   const [editingUser, setEditingUser] = useState<DomainUser | null>(null)
 

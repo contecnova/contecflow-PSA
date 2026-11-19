@@ -23,11 +23,12 @@ vi.mock('../context/ConfirmContext', () => ({ confirmar: vi.fn().mockResolvedVal
 vi.mock('../i18n/AppLangContext', () => ({ useAppT: () => (k: string) => k }))
 vi.mock('../hooks/useOrgSettings', () => ({ useOrgSettings: () => ({ currency: 'EUR' }) }))
 vi.mock('../context/AuthContext', () => ({
-  useAuth: () => ({ user: { role: estado.rol }, hasRole: (...r: string[]) => r.includes(estado.rol) }),
+  useAuth: () => ({ user: { role: estado.rol }, puede: (c: string) => puedeComo(estado.rol)(c) }),
 }))
 
 import UsoRealTab from '../pages/alm/uso/UsoRealTab'
 import { codigoDeError } from '../services/api/almUso'
+import { puedeComo } from './capacidadesDelBackend'
 
 const pintar = () => render(
   <MemoryRouter>

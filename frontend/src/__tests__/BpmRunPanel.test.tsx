@@ -36,10 +36,11 @@ vi.mock('../i18n/AppLangContext', () => ({
   }),
 }))
 vi.mock('../context/ToastContext', () => ({ useToast: () => ({ error: vi.fn(), success: vi.fn() }) }))
-vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ hasRole: (...r: string[]) => r.some(x => rolesDelUsuario.includes(x)) }) }))
+vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ puede: (c: string) => rolesDelUsuario.some(r => puedeComo(r)(c)) }) }))
 vi.mock('../context/ConfirmContext', () => ({ useConfirm: () => ({ confirmar: () => Promise.resolve(true) }) }))
 
 import BpmRunPanel, { BpmInbox } from '../pages/bpm/BpmRunPanel'
+import { puedeComo } from './capacidadesDelBackend'
 
 function montar(ui: JSX.Element) {
   return render(

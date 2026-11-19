@@ -39,6 +39,7 @@ from app.models.alm_uso import ALMUsoRecuperacion
 from app.services.alm_uso._comun import (
     ahora, aware, cargar_json, coste_unitario_anual, exigir_org, moneda_de_licencia, umbrales, volcar_json,
 )
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -346,7 +347,7 @@ def previsualizar(db: Session, org: str) -> dict:
                       "politica": (recuperar or {}).get("politica")})
     if db.new or db.dirty or db.deleted:
         db.rollback()
-        raise ErrorDeDominio(500, "La simulación intentó escribir datos: se ha deshecho")
+        raise error(500, "simulacion_intento_escribir")
     resumen["ahorro_anual_potencial"] = round(resumen["ahorro_anual_potencial"], 2)
     from app.services.alm_uso._comun import con_nombres
     return {"resumen": resumen, "items": con_nombres(db, org, items)}

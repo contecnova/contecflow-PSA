@@ -48,13 +48,14 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials
 from starlette.requests import HTTPConnection
 
 from app.core.credenciales_opcionales import credenciales_opcionales, es_websocket
 from sqlalchemy.orm import Session
 
+from app.core.codigos_de_error import error_http
 from app.core.grc_catalog import action_for, module_for_path
 from app.db.session import get_db
 
@@ -152,8 +153,8 @@ def enforce_grc_matrix(
             "GRC denegó %s %s para rol=%s (módulo=%s acción=%s)",
             request.method, request.url.path, rol, modulo, accion,
         )
-        raise HTTPException(
-            status_code=403,
+        raise error_http(
+            403, "grc_politica_deniega", accion=accion, modulo=modulo, rol=rol,
             detail=(
                 f"La política de gobierno de tu organización no permite "
                 f"'{accion}' en el módulo '{modulo}' para el rol '{rol}'."

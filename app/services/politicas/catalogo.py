@@ -20,11 +20,11 @@ from __future__ import annotations
 
 from typing import Optional
 
-from app.core.errores import ErrorDeDominio
 from app.services.politicas.registro import (  # noqa: F401 (API pública del catálogo)
     DOS_VALORES, ENTIDADES, LISTA, OPERADORES_POR_TIPO, SIN_VALOR, TIPOS_DE_PARAMETRO, Campo, Dominio, Opcion,
     Parametro, ResultadoPropio, _REGISTRO, registrar,
 )
+from app.core.codigos_de_error import error
 
 
 def _cargar_dominios_incluidos() -> None:
@@ -46,7 +46,7 @@ def dominio(clave: str) -> Dominio:
     _cargar_dominios_incluidos()
     d = _REGISTRO.get(clave)
     if d is None:
-        raise ErrorDeDominio(404, f"Dominio de políticas desconocido: {clave}")
+        raise error(404, "politica_dominio_desconocido", dominio=clave)
     return d
 
 

@@ -42,13 +42,13 @@ function Contenido({ d, th }: { d: DetalleHe; th: Th }) {
   const p = d.peticion
   const qc = useQueryClient()
   const toast = useToast()
-  const { hasRole } = useAuth()
+  const { puede } = useAuth()
   const liquidar = useMutation({
     mutationFn: (referencia: string) => horasExtraApi.liquidar(p.id, referencia),
     onSuccess: () => { toast.success(th('liquidada_ok')); qc.invalidateQueries({ queryKey: ['horas-extra'] }) },
     onError: e => toast.error(extractErr(e, th('error'))),
   })
-  const puedeLiquidar = d.puede_gestionar && hasRole('admin', 'hr') && p.estado === 'aprobada'
+  const puedeLiquidar = d.puede_gestionar && puede('horas_extra.config') && p.estado === 'aprobada'
     && p.compensacion === 'pago' && !p.liquidacion && !d.compensacion.liquidacion
   const pedirLiquidar = async () => {
     const ref = await pedirTexto({ title: th('liquidar'), message: th('liquidar_texto'), label: th('referencia'), required: true })

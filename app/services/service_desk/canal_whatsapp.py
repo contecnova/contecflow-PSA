@@ -50,6 +50,7 @@ from sqlalchemy.orm import Session
 
 from app.core.errores import ErrorDeDominio
 from app.services.formato_regional import IDIOMA_DE_RESPALDO
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -185,9 +186,9 @@ def procesar(db: Session, cuerpo: bytes, firma: Optional[str], payload: dict) ->
             numero = (valor.get("metadata") or {}).get("phone_number_id")
             org = organizacion_del_numero(db, numero)
             if org is None:
-                raise ErrorDeDominio(403, "Número de WhatsApp no vinculado a ninguna empresa")
+                raise error(403, "whatsapp_numero_sin_empresa", detail="Número de WhatsApp no vinculado a ninguna empresa")
             if not firma_valida(_secreto(db, "app_secret", org), cuerpo, firma):
-                raise ErrorDeDominio(403, "Firma de WhatsApp no válida")
+                raise error(403, "firma_no_valida", detail="Firma de WhatsApp no válida")
             # La peticion no tiene usuario: corre en la empresa del numero.
             db.info["organization_id"], db.info["is_superadmin"] = org, False
             nombres = {c.get("wa_id"): ((c.get("profile") or {}).get("name")) for c in valor.get("contacts") or []}

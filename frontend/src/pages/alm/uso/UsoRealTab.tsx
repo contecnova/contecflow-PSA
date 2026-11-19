@@ -59,9 +59,9 @@ function MisRecuperaciones() {
 
 export default function UsoRealTab() {
   const t = useAppT()
-  const { hasRole, user } = useAuth()
-  const esAdmin = Boolean(user?.is_superadmin) || hasRole('admin')
-  const esGestor = esAdmin || hasRole('pm', 'team_lead', 'hr')
+  const { puede } = useAuth()
+  const esAdmin = puede('org.administrar')
+  const esGestor = esAdmin || puede('equipo.ver')
   const [tab, setTab] = useState('uso')
   if (!esGestor) return <MisRecuperaciones />
   const items = [

@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.models.cab import DashboardWidget
 from app.models.cab import OnboardingState
 from app.models.user import UserRole
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 # ─── Dashboard widget helpers ─────────────────────────────────────────────────
@@ -128,7 +129,7 @@ def get_onboarding(current_user, db: Session) -> dict:
 
 def complete_onboarding_step(step_id: str, current_user, db: Session) -> dict:
     if step_id not in [s["id"] for s in ONBOARDING_STEPS]:
-        raise ValueError(f"Step '{step_id}' no existe")
+        raise ErrorConCodigo("no_encontrado", detail=f"Step '{step_id}' no existe", que="paso")
     state = db.query(OnboardingState).filter(
         OnboardingState.user_id == current_user.id
     ).first()

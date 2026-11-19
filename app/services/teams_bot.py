@@ -31,6 +31,7 @@ from urllib.parse import urlparse
 
 import httpx
 from app.services.settings_service import outbound_http_timeout
+from app.core.config import settings  # topes de tokens de IA (19-11-2026)
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,7 @@ def respuesta_de_la_base(db, usuario, pregunta: str) -> str:
                 "alguien la responda.")
     texto = call_ai(db, [{"role": "user", "content": pregunta}], system=_SISTEMA + ctx["prompt"],
                     module="knowledge_base", user_id=usuario.id, organization_id=usuario.organization_id,
-                    is_superadmin=False, max_tokens=600)
+                    is_superadmin=False, max_tokens=settings.AI_MEDIUM_ANSWER_MAX_TOKENS)
     db.commit()
     if es_aviso_de_ia(texto):
         return "Ahora mismo no puedo consultar la IA. Prueba más tarde."

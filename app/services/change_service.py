@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.resources import ChangeRequest, ChangeRequestStatus
 from app.services.numbering import next_numbered_code
 import logging
+from app.core.codigos_de_error import ErrorConCodigo
 
 logger = logging.getLogger(__name__)
 
@@ -122,6 +123,6 @@ def implement_change_request(db: Session, cr: ChangeRequest) -> ChangeRequest:
 
 def delete_change_request(db: Session, cr: ChangeRequest) -> None:
     if cr.status in [ChangeRequestStatus.approved, ChangeRequestStatus.implemented]:
-        raise ValueError("No se puede eliminar una CR aprobada o implementada")
+        raise ErrorConCodigo("cr_no_eliminable")
     cr.is_active = False
     db.commit()

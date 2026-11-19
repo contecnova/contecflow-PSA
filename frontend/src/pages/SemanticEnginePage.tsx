@@ -211,7 +211,7 @@ export default function SemanticEnginePage() {
   const [hfModelDraft, setHfModelDraft] = useState('')
   // Configurar el motor (perfiles, modo, embeddings) es de admin y hr en el
   // servidor; pm entra a probar sugerencias (revisión 2026-11: veía los botones y le daban 403).
-  const puedeEditar = useAuth().hasRole('admin', 'hr')
+  const puedeEditar = useAuth().puede('ia.asignacion_config')
 
   useEffect(() => {
     if (!opStatus.startedAt) {

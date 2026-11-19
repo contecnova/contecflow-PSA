@@ -35,9 +35,9 @@ import PanelDeHorario from '../HorarioEfectivo'
 
 export default function AdminDeAusencias({ subInicial }: { subInicial?: string }) {
   const { t, ta } = useT()
-  const { hasRole } = useAuth()
-  const esAdmin = hasRole('admin')
-  const esRrhh = hasRole('admin', 'hr')
+  const { puede } = useAuth()
+  const esAdmin = puede('org.administrar')
+  const esRrhh = puede('ausencias.config')
   const items = [
     { id: 'tipos', label: ta('tab_tipos'), icon: <Umbrella size={14} /> },
     { id: 'documentos', label: ta('tab_documentos'), icon: <FileText size={14} /> },

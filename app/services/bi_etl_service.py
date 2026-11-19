@@ -43,6 +43,7 @@ from sqlalchemy.orm import Session
 
 from app.integrations import bi_etl_connectors as etl
 from app.models.settings import AppSetting
+from app.core.codigos_de_error import ErrorConCodigo
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +137,7 @@ def _descifrar(cfg: dict, tipo: str) -> dict:
         if claro.get(k):
             valor = decrypt_value(claro[k])
             if valor is None:
-                raise ValueError(f"No se pudo descifrar «{k}»: vuelve a introducirlo")
+                raise ErrorConCodigo("credencial_no_descifrable", detail=f"No se pudo descifrar «{k}»: vuelve a introducirlo", campo=k)
             claro[k] = valor
     return claro
 
@@ -153,7 +154,7 @@ def configurar(db: Session, org: Optional[str], cid: str, *, enabled: Optional[b
         validas = {c["clave"] for c in ficha["campos"]}
         sobran = set(config) - validas
         if sobran:
-            raise ValueError(f"Campos que {tipo} no usa: {', '.join(sorted(sobran))}")
+            raise ErrorConCodigo("campos_no_permitidos", detail=f"Campos que {tipo} no usa: {', '.join(sorted(sobran))}", tipo=tipo, campos=', '.join(sorted(sobran)))
         for k, v in config.items():
             v = "" if v is None else str(v).strip()
             if k in _secretos(tipo):
@@ -163,12 +164,12 @@ def configurar(db: Session, org: Optional[str], cid: str, *, enabled: Optional[b
                 cfg[k] = v
     if entity is not None:
         if entity not in ficha["entidades"]:
-            raise ValueError(f"Entidad «{entity}» no soportada: {', '.join(ficha['entidades'])}")
+            raise ErrorConCodigo("entidad_desconocida", detail=f"Entidad «{entity}» no soportada: {', '.join(ficha['entidades'])}", entidad=entity)
         cfg["entity"] = entity
     configs[cid] = cfg
     _guardar(db, CLAVE_CONFIG, org, configs, "Conectores ETL de BI — configuración (secretos cifrados)")
     if enabled and etl.ficha(tipo)["falta"]:
-        raise ValueError(f"No está instalado: {etl.ficha(tipo)['falta']}")
+        raise ErrorConCodigo("dependencia_no_instalada", detail=f"No está instalado: {etl.ficha(tipo)['falta']}", paquete=etl.ficha(tipo)['falta'])
     if enabled is not None:
         estado = _estado(db, org)
         fila = dict(estado.get(cid, {}))
@@ -184,13 +185,13 @@ def crear_fuente(db: Session, org: Optional[str], nombre: str, config: dict) -> 
     nombre = (nombre or "").strip()
     slug = re.sub(r"[^a-z0-9]+", "-", nombre.lower()).strip("-")
     if not slug:
-        raise ValueError("Pon un nombre a la fuente")
+        raise ErrorConCodigo("bi_fuente_sin_nombre")
     cid = PREFIJO_FUENTE + slug
     configs = _configs(db, org)
     if cid in configs:
-        raise ValueError(f"Ya hay una fuente «{nombre}»")
+        raise ErrorConCodigo("bi_fuente_ya_existe", nombre=nombre)
     if not (config or {}).get("endpoint_url"):
-        raise ValueError("Falta endpoint_url")
+        raise ErrorConCodigo("campo_obligatorio", detail="Falta endpoint_url", campo="endpoint_url")
     configs[cid] = {"nombre": nombre}
     _guardar(db, CLAVE_CONFIG, org, configs, "Conectores ETL de BI — configuración (secretos cifrados)")
     return configurar(db, org, cid, config=config)
@@ -240,10 +241,10 @@ def sincronizar(db: Session, org: Optional[str], cid: str) -> dict:
     """Extrae, guarda y deja constancia; el estado refleja el resultado real."""
     conector, cfg, tipo = _preparar(db, org, cid)
     if conector.falta():
-        raise ValueError(f"No está instalado: {conector.falta()}")
+        raise ErrorConCodigo("dependencia_no_instalada", detail=f"No está instalado: {conector.falta()}", paquete=conector.falta())
     estado = _estado(db, org)
     if not estado.get(cid, {}).get("enabled"):
-        raise ValueError("El conector está desactivado")
+        raise ErrorConCodigo("conector_desactivado")
     try:
         claro = _descifrar(cfg, tipo)
     except ValueError as exc:

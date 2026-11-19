@@ -10,6 +10,7 @@
  */
 import { useState, type CSSProperties, type ReactNode } from 'react'
 import { extractErr, fmtDate, fmtDateTime, formateadorDeFecha } from '../utils/helpers'
+import { useTono } from '../hooks/useOrgSettings'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { predictionsApi } from '../services/api'
@@ -77,12 +78,15 @@ const LEVEL_ICON: Record<RiskLevel, ReactNode> = {
   critical: <AlertOctagon size={18} />,
 }
 
-/** Umbral de color de una puntuación 0–100. */
-const tono = (v: number) => v >= 75 ? 'danger' : v >= 50 ? 'warning' : 'success'
+/** Color de una puntuación de riesgo 0–100: RISK_LEVEL_HIGH/CRITICAL de la empresa (19-11-2026; antes 50/75 aquí). */
+const useTonoDeRiesgo = () => {
+  const tonoDe = useTono()
+  return (v: number) => tonoDe('riesgo', v) ?? 'success'
+}
 const anchura = (v: number) => ({ '--pct': `${Math.min(Math.max(v, 0), 100)}%` }) as CSSProperties
 
 function ScoreBar({ value, label }: { value: number; label: string }) {
-  const tn = tono(value)
+  const tn = useTonoDeRiesgo()(value)
   return (
     <div className="u-mb-10">
       <div className="rsc-scorebar__head">
@@ -257,6 +261,7 @@ function MLPredictionsTab() {
 }
 
 export default function RiskScoresPage() {
+  const tono = useTonoDeRiesgo()
   const t = useAppT()
   const qc = useQueryClient()
   const toast = useToast()

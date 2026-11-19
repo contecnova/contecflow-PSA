@@ -19,7 +19,7 @@ from app.models.mfa import (
     Organization,
 )
 from app.services.audit import audit_log
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error, ErrorConCodigo
 
 
 def serialize_organization(org: Organization, db: Session) -> dict:
@@ -42,7 +42,7 @@ def check_org_user_limit(org: Organization, db: Session) -> None:
         UserOrganizationMembership.organization_id == org.id
     ).scalar()
     if count >= org.max_users:
-        raise ValueError(f"Límite de {org.max_users} usuarios alcanzado para este plan")
+        raise ErrorConCodigo("plan_limite_usuarios", max=org.max_users)
 
 
 def list_organizations(db: Session) -> list:
@@ -53,7 +53,7 @@ def list_organizations(db: Session) -> list:
 def create_organization(payload_dict: dict, current_user: User, db: Session) -> dict:
     existing = db.query(Organization).filter(Organization.slug == payload_dict["slug"]).first()
     if existing:
-        raise ValueError(f"Slug '{payload_dict['slug']}' ya está en uso")
+        raise ErrorConCodigo("slug_en_uso", detail=f"Slug '{payload_dict['slug']}' ya está en uso", slug=payload_dict['slug'])
     admin_name = payload_dict.pop("admin_name", None)
     _validar_dominio(db, payload_dict.get("domain"))
     org = Organization(**payload_dict)
@@ -77,7 +77,7 @@ def _validar_dominio(db: Session, dominio, org_id=None) -> None:
         return
     otra = db.query(Organization).filter(Organization.domain == dominio.strip().lower()).first()
     if otra is not None and otra.id != org_id:
-        raise ValueError(f"El dominio {dominio} ya es de otra empresa")
+        raise ErrorConCodigo("dominio_de_otra_empresa", dominio=dominio)
 
 
 def get_organization(org_id: str, db: Session) -> dict:
@@ -152,18 +152,18 @@ def update_organization(org_id: str, payload: dict, db: Session) -> dict:
 def assign_user_to_org(org_id: str, user_id: str, db: Session) -> dict:
     org = db.query(Organization).filter(Organization.id == org_id).first()
     if not org:
-        raise ValueError("404:Organización no encontrada")
+        raise ErrorConCodigo("no_encontrado", detail="404:Organización no encontrada", que="organizacion")
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise ValueError("404:Usuario no encontrado")
+        raise ErrorConCodigo("no_encontrado", detail="404:Usuario no encontrado", que="usuario")
     if user.is_active is False:
-        raise ValueError("No puedes asignar usuarios inactivos")
+        raise ErrorConCodigo("usuario_inactivo_no_asignable")
     membership = db.query(UserOrganizationMembership).filter(
         UserOrganizationMembership.user_id == user.id,
         UserOrganizationMembership.organization_id == org_id,
     ).first()
     if membership:
-        raise ValueError("El usuario ya está asignado a esta organización")
+        raise ErrorConCodigo("usuario_ya_en_empresa", detail="El usuario ya está asignado a esta organización")
     check_org_user_limit(org, db)
     db.add(UserOrganizationMembership(user_id=user.id, organization_id=org_id))
     if not user.organization_id:
@@ -180,26 +180,26 @@ def assign_user_to_org(org_id: str, user_id: str, db: Session) -> dict:
 def remove_user_from_org(org_id: str, user_id: str, db: Session) -> dict:
     org = db.query(Organization).filter(Organization.id == org_id).first()
     if not org:
-        raise ValueError("404:Organización no encontrada")
+        raise ErrorConCodigo("no_encontrado", detail="404:Organización no encontrada", que="organizacion")
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise ValueError("404:Usuario no encontrado en esta organización")
+        raise ErrorConCodigo("no_encontrado", detail="404:Usuario no encontrado en esta organización", que="usuario")
     membership = db.query(UserOrganizationMembership).filter(
         UserOrganizationMembership.user_id == user.id,
         UserOrganizationMembership.organization_id == org_id,
     ).first()
     if not membership:
-        raise ValueError("404:Usuario no encontrado en esta organización")
+        raise ErrorConCodigo("no_encontrado", detail="404:Usuario no encontrado en esta organización", que="usuario")
     user_count = db.query(func.count(func.distinct(UserOrganizationMembership.user_id))).filter(
         UserOrganizationMembership.organization_id == org_id
     ).scalar()
     if user_count <= 1:
-        raise ValueError("No puedes quitar el último usuario de la organización")
+        raise ErrorConCodigo("empresa_ultimo_usuario", detail="No puedes quitar el último usuario de la organización")
     user_org_count = db.query(func.count(UserOrganizationMembership.id)).filter(
         UserOrganizationMembership.user_id == user.id
     ).scalar()
     if user_org_count <= 1:
-        raise ValueError("No puedes quitar al usuario de su última organización")
+        raise ErrorConCodigo("usuario_ultima_empresa", detail="No puedes quitar al usuario de su última organización")
     user_name = user.full_name
     db.delete(membership)
     if str(user.organization_id) == str(org_id):
@@ -249,7 +249,7 @@ def exigir_cupo(db: Session, org_id, recurso: str) -> None:
             limite = org.max_projects
     if limite is not None and usados >= limite:
         nombre = "usuarios" if recurso == "users" else "proyectos"
-        raise ErrorDeDominio(409, f"La empresa ha llegado al límite de {limite} {nombre} de su plan")
+        raise error(409, "empresa_limite_plan", detail=f"La empresa ha llegado al límite de {limite} {nombre} de su plan", max=limite)
 
 
 def crear_primer_admin(db: Session, org: Organization, email: str, nombre: str) -> str:
@@ -259,7 +259,7 @@ def crear_primer_admin(db: Session, org: Organization, email: str, nombre: str) 
     from app.models.user import UserRole
     email = email.strip().lower()
     if db.query(User).filter(User.email == email).first():
-        raise ValueError(f"Ya existe un usuario con el correo {email}: asígnalo a la empresa desde su ficha")
+        raise ErrorConCodigo("usuario_correo_ya_existe", correo=email)
     inicial = secrets.token_urlsafe(12) + "Aa1!"
     admin = User(username=email, email=email, full_name=nombre or email, role=UserRole.admin,
                  is_active=True, organization_id=org.id, hashed_password=get_password_hash(inicial))

@@ -135,6 +135,49 @@ def crear_items(db: Session, category_id: str, nombres: dict, actor) -> list[dic
     return listar_items(db)
 
 
+def asegurar_items(db: Session, org_id: Optional[str], actor=None) -> bool:
+    """Que toda empresa pueda pedir equipo y licencia desde el primer día (19-11-2026).
+
+    Como los tipos de ausencia (`ausencias.catalogo.asegurar`): si la empresa no
+    tiene ningún ítem de ALM en el catálogo, se crea la categoría interna
+    «Equipos y licencias» (no visible para clientes) con «Pedir equipo» y
+    «Pedir licencia» en el idioma de la empresa, aprobación del motor común
+    (modo ``engine``: el flujo de ``catalog_request`` que encaje; sin flujo, el
+    aprobador del ítem o administración) y queda auditado. Antes, sin esta
+    configuración a mano, «Mis equipos y licencias» no ofrecía forma de pedir.
+    Devuelve si ha creado algo. Se configura después en Configuración ›
+    Service desk › Catálogo y en Integraciones de ALM.
+    """
+    from app.models.service_desk import ServiceCategory, ServiceItem
+    from app.services.settings_service.por_empresa import idioma_de_empresa
+    from app.services.textos_de_salida import texto
+
+    if not org_id:
+        return False
+    if db.query(ALMItemDeCatalogo.id).filter(ALMItemDeCatalogo.organization_id == org_id).first() is not None:
+        return False
+    idioma = idioma_de_empresa(db, org_id)
+    nombre_cat = texto("alm.categoria", idioma)
+    cat = (db.query(ServiceCategory)
+           .filter(ServiceCategory.organization_id == org_id, ServiceCategory.name == nombre_cat).first())
+    if cat is None:
+        cat = ServiceCategory(organization_id=org_id, name=nombre_cat, icon="💻", is_active=True)
+        db.add(cat)
+        db.flush()
+    for tipo in TIPOS_DE_ELEMENTO:
+        item = ServiceItem(organization_id=org_id, category_id=cat.id, name=texto(f"alm.item.{tipo}", idioma)[:255],
+                           ticket_type="service_request", is_active=True, is_visible_to_clients=False,
+                           requires_approval=True, approval_mode="engine")
+        db.add(item)
+        db.flush()
+        db.add(ALMItemDeCatalogo(organization_id=org_id, service_item_id=item.id, tipo=tipo))
+    from app.services.audit import audit_log
+    audit_log(db, actor, "CREATE", "alm_item_de_catalogo", cat.id, cat.name,
+              new_values={"automatico": True, "tipos": list(TIPOS_DE_ELEMENTO)})
+    db.commit()
+    return True
+
+
 # ── La petición ───────────────────────────────────────────────────────────────
 
 def _elegir_item(db: Session, tipo: str, license_id: Optional[str], asset_type: Optional[str]) -> ALMItemDeCatalogo:

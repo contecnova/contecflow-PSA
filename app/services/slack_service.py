@@ -19,6 +19,7 @@ from app.core.config import settings
 from app.models.mfa import (
     SlackConfig, SlackNotificationLog,
 )
+from app.core.codigos_de_error import ErrorConCodigo
 
 _logger = logging.getLogger(__name__)
 
@@ -142,7 +143,7 @@ def test_slack_config(config_id: str, message: str, channel: str, db: Session) -
 def notify_slack(event_type: str, message: str, channel: Optional[str], source_id: Optional[str], db: Session) -> dict:
     config = db.query(SlackConfig).filter(SlackConfig.is_active == True).first()
     if not config:
-        raise ValueError("No hay integración Slack/Teams activa")
+        raise ErrorConCodigo("integracion_no_configurada", detail="No hay integración Slack/Teams activa", nombre="Slack/Teams")
     subs = json.loads(config.subscriptions or "[]")
     if event_type not in subs and event_type != "manual":
         return {"ok": True, "skipped": True, "reason": f"Event '{event_type}' not subscribed"}

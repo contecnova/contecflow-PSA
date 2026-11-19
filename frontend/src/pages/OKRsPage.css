@@ -21,11 +21,11 @@
 .okr-anillo { flex-shrink: 0; }
 .okr-anillo__texto {
   font-weight: 700;
-  font-size: 9px;
+  font-size: var(--text-3xs);
   fill: var(--okr-color);
   font-variant-numeric: tabular-nums;
 }
-.okr-anillo__texto--grande { font-size: 11px; }
+.okr-anillo__texto--grande { font-size: var(--text-xs); }
 
 /* Objetivo */
 .okr-obj {

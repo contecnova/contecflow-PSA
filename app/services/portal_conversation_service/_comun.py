@@ -99,7 +99,7 @@ def _get_project_for_team(project_id: str, current_user, db: Session) -> Project
         if not current_user.organization_id or project.organization_id != current_user.organization_id:
             raise ErrorConCodigo("proyecto_no_encontrado")
     if not project.organization_id:
-        raise ValueError("Proyecto sin organization_id")
+        raise ErrorConCodigo("error_interno", detail="Proyecto sin organization_id")
     return project
 
 

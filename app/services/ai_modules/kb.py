@@ -11,6 +11,7 @@ from app.models.ai_chat import (
 )
 from app.models.service_desk import Ticket
 from sqlalchemy import or_
+from app.core.config import settings  # topes de tokens de IA (19-11-2026)
 
 _log = logging.getLogger(__name__)
 
@@ -61,7 +62,7 @@ Responde SOLO con JSON:
 }}"""
         text = call_ai_unified(
             db, [{"role": "user", "content": prompt}],
-            module="knowledge_base", user_id=current_user.id, max_tokens=1500
+            module="knowledge_base", user_id=current_user.id, max_tokens=settings.AI_LONG_ANSWER_MAX_TOKENS
         )
         match = re.search(r'\{.*\}', text, re.DOTALL)
         if match:

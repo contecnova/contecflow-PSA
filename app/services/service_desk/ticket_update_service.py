@@ -17,7 +17,7 @@ from app.services.sla_service import (
     norm_enum as _norm_enum,
 )
 import logging
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -237,4 +237,4 @@ def _exigir_contrato_uc(db: Session, contrato_id: str, org_id) -> None:
     ajeno = c is not None and c.organization_id not in (None, org_id)
     sin_plazo = (c.resolution_hours or 0) <= 0 and (c.response_hours or 0) <= 0 if c is not None else True
     if c is None or ajeno or not c.is_active or sin_plazo:
-        raise ErrorDeDominio(422, "El contrato no existe o no tiene plazo del proveedor (UC)")
+        raise error(422, "contrato_sin_uc")

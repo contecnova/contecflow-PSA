@@ -10,9 +10,9 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from app.core.errores import ErrorDeDominio
 from app.models.service_desk import CIClass, CIType, ConfigurationItem
 from app.services.audit import auditar_y_confirmar
+from app.core.codigos_de_error import error
 
 CLASES_BASE = tuple(c.value for c in CIType)
 CAMPOS_EDITABLES = ("label", "base_type", "description", "is_active", "sort_order")
@@ -32,7 +32,7 @@ def _uso(db: Session, org_id, clave: str) -> int:
 def _de_la_empresa(db: Session, class_id: str, org_id) -> CIClass:
     c = db.query(CIClass).filter(CIClass.id == class_id, CIClass.organization_id == org_id).first()
     if c is None:
-        raise ErrorDeDominio(404, "Clase no encontrada")
+        raise error(404, "no_encontrado", detail="Clase no encontrada", que="clase")
     return c
 
 
@@ -44,12 +44,12 @@ def listar(db: Session, org_id) -> dict:
 
 def crear(db: Session, usuario, datos: dict) -> dict:
     if datos.get("base_type") not in CLASES_BASE:
-        raise ErrorDeDominio(422, "Clase base no válida")
+        raise error(422, "ci_clase_base_no_valida")
     if datos.get("key") in CLASES_BASE:
-        raise ErrorDeDominio(422, "La clave coincide con una clase base")
+        raise error(422, "ci_clave_de_clase_base")
     org = usuario.organization_id
     if db.query(CIClass.id).filter(CIClass.organization_id == org, CIClass.key == datos.get("key")).first():
-        raise ErrorDeDominio(409, "Ya hay una clase con esa clave")
+        raise error(409, "ci_clase_ya_existe")
     c = CIClass(organization_id=org, **datos)
     db.add(c)
     db.flush()
@@ -61,7 +61,7 @@ def cambiar(db: Session, usuario, class_id: str, datos: dict) -> dict:
     org = usuario.organization_id
     c = _de_la_empresa(db, class_id, org)
     if datos.get("base_type") not in CLASES_BASE:
-        raise ErrorDeDominio(422, "Clase base no válida")
+        raise error(422, "ci_clase_base_no_valida")
     if datos["base_type"] != c.base_type:
         # Sus CIs pasan a la nueva clase base: es lo que leen descubrimiento e impacto.
         db.query(ConfigurationItem).filter(ConfigurationItem.organization_id == org,

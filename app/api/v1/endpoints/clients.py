@@ -21,6 +21,7 @@ from app.services.client_service import (
     get_client_360 as svc_client_360,
 )
 import app.services.client_service as _svc
+from app.core.codigos_de_error import error_http
 
 router = APIRouter()
 
@@ -272,9 +273,9 @@ def list_available_projects(cid: str, db: Session = Depends(get_db), _=Depends(g
     try:
         return APIListResponse.ok(items=_svc.list_available_projects(cid, db))
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error al cargar proyectos: {str(e)}")
+        import logging
+        logging.getLogger(__name__).exception("Error al cargar los proyectos del cliente %s: %s", cid, e)
+        raise error_http(500, "clientes_error_proyectos")
 
 
 @router.post("/{cid}/projects/{project_id}/link")

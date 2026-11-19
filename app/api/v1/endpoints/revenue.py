@@ -44,6 +44,7 @@ from app.core.paginacion import Pagina, Paginacion, lista_paginada, paginacion
 from app.core.responses import APIListResponse, APIResponse
 from app.services import revenue_service as svc
 from app.core import timeutil
+from app.core.codigos_de_error import error_http
 
 router = APIRouter(tags=["Revenue Recognition"])
 
@@ -196,7 +197,7 @@ def close_period(
     notes = payload.get("notes")
     if not year or not month:
         from fastapi import HTTPException
-        raise HTTPException(400, "Se requieren year y month")
+        raise error_http(400, "campos_obligatorios", detail="Se requieren year y month", campos="year, month")
     pc = svc.close_period(db, current_user.organization_id, int(year), int(month), current_user.id, notes)
     return APIResponse.ok(data=svc._serialize_period_close(pc))
 

@@ -22,6 +22,7 @@ from app.models.service_desk import ServiceItem, Ticket, TicketApproval
 from app.models.user import User, UserRole
 from app.services.service_desk.ticket_events import registrar
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 PENDIENTE, APROBADO, RECHAZADO = "pending", "approved", "rejected"
 
@@ -34,10 +35,10 @@ def exigir_aprobador(db: Session, requires_approval: Optional[bool], approval_us
     if not requires_approval:
         return
     if not approval_user_id:
-        raise ErrorDeDominio(422, "Un servicio que requiere aprobación necesita un aprobador")
+        raise error(422, "catalogo_servicio_sin_aprobador")
     u = db.query(User).filter(User.id == approval_user_id, User.is_active == True).first()  # noqa: E712
     if u is None:
-        raise ErrorDeDominio(422, "El aprobador no existe o no está activo")
+        raise error(422, "aprobador_no_valido")
 
 
 TIPO_EN_EL_MOTOR = "catalog_request"
@@ -50,12 +51,11 @@ def exigir_flujo(db: Session, workflow_id: Optional[str]) -> None:
     if workflow_id:
         if db.query(ApprovalWorkflow.id).filter(ApprovalWorkflow.id == workflow_id,
                                                 ApprovalWorkflow.is_active.is_(True)).first() is None:
-            raise ErrorDeDominio(422, "El flujo de aprobación no existe o no está activo")
+            raise error(422, "flujo_aprobacion_no_valido")
         return
     if db.query(ApprovalWorkflow.id).filter(ApprovalWorkflow.entity_type == TIPO_EN_EL_MOTOR,
                                             ApprovalWorkflow.is_active.is_(True)).first() is None:
-        raise ErrorDeDominio(422, "No hay ningún flujo activo para las peticiones del catálogo: "
-                                  "créalo en Aprobaciones o elige uno")
+        raise error(422, "catalogo_sin_flujo_activo")
 
 
 def _abrir_en_el_motor(db: Session, ticket: Ticket, item: ServiceItem) -> str:
@@ -91,8 +91,9 @@ def _abrir_en_el_motor(db: Session, ticket: Ticket, item: ServiceItem) -> str:
         logging.getLogger(__name__).warning("politicas del catalogo no evaluadas", exc_info=True)
     resultado = (evaluacion or {}).get("resultado") or {}
     if resultado.get("decision") == "block":
-        raise ErrorDeDominio(422, "; ".join(b.get("mensaje") or "" for b in resultado.get("bloqueos") or [])
-                             or "Lo impide una política del catálogo")
+        motivo = "; ".join(b.get("mensaje") or "" for b in resultado.get("bloqueos") or [])
+        raise error(422, "bloqueado_por_politica", detail=motivo or "Lo impide una política del catálogo",
+                    motivo=motivo)
     try:
         with db.begin_nested():
             req = create_approval_request(
@@ -149,7 +150,7 @@ def pendiente(db: Session, ticket_id: str) -> Optional[TicketApproval]:
 def exigir_aprobado(ticket: Ticket, nuevo_estado: Optional[str]) -> None:
     """No se trabaja un ticket cuya aprobacion sigue pendiente."""
     if ticket.approval_status == PENDIENTE and nuevo_estado in BLOQUEADOS:
-        raise ErrorDeDominio(409, "El ticket está pendiente de aprobación")
+        raise error(409, "ticket_pendiente_aprobacion")
 
 
 def decidir(db: Session, ticket: Ticket, usuario: User, decision: str, comentario: Optional[str]) -> TicketApproval:
@@ -158,19 +159,19 @@ def decidir(db: Session, ticket: Ticket, usuario: User, decision: str, comentari
     from app.services.service_desk.ticket_update_service import apply_ticket_update
 
     if decision not in (APROBADO, RECHAZADO):
-        raise ErrorDeDominio(422, "La decisión es approved o rejected")
+        raise error(422, "decision_aprobada_o_rechazada", detail="La decisión es approved o rejected")
     aprobacion = pendiente(db, ticket.id)
     if aprobacion is None:
-        raise ErrorDeDominio(409, "El ticket no tiene ninguna aprobación pendiente")
+        raise error(409, "ticket_sin_aprobacion_pendiente")
     es_admin = getattr(usuario.role, "value", usuario.role) == UserRole.admin.value or usuario.is_superadmin
     if aprobacion.approver_user_id != usuario.id and not es_admin:
-        raise ErrorDeDominio(403, "Solo el aprobador puede decidir")
+        raise error(403, "solo_aprobador_decide")
     # Segunda auditoría 2026-11: quien pide el servicio no se lo aprueba (SoD),
     # tampoco un administrador.
     from app.services.approval_engine._base import exigir_que_no_sea_suyo
     exigir_que_no_sea_suyo(db, ticket.requester_user_id, usuario, "catalog_request", ticket.id)
     if decision == RECHAZADO and not (comentario or "").strip():
-        raise ErrorDeDominio(422, "Rechazar pide el motivo: es lo que recibe el solicitante")
+        raise error(422, "motivo_de_rechazo_obligatorio", detail="Rechazar pide el motivo: es lo que recibe el solicitante")
 
     aprobacion.status = decision
     aprobacion.comment = (comentario or "").strip() or None

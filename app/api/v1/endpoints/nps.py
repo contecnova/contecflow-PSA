@@ -23,6 +23,7 @@ from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User, UserRole
 from app.services import nps_service
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.core.codigos_de_error import error_http
 
 router = APIRouter()
 
@@ -56,7 +57,7 @@ def submit_nps(
     _rol: User = Depends(require_any_manager),  # auditoria 2026-09: dominio: salud y satisfaccion de cliente
 ):
     if not nps_service.client_exists(db, client_id):
-        raise HTTPException(404, "Cliente no encontrado")
+        raise error_http(404, "no_encontrado", detail="Cliente no encontrado", que="cliente")
 
     entry = nps_service.create_nps_entry(
         db,
@@ -122,9 +123,9 @@ def create_health_snapshot(
     _rol: User = Depends(require_any_manager),  # auditoria 2026-09: dominio: salud y satisfaccion de cliente
 ):
     if current_user.role not in (UserRole.admin, UserRole.pm):
-        raise HTTPException(403, "Solo admins/PMs pueden crear snapshots")
+        raise error_http(403, "solo_admin_o_pm", detail="Solo admins/PMs pueden crear snapshots")
     if not nps_service.client_exists(db, client_id):
-        raise HTTPException(404, "Cliente no encontrado")
+        raise error_http(404, "no_encontrado", detail="Cliente no encontrado", que="cliente")
 
     snap = nps_service.create_health_snapshot(
         db,
@@ -148,9 +149,9 @@ def auto_compute_health(
 ):
     """Auto-compute health score from current data signals and save a snapshot."""
     if current_user.role not in (UserRole.admin, UserRole.pm):
-        raise HTTPException(403, "Solo admins/PMs pueden computar salud")
+        raise error_http(403, "solo_admin_o_pm", detail="Solo admins/PMs pueden computar salud")
     if not nps_service.client_exists(db, client_id):
-        raise HTTPException(404, "Cliente no encontrado")
+        raise error_http(404, "no_encontrado", detail="Cliente no encontrado", que="cliente")
 
     snap = nps_service.compute_and_save_health(db, client_id)
     return APIResponse.ok(data={"id": snap.id, "health_score": snap.health_score, "snapshot_at": snap.snapshot_at})

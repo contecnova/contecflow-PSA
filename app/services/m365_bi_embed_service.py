@@ -32,9 +32,9 @@ from app.services.m365_service import (
 )
 from app.services import bi_intelligence_service as bi_svc
 from app.services.bi_embed_service import create_embed_token
-from app.core.errores import ErrorDeDominio
 from app.core.constantes import NOMBRE_DEL_PRODUCTO
 from app.services.settings_service import outbound_http_timeout
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -289,7 +289,7 @@ def post_bi_card_to_teams_channel(
     # Webhook fallback (MessageCard format)
     webhook_url = settings.TEAMS_WEBHOOK_URL
     if not webhook_url:
-        raise ErrorDeDominio(503, "M365 Graph no configurado y TEAMS_WEBHOOK_URL no está definido")
+        raise error(503, "integracion_no_configurada", detail="M365 Graph no configurado y TEAMS_WEBHOOK_URL no está definido", nombre="Microsoft Teams")
 
     sections: list[dict] = []
     latest = snapshot.get("latest_month")
@@ -321,7 +321,7 @@ def post_bi_card_to_teams_channel(
     with httpx.Client(timeout=outbound_http_timeout(db, default=15)) as client:
         resp = client.post(webhook_url, json=card_fallback)
     if resp.status_code not in (200, 202):
-        raise ErrorDeDominio(502, f"Teams webhook error: {resp.text}")
+        raise error(502, "webhook_entrega_fallida", detail=f"Teams webhook error: {resp.text}", servicio="Microsoft Teams")
 
     return {"channel": "webhook", "snapshot": snapshot}
 
@@ -438,7 +438,8 @@ def create_sharepoint_page_with_bi(
         }
     # intentional: chained re-raise preserves context
     except httpx.HTTPStatusError as exc:
-        raise ErrorDeDominio(exc.response.status_code, f"Graph Sites API error: {exc.response.text}") from exc
+        logger.warning("Graph Sites API error %s: %s", exc.response.status_code, exc.response.text[:500])
+        raise error(exc.response.status_code, "servicio_externo_fallo", servicio="Microsoft Graph") from exc
 
 
 # ── Excel export ──────────────────────────────────────────────────────────────
@@ -450,7 +451,7 @@ def _openpyxl():
         from openpyxl.styles import Font, PatternFill, Alignment  # type: ignore
         from openpyxl.utils import get_column_letter  # type: ignore
     except ImportError as exc:
-        raise ErrorDeDominio(500, "openpyxl no instalado") from exc
+        raise error(500, "dependencia_no_instalada", detail="openpyxl no instalado", paquete="openpyxl") from exc
     return Workbook, Font, PatternFill, Alignment, get_column_letter
 
 
@@ -708,7 +709,7 @@ def upload_to_onedrive(
             },
         )
     if resp.status_code not in (200, 201):
-        raise ErrorDeDominio(resp.status_code, f"OneDrive upload error: {resp.text}")
+        raise error(resp.status_code, "servicio_externo_fallo", detail=f"OneDrive upload error: {resp.text}", servicio="OneDrive")
     data = resp.json()
     return {
         "item_id": data.get("id"),

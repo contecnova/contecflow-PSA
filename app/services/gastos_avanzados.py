@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 
 from app.models.expenses import Expense, ExpenseAllocation, ExpenseAttachment, ExpenseStatus
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 CATEGORY_LABELS = {
     "travel": "Viajes y transporte",
@@ -54,12 +55,12 @@ def _gasto(db: Session, usuario, expense_id: str, *, editar: bool = False) -> Ex
     """El gasto, si es de quien llama o quien llama lo gestiona. Para cambiarlo, el dueño sólo en borrador."""
     e = db.query(Expense).filter(Expense.id == expense_id).first()
     if e is None:
-        raise ErrorDeDominio(404, "Gasto no encontrado")
+        raise error(404, "no_encontrado", detail="Gasto no encontrado", que="gasto")
     gestor = es_gestor(db, usuario)
     if e.user_id != usuario.id and not gestor:
-        raise ErrorDeDominio(404, "Gasto no encontrado")
+        raise error(404, "no_encontrado", detail="Gasto no encontrado", que="gasto")
     if editar and not gestor and e.status != ExpenseStatus.draft:
-        raise ErrorDeDominio(409, "Sólo se cambia un gasto en borrador")
+        raise error(409, "solo_estado_borrador", detail="Sólo se cambia un gasto en borrador")
     return e
 
 
@@ -72,7 +73,7 @@ def aplicar_kilometraje(db: Session, expense: Expense) -> None:
     if expense.km is None:
         return
     if expense.km <= 0:
-        raise ErrorDeDominio(400, "Los kilómetros tienen que ser positivos")
+        raise error(400, "kilometros_positivos")
     from app.services.politicas.dominios.gastos import tarifa_por_km
     fila = tarifa_por_km(db, expense) if expense.expense_date else None
     if fila is None:
@@ -84,8 +85,7 @@ def aplicar_kilometraje(db: Session, expense: Expense) -> None:
             from app.services.politicas.dominios.gastos import _tipo
             tipo = _tipo(db, desde, hacia, expense.expense_date, {})
             if tipo is None:
-                raise ErrorDeDominio(422, f"La tarifa por km de «{fila['tabla']}» está en {desde} y no hay tipo de "
-                                          f"cambio {desde}→{hacia} a {expense.expense_date.isoformat()}")
+                raise error(422, "tarifa_km_sin_tipo_de_cambio", nombre=fila['tabla'], moneda=desde, desde=desde, hasta=hacia, fecha=expense.expense_date.isoformat())
             tarifa *= tipo
     expense.amount = round(float(expense.km) * tarifa, 2)
 
@@ -103,7 +103,7 @@ def _tipo_de_documento(db: Session, org, tipo: Optional[str]) -> Optional[str]:
         return None
     from app.services.politicas.servicio import tipos_de_documento
     if tipo not in tipos_de_documento(db, org):
-        raise ErrorDeDominio(422, f"Tipo de documento no configurado: {tipo}")
+        raise error(422, "tipo_de_documento_no_configurado", tipo=tipo)
     return tipo
 
 
@@ -121,9 +121,9 @@ def subir_adjunto(db: Session, usuario, expense_id: str, contenido: bytes, nombr
     tipo_de_documento = _tipo_de_documento(db, e.organization_id, tipo_de_documento)
     maximo = int(_aj(db, "EXPENSE_ATTACHMENT_MAX_MB", e.organization_id, "int")) * 1024 * 1024
     if not contenido:
-        raise ErrorDeDominio(400, "El fichero está vacío")
+        raise error(400, "fichero_vacio")
     if len(contenido) > maximo:
-        raise ErrorDeDominio(413, f"El fichero pasa del máximo ({maximo // (1024 * 1024)} MB)")
+        raise error(413, "fichero_demasiado_grande", detail=f"El fichero pasa del máximo ({maximo // (1024 * 1024)} MB)", max=maximo // (1024 * 1024))
     clave, tamano = file_storage.upload_file(contenido, nombre, f"expense-{e.id}", 1, tipo or "application/octet-stream")
     a = ExpenseAttachment(organization_id=e.organization_id, expense_id=e.id, filename=nombre[:255],
                           content_type=tipo, size_bytes=tamano, storage_key=clave, uploaded_by=usuario.id,
@@ -142,7 +142,7 @@ def tipar_adjunto(db: Session, usuario, attachment_id: str, tipo_de_documento: O
     from app.services.audit import audit_log
     a = db.query(ExpenseAttachment).filter(ExpenseAttachment.id == attachment_id).first()
     if a is None:
-        raise ErrorDeDominio(404, "Justificante no encontrado")
+        raise error(404, "no_encontrado", detail="Justificante no encontrado", que="justificante")
     e = _gasto(db, usuario, a.expense_id, editar=True)
     antes = a.document_type
     a.document_type = _tipo_de_documento(db, e.organization_id, tipo_de_documento)
@@ -156,7 +156,7 @@ def url_de_adjunto(db: Session, usuario, attachment_id: str) -> str:
     from app.services.s3_service import file_storage
     a = db.query(ExpenseAttachment).filter(ExpenseAttachment.id == attachment_id).first()
     if a is None:
-        raise ErrorDeDominio(404, "Justificante no encontrado")
+        raise error(404, "no_encontrado", detail="Justificante no encontrado", que="justificante")
     _gasto(db, usuario, a.expense_id)
     return file_storage.generate_presigned_url(a.storage_key)
 
@@ -166,7 +166,7 @@ def borrar_adjunto(db: Session, usuario, attachment_id: str) -> None:
     from app.services.s3_service import file_storage
     a = db.query(ExpenseAttachment).filter(ExpenseAttachment.id == attachment_id).first()
     if a is None:
-        raise ErrorDeDominio(404, "Justificante no encontrado")
+        raise error(404, "no_encontrado", detail="Justificante no encontrado", que="justificante")
     e = _gasto(db, usuario, a.expense_id, editar=True)
     audit_log(db, usuario, "DELETE", "expense_attachments", e.id, e.code, old_values={"fichero": a.filename})
     db.delete(a)
@@ -197,15 +197,15 @@ def repartir(db: Session, usuario, expense_id: str, partes: list[dict]) -> list[
     if partes:
         ids = [p["project_id"] for p in partes]
         if len(set(ids)) != len(ids):
-            raise ErrorDeDominio(400, "Un proyecto aparece dos veces en el reparto")
+            raise error(400, "reparto_proyecto_repetido")
         if any(float(p["percentage"]) <= 0 for p in partes):
-            raise ErrorDeDominio(400, "Cada parte tiene que ser mayor que cero")
+            raise error(400, "reparto_parte_cero")
         total = sum(float(p["percentage"]) for p in partes)
         if abs(total - 100) > 0.01:
-            raise ErrorDeDominio(400, f"El reparto suma {round(total, 2)} %, tiene que sumar 100 %")
+            raise error(400, "reparto_no_suma_100", suma=round(total, 2))
         existentes = {pid for (pid,) in db.query(Project.id).filter(Project.id.in_(ids)).all()}
         if set(ids) - existentes:
-            raise ErrorDeDominio(404, "Proyecto no encontrado")
+            raise error(404, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")
     db.query(ExpenseAllocation).filter(ExpenseAllocation.expense_id == e.id).delete(synchronize_session=False)
     for p in partes:
         db.add(ExpenseAllocation(organization_id=e.organization_id, expense_id=e.id, project_id=p["project_id"],

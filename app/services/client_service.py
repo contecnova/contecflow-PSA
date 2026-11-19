@@ -35,6 +35,7 @@ from app.core.asignacion import campos_asignables, es_asignable
 from app.core.errores import ErrorDeDominio
 from app.core.paginacion import Pagina, Paginacion, paginar
 from app.models.user import UserRole
+from app.core.codigos_de_error import error
 
 
 # ── Scoped query helpers ───────────────────────────────────────────────────────
@@ -57,7 +58,7 @@ def scoped_client_query(db: Session, current_user: User):
 def get_scoped_client_or_404(db: Session, current_user: User, client_id: str):
     c = scoped_client_query(db, current_user).filter_by(id=client_id).first()
     if not c:
-        raise ErrorDeDominio(404, "Cliente no encontrado")
+        raise error(404, "no_encontrado", detail="Cliente no encontrado", que="cliente")
     return c
 
 
@@ -124,10 +125,7 @@ def _validar_estado(data: dict) -> None:
         return
     validos = [e.value for e in ClientStatus]
     if getattr(estado, "value", estado) not in validos:
-        raise ErrorDeDominio(
-            status_code=422,
-            detail=f"Estado de cliente no válido: {estado}. Válidos: {', '.join(validos)}",
-        )
+        raise error(422, "estado_de_cliente_no_valido", estado=estado, opciones=', '.join(validos))
 
 
 # ── Create client ──────────────────────────────────────────────────────────────
@@ -139,7 +137,7 @@ def create_client_record(data: dict, current_user: User, db: Session) -> dict:
     from app.db.transactions import atomic
 
     if current_user.role not in (UserRole.admin, UserRole.pm) and not current_user.is_superadmin:
-        raise ErrorDeDominio(status_code=403, detail="Solo admin o PM pueden crear clientes")
+        raise error(403, "solo_admin_o_pm", detail="Solo admin o PM pueden crear clientes")
     _validar_estado(data)
 
     with atomic(db):
@@ -442,7 +440,7 @@ def get_client_360(client_id: str, db: Session) -> dict:
 
 def update_client(cid: str, data: dict, current_user: User, db: Session) -> dict:
     if current_user.role not in (UserRole.admin, UserRole.pm) and not current_user.is_superadmin:
-        raise ErrorDeDominio(status_code=403, detail="Solo admin o PM pueden editar clientes")
+        raise error(403, "solo_admin_o_pm", detail="Solo admin o PM pueden editar clientes")
     _validar_estado(data)
     c = get_scoped_client_or_404(db, current_user, cid)
     for k, v in data.items():
@@ -460,7 +458,7 @@ def update_client(cid: str, data: dict, current_user: User, db: Session) -> dict
 
 def delete_client(cid: str, current_user: User, db: Session) -> dict:
     if current_user.role not in (UserRole.admin, UserRole.pm) and not current_user.is_superadmin:
-        raise ErrorDeDominio(status_code=403, detail="Solo admin o PM pueden eliminar clientes")
+        raise error(403, "solo_admin_o_pm", detail="Solo admin o PM pueden eliminar clientes")
     c = get_scoped_client_or_404(db, current_user, cid)
     dependencies = []
     project_count = db.query(func.count(Project.id)).filter(Project.client_id == cid).scalar() or 0
@@ -504,7 +502,7 @@ def delete_client(cid: str, current_user: User, db: Session) -> dict:
         dependencies.append(f"{active_portal_users} usuario(s) de portal activos")
 
     if dependencies:
-        raise ErrorDeDominio(400, f"No se puede eliminar: {', '.join(dependencies)}")
+        raise error(400, "no_se_puede_eliminar", motivo=', '.join(dependencies))
 
     c.is_active = False
     c.status = "inactive"
@@ -563,7 +561,7 @@ def _poner_principal(db: Session, cliente: Client, contact_id: str) -> ClientCon
         ClientContact.is_active == True,  # noqa: E712
     ).first()
     if not ct:
-        raise ErrorDeDominio(404, "Contacto no encontrado")
+        raise error(404, "no_encontrado", detail="Contacto no encontrado", que="contacto")
     _marcar_principal(db, cliente.id, ct)
     _reflejar_en_cliente(cliente, ct)
     return ct
@@ -657,11 +655,11 @@ def dar_acceso_al_portal(cid: str, contact_id: str, datos: dict, current_user: U
         ClientContact.is_active == True,  # noqa: E712
     ).first()
     if not ct:
-        raise ErrorDeDominio(404, "Contacto no encontrado")
+        raise error(404, "no_encontrado", detail="Contacto no encontrado", que="contacto")
     if ct.portal_user_id and db.get(ClientUser, ct.portal_user_id) is not None:
-        raise ErrorDeDominio(409, "Este contacto ya tiene acceso al portal")
+        raise error(409, "contacto_ya_en_portal")
     if not _texto(ct.email):
-        raise ErrorDeDominio(400, "El contacto necesita un email para acceder al portal")
+        raise error(400, "contacto_sin_email")
     from app.schemas.client_portal import ClientCreateIn
     from app.services.client_portal_service import create_client as crear_usuario_del_portal
     payload = ClientCreateIn(
@@ -672,7 +670,8 @@ def dar_acceso_al_portal(cid: str, contact_id: str, datos: dict, current_user: U
     try:
         creado = crear_usuario_del_portal(payload, db)
     except ValueError as e:
-        raise ErrorDeDominio(400, str(e))
+        from app.core.codigos_de_error import desde_valor
+        raise desde_valor(400, e)
     # El enlace es con ESTE contacto (aunque otro compartiera el email).
     for otro in db.query(ClientContact).filter(ClientContact.portal_user_id == creado["id"],
                                                ClientContact.id != ct.id).all():
@@ -721,7 +720,7 @@ def _contacto_activo_o_404(db: Session, cid: str, contact_id: str) -> ClientCont
         ClientContact.is_active == True,  # noqa: E712
     ).first()
     if not ct:
-        raise ErrorDeDominio(404, "Contacto no encontrado")
+        raise error(404, "no_encontrado", detail="Contacto no encontrado", que="contacto")
     return ct
 
 
@@ -759,7 +758,7 @@ def add_contact(cid: str, data: dict, db: Session, current_user: Optional[User] 
     ct = ClientContact(client_id=cid, organization_id=c.organization_id,
                        **campos_asignables(ClientContact, data, _CONTACTO_PROTEGIDOS))
     if not _texto(ct.full_name):
-        raise ErrorDeDominio(422, "El nombre es obligatorio")
+        raise error(422, "nombre_vacio", detail="El nombre es obligatorio")
     db.add(ct)
     db.flush()
     # Un contacto marcado como principal pasa a ser EL principal y la ficha del cliente lo refleja.
@@ -783,7 +782,7 @@ def update_contact(cid: str, contact_id: str, data: dict, db: Session,
         if es_asignable(ct, k, _CONTACTO_PROTEGIDOS):
             setattr(ct, k, v if v != "" or k == "full_name" else None)
     if not _texto(ct.full_name):
-        raise ErrorDeDominio(422, "El nombre es obligatorio")
+        raise error(422, "nombre_vacio", detail="El nombre es obligatorio")
     cliente = db.get(Client, cid)
     if ct.is_primary or (data.get("role") == ClientContactRole.primary.value):
         _marcar_principal(db, cid, ct)
@@ -817,7 +816,7 @@ def _reflejar_en_usuario_del_portal(db: Session, ct: ClientContact) -> None:
         otro = db.query(ClientUser.id).filter(func.lower(ClientUser.email) == email.lower(),
                                               ClientUser.id != usuario.id).first()
         if otro:
-            raise ErrorDeDominio(409, "Ya existe un usuario de portal con ese email")
+            raise error(409, "email_ya_registrado", detail="Ya existe un usuario de portal con ese email")
         usuario.email = email
     if _texto(ct.full_name):
         usuario.full_name = ct.full_name
@@ -882,16 +881,16 @@ def list_client_licenses(cid: str, db: Session) -> list:
 
 def link_license(cid: str, data: dict, db: Session) -> dict:
     if not db.query(Client).filter(Client.id == cid, Client.is_active == True).first():
-        raise ErrorDeDominio(404, "Cliente no encontrado")
+        raise error(404, "no_encontrado", detail="Cliente no encontrado", que="cliente")
     lic_id = data.get("license_id")
     if not lic_id or not db.query(ALMLicense).filter(ALMLicense.id == lic_id).first():
-        raise ErrorDeDominio(404, "Licencia no encontrada")
+        raise error(404, "no_encontrado", detail="Licencia no encontrada", que="licencia")
     existing = db.query(ClientLicenseLink).filter(
         ClientLicenseLink.client_id == cid,
         ClientLicenseLink.license_id == lic_id,
     ).first()
     if existing and existing.is_active:
-        raise ErrorDeDominio(409, "Licencia ya vinculada a este cliente")
+        raise error(409, "licencia_ya_vinculada")
     if existing and not existing.is_active:
         existing.is_active = True
         existing.notes = data.get("notes")
@@ -959,16 +958,16 @@ def list_client_contracts(cid: str, db: Session) -> list:
 
 def link_contract(cid: str, data: dict, db: Session) -> dict:
     if not db.query(Client).filter(Client.id == cid, Client.is_active == True).first():
-        raise ErrorDeDominio(404, "Cliente no encontrado")
+        raise error(404, "no_encontrado", detail="Cliente no encontrado", que="cliente")
     con_id = data.get("contract_id")
     if not con_id or not db.query(Contract).filter(Contract.id == con_id).first():
-        raise ErrorDeDominio(404, "Contrato no encontrado")
+        raise error(404, "no_encontrado", detail="Contrato no encontrado", que="contrato")
     existing = db.query(ClientContractLink).filter(
         ClientContractLink.client_id == cid,
         ClientContractLink.contract_id == con_id,
     ).first()
     if existing and existing.is_active:
-        raise ErrorDeDominio(409, "Contrato ya vinculado")
+        raise error(409, "contrato_ya_vinculado")
     if existing and not existing.is_active:
         existing.is_active = True
         db.commit()
@@ -1137,13 +1136,13 @@ def list_available_projects(cid: str, db: Session) -> list:
 def link_project(cid: str, project_id: str, db: Session) -> dict:
     client = db.query(Client).filter(Client.id == cid, Client.is_active == True).first()
     if not client:
-        raise ErrorDeDominio(404, "Cliente no encontrado")
+        raise error(404, "no_encontrado", detail="Cliente no encontrado", que="cliente")
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
-        raise ErrorDeDominio(404, "Proyecto no encontrado")
+        raise error(404, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")
     if project.client_id and project.client_id != cid:
         other = db.query(Client).filter(Client.id == project.client_id).first()
-        raise ErrorDeDominio(409, f"El proyecto ya está vinculado al cliente '{other.name if other else project.client_id}'")
+        raise error(409, "proyecto_ya_vinculado_a_cliente", detail=f"El proyecto ya está vinculado al cliente '{other.name if other else project.client_id}'", cliente=other.name if other else project.client_id)
     project.client_id = cid
     project.client_name = client.name
     db.commit()
@@ -1155,7 +1154,7 @@ def unlink_project(cid: str, project_id: str, db: Session) -> dict:
         Project.id == project_id, Project.client_id == cid
     ).first()
     if not project:
-        raise ErrorDeDominio(404, "Proyecto no encontrado o no vinculado a este cliente")
+        raise error(404, "proyecto_no_vinculado_a_cliente")
     project.client_id = None
     project.client_name = None
     db.commit()

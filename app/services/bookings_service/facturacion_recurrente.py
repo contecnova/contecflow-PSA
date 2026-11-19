@@ -15,6 +15,7 @@ from app.core.asignacion import es_asignable
 from app.core.errores import ErrorDeDominio
 
 from app.services.bookings_service._comun import logger
+from app.core.codigos_de_error import error
 
 
 def serialize_recurring(r) -> dict:
@@ -81,7 +82,7 @@ def generate_recurring_now_record(rec_id: str, db, current_user) -> dict:
     import calendar as _cal
     r = db.query(RecurringInvoice).options(joinedload(RecurringInvoice.project)).filter(RecurringInvoice.id == rec_id).first()
     if not r: raise ErrorDeDominio(404)
-    if not r.is_active: raise ErrorDeDominio(400, "Factura recurrente inactiva")
+    if not r.is_active: raise error(400, "factura_recurrente_inactiva")
     year = datetime.now(timezone.utc).year
     max_inv = db.query(func.max(Invoice.number)).filter(Invoice.number.like(f"INV-{year}-%")).scalar()
     if max_inv:

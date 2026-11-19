@@ -17,6 +17,7 @@ from app.models.project import Project
 from app.models.task import Task
 from app.core import timeutil
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +28,11 @@ def get_ai_gantt_suggestions(project_id: str, db: Session, current_user=None) ->
     # de org A podría ver tasks/títulos de org B vía suggestions.
     proj = db.query(Project).filter(Project.id == project_id).first()
     if not proj:
-        raise ErrorDeDominio(404, "Project not found")
+        raise error(404, "no_encontrado", detail="Project not found", que="proyecto")
     if current_user is not None and not bool(getattr(current_user, "is_superadmin", False)):
         cu_org = getattr(current_user, "organization_id", None)
         if cu_org and getattr(proj, "organization_id", None) and proj.organization_id != cu_org:
-            raise ErrorDeDominio(404, "Project not found")
+            raise error(404, "no_encontrado", detail="Project not found", que="proyecto")
 
     tasks = db.query(Task).filter(Task.project_id == project_id).all()
     today = timeutil.today()
@@ -107,10 +108,10 @@ def _autorizar_consulta_de_anomalias(db: Session, user_id: str, current_user) ->
 
     objetivo = db.query(_User).filter(_User.id == user_id).first()
     if not objetivo:
-        raise ErrorDeDominio(404, "User not found")
+        raise error(404, "no_encontrado", detail="User not found", que="usuario")
     organizacion = getattr(current_user, "organization_id", None)
     if organizacion and getattr(objetivo, "organization_id", None) != organizacion:
-        raise ErrorDeDominio(404, "User not found")
+        raise error(404, "no_encontrado", detail="User not found", que="usuario")
 
 
 def _umbral_de_horas(horas_por_dia: dict) -> tuple[float, str]:

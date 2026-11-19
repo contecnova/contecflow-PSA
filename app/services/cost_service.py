@@ -25,6 +25,7 @@ from app.models.user_cost import CountryEmployerCost, UserCostProfile
 from app.core.asignacion import es_asignable
 from app.core.errores import ErrorDeDominio
 from app.core.config import settings as _settings
+from app.core.codigos_de_error import error
 
 
 # ── Default presets seeded on first run ──────────────────────────────────────
@@ -369,7 +370,7 @@ def usuario_propio(db: Session, actor, user_id: str) -> User:
         .first()
     )
     if not fila:
-        raise ErrorDeDominio(404, "User not found")
+        raise error(404, "no_encontrado", detail="User not found", que="usuario")
     return fila
 
 
@@ -384,7 +385,7 @@ def perfil_propio(db: Session, actor, profile_id: str) -> UserCostProfile:
         .first()
     )
     if not fila:
-        raise ErrorDeDominio(404, "Profile not found")
+        raise error(404, "no_encontrado", detail="Profile not found", que="perfil")
     return fila
 
 
@@ -407,7 +408,7 @@ def preset_propio_o_global(db: Session, actor, preset_id: str) -> CountryEmploye
         .first()
     )
     if not fila:
-        raise ErrorDeDominio(404, "Preset not found")
+        raise error(404, "no_encontrado", detail="Preset not found", que="preajuste")
     return fila
 
 
@@ -450,8 +451,7 @@ def borrar_preset_de_pais(db: Session, actor, preset_id: str) -> None:
     """Borra un preset propio. Los globales no se borran: se sobrescriben."""
     fila = preset_propio_o_global(db, actor, preset_id)
     if fila.organization_id is None:
-        raise ErrorDeDominio(
-            400, "Global presets cannot be deleted; override per-org instead.")
+        raise error(400, "preajuste_global_no_borrable", detail="Global presets cannot be deleted; override per-org instead.")
     db.delete(fila)
     db.commit()
 

@@ -28,13 +28,13 @@ import SeccionDeAjustes from './settings-sections/SeccionDeAjustes'
 import ConfirmarBajaModal from '../components/alm/ConfirmarBajaModal'
 import { IdiomasSection, LogLevelSection, SystemStateSection, RuntimeFlagsSection, IntegrationCredentialsSection } from './settings-sections/SettingsAdvancedSections'
 
-import { ROLE_LABELS, ROLE_COLORS } from '../constants/api'
 import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
 import { useOrgSettings } from '../hooks/useOrgSettings'
 import { timezoneOptions } from '../constants/timezones'
 import { COLOR_DATO_POR_DEFECTO } from '../constants/theme'
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 import './SettingsPageSections.css'
+import { useRolesReales } from '../hooks/useRolesReales'
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 // Formas de lo que devuelve la API para cada sección (app/schemas/** y los
@@ -199,11 +199,11 @@ function UsersSection() {
   const { data: departments = [] } = useQuery({ queryKey: ['departments-select'], queryFn: () => settingsApi.getDepartments().then(r => r.data) })
   // La lista de empresas y asignar a otras es del superadmin (la API la sirve
   // sólo a él); un admin de empresa da de alta en la suya (revisión 2026-11).
-  const { user: yo, hasRole } = useAuth()
-  const esSuperadmin = !!yo?.is_superadmin
+  const { puede } = useAuth()
+  const esSuperadmin = puede('plataforma.empresas')
   // 18-11-2026: alta, baja y borrado son `require_admin` (app/api/v1/endpoints/users.py);
   // RRHH veía los botones y recibía 403. RRHH sigue editando fichas.
-  const esAdmin = hasRole('admin')
+  const esAdmin = puede('org.administrar')
   const { data: organizations = [] } = useQuery<Organizacion[]>({ queryKey: ['orgs-for-users'], queryFn: () => organizationsApi.list().then(r => r.data), enabled: esSuperadmin })
   const roleMap = Object.fromEntries(roles.map(r => [r.name, r]))
   // El formulario envía los campos tal como los tiene (la tarifa y las horas como
@@ -267,8 +267,8 @@ function UsersSection() {
       {isLoading ? <Spinner /> : (
         <div className="u-stack-8">
           {filtered.map(u => {
-            const roleColor = roleMap[u.role]?.color || ROLE_COLORS[u.role] || 'var(--text-2)'
-            const roleLabel = roleMap[u.role]?.description || etiquetaCodigo(t, 'rol_usuario', u.role, ROLE_LABELS[u.role])
+            const roleColor = roleMap[u.role]?.color || 'var(--text-2)'
+            const roleLabel = roleMap[u.role]?.description || etiquetaCodigo(t, 'rol_usuario', u.role)
             const orgs = Array.isArray(u.organizations) ? u.organizations : []
             const primaryOrgId = u.organization_id || ''
             const principal = ` (${t('settings_sections.principal')})`
@@ -384,6 +384,8 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
     password: '',
   })
   const validation = useFormValidation(isEdit ? userEditSchema : userCreateSchema)
+  // 19-11-2026: roles reales del backend (`GET /auth/roles`), no una lista escrita aquí.
+  const rolesReales = useRolesReales()
   const set = (k: keyof UserFormValues) => (e: InputChange) => {
     setForm(f => ({ ...f, [k]: e.target.value }))
     validation.clearFieldError(k)
@@ -421,7 +423,7 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
         <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="set-label">{t('settings_sections.email')} *</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="email" value={form.email} onChange={set('email')} className="set-input" aria-invalid={!!validation.errors.email} />{errField('email')}</div>
         <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="set-label">{t('settings_sections.rol')}</label><Select suelto placeholder={false} id={`${idCampo}-4`} value={form.role} onChange={set('role')} className="set-input" error={!!validation.errors.role}>
           {/* Un externo se da de alta desde su proveedor (Recursos o Subcontratistas): aquí solo se muestra si ya lo es. */}
-          {Object.entries(ROLE_LABELS).filter(([v]) => v !== 'subcontractor' || form.role === 'subcontractor').map(([v, l]) => <option key={v} value={v}>{etiquetaCodigo(t, 'rol_usuario', v, l)}</option>)}
+          {rolesReales.filter(r => r.interno || form.role === r.id).map(r => <option key={r.id} value={r.id}>{r.etiqueta}</option>)}
         </Select>{errField('role')}</div>
         <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="set-label">{t('settings_sections.rol_personalizado')}</label><Select suelto placeholder={t('settings_sections.ninguno_rol_base')} id={`${idCampo}-5`} value={form.custom_role_id} onChange={set('custom_role_id')} className="set-input">
           {roles.filter(r => !r.is_system).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}

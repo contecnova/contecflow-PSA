@@ -75,7 +75,8 @@ class ProcesoSettingsMixin:
     VAPID_CONTACT: str = Field(default="mailto:noreply@contecflow.local", description="Web push contact.")
     VAPID_PUBLIC_KEY: Optional[str] = Field(default=None, description="Web push public key.")
     VAPID_PRIVATE_KEY: Optional[str] = Field(default=None, description="Web push private key.")
-    APP_PUBLIC_URL: str = Field(default="http://localhost:3000", description="Link base in the chat email digest.")
+    # 19-11-2026: vacío = FRONTEND_URL (antes localhost:3000, distinto del 5173 de FRONTEND_URL).
+    APP_PUBLIC_URL: str = Field(default="", description="Link base in the chat email digest (empty: FRONTEND_URL).")
 
     # ── Collaboration OAuth providers (looked up by name from PROVIDERS) ─────
     MS365_TENANT_ID: str = Field(default="common", description="Microsoft 365 tenant for collaboration OAuth.")
@@ -91,6 +92,12 @@ class ProcesoSettingsMixin:
     GITLAB_CLIENT_ID: Optional[str] = Field(default=None, description="Collaboration OAuth — GitLab client id.")
     GITLAB_CLIENT_SECRET: Optional[str] = Field(default=None, description="Collaboration OAuth — GitLab secret.")
     GITLAB_REDIRECT_URI: Optional[str] = Field(default=None, description="Collaboration OAuth — GitLab redirect.")
+    # 19-11-2026: GitHub Enterprise Server y GitLab propio. Cada integración puede
+    # llevar las suyas en `config` (`web_base` / `api_base`); estas son el valor
+    # por defecto de la instalación.
+    GITHUB_WEB_BASE: str = Field(default="https://github.com", description="GitHub web/OAuth base (GHES: https://github.empresa.com).")
+    GITHUB_API_BASE: str = Field(default="https://api.github.com", description="GitHub REST API base (GHES: https://github.empresa.com/api/v3).")
+    GITLAB_BASE_URL: str = Field(default="https://gitlab.com", description="GitLab base URL (self-managed: https://gitlab.empresa.com).")
     GOOGLE_CLIENT_ID: Optional[str] = Field(default=None, description="Collaboration OAuth — Google client id.")
     GOOGLE_CLIENT_SECRET: Optional[str] = Field(default=None, description="Collaboration OAuth — Google secret.")
     GOOGLE_REDIRECT_URI: Optional[str] = Field(default=None, description="Collaboration OAuth — Google redirect.")

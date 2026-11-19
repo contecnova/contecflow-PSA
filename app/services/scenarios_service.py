@@ -134,7 +134,12 @@ def _semana_iso(dia: date) -> str:
 
 
 def _horas_reservadas_por_semana(db: Session, desde: date, hasta: date, excluir: set) -> dict:
-    """Horas de reservas firmes y activas por semana ISO, en dias laborables."""
+    """Horas de reservas firmes y activas por semana ISO, en dias laborables.
+
+    19-11-2026: los dias laborables son los del horario efectivo de la persona
+    reservada (su jornada o turno, sin festivos de empresa ni de su sede); antes,
+    lunes a viernes fijo. Una reserva sin persona usa el calendario de la empresa.
+    """
     from app.models.bookings import BookingType, ResourceBooking
     reservas = db.query(ResourceBooking).filter(
         ResourceBooking.is_active == True,
@@ -143,13 +148,20 @@ def _horas_reservadas_por_semana(db: Session, desde: date, hasta: date, excluir:
         ResourceBooking.end_date >= desde,
     ).all()
     por_dia = jornada_de_empresa(db)  # 18-11-2026: la de la empresa, no la global
+    from app.services.horario import efectivo as hor
+    from app.services.planificador.calendario import calendario_de_empresa
+    empresa = calendario_de_empresa(db, db.info.get("organization_id"))
+    planes = hor.horarios(db, {r.user_id for r in reservas if r.user_id}, desde, hasta,
+                          estados_ausencia=None) if reservas else {}
     semanas: dict = {}
     for r in reservas:
         if r.project_id and r.project_id in excluir:
             continue
+        plan = planes.get(r.user_id)
         dia = max(r.start_date, desde)
         while dia <= r.end_date and dia < hasta:
-            if dia.weekday() < 5:
+            x = plan.get(dia) if plan is not None else None
+            if (x.laborable if x is not None else empresa.es_laborable(dia)):
                 clave = _semana_iso(dia)
                 semanas[clave] = semanas.get(clave, 0) + (r.hours_per_day or por_dia)
             dia += timedelta(days=1)

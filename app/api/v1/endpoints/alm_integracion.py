@@ -51,7 +51,7 @@ def mio(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
 
 @router.get("/mio/opciones", summary="Qué puedo pedir (licencias y tipos de equipo del catálogo)")
 def opciones(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    return APIResponse.ok(data=autoservicio.opciones_de_peticion(db))
+    return APIResponse.ok(data=autoservicio.opciones_de_peticion(db, user))
 
 
 @router.post("/mio/peticiones", summary="Pedir una licencia o un equipo (va al catálogo)")

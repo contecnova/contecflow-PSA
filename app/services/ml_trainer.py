@@ -21,6 +21,7 @@ import uuid
 from typing import Optional
 
 from sqlalchemy.orm import Session
+from app.core.codigos_de_error import ErrorConCodigo
 
 logger = logging.getLogger(__name__)
 
@@ -68,10 +69,7 @@ def _deserialize_model(data: bytes):
         )
         from app.core.config import settings as _settings
         if _settings.ENVIRONMENT != "development":
-            raise ValueError(
-                "ML model integrity check failed — unsigned legacy models are not allowed "
-                "in non-development environments. Retrain the model to apply HMAC protection."
-            )
+            raise ErrorConCodigo("error_interno", detail="ML model integrity check failed — unsigned legacy models are not allowed in non-development environments. Retrain the model to apply HMAC protection.")
         return joblib.load(io.BytesIO(data))
 
     sig, raw = data[:32], data[32:]
@@ -79,9 +77,7 @@ def _deserialize_model(data: bytes):
     # Firmado con la clave actual o con una anterior (rotacion de SECRET_KEY).
     if not any(_hmac.compare_digest(sig, _hmac.new(c.encode(), raw, hashlib.sha256).digest())
                for c in claves_secretas()):
-        raise ValueError(
-            "ML model integrity check failed — model bytes may have been tampered with"
-        )
+        raise ErrorConCodigo("error_interno", detail="ML model integrity check failed — model bytes may have been tampered with")
     return joblib.load(io.BytesIO(raw))
 
 

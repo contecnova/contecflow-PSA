@@ -28,6 +28,8 @@ from app.core.config import settings
 from app.db.base import Base
 from app.models.mfa import Organization
 from app.models.user import User, UserOrganizationMembership
+from app.core.codigos_de_error import error
+from app.core.codigos_de_error import ErrorConCodigo
 
 _log = logging.getLogger(__name__)
 
@@ -215,7 +217,7 @@ def purgar(db: Session, org_id: str) -> dict:
             otra = db.execute(sa.select(Organization.id).where(Organization.id != org_id)
                               .order_by(Organization.created_at)).scalar()
             if otra is None:
-                raise ValueError("Es la única empresa y en ella vive el superadmin: no se puede borrar")
+                raise ErrorConCodigo("empresa_unica_no_borrable", detail="Es la única empresa y en ella vive el superadmin: no se puede borrar")
             db.execute(sa.update(User.__table__).where(User.organization_id == org_id, User.is_superadmin.is_(True))
                        .values(organization_id=otra))
         # Lo de FUERA de la empresa (otras empresas, filas globales) que apunta a
@@ -297,34 +299,31 @@ def usuario_de(db: Session, user_id: str) -> User:
 # ── Lo que hacen los endpoints de superadmin: auditar y confirmar ─────────────
 
 def _obtener_o_404(db: Session, org_id: str) -> Organization:
-    from app.core.errores import ErrorDeDominio
     try:
         return obtener(db, org_id)
     except ValueError:
-        raise ErrorDeDominio(404, "Empresa no encontrada")
+        raise error(404, "no_encontrado", detail="Empresa no encontrada", que="empresa")
 
 
 def pedir_baja_auditada(db: Session, org_id: str, motivo: str, actor) -> Organization:
-    from app.core.errores import ErrorDeDominio
     from app.services.audit import audit_log
     org = _obtener_o_404(db, org_id)
     try:
         pedir_baja(db, org, motivo, actor)
     except ValueError:
-        raise ErrorDeDominio(422, "Para dar de baja una empresa hay que indicar el motivo")
+        raise error(422, "baja_requiere_motivo")
     audit_log(db, actor, "ORG_DELETION_REQUESTED", "organizations", org.id, motivo[:200])
     db.commit()
     return org
 
 
 def deshacer_baja_auditada(db: Session, org_id: str, actor) -> Organization:
-    from app.core.errores import ErrorDeDominio
     from app.services.audit import audit_log
     org = _obtener_o_404(db, org_id)
     try:
         deshacer_baja(db, org)
     except ValueError:
-        raise ErrorDeDominio(409, "Esta empresa no tiene una baja pedida")
+        raise error(409, "empresa_sin_baja_pedida")
     audit_log(db, actor, "ORG_DELETION_CANCELLED", "organizations", org.id, org.name)
     db.commit()
     return org

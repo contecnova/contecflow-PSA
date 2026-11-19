@@ -32,6 +32,7 @@ from app.services.auth_service import (
 )
 from app.api.cookies_de_sesion import set_auth_cookies as _set_auth_cookies
 from app.core.network import extract_client_ip as _client_ip
+from app.core.codigos_de_error import error_http
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -71,12 +72,12 @@ def mfa_setup(
     try:
         import pyotp
     except ImportError:
-        raise HTTPException(500, "pyotp no instalado — ejecuta: pip install pyotp")
+        raise error_http(500, "dependencia_no_instalada", detail="pyotp no instalado — ejecuta: pip install pyotp", paquete="pyotp")
 
     try:
         import qrcode
     except ImportError:
-        raise HTTPException(500, "qrcode no instalado — ejecuta: pip install qrcode[pil]")
+        raise error_http(500, "dependencia_no_instalada", detail="qrcode no instalado — ejecuta: pip install qrcode[pil]", paquete="qrcode")
 
     try:
         import io
@@ -109,13 +110,13 @@ def mfa_setup(
         }
     except ImportError as ie:
         logger.error("ImportError en MFA setup: %s", ie, exc_info=True)
-        raise HTTPException(500, f"Dependencia faltante en 2FA: {ie}")
+        raise error_http(500, "dependencia_no_instalada", detail=f"Dependencia faltante en 2FA: {ie}", paquete="2FA")
     except Exception as e:
         import traceback
         tb = traceback.format_exc()
         logger.error("MFA setup error: %s\nTraceback:\n%s", e, tb)
         msg = str(e) if settings.ENVIRONMENT == "development" else "Error al configurar 2FA"
-        raise HTTPException(500, msg)
+        raise error_http(500, "mfa_configuracion_error", detail=msg)
 
 
 @router.post("/mfa/verify-setup", summary="Verificar código TOTP y activar 2FA")
@@ -130,22 +131,22 @@ def mfa_verify_setup(
     try:
         import pyotp
     except ImportError:
-        raise HTTPException(500, "pyotp no instalado")
+        raise error_http(500, "dependencia_no_instalada", detail="pyotp no instalado", paquete="pyotp")
 
     code   = (payload.code or "").strip()
     raw_secret = current_user.mfa_secret
     secret = decrypt_value(raw_secret) if raw_secret else None
 
     if not secret:
-        raise HTTPException(400, "Primero inicia la configuración con /mfa/setup")
+        raise error_http(400, "mfa_iniciar_configuracion", detail="Primero inicia la configuración con /mfa/setup")
     if not code:
-        raise HTTPException(400, "Código requerido")
+        raise error_http(400, "mfa_codigo_requerido", detail="Código requerido")
 
     totp  = pyotp.TOTP(secret)
     valid = totp.verify(code, valid_window=1)  # permite ±30s
 
     if not valid:
-        raise HTTPException(400, "Código incorrecto o expirado. Asegúrate de que la hora del dispositivo es correcta.")
+        raise error_http(400, "mfa_codigo_incorrecto_hora", detail="Código incorrecto o expirado. Asegúrate de que la hora del dispositivo es correcta.")
 
     current_user.mfa_enabled = True
     current_user.mfa_verified_at = datetime.now(timezone.utc)
@@ -188,22 +189,22 @@ def mfa_validate(
     try:
         import pyotp
     except ImportError:
-        raise HTTPException(500, "pyotp no instalado")
+        raise error_http(500, "dependencia_no_instalada", detail="pyotp no instalado", paquete="pyotp")
 
     challenge_token = payload.mfa_challenge_token
     code    = (payload.code or "").strip()
 
     if not challenge_token:
-        raise HTTPException(400, "mfa_challenge_token requerido")
+        raise error_http(400, "mfa_challenge_requerido", detail="mfa_challenge_token requerido")
 
     challenge_data, challenge_row = _read_mfa_challenge(db, challenge_token)
     user_id = challenge_data.get("sub")
 
     user = _svc.lookup_user_by_id_active(db, user_id)
     if not user:
-        raise HTTPException(404, "Usuario no encontrado")
+        raise error_http(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
     if not user.mfa_enabled or not user.mfa_secret:
-        raise HTTPException(400, "Este usuario no tiene TOTP activo. Usa autenticación WebAuthn/passkey.")
+        raise error_http(400, "mfa_sin_totp", detail="Este usuario no tiene TOTP activo. Usa autenticación WebAuthn/passkey.")
 
     totp  = pyotp.TOTP(decrypt_value(user.mfa_secret) or "")
     # Auditoria 2026-11: un codigo TOTP valido se podia reutilizar dentro de su
@@ -232,8 +233,8 @@ def mfa_validate(
             _consume_mfa_challenge(challenge_row)
         _svc.commit_db(db)
         if agotado:
-            raise HTTPException(401, "Demasiados intentos. Vuelve a iniciar sesión.")
-        raise HTTPException(401, "Código 2FA incorrecto")
+            raise error_http(401, "mfa_demasiados_intentos", detail="Demasiados intentos. Vuelve a iniciar sesión.")
+        raise error_http(401, "mfa_codigo_incorrecto", detail="Código 2FA incorrecto")
 
     from app.services import entrada_service as _entrada
     org = _entrada.confirmar(db, user, request, challenge_data.get("org"))
@@ -284,17 +285,17 @@ def mfa_disable(
     try:
         import pyotp
     except ImportError:
-        raise HTTPException(500, "pyotp no instalado")
+        raise error_http(500, "dependencia_no_instalada", detail="pyotp no instalado", paquete="pyotp")
 
     code = payload.code.strip()
     if not current_user.mfa_enabled:
-        raise HTTPException(400, "2FA no estaba activado")
+        raise error_http(400, "mfa_no_activado", detail="2FA no estaba activado")
 
     totp  = pyotp.TOTP(decrypt_value(current_user.mfa_secret) or "")
     valid = totp.verify(code, valid_window=1)
 
     if not valid:
-        raise HTTPException(401, "Código incorrecto")
+        raise error_http(401, "mfa_codigo_incorrecto", detail="Código incorrecto")
 
     current_user.mfa_secret = None
     current_user.mfa_verified_at = None
@@ -332,7 +333,7 @@ def webauthn_register_start(
             UserVerificationRequirement,
         )
     except ImportError:
-        raise HTTPException(503, "webauthn no instalado — ejecuta: pip install webauthn")
+        raise error_http(503, "dependencia_no_instalada", detail="webauthn no instalado — ejecuta: pip install webauthn", paquete="webauthn")
 
     existing = _svc.get_active_user_credentials(db, current_user.id)
     exclude_credentials = [
@@ -377,17 +378,17 @@ def webauthn_register_finish(
     try:
         from webauthn import verify_registration_response
     except ImportError:
-        raise HTTPException(503, "webauthn no instalado — ejecuta: pip install webauthn")
+        raise error_http(503, "dependencia_no_instalada", detail="webauthn no instalado — ejecuta: pip install webauthn", paquete="webauthn")
 
     challenge_token = payload.webauthn_challenge_token
     credential = payload.credential
     nickname = payload.name
     if not challenge_token or not credential:
-        raise HTTPException(400, "webauthn_challenge_token y credential son obligatorios")
+        raise error_http(400, "webauthn_datos_obligatorios", detail="webauthn_challenge_token y credential son obligatorios", campos="webauthn_challenge_token, credential")
 
     token_data = _read_ephemeral_token(challenge_token, "webauthn_register_challenge")
     if token_data.get("sub") != current_user.id:
-        raise HTTPException(403, "El challenge no pertenece al usuario autenticado")
+        raise error_http(403, "webauthn_challenge_ajeno", detail="El challenge no pertenece al usuario autenticado")
 
     try:
         verification = verify_registration_response(
@@ -398,7 +399,7 @@ def webauthn_register_finish(
             require_user_verification=True,
         )
     except Exception as exc:
-        raise HTTPException(400, f"Registro WebAuthn inválido: {exc}")
+        raise error_http(400, "webauthn_registro_no_valido", detail=f"Registro WebAuthn inválido: {exc}")
 
     credential_id = _b64url_encode(verification.credential_id)
     _svc.upsert_webauthn_credential(
@@ -452,10 +453,10 @@ def webauthn_rename_credential(
 ):
     cred = _svc.get_active_webauthn_credential(db, credential_id, current_user.id)
     if not cred:
-        raise HTTPException(404, "Passkey no encontrada")
+        raise error_http(404, "no_encontrado", detail="Passkey no encontrada", que="llave_de_acceso")
     nombre = str(payload.get("name") or "").strip()[:100]
     if not nombre:
-        raise HTTPException(422, "El nombre no puede estar vacío")
+        raise error_http(422, "nombre_vacio")
     cred.name = nombre
     _svc.commit_db(db)
     return {"ok": True, "id": cred.id, "name": cred.name}
@@ -469,7 +470,7 @@ def webauthn_delete_credential(
 ):
     cred = _svc.get_active_webauthn_credential(db, credential_id, current_user.id)
     if not cred:
-        raise HTTPException(404, "Passkey no encontrada")
+        raise error_http(404, "no_encontrado", detail="Passkey no encontrada", que="llave_de_acceso")
     cred.is_active = False
     remaining = _svc.has_remaining_active_credentials(db, current_user.id, credential_id)
     if not remaining and not current_user.mfa_secret:
@@ -495,21 +496,21 @@ def webauthn_auth_start(
         from webauthn import generate_authentication_options, options_to_json
         from webauthn.helpers.structs import PublicKeyCredentialDescriptor, UserVerificationRequirement
     except ImportError:
-        raise HTTPException(503, "webauthn no instalado — ejecuta: pip install webauthn")
+        raise error_http(503, "dependencia_no_instalada", detail="webauthn no instalado — ejecuta: pip install webauthn", paquete="webauthn")
 
     mfa_challenge_token = payload.mfa_challenge_token
     if not mfa_challenge_token:
-        raise HTTPException(400, "mfa_challenge_token requerido")
+        raise error_http(400, "mfa_challenge_requerido", detail="mfa_challenge_token requerido")
 
     mfa_data, _ = _read_mfa_challenge(db, mfa_challenge_token)
     user_id = mfa_data.get("sub")
     user = _svc.lookup_user_by_id_active(db, user_id)
     if not user:
-        raise HTTPException(404, "Usuario no encontrado")
+        raise error_http(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
 
     creds = _svc.get_active_user_credentials(db, user.id)
     if not creds:
-        raise HTTPException(400, "El usuario no tiene passkeys registradas")
+        raise error_http(400, "sin_passkeys")
 
     allow_credentials = [
         PublicKeyCredentialDescriptor(id=_b64url_decode(c.credential_id))
@@ -544,28 +545,28 @@ def webauthn_auth_finish(
     try:
         from webauthn import verify_authentication_response
     except ImportError:
-        raise HTTPException(503, "webauthn no instalado — ejecuta: pip install webauthn")
+        raise error_http(503, "dependencia_no_instalada", detail="webauthn no instalado — ejecuta: pip install webauthn", paquete="webauthn")
 
     mfa_challenge_token = payload.mfa_challenge_token
     webauthn_challenge_token = payload.webauthn_challenge_token
     credential = payload.credential
     if not mfa_challenge_token or not webauthn_challenge_token or not credential:
-        raise HTTPException(400, "mfa_challenge_token, webauthn_challenge_token y credential son obligatorios")
+        raise error_http(400, "webauthn_datos_obligatorios", detail="mfa_challenge_token, webauthn_challenge_token y credential son obligatorios", campos="mfa_challenge_token, webauthn_challenge_token, credential")
 
     mfa_data, challenge_row = _read_mfa_challenge(db, mfa_challenge_token)
     user_id = mfa_data.get("sub")
 
     webauthn_data = _read_ephemeral_token(webauthn_challenge_token, "webauthn_auth_challenge")
     if webauthn_data.get("sub") != user_id:
-        raise HTTPException(401, "webauthn_challenge_token inválido")
+        raise error_http(401, "webauthn_challenge_no_valido", detail="webauthn_challenge_token inválido")
 
     credential_id = credential.get("id")
     if not credential_id:
-        raise HTTPException(400, "Credential inválida")
+        raise error_http(400, "webauthn_credencial_no_valida", detail="Credential inválida")
 
     cred = _svc.get_webauthn_credential_for_auth(db, user_id, credential_id)
     if not cred:
-        raise HTTPException(401, "Passkey no reconocida")
+        raise error_http(401, "passkey_no_reconocida")
 
     try:
         verification = verify_authentication_response(
@@ -578,11 +579,11 @@ def webauthn_auth_finish(
             require_user_verification=True,
         )
     except Exception as exc:
-        raise HTTPException(401, f"Autenticación WebAuthn inválida: {exc}")
+        raise error_http(401, "webauthn_autenticacion_no_valida", detail=f"Autenticación WebAuthn inválida: {exc}")
 
     user = _svc.lookup_user_by_id_active(db, user_id)
     if not user:
-        raise HTTPException(404, "Usuario no encontrado")
+        raise error_http(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
 
     cred.sign_count = int(getattr(verification, "new_sign_count", cred.sign_count))
     cred.last_used_at = datetime.now(timezone.utc)
@@ -635,9 +636,9 @@ def passkey_login_start(request: Request, db: Session = Depends(get_db)):
         from webauthn import generate_authentication_options, options_to_json
         from webauthn.helpers.structs import UserVerificationRequirement
     except ImportError:
-        raise HTTPException(503, "webauthn no instalado — ejecuta: pip install webauthn")
+        raise error_http(503, "dependencia_no_instalada", detail="webauthn no instalado — ejecuta: pip install webauthn", paquete="webauthn")
     if not _sin_contrasena_permitido(db):
-        raise HTTPException(403, "El acceso con passkey sin contraseña está desactivado")
+        raise error_http(403, "passkey_sin_contrasena_desactivado")
     options = generate_authentication_options(
         rp_id=settings.WEBAUTHN_RP_ID,
         allow_credentials=[],
@@ -662,14 +663,14 @@ def passkey_login_finish(
     try:
         from webauthn import verify_authentication_response
     except ImportError:
-        raise HTTPException(503, "webauthn no instalado — ejecuta: pip install webauthn")
+        raise error_http(503, "dependencia_no_instalada", detail="webauthn no instalado — ejecuta: pip install webauthn", paquete="webauthn")
     if not _sin_contrasena_permitido(db):
-        raise HTTPException(403, "El acceso con passkey sin contraseña está desactivado")
+        raise error_http(403, "passkey_sin_contrasena_desactivado")
     credential = payload.get("credential") or {}
     datos = _read_ephemeral_token(payload.get("webauthn_challenge_token") or "", "webauthn_passwordless_challenge")
     cred = _svc.get_credential_by_credential_id(db, credential.get("id") or "")
     if not cred or not cred.is_active:
-        raise HTTPException(401, "Passkey no reconocida")
+        raise error_http(401, "passkey_no_reconocida")
     try:
         verification = verify_authentication_response(
             credential=credential,
@@ -681,10 +682,10 @@ def passkey_login_finish(
             require_user_verification=True,
         )
     except Exception as exc:
-        raise HTTPException(401, f"Autenticación WebAuthn inválida: {exc}")
+        raise error_http(401, "webauthn_autenticacion_no_valida", detail=f"Autenticación WebAuthn inválida: {exc}")
     user = _svc.lookup_user_by_id_active(db, cred.user_id)
     if not user:
-        raise HTTPException(401, "Usuario no encontrado o desactivado")
+        raise error_http(401, "usuario_no_encontrado_o_inactivo")
     from app.services import entrada_service as _entrada
     try:
         org = _entrada.decidir(db, user, request)

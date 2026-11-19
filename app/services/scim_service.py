@@ -15,6 +15,7 @@ from app.core.security import get_password_hash
 from app.models.mfa import Organization
 from app.models.user import User, UserRole, UserStatus
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error, ErrorConCodigo
 
 
 def registrar_borrado_en_auditoria(
@@ -86,7 +87,7 @@ def generate_scim_token(db: Session, org_id: str) -> str:
         .first()
     )
     if not org:
-        raise ErrorDeDominio(status_code=404, detail="Organización no encontrada")
+        raise error(404, "no_encontrado", detail="Organización no encontrada", que="organizacion")
     token = secrets.token_urlsafe(32)
     org.scim_token_hash = hash_scim_token(token)
     db.commit()
@@ -145,13 +146,13 @@ def require_scim_token(
         is not None
     )
     if not legacy_configured and not any_per_org:
-        raise ErrorDeDominio(status_code=503, detail="SCIM no configurado")
+        raise error(503, "integracion_no_configurada", detail="SCIM no configurado", nombre="SCIM")
 
     if not authorization or not authorization.lower().startswith("bearer "):
-        raise ErrorDeDominio(status_code=401, detail="Token SCIM requerido")
+        raise error(401, "token_requerido", detail="Token SCIM requerido")
     provided = authorization.split(" ", 1)[1].strip()
     if not provided:
-        raise ErrorDeDominio(status_code=401, detail="Token SCIM requerido")
+        raise error(401, "token_requerido", detail="Token SCIM requerido")
 
     # 1) Per-org token: resolve the org by the presented token's hash.
     token_hash = hash_scim_token(provided)
@@ -169,16 +170,16 @@ def require_scim_token(
     if resolved is not None:
         # Token is valid for SOME org — it must be the one in the path.
         if not hmac.compare_digest(resolved.id, org_id):
-            raise ErrorDeDominio(status_code=403, detail="Token SCIM inválido para esta organización")
+            raise error(403, "token_no_valido", detail="Token SCIM inválido para esta organización")
         if not resolved.is_active:
-            raise ErrorDeDominio(status_code=404, detail="Organización no encontrada")
+            raise error(404, "no_encontrado", detail="Organización no encontrada", que="organizacion")
         return resolved
 
     # 2) Legacy global token (backward compat).
     if _legacy_global_token_allows(org_id, provided):
         return ensure_org(db, org_id)
 
-    raise ErrorDeDominio(status_code=403, detail="Token SCIM inválido")
+    raise error(403, "token_no_valido", detail="Token SCIM inválido")
 
 
 def ensure_org(db: Session, org_id: str) -> Organization:
@@ -188,7 +189,7 @@ def ensure_org(db: Session, org_id: str) -> Organization:
         .first()
     )
     if not org:
-        raise ErrorDeDominio(status_code=404, detail="Organización no encontrada")
+        raise error(404, "no_encontrado", detail="Organización no encontrada", que="organizacion")
     return org
 
 
@@ -241,7 +242,7 @@ def create_scim_user(org_id: str, payload: dict, db: Session) -> User:
     """Create a new SCIM-provisioned user.  Raises 400/409 on validation errors."""
     user_name = payload.get("userName")
     if not user_name:
-        raise ErrorDeDominio(status_code=400, detail="userName requerido")
+        raise error(400, "campo_obligatorio", detail="userName requerido", campo="userName")
 
     name = payload.get("name") or {}
     given = name.get("givenName") or ""
@@ -257,7 +258,7 @@ def create_scim_user(org_id: str, payload: dict, db: Session) -> User:
         (User.username == user_name) | (User.email == email)
     ).first()
     if existing:
-        raise ErrorDeDominio(status_code=409, detail="Usuario ya existe")
+        raise error(409, "usuario_ya_existe", detail="Usuario ya existe")
     # Revisión 2026-11: el cupo del plan también por SCIM (antes se saltaba).
     from app.services.organizations_service import exigir_cupo
     exigir_cupo(db, org_id, "users")
@@ -450,7 +451,7 @@ def process_bulk_operation(
     if method == "POST" and path.endswith("/Users"):
         user_name = data.get("userName")
         if not user_name:
-            raise ValueError("userName required")
+            raise ErrorConCodigo("campo_obligatorio", detail="userName required", campo="userName")
         name = data.get("name") or {}
         given = name.get("givenName") or ""
         family = name.get("familyName") or ""
@@ -462,12 +463,12 @@ def process_bulk_operation(
             (User.username == user_name) | (User.email == email)
         ).first()
         if existing:
-            raise ValueError(f"User '{user_name}' already exists")
+            raise ErrorConCodigo("usuario_ya_existe", detail=f"User '{user_name}' already exists")
         from app.services.organizations_service import exigir_cupo
         try:
             exigir_cupo(db, org_id, "users")
         except ErrorDeDominio as e:
-            raise ValueError(str(e.detail)) from e
+            raise ErrorConCodigo(e.code or "error_interno", detail=str(e.detail), **(e.params or {})) from e
         role = parse_role(((data.get("roles") or [{}])[0] or {}).get("value"))
         new_user = User(
             username=user_name,
@@ -499,7 +500,7 @@ def process_bulk_operation(
             User.id == user_id, User.organization_id == org_id
         ).first()
         if not user:
-            raise ValueError(f"User {user_id} not found")
+            raise ErrorConCodigo("no_encontrado", detail=f"User {user_id} not found", que="usuario")
         update_scim_user(user, data, method, db)
         return {
             "method": method,
@@ -514,12 +515,12 @@ def process_bulk_operation(
             User.id == user_id, User.organization_id == org_id
         ).first()
         if not user:
-            raise ValueError(f"User {user_id} not found")
+            raise ErrorConCodigo("no_encontrado", detail=f"User {user_id} not found", que="usuario")
         deactivate_scim_user(user, db)
         return {"method": "DELETE", "bulkId": bulk_id, "status": "204"}
 
     else:
-        raise ValueError(f"Unsupported bulk operation: {method} {path}")
+        raise ErrorConCodigo("operacion_masiva_no_soportada", detail=f"Unsupported bulk operation: {method} {path}", metodo=method, ruta=path)
 
 
 # ── Higher-level service helpers (used by router) ────────────────────────────

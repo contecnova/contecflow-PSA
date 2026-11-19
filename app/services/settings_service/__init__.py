@@ -86,6 +86,13 @@ from app.services.settings_service.catalogos import (  # noqa: F401
     _check_department_dependencies,
 )
 
+from app.services.settings_service import catalogos_de_clave  # noqa: F401  (19-11-2026)
+from app.services.settings_service.catalogos_de_clave import (  # noqa: F401
+    DEFAULT_CLIENT_INDUSTRIES,
+    DEFAULT_EXPENSE_CATEGORIES,
+    exigir_clave,
+)
+
 from app.services.settings_service.por_empresa import (  # noqa: F401
     empresa_de,
     ajuste_de_empresa,

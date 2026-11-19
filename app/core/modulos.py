@@ -21,7 +21,7 @@ from typing import Optional
 from fastapi import Request, status
 from sqlalchemy.orm import Session
 
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 #: modulo -> (prefijos de la API, rutas de la pantalla). Los nombres son los
 #: de `advanced_config_service.DEFAULT_MODULES`.
@@ -112,8 +112,7 @@ def comprobar(db: Session, user, request: Request) -> None:
     """403 si la ruta pertenece a un modulo cerrado para este usuario."""
     modulo = modulo_cerrado(db, user, request.url.path)
     if modulo:
-        raise ErrorDeDominio(status_code=status.HTTP_403_FORBIDDEN,
-                            detail=f"Tu rol no tiene acceso al módulo «{modulo}»")
+        raise error(status.HTTP_403_FORBIDDEN, "modulo_sin_acceso_rol", modulo=modulo)
 
 
 def rutas_cerradas(db: Session, user) -> list[str]:
@@ -122,8 +121,14 @@ def rutas_cerradas(db: Session, user) -> list[str]:
 
 
 def con_rutas_cerradas(db: Session, user):
-    """El usuario con `blocked_routes` puesto, para `UserPublic`."""
+    """El usuario con `blocked_routes` y `capacidades` puestos, para `UserPublic`.
+
+    19-11-2026: también las capacidades efectivas (`app.core.capacidades`), que
+    la pantalla usa para rutas, menú, pestañas y botones.
+    """
+    from app.core.capacidades import capacidades_de
     user.blocked_routes = rutas_cerradas(db, user)
+    user.capacidades = capacidades_de(db, user)
     return user
 
 
@@ -132,4 +137,4 @@ def validar_acceso(module_access: Optional[dict]) -> None:
         return
     desconocidos = sorted(set(module_access) - set(MODULOS))
     if desconocidos:
-        raise ErrorDeDominio(422, f"Módulos desconocidos: {', '.join(desconocidos)}")
+        raise error(422, "modulos_desconocidos", modulos=', '.join(desconocidos))

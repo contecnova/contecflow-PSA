@@ -10,6 +10,8 @@ import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
 import { STALE_5_MIN_MS } from '../constants/timings'
 import { browserTimezone } from '../constants/timezones'
+import { conDefectos, tonoDe } from '../utils/umbrales'
+import type { Metrica, Tono, Umbrales } from '../utils/umbrales'
 
 export interface OrgSettings {
   currency: string
@@ -21,6 +23,8 @@ export interface OrgSettings {
   tax_rate: number
   /** Monedas de la empresa (`SUPPORTED_CURRENCIES`, Admin). Vacía hasta que responde el servidor. */
   currencies: string[]
+  /** Umbrales de semáforo por métrica (19-11-2026, `app/core/umbrales.py`). */
+  umbrales?: Partial<Umbrales>
   [extra: string]: unknown
 }
 
@@ -44,4 +48,19 @@ export function useOrgSettings(): OrgSettings {
     retry: 1,
   })
   return { ...FALLBACK, ...(data ?? {}) }
+}
+
+/**
+ * Umbrales de semáforo de la empresa (19-11-2026): una definición por métrica
+ * para todas las pantallas (ver utils/umbrales.ts). Mientras no responde el
+ * servidor, los valores por defecto.
+ */
+export function useUmbrales(): Umbrales {
+  return conDefectos(useOrgSettings().umbrales)
+}
+
+/** `tono(metrica, valor)` con los umbrales de la empresa. */
+export function useTono(): (metrica: Metrica, valor: number | null | undefined) => Tono | undefined {
+  const umbrales = useUmbrales()
+  return (metrica, valor) => tonoDe(metrica, valor, umbrales)
 }

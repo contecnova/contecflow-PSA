@@ -39,6 +39,7 @@ from app.core.responses import APIListResponse, APIResponse
 from app.services import bpmn_engine as motor
 from app.services.audit import auditar_y_confirmar
 import app.services.bpmn_process_service as svc
+from app.core.codigos_de_error import error_http
 
 router = APIRouter(tags=["BPMN Processes"])
 
@@ -92,7 +93,7 @@ _slugify = svc.slugify
 def _proceso_o_404(db: Session, process_id: str):
     proc = svc.get_process(db, process_id)
     if not proc:
-        raise HTTPException(404, "Process not found")
+        raise error_http(404, "no_encontrado", detail="Process not found", que="proceso")
     return proc
 
 
@@ -187,7 +188,7 @@ def update_process(
         cambios["status"] = cambios["status"].value
     proc = svc.update_metadata(db, process_id, **cambios)
     if not proc:
-        raise HTTPException(404, "Process not found")
+        raise error_http(404, "no_encontrado", detail="Process not found", que="proceso")
     auditar_y_confirmar(db, current_user, "UPDATE", "bpmn_process", proc.id, proc.name, new_values=cambios)
     return APIResponse.ok(data=svc.serialize_process(proc))
 
@@ -200,7 +201,7 @@ def delete_process(
 ):
     proc = _proceso_o_404(db, process_id)
     if proc.is_seeded:
-        raise HTTPException(400, "Seeded processes cannot be deleted; archive instead.")
+        raise error_http(400, "proceso_semilla_no_eliminable", detail="Seeded processes cannot be deleted; archive instead.")
     enforce_abac(db, current_user, "bpmn_process", process_id, action="delete")
     nombre = proc.name
     svc.delete_process(db, process_id)
@@ -219,7 +220,7 @@ def duplicate_process(
                                   organization_id=getattr(current_user, "organization_id", None),
                                   created_by_user_id=current_user.id)
     if not proc:
-        raise HTTPException(404, "Source process not found")
+        raise error_http(404, "no_encontrado", detail="Source process not found", que="proceso")
     auditar_y_confirmar(db, current_user, "CREATE", "bpmn_process", proc.id, proc.name,
                         new_values={"duplicated_from": process_id})
     return APIResponse.ok(data=svc.serialize_process(proc, include_versions=True))
@@ -264,7 +265,7 @@ def get_version(
 ):
     v = svc.get_version(db, process_id, version)
     if not v:
-        raise HTTPException(404, "Version not found")
+        raise error_http(404, "no_encontrado", detail="Version not found", que="version")
     return APIResponse.ok(data=svc.serialize_version(v))
 
 
@@ -278,7 +279,7 @@ def validate_version(
     proc = _proceso_o_404(db, process_id)
     v = svc.get_version(db, process_id, version) if version else motor.version_ejecutable(db, proc)
     if not v:
-        raise HTTPException(404, "Version not found")
+        raise error_http(404, "no_encontrado", detail="Version not found", que="version")
     return APIResponse.ok(data={"version": v.version, **motor.validar(v.bpmn_xml)})
 
 
@@ -291,7 +292,7 @@ def publish_version(
 ):
     v = svc.publish_version(db, process_id, version)
     if not v:
-        raise HTTPException(404, "Version not found")
+        raise error_http(404, "no_encontrado", detail="Version not found", que="version")
     auditar_y_confirmar(db, current_user, "UPDATE", "bpmn_process", process_id, None,
                         new_values={"published_version": version})
     return APIResponse.ok(data=svc.serialize_version(v))

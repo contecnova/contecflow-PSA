@@ -22,6 +22,7 @@ from app.models.task import Task, TaskStatus, TaskPriority
 
 from app.services.advanced_config_service._comun import NotFoundError, logger
 from app.models.user import UserRole
+from app.core.codigos_de_error import error
 
 
 # ── Project template application ──────────────────────────────────────────────
@@ -35,7 +36,7 @@ def apply_template_to_project(
     from app.services.plantillas_de_proyecto import aplicar
 
     if user_role not in (UserRole.admin, UserRole.pm):
-        raise ErrorDeDominio(403, "Acceso denegado")
+        raise error(403, "sin_permiso", detail="Acceso denegado")
     usuario = db.query(User).filter(User.id == user_id).first()
     inicio = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else None
     r = aplicar(db, usuario, template_id, project_id, inicio)
@@ -58,7 +59,7 @@ def create_template(data: dict, user_id: str, user_role: str, db: Session) -> di
     from app.services.plantillas_de_proyecto import crear
 
     if user_role not in (UserRole.admin, UserRole.pm):
-        raise ErrorDeDominio(403, "Acceso denegado")
+        raise error(403, "sin_permiso", detail="Acceso denegado")
     usuario = db.query(User).filter(User.id == user_id).first()
     t = crear(db, usuario, data)
     return {"id": t.id, "name": t.name}
@@ -133,7 +134,7 @@ def plantilla_propia(db: Session, current_user, template_id: str) -> ProjectTemp
         .first()
     )
     if not tmpl:
-        raise ErrorDeDominio(404, "Template not found")
+        raise error(404, "no_encontrado", detail="Template not found", que="plantilla")
     assert_same_org(
         current_user, getattr(tmpl, "organization_id", None),
         detail="Template not found")
@@ -226,7 +227,7 @@ def get_full_template(template_id: str, db: Session, current_user=None) -> dict:
         tmpl = db.query(ProjectTemplate).filter(
             ProjectTemplate.id == template_id).first()
         if not tmpl:
-            raise ErrorDeDominio(404, "Template not found")
+            raise error(404, "no_encontrado", detail="Template not found", que="plantilla")
 
     phases = db.query(TemplatePhase).filter(
         TemplatePhase.template_id == template_id

@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session
 
 from app.models.settings import AppSetting
 from app.core.config import settings
+from app.core.codigos_de_error import ErrorConCodigo
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +129,7 @@ def _fetch_graph_report(token: str, report_name: str, period: str) -> List[Dict[
     }
     path = _GRAPH_REPORT_MAP.get(report_name)
     if not path:
-        raise ValueError(f"Informe desconocido: {report_name}")
+        raise ErrorConCodigo("informe_desconocido", informe=report_name)
     import httpx, csv, io
     url = f"{settings.MICROSOFT_GRAPH_BASE}/v1.0/reports/{path}"
     headers = {"Authorization": f"Bearer {token}"}
@@ -161,7 +162,7 @@ def save_config(db: Session, org_id: Optional[str], updates: Dict[str, Any]) -> 
         cfg["client_secret"] = encrypt_value(secreto)
     desconocidos = set(updates.get("enabled_reports") or []) - set(_SUPPORTED_REPORTS)
     if desconocidos:
-        raise ValueError(f"Informes desconocidos: {', '.join(sorted(desconocidos))}")
+        raise ErrorConCodigo("informe_desconocido", detail=f"Informes desconocidos: {', '.join(sorted(desconocidos))}", informe=', '.join(sorted(desconocidos)))
     cfg.update(updates)
     _set_json(db, _CONFIG_KEY, org_id, cfg, "O365 BI connector configuration")
     return get_config(db, org_id)
@@ -229,7 +230,7 @@ def run_sync(
 
 def get_report_data(db: Session, org_id: Optional[str], report_name: str) -> Dict[str, Any]:
     if report_name not in _SUPPORTED_REPORTS:
-        raise ValueError(f"Unknown report: {report_name!r}")
+        raise ErrorConCodigo("informe_desconocido", detail=f"Unknown report: {report_name!r}", informe=report_name)
     key = _DATA_KEY_TPL.format(report=report_name)
     data = _get_json(db, key, org_id, default={}) or {}
     return {

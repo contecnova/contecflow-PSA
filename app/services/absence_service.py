@@ -16,6 +16,7 @@ from app.models.user import UserRole
 from datetime import timedelta
 import logging
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +94,7 @@ def exigir_saldo(db: Session, user_id: str, tipo, start_date: date, dias: float,
         return
     quedan = get_vacation_balance(db, user_id, start_date.year)["days_remaining"] + liberados
     if dias > quedan:
-        raise ErrorDeDominio(400, f"Pides {dias:g} días de vacaciones y te quedan {quedan:g} en {start_date.year}")
+        raise error(400, "vacaciones_insuficientes", pedidos=dias, quedan=quedan, anio=start_date.year)
 
 
 def get_vacation_balance(db: Session, user_id: str, year: int) -> dict:
@@ -266,8 +267,14 @@ STATUS_CFG = {
 }
 
 
-def count_working_days(start, end, holidays: list) -> float:
-    """Count working days between two dates excluding weekends and holidays."""
+def count_working_days(start, end, holidays: list, dias_laborables=frozenset({1, 2, 3, 4, 5})) -> float:
+    """Count working days between two dates excluding weekends and holidays.
+
+    19-11-2026: `dias_laborables` (ISO, 1 = lunes) son los de la empresa
+    (`planificador.calendario.interpretar_dias_laborables(PLANNING_WORKDAYS)`);
+    por defecto L-V. Las ausencias cuentan sus días con el horario efectivo de
+    la persona (`horario.efectivo`); esta función queda de utilidad sin llamadas.
+    """
     holiday_dates = set()
     for h in holidays:
         if isinstance(h, date):
@@ -283,7 +290,7 @@ def count_working_days(start, end, holidays: list) -> float:
     count = 0
     current = start
     while current <= end:
-        if current.weekday() < 5 and current not in holiday_dates:
+        if current.isoweekday() in dias_laborables and current not in holiday_dates:
             count += 1
         current += timedelta(days=1)
     return float(count)

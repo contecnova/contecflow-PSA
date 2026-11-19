@@ -48,7 +48,8 @@ class ProjectBase(BaseModel):
     name: str = Field(..., description="Nombre del proyecto")
     code: Optional[str] = Field(default=None, description="Código identificativo del proyecto")
     description: Optional[str] = Field(default=None, description="Descripción del proyecto")
-    project_type: ProjectType = Field(default=ProjectType.internal, description="Tipo de proyecto")
+    # 19-11-2026: clave del catÃ¡logo `custom_project_types` (editable por empresa), no un enum cerrado.
+    project_type: str = Field(default=ProjectType.internal.value, max_length=50, description="Tipo de proyecto (clave del catÃ¡logo de tipos)")
     client_name: Optional[str] = Field(default=None, description="Nombre del cliente")
     client_id: Optional[str] = Field(default=None, description="ID del cliente asociado")
     department: Optional[str] = Field(default=None, description="Departamento responsable")
@@ -80,7 +81,7 @@ class ProjectCreate(ProjectBase):
 class ProjectUpdate(BaseModel):
     name: Optional[str] = Field(default=None, description="Nombre del proyecto")
     description: Optional[str] = Field(default=None, description="Descripción del proyecto")
-    project_type: Optional[ProjectType] = Field(default=None, description="Tipo de proyecto")
+    project_type: Optional[str] = Field(default=None, max_length=50, description="Tipo de proyecto (clave del catÃ¡logo de tipos)")
     status: Optional[ProjectStatus] = Field(default=None, description="Estado del proyecto")
     risk_level: Optional[ProjectRisk] = Field(default=None, description="Nivel de riesgo del proyecto")
     pm_id: Optional[str] = Field(default=None, description="ID del project manager")
@@ -143,7 +144,7 @@ class ProjectSummary(BaseModel):
     id: str = Field(..., description="Identificador único del proyecto")
     code: str = Field(..., description="Código identificativo del proyecto")
     name: str = Field(..., description="Nombre del proyecto")
-    project_type: ProjectType = Field(..., description="Tipo de proyecto")
+    project_type: str = Field(..., description="Tipo de proyecto (clave del catÃ¡logo de tipos)")
     status: ProjectStatus = Field(..., description="Estado actual del proyecto")
     risk_level: ProjectRisk = Field(..., description="Nivel de riesgo del proyecto")
     pm_name: Optional[str] = Field(default=None, description="Nombre del project manager")

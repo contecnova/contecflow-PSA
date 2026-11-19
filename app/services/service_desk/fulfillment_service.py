@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session, object_session
 from app.models.service_desk._enums import ESTADOS_DE_TICKET_CERRADOS
 from app.models.service_desk import AgentGroup, ServiceItem, ServiceItemTask, Ticket
 from app.models.user import User
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 ORIGEN = "fulfillment"
 _HECHOS = ESTADOS_DE_TICKET_CERRADOS
@@ -47,22 +47,22 @@ def validar_tareas(db: Session, tareas: Optional[list]) -> Optional[list[dict]]:
         titulo = str(t.get("title") or "").strip()
         grupo = t.get("group_id")
         if not titulo or not grupo:
-            raise ErrorDeDominio(422, "Cada tarea necesita título y cola")
+            raise error(422, "tarea_sin_titulo_o_cola")
         if db.get(AgentGroup, grupo) is None:
-            raise ErrorDeDominio(422, f"La cola de la tarea «{titulo}» no existe")
+            raise error(422, "tarea_cola_no_existe", tarea=titulo)
         persona = t.get("assignee_user_id") or None
         if persona and db.query(User.id).filter(User.id == persona, User.is_active == True).first() is None:  # noqa: E712
-            raise ErrorDeDominio(422, f"La persona de la tarea «{titulo}» no existe o no está activa")
+            raise error(422, "tarea_persona_no_valida", tarea=titulo)
         horas = t.get("sla_hours")
         if horas not in (None, ""):
             horas = float(horas)
             if not 0 < horas <= MAX_HORAS_DE_TAREA:
-                raise ErrorDeDominio(422, f"Las horas de la tarea «{titulo}» no son válidas")
+                raise error(422, "tarea_horas_no_validas", tarea=titulo)
         else:
             horas = None
         etapa = int(t.get("stage") or 1)
         if etapa < 1:
-            raise ErrorDeDominio(422, "La etapa empieza en 1")
+            raise error(422, "etapa_empieza_en_1")
         limpias.append({"title": titulo[:300], "group_id": grupo, "assignee_user_id": persona,
                         "description": (str(t.get("description") or "").strip() or None),
                         "sla_hours": horas, "stage": etapa, "sort_order": i})

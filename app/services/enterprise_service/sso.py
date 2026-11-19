@@ -5,13 +5,13 @@ sin cambiar el codigo. El paquete reexporta todos los nombres.
 """
 from __future__ import annotations
 
-from app.core.errores import ErrorDeDominio
 
 from sqlalchemy.orm import Session
 from app.core.encryption import encrypt_value
 from app.models.enterprise import SSOConfig
 from app.services.audit import audit_log
 from typing import TYPE_CHECKING
+from app.core.codigos_de_error import error
 if TYPE_CHECKING:
     from app.models.enterprise import (
         SSOConfig,
@@ -80,7 +80,7 @@ def create_sso_config(payload, current_user, db: Session) -> dict:
     # cuerpo (la edicion ya lo comprobaba). El admin de A creaba un SSO de B con
     # su propio IdP y entraba como cualquier usuario de B.
     if not getattr(current_user, "is_superadmin", False) and data.get("organization_id") != current_user.organization_id:
-        raise ErrorDeDominio(403, "No puedes configurar SSO para otra organización")
+        raise error(403, "sso_otra_empresa", detail="No puedes configurar SSO para otra organización")
     if data.get("oidc_client_secret"):
         data["oidc_client_secret"] = encrypt_value(data["oidc_client_secret"])
     config = SSOConfig(created_by=current_user.id, **data)

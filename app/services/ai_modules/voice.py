@@ -18,6 +18,7 @@ from app.models.service_desk import Ticket
 from app.models.task import Task
 from app.core.segundo_plano import enviar_tarea
 from app.core import timeutil
+from app.core.config import settings  # topes de tokens de IA (19-11-2026)
 
 _log = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ Hoy: {datetime.now(timezone.utc).strftime('%Y-%m-%d')}
 Responde SOLO con JSON: {{"intent": "...", "entities": {{...}}, "action_description": "..."}}"""
         text = call_ai_unified(
             db, [{"role": "user", "content": prompt}],
-            module="voice", user_id=current_user.id, max_tokens=300
+            module="voice", user_id=current_user.id, max_tokens=settings.AI_BRIEF_ANSWER_MAX_TOKENS
         )
         match = _re.search(r'\{.*\}', text, _re.DOTALL)
         if match:

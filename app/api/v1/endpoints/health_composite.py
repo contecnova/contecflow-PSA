@@ -4,6 +4,7 @@ from app.core.responses import APIResponse
 from app.services.customer_health_service import compute_composite_health
 from sqlalchemy.orm import Session
 from app.db.session import get_db
+from app.core.codigos_de_error import desde_valor
 
 router = APIRouter()
 
@@ -16,7 +17,7 @@ def _health(client_id: str, db: Session):
     try:
         return APIResponse.ok(data=compute_composite_health(client_id, db))
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise desde_valor(400, e)
 
 
 @router.get("/customers/{client_id}/health-composite", status_code=status.HTTP_200_OK)

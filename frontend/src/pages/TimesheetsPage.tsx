@@ -11,6 +11,7 @@ import PageShell from '../components/layout/PageShell'
 import { Clock, Hourglass, ClipboardList, Search, CircleCheck, Users, Pencil, Trash2, Check, X, MessageSquare } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { fmtHours, fmtCurrency, fmtDate, extractErr } from '../utils/helpers'
+import { HORAS_MAXIMAS_POR_DIA } from '../utils/umbrales'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
 import DsBadge from '../components/ui/StatusBadge'
@@ -26,10 +27,6 @@ type TimesheetItem = Timesheet
 type TimesheetLine = LineaDeTimesheet
 
 type TeamSortKey = 'user_name' | 'week_start' | 'total_hours' | 'billable_hours' | 'total_cost' | 'status'
-
-type RoleAuth = {
-  hasRole: (...roles: string[]) => boolean
-}
 
 type T = (key: string, params?: Record<string, string | number>) => string
 
@@ -106,7 +103,7 @@ function WeekLines({ weekStart, onClose }: { weekStart: string; onClose: () => v
                   {editingId === l.id ? (
                     /* ── Modo edición inline ── */
                     <div className="ts-line-edit">
-                      <input type="number" min="0.25" max="24" step="0.25"
+                      <input type="number" min="0.25" max={HORAS_MAXIMAS_POR_DIA} step="0.25"
                         aria-label={t('timesheets.horas')}
                         value={editForm.hours}
                         onChange={e => setEditForm(f => ({ ...f, hours: parseFloat(e.target.value) || 0 }))}
@@ -212,9 +209,9 @@ const SHEET_BORDER: Record<string, string> = {
 export default function TimesheetsPage() {
   const t = useAppT() as T
   const toast = useToast()
-  const { hasRole } = useAuth() as RoleAuth
+  const { puede } = useAuth()
   const qc = useQueryClient()
-  const [tab, setTab] = useState<'mine' | 'pending' | 'team'>(hasRole('admin', 'pm', 'hr') ? 'team' : 'mine')
+  const [tab, setTab] = useState<'mine' | 'pending' | 'team'>(puede('partes.equipo') ? 'team' : 'mine')
   const [viewLines, setViewLines] = useState<string | null>(null)
   const [reviewing, setReviewing] = useState<TimesheetItem | null>(null)
   const [teamSortKey, setTeamSortKey] = useState<TeamSortKey>('week_start')
@@ -256,7 +253,7 @@ export default function TimesheetsPage() {
   const { data: pendingData, isLoading: loadingPending } = useQuery({
     queryKey: ['timesheets-pending', pendingParams],
     queryFn: () => timesheetsApi.pending(pendingParams).then(r => ({ items: r.data ?? [], total: r.meta?.total ?? r.data?.length ?? 0 })),
-    enabled: hasRole('admin', 'pm', 'hr'),
+    enabled: puede('partes.equipo'),
     placeholderData: keepPreviousData,
   })
   const pending: TimesheetItem[] = pendingData?.items ?? []
@@ -272,7 +269,7 @@ export default function TimesheetsPage() {
   const { data: teamData, isLoading: loadingTeam } = useQuery({
     queryKey: ['timesheets-team', teamParams],
     queryFn: () => timesheetsApi.team(teamParams).then(r => ({ items: r.data ?? [], total: r.meta?.total ?? r.data?.length ?? 0 })),
-    enabled: hasRole('admin', 'pm', 'hr'),
+    enabled: puede('partes.equipo'),
     placeholderData: keepPreviousData,
   })
   const teamSheets: TimesheetItem[] = teamData?.items ?? []
@@ -301,7 +298,7 @@ export default function TimesheetsPage() {
 
   const tabs = [
     { id: 'mine', label: t('timesheets.tab_mios') },
-    ...(hasRole('admin', 'pm', 'hr') ? [
+    ...(puede('partes.equipo') ? [
       { id: 'pending', label: t('timesheets.tab_pendientes', { n: pendingTotal }), icon: <Hourglass size={14} /> },
       { id: 'team', label: t('timesheets.tab_equipo') },
     ] : []),

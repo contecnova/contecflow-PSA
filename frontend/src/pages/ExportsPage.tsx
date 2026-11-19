@@ -43,7 +43,7 @@ function extractErrorMessage(error: unknown): string {
 
 export default function ExportsPage(): JSX.Element {
   const t = useAppT()
-  const { hasRole } = useAuth()
+  const { puede } = useAuth()
   const today = new Date().toISOString().split('T')[0]
   // Periodo libre (16-11-2026): antes «desde/hasta» propios (del día 1 del mes a
   // hoy). Las imputaciones son por día de calendario: sin hora; es una
@@ -128,7 +128,7 @@ export default function ExportsPage(): JSX.Element {
           </div>
           <div className="exps-row">
             {selectorDeFormato(imputForm.format, (fmt) => setImputForm(f => ({ ...f, format: fmt })))}
-            {hasRole('admin', 'hr') && (
+            {puede('exportar.todo') && (
               <label className="u-row-center-8-pointer">
                 <Checkbox checked={imputForm.include_costs}
                   onChange={(_, e) => setImputForm(f => ({ ...f, include_costs: e.target.checked }))} />
@@ -137,7 +137,7 @@ export default function ExportsPage(): JSX.Element {
             )}
           </div>
           <p className="exps-text">
-            {hasRole('admin', 'hr') ? t('pagina_exps.incluye_las_horas_de_todas_las') : t('pagina_exps.incluye_tus_horas')}
+            {puede('exportar.todo') ? t('pagina_exps.incluye_las_horas_de_todas_las') : t('pagina_exps.incluye_tus_horas')}
           </p>
           <div>
             <Button onClick={exportImputations} loading={loading.imput} icon={<Download size={14} />}>
@@ -155,7 +155,7 @@ export default function ExportsPage(): JSX.Element {
           {/* Auditoría 2026-09: la etiqueta dice el formato que de verdad se descarga. */}
           <div className="exps-row">
             {selectorDeFormato(projForm.format, (fmt) => setProjForm(f => ({ ...f, format: fmt })))}
-            {hasRole('admin') && (
+            {puede('org.administrar') && (
               <label className="u-row-center-8-pointer">
                 <Checkbox checked={projForm.include_costs}
                   onChange={(_, e) => setProjForm(f => ({ ...f, include_costs: e.target.checked }))} />
@@ -171,7 +171,7 @@ export default function ExportsPage(): JSX.Element {
         </Section>
       </Card>
 
-      {hasRole('admin', 'pm') && (
+      {puede('exportar.proyectos') && (
         <Card>
           <Section
             title={<span className="exps-titulo"><Link2 size={16} aria-hidden />{t('exports.sincronizar_con_jira')}</span>}

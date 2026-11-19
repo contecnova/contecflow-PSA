@@ -19,6 +19,7 @@ from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 import app.services.cmdb_service as svc
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.core.codigos_de_error import ErrorConCodigo
 
 logger = logging.getLogger(__name__)
 
@@ -273,7 +274,7 @@ class SLACalendarIn(BaseModel):
         try:
             ZoneInfo(v)
         except (ZoneInfoNotFoundError, ValueError) as exc:
-            raise ValueError(f"zona horaria desconocida: {v}") from exc
+            raise ErrorConCodigo("zona_horaria_desconocida", detail=f"zona horaria desconocida: {v}", zona=v) from exc
         return v
 
     @field_validator("work_start", "work_end")
@@ -295,7 +296,7 @@ class SLACalendarIn(BaseModel):
         from app.services.sla_service import parse_hora
         inicio = info.data.get("work_start")
         if inicio and parse_hora(v) <= parse_hora(inicio):
-            raise ValueError("la jornada tiene que acabar después de empezar")
+            raise ErrorConCodigo("jornada_fin_antes_inicio", detail="la jornada tiene que acabar después de empezar")
         return v
 
 
@@ -312,7 +313,7 @@ class SLAHolidayIn(BaseModel):
         try:
             return _date.fromisoformat(v).isoformat()
         except ValueError as exc:
-            raise ValueError("fecha inválida: usa AAAA-MM-DD") from exc
+            raise ErrorConCodigo("fecha_no_valida_formato", detail="fecha inválida: usa AAAA-MM-DD") from exc
 
 
 @router.get("/sla-calendars", response_model=APIListResponse[dict])

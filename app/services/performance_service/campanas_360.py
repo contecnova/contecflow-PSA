@@ -27,6 +27,7 @@ from app.services.performance_service.ciclos_y_preguntas import (
     serialize_question,
 )
 from app.models.user import UserRole
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 logger = logging.getLogger("app.services.performance_service")
@@ -89,7 +90,8 @@ def _validar_lista_de_evaluadores(db: Session, subject: User, review_type: str,
         return
     sobran = [r for r in ids if r not in _elegibles(db, subject, review_type)]
     if sobran:
-        raise ValueError(_MENSAJES_DE_ELEGIBILIDAD[review_type].format(n=len(sobran)))
+        raise ErrorConCodigo(f"evaluadores_no_elegibles_{review_type}", n=len(sobran),
+                             detail=_MENSAJES_DE_ELEGIBILIDAD[review_type].format(n=len(sobran)))
 
 
 def _sin_duplicados(ids: list[str] | None) -> list[str]:
@@ -109,23 +111,21 @@ def _validar_campana(db: Session, cycle_id: str, subject_id: str,
     """Comprueba ciclo, persona evaluada y elegibilidad. Devuelve (ciclo, persona)."""
     cycle = get_cycle(db, cycle_id)
     if not cycle:
-        raise ValueError("Ciclo no encontrado")
+        raise ErrorConCodigo("no_encontrado", detail="Ciclo no encontrado", que="ciclo")
     if cycle.status == ReviewCycleStatus.closed:
-        raise ValueError("No se puede crear una campaña en un ciclo cerrado")
+        raise ErrorConCodigo("campana_ciclo_cerrado")
 
     subject = db.query(User).filter(User.id == subject_id).first()
     if not subject:
-        raise ValueError("Persona evaluada no encontrada")
+        raise ErrorConCodigo("no_encontrado", detail="Persona evaluada no encontrada", que="persona_evaluada")
 
     if manager_reviewer_id and manager_reviewer_id not in _elegibles(db, subject, "manager"):
-        raise ValueError(
-            "El manager indicado no figura como manager directo en el organigrama"
-        )
+        raise ErrorConCodigo("manager_no_directo")
     _validar_lista_de_evaluadores(db, subject, "peer", peer_reviewer_ids)
     _validar_lista_de_evaluadores(db, subject, "upward", upward_reviewer_ids)
 
     if not (self_review or manager_reviewer_id or peer_reviewer_ids or upward_reviewer_ids):
-        raise ValueError("La campaña debe incluir al menos un evaluador")
+        raise ErrorConCodigo("campana_sin_evaluadores")
 
     return cycle, subject
 

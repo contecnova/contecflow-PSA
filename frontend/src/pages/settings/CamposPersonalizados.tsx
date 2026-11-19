@@ -20,10 +20,10 @@ const Globales = lazy(() => import('../SettingsPageSections').then(m => ({ defau
 
 export default function CamposPersonalizados({ subInicial }: PropsDeSeccion) {
   const { t } = useAppLang()
-  const { hasRole } = useAuth()
+  const { puede } = useAuth()
   const pestanas = [
     { id: 'proyecto', label: t('ajustes.campos_por_proyecto') },
-    ...(hasRole('admin') ? [{ id: 'globales', label: t('ajustes.campos_globales') }] : []),
+    ...(puede('org.administrar') ? [{ id: 'globales', label: t('ajustes.campos_globales') }] : []),
   ]
   const [activa, setActiva] = useState(pestanas.some(p => p.id === subInicial) ? String(subInicial) : 'proyecto')
   return (

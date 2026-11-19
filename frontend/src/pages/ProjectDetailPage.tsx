@@ -18,6 +18,8 @@ import SmartScheduleModal from '../components/SmartScheduleModal'
 import { useAppT } from '../i18n/AppLangContext'
 import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
 import { alpha } from '../constants/theme'
+import { useTono } from '../hooks/useOrgSettings'
+import { colorDeTono } from '../utils/umbrales'
 import DateInput from '../components/ui/DateInput'
 import { STALE_DEFAULT_MS, STALE_SHORT_MS } from '../constants/timings'
 import './ProjectDetailPage.css'
@@ -53,6 +55,20 @@ const STATUS_COLOR_MAP: Record<string, string> = {
 
 const RISK_COLOR: Record<string, string> = { low: 'var(--success)', medium: 'var(--warning)', high: 'var(--danger)', critical: 'var(--danger)' }
 
+// 19-11-2026: etiquetas y colores de estado de proyecto en UN sitio (antes, dos copias en esta página).
+function cfgDeEstadoDeProyecto(t: (k: string) => string) {
+  return {
+    planning:  { color: STATUS_COLOR_MAP.planning,  label: t('project_detail.status_planning') },
+    active:    { color: STATUS_COLOR_MAP.active,    label: t('project_detail.status_active') },
+    on_hold:   { color: STATUS_COLOR_MAP.on_hold,   label: t('project_detail.status_on_hold') },
+    paused:    { color: STATUS_COLOR_MAP.paused,    label: t('project_detail.status_paused') },
+    completed: { color: STATUS_COLOR_MAP.completed, label: t('project_detail.status_completed') },
+    closed:    { color: STATUS_COLOR_MAP.closed,    label: t('project_detail.status_closed') },
+    cancelled: { color: STATUS_COLOR_MAP.cancelled, label: t('project_detail.status_cancelled') },
+    archived:  { color: STATUS_COLOR_MAP.archived,  label: t('project_detail.status_archived') },
+  }
+}
+
 function MetaItem({ label, value }: { label: string; value?: string | number | null }) {
   if (!value) return null
   return (
@@ -65,8 +81,10 @@ function MetaItem({ label, value }: { label: string; value?: string | number | n
 
 function OverviewTab({ project }: { project: Project }) {
   const t = useAppT()
+  const tono = useTono()
   const budgetPct = project.budget_used_pct ?? 0
-  const budgetColor = budgetPct > 90 ? 'var(--danger)' : budgetPct > 70 ? 'var(--warning)' : 'var(--success)'
+  // 19-11-2026: umbrales de la empresa (useUmbrales), no cortes propios.
+  const budgetColor = colorDeTono(tono('presupuesto', budgetPct))
 
   return (
     <div className="u-stack-20">
@@ -252,16 +270,7 @@ function EditProjectForm({ project, onSave, onCancel, isPending }: {
 }) {
   const idCampo = useId()
   const t = useAppT()
-  const STATUS_CFG = {
-    planning:  { color: STATUS_COLOR_MAP.planning,  label: t('project_detail.status_planning') },
-    active:    { color: STATUS_COLOR_MAP.active,    label: t('project_detail.status_active') },
-    on_hold:   { color: STATUS_COLOR_MAP.on_hold,   label: t('project_detail.status_on_hold') },
-    paused:    { color: STATUS_COLOR_MAP.paused,    label: t('project_detail.status_paused') },
-    completed: { color: STATUS_COLOR_MAP.completed, label: t('project_detail.status_completed') },
-    closed:    { color: STATUS_COLOR_MAP.closed,    label: t('project_detail.status_closed') },
-    cancelled: { color: STATUS_COLOR_MAP.cancelled, label: t('project_detail.status_cancelled') },
-    archived:  { color: STATUS_COLOR_MAP.archived,  label: t('project_detail.status_archived') },
-  }
+  const STATUS_CFG = cfgDeEstadoDeProyecto(t)
   // `budget_amount` arranca con el número del proyecto y pasa a texto al editarlo.
   const [form, setForm] = useState<EditProjectFormState>({
     name: project.name || '',
@@ -342,13 +351,13 @@ const VistasDeTrabajo = lazy(() => import('../components/planificador/VistasDeTr
 
 export default function ProjectDetailPage() {
   const t = useAppT()
-  const { hasRole } = useAuth()
+  const { puede } = useAuth()
   // Rev. 173: la ficha es el hub del proyecto. Cada pestaña es una entrada de
   // esta lista (id, etiqueta, icono, roles y qué pinta): añadir una pestaña es
   // añadir una entrada, sin tocar la barra ni el contenido. Las que vienen de
   // pantallas globales (Gantt, sprints, RACI, UAT, hitos) son esas mismas
   // pantallas con el proyecto fijo, no copias.
-  const gestiona = hasRole('admin', 'pm')
+  const gestiona = puede('proyectos.gestionar')
   const TABS: PestanaDeFicha[] = [
     { id: 'overview',  label: t('project_detail.tab_overview'), icon: FolderOpen },
     { id: 'tasks',     label: t('project_detail.tab_tasks'),    icon: CheckSquare },
@@ -366,16 +375,7 @@ export default function ProjectDetailPage() {
     { id: 'lessons',   label: t('project_detail.tab_lessons'), icon: Lightbulb },
     { id: 'tech',      label: t('project_detail.tab_tech_resources'), icon: Laptop },
   ].filter(p => p.visible !== false)
-  const STATUS_CFG: Record<string, { color: string; label: string }> = {
-    planning:  { color: STATUS_COLOR_MAP.planning,  label: t('project_detail.status_planning') },
-    active:    { color: STATUS_COLOR_MAP.active,    label: t('project_detail.status_active') },
-    on_hold:   { color: STATUS_COLOR_MAP.on_hold,   label: t('project_detail.status_on_hold') },
-    paused:    { color: STATUS_COLOR_MAP.paused,    label: t('project_detail.status_paused') },
-    completed: { color: STATUS_COLOR_MAP.completed, label: t('project_detail.status_completed') },
-    closed:    { color: STATUS_COLOR_MAP.closed,    label: t('project_detail.status_closed') },
-    cancelled: { color: STATUS_COLOR_MAP.cancelled, label: t('project_detail.status_cancelled') },
-    archived:  { color: STATUS_COLOR_MAP.archived,  label: t('project_detail.status_archived') },
-  }
+  const STATUS_CFG: Record<string, { color: string; label: string }> = cfgDeEstadoDeProyecto(t)
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const toast = useToast()

@@ -34,6 +34,7 @@ from app.services.auth_service import (
 )
 from app.api.cookies_de_sesion import set_auth_cookies as _set_auth_cookies
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error_http
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -53,17 +54,17 @@ def _timeout() -> float:
 def _descubrimiento(config) -> dict:
     """El documento OIDC del proveedor (authorization, token, jwks, issuer)."""
     if not config.oidc_discovery_url:
-        raise HTTPException(400, "Falta oidc_discovery_url")
+        raise error_http(400, "sso_falta_discovery", detail="Falta oidc_discovery_url")
     url = _validate_https_discovery_url(config.oidc_discovery_url)
     try:
         with abrir(url, timeout=_timeout()) as resp:  # noqa: S310
             return _json.loads(resp.read())
     except _json.JSONDecodeError as exc:
         logger.warning("SSO: discovery JSON inválido url=%r: %s", _safe_url(config.oidc_discovery_url), exc)
-        raise HTTPException(502, "El discovery document del proveedor no es JSON válido")
+        raise error_http(502, "sso_discovery_no_valido", detail="El discovery document del proveedor no es JSON válido")
     except OSError as exc:
         logger.warning("SSO: error de red al obtener discovery url=%r: %s", _safe_url(config.oidc_discovery_url), exc)
-        raise HTTPException(502, "No se pudo obtener el discovery document")
+        raise error_http(502, "sso_discovery_no_obtenido", detail="No se pudo obtener el discovery document")
 
 
 _CLIENTES_JWKS: dict = {}
@@ -163,7 +164,7 @@ def sso_authorize(
 
         _allowed = list(settings.ALLOWED_ORIGINS) + [settings.FRONTEND_URL]
         if not _is_allowed_redirect_uri(redirect_uri, _allowed):
-            raise HTTPException(400, "redirect_uri no está en la lista de orígenes permitidos")
+            raise error_http(400, "sso_redirect_no_permitido", detail="redirect_uri no está en la lista de orígenes permitidos")
 
         state_raw = secrets.token_urlsafe(32)
         sig = _hmac.new(settings.SECRET_KEY.encode(), state_raw.encode(), _hashlib.sha256).hexdigest()
@@ -190,7 +191,7 @@ def sso_authorize(
         # Determine authorization endpoint via OIDC discovery document
         auth_url = _descubrimiento(config).get("authorization_endpoint", "")
         if not auth_url:
-            raise HTTPException(502, "El discovery document no trae authorization_endpoint")
+            raise error_http(502, "sso_sin_authorization_endpoint", detail="El discovery document no trae authorization_endpoint")
 
         # Auditoria 2026-11: los scopes guardados se ignoraban.
         scope = config.oidc_scopes or "openid profile email"
@@ -212,7 +213,7 @@ def sso_authorize(
         raise
     except Exception as e:
         logger.error("SSO authorize error: %s", e, exc_info=True)
-        raise HTTPException(500, "Error al iniciar el flujo SSO. Comprueba la configuración del proveedor.")
+        raise error_http(500, "sso_inicio_error", detail="Error al iniciar el flujo SSO. Comprueba la configuración del proveedor.")
 
 
 
@@ -250,14 +251,14 @@ def _validar_peticion_y_consumir_estado(payload) -> dict:
     redirect_uri = payload.redirect_uri
     state_param  = payload.state
     if not code or not redirect_uri:
-        raise HTTPException(400, "Faltan code o redirect_uri")
+        raise error_http(400, "sso_faltan_code_redirect")
     _allowed = list(settings.ALLOWED_ORIGINS) + [settings.FRONTEND_URL]
     if not _is_allowed_redirect_uri(redirect_uri, _allowed):
-        raise HTTPException(400, "redirect_uri no está en la lista de orígenes permitidos")
+        raise error_http(400, "sso_redirect_no_permitido", detail="redirect_uri no está en la lista de orígenes permitidos")
 
     # Validar state para prevenir CSRF
     if not state_param or "." not in state_param:
-        raise HTTPException(400, "State inválido o ausente")
+        raise error_http(400, "sso_state_no_valido", detail="State inválido o ausente")
     state_raw, state_sig = state_param.rsplit(".", 1)
     expected_sig = _hmac.new(
         settings.SECRET_KEY.encode(),
@@ -265,12 +266,12 @@ def _validar_peticion_y_consumir_estado(payload) -> dict:
         _hashlib.sha256,
     ).hexdigest()
     if not _hmac.compare_digest(expected_sig, state_sig):
-        raise HTTPException(400, "State inválido: posible ataque CSRF")
+        raise error_http(400, "sso_state_csrf", detail="State inválido: posible ataque CSRF")
     # Consume el estado (evita replay) Y recupera lo que se guardó con él:
     # el verificador de PKCE y el nonce esperado.
     sso_payload = _consume_sso_state_payload(state_raw)
     if sso_payload is None:
-        raise HTTPException(400, "State expirado o ya utilizado")
+        raise error_http(400, "sso_state_caducado", detail="State expirado o ya utilizado")
     # El verificador de PKCE y el nonce los lee quien llama del propio payload.
     return sso_payload
 
@@ -295,7 +296,7 @@ def _resolver_token_endpoint(config) -> str:
     else:
         token_url = _descubrimiento(config).get("token_endpoint", "")
         if not token_url:
-            raise HTTPException(502, "No se pudo obtener el token_endpoint")
+            raise error_http(502, "sso_sin_token_endpoint", detail="No se pudo obtener el token_endpoint")
     return token_url
 
 
@@ -329,10 +330,10 @@ def _intercambiar_codigo_por_tokens(config, code: str, redirect_uri: str, code_v
             tokens = _json.loads(resp.read())
     except _json.JSONDecodeError as exc:
         logger.warning("SSO callback: token response JSON inválido url=%r: %s", _safe_url(token_url), exc)
-        raise HTTPException(502, "El proveedor devolvió una respuesta de token no válida")
+        raise error_http(502, "sso_token_respuesta_no_valida", detail="El proveedor devolvió una respuesta de token no válida")
     except OSError as exc:
         logger.warning("SSO callback: error de red al obtener tokens url=%r: %s", _safe_url(token_url), exc)
-        raise HTTPException(502, f"Error de red al obtener tokens del proveedor SSO: {exc}")
+        raise error_http(502, "sso_red_error")
     return tokens
 
 
@@ -354,15 +355,12 @@ def _extraer_identidad(config, claims: dict) -> tuple:
     name  = claims.get(name_claim)  or claims.get("name") or email
 
     if not email:
-        raise HTTPException(502, "No se pudo obtener el email del token SSO")
+        raise error_http(502, "sso_sin_email", detail="No se pudo obtener el email del token SSO")
 
     # P0-4: Email verification check — reject unverified emails.
     email_verified = claims.get("email_verified")
     if email_verified is False:
-        raise HTTPException(
-            status_code=403,
-            detail="El proveedor SSO indica que este email no está verificado. No se puede autenticar.",
-        )
+        raise error_http(403, "sso_email_no_verificado", detail="El proveedor SSO indica que este email no está verificado. No se puede autenticar.")
     return email, name
 
 
@@ -381,7 +379,7 @@ def _validar_id_token_y_extraer_identidad(
     """
     id_token = tokens.get("id_token", "")
     if not id_token:
-        raise HTTPException(502, "El proveedor no devolvió id_token")
+        raise error_http(502, "sso_sin_id_token", detail="El proveedor no devolvió id_token")
 
     # Verificar firma del id_token usando las claves públicas del proveedor (JWKS)
     try:
@@ -390,10 +388,7 @@ def _validar_id_token_y_extraer_identidad(
         disc = _descubrimiento(config) if config.oidc_discovery_url else {}
         jwks_uri = disc.get("jwks_uri")
         if not jwks_uri:
-            raise HTTPException(
-                status_code=502,
-                detail="No se pudo obtener JWKS URI del proveedor SSO. Imposible verificar la firma del id_token.",
-            )
+            raise error_http(502, "sso_sin_jwks", detail="No se pudo obtener JWKS URI del proveedor SSO. Imposible verificar la firma del id_token.")
         _validate_https_discovery_url(jwks_uri)
         signing_key = _cliente_jwks(jwks_uri).get_signing_key_from_jwt(id_token)
         # Auditoria 2026-11 (como contecintelligence, `security/sso.py`): se
@@ -416,7 +411,7 @@ def _validar_id_token_y_extraer_identidad(
         raise
     except Exception as jwt_err:
         logger.warning("SSO callback id_token verification failed for config=%s", config_id, exc_info=True)
-        raise HTTPException(502, f"id_token inválido o firma incorrecta: {jwt_err}")
+        raise error_http(502, "sso_id_token_no_valido", detail=f"id_token inválido o firma incorrecta: {jwt_err}")
 
     # Verificación del NONCE (auditoría 2026-08, P2-13). Se generaba en
     # /authorize y no se comprobaba aquí, así que no protegía de replay del
@@ -427,7 +422,7 @@ def _validar_id_token_y_extraer_identidad(
             logger.warning(
                 "SSO callback: nonce del id_token no coincide para config=%s", config_id
             )
-            raise HTTPException(400, "Nonce inválido: posible reutilización del id_token")
+            raise error_http(400, "sso_nonce_no_valido", detail="Nonce inválido: posible reutilización del id_token")
 
     email, name = _extraer_identidad(config, claims)
     return claims, email, name
@@ -475,11 +470,7 @@ def sso_callback(
         # exige por SSO; antes el login por contrasena bloqueaba y el SSO no.
         if not (has_totp or has_passkeys) and _svc.organizacion_exige_mfa(db, user, org):
             _svc.commit_db(db)
-            raise HTTPException(
-                status_code=403,
-                detail=("Tu organización requiere MFA. Configura un autenticador "
-                        "(TOTP o passkey) antes de poder iniciar sesión."),
-            )
+            raise error_http(403, "mfa_obligatorio_org", detail="Tu organización requiere MFA. Configura un autenticador (TOTP o passkey) antes de poder iniciar sesión.")
         if has_totp or has_passkeys:
             methods = []
             if has_totp:
@@ -523,4 +514,4 @@ def sso_callback(
         raise
     except Exception as e:
         logger.error("SSO callback error: %s", e, exc_info=True)
-        raise HTTPException(500, "Error al completar el inicio de sesión SSO.")
+        raise error_http(500, "sso_login_error", detail="Error al completar el inicio de sesión SSO.")

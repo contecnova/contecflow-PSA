@@ -21,6 +21,7 @@ from app.core.errores import ErrorDeDominio
 from app.services.formato_regional import IDIOMA_DE_RESPALDO
 from app.models.ausencias import (AccesoEspecialAusencias, RequisitoDocumentalDeTipo, TipoDeAusencia,
                                   TipoDeDocumentoDeAusencia)
+from app.core.codigos_de_error import error
 
 UNIDADES = ("dias", "medios_dias", "horas")
 VISIBILIDADES = ("todos", "equipo", "privada")
@@ -108,7 +109,7 @@ def tipos(db: Session, *, incluir_inactivos: bool = False, usuario=None) -> list
 def tipo(db: Session, tipo_id: str) -> TipoDeAusencia:
     t = db.query(TipoDeAusencia).filter(TipoDeAusencia.id == tipo_id).first()
     if t is None:
-        raise ErrorDeDominio(404, "Tipo de ausencia no encontrado")
+        raise error(404, "no_encontrado", detail="Tipo de ausencia no encontrado", que="tipo_de_ausencia")
     return t
 
 
@@ -121,9 +122,9 @@ def resolver_tipo(db: Session, *, tipo_id: Optional[str] = None, clave: Optional
     """El tipo de una petición: por id (pantalla nueva) o por clave (API antiguo, `type`)."""
     t = tipo(db, tipo_id) if tipo_id else (tipo_por_clave(db, clave) if clave else None)
     if t is None:
-        raise ErrorDeDominio(422, f"Tipo de ausencia desconocido: {clave or tipo_id}")
+        raise error(422, "valor_no_valido", detail=f"Tipo de ausencia desconocido: {clave or tipo_id}", valor=clave or tipo_id)
     if not t.activo:
-        raise ErrorDeDominio(422, f"El tipo «{t.nombre}» está desactivado")
+        raise error(422, "tipo_de_ausencia_desactivado", tipo=t.nombre)
     return t
 
 
@@ -171,7 +172,7 @@ def nombre_en(t, lang: Optional[str]) -> str:
 def _nombres(datos: dict) -> dict:
     nombres = {k: str(v).strip()[:120] for k, v in (datos.get("nombres") or {}).items() if k in IDIOMAS and str(v or "").strip()}
     if not (datos.get("nombre") or "").strip() and not nombres:
-        raise ErrorDeDominio(422, "El tipo necesita un nombre")
+        raise error(422, "nombre_obligatorio", detail="El tipo necesita un nombre")
     return nombres
 
 
@@ -332,7 +333,7 @@ def documentos(db: Session, *, incluir_inactivos: bool = False, usuario=None) ->
 def documento(db: Session, doc_id: str) -> TipoDeDocumentoDeAusencia:
     d = db.query(TipoDeDocumentoDeAusencia).filter(TipoDeDocumentoDeAusencia.id == doc_id).first()
     if d is None:
-        raise ErrorDeDominio(404, "Tipo de documento no encontrado")
+        raise error(404, "no_encontrado", detail="Tipo de documento no encontrado", que="tipo_de_documento")
     return d
 
 
@@ -346,10 +347,10 @@ def guardar_documento(db: Session, usuario, datos: dict, doc_id: Optional[str] =
     nombres = _nombres(datos)
     clave = (datos.get("clave") or (actual.clave if actual else "")).strip()
     if not _CLAVE.match(clave):
-        raise ErrorDeDominio(422, "La clave va en minúsculas, números y _ (2 a 50)")
+        raise error(422, "clave_formato_no_valido")
     if (actual is None or actual.clave != clave) and db.query(TipoDeDocumentoDeAusencia.id).filter(
             TipoDeDocumentoDeAusencia.clave == clave).first():
-        raise ErrorDeDominio(422, f"Ya hay un tipo de documento con la clave {clave}")
+        raise error(422, "tipo_de_documento_ya_existe", clave=clave)
     d = actual or TipoDeDocumentoDeAusencia(id=str(uuid.uuid4()), organization_id=_org(db, usuario))
     d.clave = clave
     d.nombres = json.dumps(nombres, ensure_ascii=False) if nombres else None
@@ -391,7 +392,7 @@ def conceder_acceso(db: Session, usuario, user_id: str) -> list[dict]:
     from app.models.user import User
     from app.services.audit import audit_log
     if db.query(User.id).filter(User.id == user_id, User.is_active.is_(True)).first() is None:
-        raise ErrorDeDominio(422, "Esa persona no existe en tu empresa o no está activa")
+        raise error(422, "persona_no_activa_en_empresa")
     if db.query(AccesoEspecialAusencias.id).filter(AccesoEspecialAusencias.user_id == user_id).first() is None:
         db.add(AccesoEspecialAusencias(id=str(uuid.uuid4()), organization_id=_org(db, usuario), user_id=user_id,
                                        concedido_por=usuario.id))

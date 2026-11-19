@@ -117,6 +117,7 @@ def compute_health(db: Session, project_id: str) -> dict:
 
 
 def project_health_payload(db: Session, project_id: str) -> dict:
+    from app.core.umbrales import SEMAFORO, tono_de
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise ErrorDeDominio(404)
@@ -130,7 +131,8 @@ def project_health_payload(db: Session, project_id: str) -> dict:
         "current": data,
         "history": [{
             "score": h.score,
-            "traffic_light": "green" if h.score >= 70 else ("yellow" if h.score >= 45 else "red"),
+            # 19-11-2026: los mismos cortes que el valor actual (antes 70/45 fijos).
+            "traffic_light": SEMAFORO.get(tono_de("salud_proyecto", h.score, db, registro=project)),
             "snapshot_at": h.snapshot_at.isoformat() if h.snapshot_at else None,
         } for h in history],
     }

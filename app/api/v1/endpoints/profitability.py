@@ -11,6 +11,7 @@ from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User, UserRole
 from app.services import profitability_service
 from app.schemas.milestones import MilestoneIn, MilestoneUpdate
+from app.core.codigos_de_error import error_http, desde_valor
 
 router = APIRouter()
 
@@ -130,11 +131,11 @@ def get_project_profitability(
     response: Response = None,
 ):
     if current_user.role not in [UserRole.admin, UserRole.pm]:
-        raise HTTPException(403, "Acceso denegado")
+        raise error_http(403, "sin_permiso", detail="Acceso denegado")
 
     project = profitability_service.get_project_with_tasks(db, project_id)
     if not project:
-        raise HTTPException(404, "Proyecto no encontrado")
+        raise error_http(404, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")
 
     base = profitability_service.calc_project_profitability(project, db)
 
@@ -202,7 +203,7 @@ def create_milestone(
     _rol: User = Depends(require_any_manager),  # auditoria 2026-09: dominio: margenes e hitos de facturacion
 ):
     if current_user.role not in [UserRole.admin, UserRole.pm]:
-        raise HTTPException(403, "Acceso denegado")
+        raise error_http(403, "sin_permiso", detail="Acceso denegado")
     m = profitability_service.create_milestone(db, project_id, payload.model_dump())
     return APIResponse.ok(data=_milestone_out(m))
 
@@ -217,18 +218,18 @@ def update_milestone(
     _rol: User = Depends(require_any_manager),  # auditoria 2026-09: dominio: margenes e hitos de facturacion
 ):
     if current_user.role not in [UserRole.admin, UserRole.pm]:
-        raise HTTPException(403, "Acceso denegado")
+        raise error_http(403, "sin_permiso", detail="Acceso denegado")
     m = profitability_service.get_milestone(db, milestone_id, project_id)
     if not m:
-        raise HTTPException(404, "Hito no encontrado")
+        raise error_http(404, "no_encontrado", detail="Hito no encontrado", que="hito")
     cambios = payload.model_dump(exclude_unset=True)
     # Revisión 2026-11: un único flujo de facturación por hitos. Facturar sólo
     # lo hace la factura que genera Facturación por hitos; completar y reabrir
     # pasan por su servicio (estado de facturación e ingresos ASC 606).
     if "is_billed" in cambios or "billed_at" in cambios:
-        raise HTTPException(400, "Se factura desde Facturación por hitos, que genera la factura")
+        raise error_http(400, "hito_se_factura_por_hitos")
     if "billing_amount" in cambios and m.billing_status in ("pending_approval", "approved", "invoiced"):
-        raise HTTPException(400, f"El importe no se cambia con el hito en «{m.billing_status}»")
+        raise error_http(400, "hito_importe_no_editable", estado=m.billing_status)
     completar = cambios.pop("is_completed", None)
     cambios.pop("completed_date", None)
     from app.services import milestone_service
@@ -251,13 +252,13 @@ def delete_milestone(
     _rol: User = Depends(require_any_manager),  # auditoria 2026-09: dominio: margenes e hitos de facturacion
 ):
     if current_user.role not in [UserRole.admin, UserRole.pm]:
-        raise HTTPException(403, "Acceso denegado")
+        raise error_http(403, "sin_permiso", detail="Acceso denegado")
     m = profitability_service.get_milestone(db, milestone_id, project_id)
     if not m:
-        raise HTTPException(404, "Hito no encontrado")
+        raise error_http(404, "no_encontrado", detail="Hito no encontrado", que="hito")
     enforce_abac(db, current_user, "project_milestone", milestone_id, action="delete")
     try:
         profitability_service.delete_milestone(db, m)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
     return APIResponse.ok(data={"ok": True, "message": "Hito eliminado correctamente"})

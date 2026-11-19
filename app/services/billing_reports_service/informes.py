@@ -21,6 +21,7 @@ from app.models.expenses import Expense
 from app.services.billing_reports.data_source_service import run_skills_report, run_pipeline_report
 from app.core import timeutil
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -28,6 +29,7 @@ from app.core.errores import ErrorDeDominio
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def run_projects_report(db: Session, filters: dict, group_by, date_from, date_to, org_id=None) -> dict:
+    from app.core.umbrales import SALUD, tono_de
     projects_q = db.query(Project).options(
         joinedload(Project.project_manager),
         joinedload(Project.imputations).joinedload(Imputation.user),
@@ -64,7 +66,8 @@ def run_projects_report(db: Session, filters: dict, group_by, date_from, date_to
             "start_date": str(p.start_date) if p.start_date else None,
             "end_date_planned": str(p.end_date_planned) if p.end_date_planned else None,
             "risk_level": p.risk_level,
-            "health": "critical" if (budget_pct or 0) > 90 else "warning" if (budget_pct or 0) > 75 else "ok",
+            # 19-11-2026: UMBRAL_PRESUPUESTO_* de la empresa (antes 90/75 fijos).
+            "health": SALUD[tono_de("presupuesto", budget_pct or 0, db, org_id, registro=p)],
         })
 
     if filters.get("status"):
@@ -233,6 +236,7 @@ def run_expenses_report(db: Session, filters: dict, group_by, date_from, date_to
 
 
 def run_capacity_report(db: Session, filters: dict, date_from, date_to, org_id=None) -> dict:
+    from app.core.umbrales import estado_de_carga
 
     users_q = db.query(User).filter(User.is_active == True)
     if org_id:
@@ -255,7 +259,8 @@ def run_capacity_report(db: Session, filters: dict, date_from, date_to, org_id=N
             "capacity_hours": capacity, "assigned_hours": round(total_assigned, 1),
             "available_hours": round(max(capacity - total_assigned, 0), 1),
             "utilization_pct": util_pct,
-            "status": "overloaded" if util_pct > 100 else "high" if util_pct > 85 else "ok" if util_pct > 50 else "under",
+            # 19-11-2026: UMBRAL_CARGA_* y RESOURCE_UNDERUSE_PCT de la empresa.
+            "status": estado_de_carga(util_pct, db, org_id, registro=u),
         }
 
     return {
@@ -360,10 +365,10 @@ CAMPOS_EDITABLES_INFORME = {
 def update_scheduled_report(report_id: str, payload: dict, db: Session) -> dict:
     r = db.query(ScheduledReport).filter(ScheduledReport.id == report_id).first()
     if not r:
-        raise ErrorDeDominio(404, "Informe no encontrado")
+        raise error(404, "no_encontrado", detail="Informe no encontrado", que="informe")
     ajenos = sorted(set(payload) - CAMPOS_EDITABLES_INFORME)
     if ajenos:
-        raise ErrorDeDominio(422, f"Campos no editables: {', '.join(ajenos)}")
+        raise error(422, "campos_no_editables", detail=f"Campos no editables: {', '.join(ajenos)}", campos=', '.join(ajenos))
     for k, v in payload.items():
         if k in ("recipients", "recipients_extra"):
             setattr(r, k, json.dumps(v))

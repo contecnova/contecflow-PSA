@@ -26,6 +26,8 @@ import { CON_HORA, codigoDeErrorDePeriodo } from '../../utils/periodo'
 import { COLOR } from '../../constants/theme'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { STALE_DEFAULT_MS } from '../../constants/timings'
+import { useTono } from '../../hooks/useOrgSettings'
+import { TIPOS_DE_TICKET } from '../../constants/catalogos'
 import './MetricsDashboardTab.css'
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
@@ -43,7 +45,7 @@ const PRIORIDADES: Record<string, string> = {
   p3_medium: COLOR.warning,
   p4_low: COLOR.text3,
 }
-const TIPOS = ['incident', 'service_request', 'problem', 'change', 'question']
+const TIPOS = TIPOS_DE_TICKET  // 19-11-2026: una sola fuente (constants/catalogos)
 
 /* ── Sub-components ───────────────────────────────────────────────────────── */
 function ResolutionBar({ resolved, total }: { resolved: number; total: number }) {
@@ -85,6 +87,7 @@ type AgentPerf = SdRendimientoDeAgente
 
 export default function MetricsDashboardTab() {
   const { t } = useAppLang()
+  const tono = useTono()
   // Periodo libre (16-11-2026): antes 7/30/90 propio con date_from/date_to.
   // Los tickets tienen instante: admite agrupación por hora.
   const periodoSel = usePeriodo({ defecto: '30d', granularidades: CON_HORA })
@@ -147,10 +150,11 @@ export default function MetricsDashboardTab() {
   const slaPct = sinTickets ? null : (metrics.sla_compliance_pct ?? null)
   const fcrPct = sinTickets ? null : (metrics.fcr_percent ?? null)
 
-  const slaColor = slaPct == null ? COLOR.text3
-    : slaPct >= 95 ? COLOR.success : slaPct >= 80 ? COLOR.warning : COLOR.danger
-  const slaSub = slaPct == null ? t('metricsdashboard.sin_tickets_periodo')
-    : slaPct >= 95 ? t('metricsdashboard.sla_excelente') : slaPct >= 80 ? t('metricsdashboard.sla_aceptable') : t('metricsdashboard.sla_bajo_objetivo')
+  // 19-11-2026: los cortes de SLA de la empresa (antes 95/80 aquí).
+  const slaTono = tono('sla', slaPct)
+  const slaColor = slaTono == null ? COLOR.text3 : COLOR[slaTono]
+  const slaSub = slaTono == null ? t('metricsdashboard.sin_tickets_periodo')
+    : slaTono === 'success' ? t('metricsdashboard.sla_excelente') : slaTono === 'warning' ? t('metricsdashboard.sla_aceptable') : t('metricsdashboard.sla_bajo_objetivo')
 
   const fcrColor = fcrPct == null ? COLOR.text3
     : fcrPct >= 70 ? COLOR.success : fcrPct >= 50 ? COLOR.warning : COLOR.danger

@@ -85,6 +85,7 @@ from app.services.tasks.scheduling import cascade_reschedule  # noqa: F401
 # ─────────────────────────────────────────────────────────────────────────────
 import logging
 from typing import Optional, TYPE_CHECKING
+from app.core.codigos_de_error import error as error_con_codigo
 
 if TYPE_CHECKING:
     from app.core.tareas_diferidas import ProgramadorDeTareas
@@ -186,7 +187,7 @@ def get_kanban_payload(db: Session, project_id: str, current_user) -> dict:
 
     project = project_for_user(db, project_id, current_user)
     if not project:
-        raise ErrorDeDominio(status_code=404, detail="Proyecto no encontrado")
+        raise error_con_codigo(404, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")
 
     if current_user.role in (UserRole.employee, UserRole.subcontractor):
         has_task = db.query(Task).filter(
@@ -194,7 +195,7 @@ def get_kanban_payload(db: Session, project_id: str, current_user) -> dict:
             Task.assignee_id == current_user.id,
         ).first()
         if not has_task:
-            raise ErrorDeDominio(status_code=403, detail="No tienes tareas en este proyecto")
+            raise error_con_codigo(403, "sin_tareas_en_proyecto")
 
     tasks = db.query(Task).options(
         joinedload(Task.assignee)
@@ -239,26 +240,26 @@ def _exigir_alta_en_su_proyecto(db: Session, payload, project, current_user) -> 
     y el subcontratado solo la asigna a alguien que ve
     (`politica_de_visibilidad.ids_de_personas_visibles`)."""
     if not _trabaja_en_el_proyecto(db, project.id, current_user):
-        raise ErrorDeDominio(status_code=404, detail="Proyecto no encontrado")
+        raise error_con_codigo(404, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")
     if payload.parent_task_id and not db.query(Task.id).filter(
             Task.id == payload.parent_task_id, Task.project_id == project.id).first():
-        raise ErrorDeDominio(status_code=404, detail="Tarea padre no encontrada")
+        raise error_con_codigo(404, "no_encontrado", detail="Tarea padre no encontrada", que="tarea_padre")
     if payload.phase_id:
         from app.models.project import ProjectPhase
         if not db.query(ProjectPhase.id).filter(
                 ProjectPhase.id == payload.phase_id, ProjectPhase.project_id == project.id).first():
-            raise ErrorDeDominio(status_code=404, detail="Fase no encontrada")
+            raise error_con_codigo(404, "no_encontrado", detail="Fase no encontrada", que="fase")
     if payload.assignee_id and payload.assignee_id != current_user.id:
         from app.services.politica_de_visibilidad import es_externo, ids_de_personas_visibles
         if es_externo(current_user) and payload.assignee_id not in ids_de_personas_visibles(db, current_user):
-            raise ErrorDeDominio(status_code=404, detail="Usuario no encontrado")
+            raise error_con_codigo(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
 
 
 def create_task_record(db: Session, payload, current_user):
 
     project = project_for_user(db, payload.project_id, current_user)
     if not project:
-        raise ErrorDeDominio(status_code=404, detail="Proyecto no encontrado")
+        raise error_con_codigo(404, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")
     if not getattr(current_user, "is_superadmin", False) and current_user.role in (
             UserRole.employee, UserRole.subcontractor):
         _exigir_alta_en_su_proyecto(db, payload, project, current_user)
@@ -277,7 +278,7 @@ def create_task_record(db: Session, payload, current_user):
         db.commit()
     except IntegrityError:
         db.rollback()
-        raise ErrorDeDominio(status_code=409, detail="Código de tarea duplicado. Inténtalo de nuevo.")
+        raise error_con_codigo(409, "conflicto_concurrente", detail="Código de tarea duplicado. Inténtalo de nuevo.")
     db.refresh(task)
     from app.core.events import emit, EventType
     emit(db, EventType.TASK_CREATED,
@@ -303,14 +304,14 @@ def get_task_record(db: Session, task_id: str, current_user):
     ).filter(Task.id == task_id).first()
 
     if not task:
-        raise ErrorDeDominio(status_code=404, detail="Tarea no encontrada")
+        raise error_con_codigo(404, "no_encontrado", detail="Tarea no encontrada", que="tarea")
 
     if current_user.role != UserRole.admin:
         project = db.query(Project).filter(Project.id == task.project_id).first()
         is_project_pm = project and project.pm_id == current_user.id
         is_task_participant = (task.assignee_id == current_user.id or task.reporter_id == current_user.id)
         if not is_project_pm and not is_task_participant:
-            raise ErrorDeDominio(status_code=403, detail="No tienes acceso a esta tarea")
+            raise error_con_codigo(403, "sin_acceso_tarea")
 
     return task
 
@@ -323,7 +324,7 @@ def _autorizar_edicion_de_tarea(task, project, current_user) -> None:
         return
     es_pm = project and project.pm_id == current_user.id
     if not es_pm and task.assignee_id != current_user.id:
-        raise ErrorDeDominio(status_code=403, detail="No tienes permiso para editar esta tarea")
+        raise error_con_codigo(403, "sin_permiso", detail="No tienes permiso para editar esta tarea")
 
 
 def _guardar_con_bloqueo_optimista(db: Session, task, cambios: dict, task_id: str) -> None:
@@ -344,13 +345,8 @@ def _guardar_con_bloqueo_optimista(db: Session, task, cambios: dict, task_id: st
 
     version_cliente = cambios.get("version")
     if version_cliente is not None and version_cliente != (task.version or 1):
-        raise ErrorDeDominio(
-            status_code=409,
-            detail=(
-                f"Conflicto de edición: la tarea fue modificada por otro usuario "
-                f"(versión {task.version}). Recarga y reintenta."
-            ),
-        )
+        raise error_con_codigo(409, "conflicto_concurrente", detail=f"Conflicto de edición: la tarea fue modificada por otro usuario "
+                f"(versión {task.version}). Recarga y reintenta.")
     task.version = (task.version or 1) + 1
 
     try:
@@ -358,13 +354,11 @@ def _guardar_con_bloqueo_optimista(db: Session, task, cambios: dict, task_id: st
     except IntegrityError as e:
         db.rollback()
         logger.error(f"Integrity error updating task {task_id}: {str(e)}")
-        raise ErrorDeDominio(
-            status_code=409, detail="Task state conflict. Please reload and try again.",
-        )
+        raise error_con_codigo(409, "conflicto_concurrente", detail="Task state conflict. Please reload and try again.")
     except Exception as e:
         db.rollback()
         logger.error(f"Database error updating task {task_id}: {str(e)}")
-        raise ErrorDeDominio(status_code=503, detail="Database operation failed")
+        raise error_con_codigo(503, "operacion_bd_fallida", detail="Database operation failed")
 
 
 def _registrar_movimiento(db: Session, task, cambios: dict, estado_anterior, current_user) -> None:
@@ -417,11 +411,11 @@ def update_task_record(db: Session, task_id: str, payload, current_user):
     """
     task = task_query_for_user(db, current_user).filter(Task.id == task_id).first()
     if not task:
-        raise ErrorDeDominio(status_code=404, detail="Tarea no encontrada")
+        raise error_con_codigo(404, "no_encontrado", detail="Tarea no encontrada", que="tarea")
 
     project = project_for_user(db, task.project_id, current_user)
     if not project:
-        raise ErrorDeDominio(status_code=404, detail="Proyecto no encontrado")
+        raise error_con_codigo(404, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")
 
     _autorizar_edicion_de_tarea(task, project, current_user)
     from app.services.issue_type_service import validar_tipo
@@ -483,20 +477,20 @@ def cancel_task_record(db: Session, task_id: str, current_user=None) -> dict:
         )
     task = q.first()
     if not task:
-        raise ErrorDeDominio(status_code=404, detail="Tarea no encontrada")
+        raise error_con_codigo(404, "no_encontrado", detail="Tarea no encontrada", que="tarea")
     if task.status == TaskStatus.cancelled:
-        raise ErrorDeDominio(status_code=400, detail="La tarea ya esta cancelada")
+        raise error_con_codigo(400, "tarea_ya_cancelada", detail="La tarea ya esta cancelada")
     task.status = TaskStatus.cancelled
     try:
         db.commit()
     except IntegrityError as e:
         db.rollback()
         logger.error(f"Integrity error cancelling task {task_id}: {str(e)}")
-        raise ErrorDeDominio(status_code=409, detail="Cannot cancel task. State conflict.")
+        raise error_con_codigo(409, "conflicto_concurrente", detail="Cannot cancel task. State conflict.")
     except Exception as e:
         db.rollback()
         logger.error(f"Database error cancelling task {task_id}: {str(e)}")
-        raise ErrorDeDominio(status_code=503, detail="Database operation failed")
+        raise error_con_codigo(503, "operacion_bd_fallida", detail="Database operation failed")
     from app.core.events import emit, EventType
     emit(db, EventType.TASK_DELETED,
          {"title": task.title, "project_id": task.project_id, "reason": "cancelled"},
@@ -520,14 +514,14 @@ def add_comment_record(db: Session, task_id: str, payload, current_user):
         )
     task = q.first()
     if not task:
-        raise ErrorDeDominio(status_code=404, detail="Tarea no encontrada")
+        raise error_con_codigo(404, "no_encontrado", detail="Tarea no encontrada", que="tarea")
 
     if current_user.role != UserRole.admin:
         project = db.query(Project).filter(Project.id == task.project_id).first()
         is_project_pm = project and project.pm_id == current_user.id
         is_task_participant = (task.assignee_id == current_user.id or task.reporter_id == current_user.id)
         if not is_project_pm and not is_task_participant:
-            raise ErrorDeDominio(status_code=403, detail="No tienes acceso a esta tarea")
+            raise error_con_codigo(403, "sin_acceso_tarea")
 
     comment = TaskComment(
         task_id=task_id,
@@ -540,11 +534,11 @@ def add_comment_record(db: Session, task_id: str, payload, current_user):
     except IntegrityError as e:
         db.rollback()
         logger.error(f"Integrity error adding comment to task {task_id}: {str(e)}")
-        raise ErrorDeDominio(status_code=409, detail="Cannot add comment. Conflict.")
+        raise error_con_codigo(409, "conflicto_concurrente", detail="Cannot add comment. Conflict.")
     except Exception as e:
         db.rollback()
         logger.error(f"Database error adding comment to task {task_id}: {str(e)}")
-        raise ErrorDeDominio(status_code=503, detail="Database operation failed")
+        raise error_con_codigo(503, "operacion_bd_fallida", detail="Database operation failed")
     db.refresh(comment)
     return comment
 
@@ -618,11 +612,11 @@ def bulk_update_dates_record(db: Session, updates: list, current_user=None) -> d
     except IntegrityError as e:
         db.rollback()
         logger.error(f"Integrity error in bulk_update_dates: {str(e)}")
-        raise ErrorDeDominio(status_code=409, detail="Constraint violation in bulk date update.")
+        raise error_con_codigo(409, "conflicto_concurrente", detail="Constraint violation in bulk date update.")
     except Exception as e:
         db.rollback()
         logger.error(f"Database error in bulk_update_dates: {str(e)}")
-        raise ErrorDeDominio(status_code=503, detail="Database operation failed")
+        raise error_con_codigo(503, "operacion_bd_fallida", detail="Database operation failed")
 
     # Rev. 173: mover barras en el Gantt recalcula el camino crítico de cada proyecto tocado.
     from app.services.planificador.servicio import recalcular_si_procede
@@ -737,11 +731,11 @@ def _normalizar_tipo(dependency_type, link_type, predecessor_id, successor_id):
     elif tipo in _TIPOS_INFORMATIVOS:
         tipo, vinculo = "FS", tipo
     if vinculo not in TIPOS_DE_VINCULO_DE_TAREA:
-        raise ErrorDeDominio(400, f"Tipo de vínculo no válido: {vinculo}")
+        raise error_con_codigo(400, "valor_no_valido", detail=f"Tipo de vínculo no válido: {vinculo}", valor=vinculo)
     try:
         return DependencyType(tipo), vinculo, predecessor_id, successor_id
     except ValueError:
-        raise ErrorDeDominio(400, f"Tipo de dependencia no válido: {tipo} (FS, SS, FF o SF)")
+        raise error_con_codigo(400, "tipo_de_dependencia_no_valido", valor=tipo)
 
 
 def create_task_dependency(
@@ -761,14 +755,14 @@ def create_task_dependency(
     dependency_type, link_type, predecessor_id, successor_id = _normalizar_tipo(
         dependency_type, link_type, predecessor_id, successor_id)
     if predecessor_id == successor_id:
-        raise ErrorDeDominio(400, "Una tarea no puede depender de sí misma")
+        raise error_con_codigo(400, "tarea_depende_de_si_misma")
     tareas = {t.id: t for t in db.query(Task).filter(Task.id.in_([predecessor_id, successor_id])).all()}
     if len(tareas) != 2:
-        raise ErrorDeDominio(404, "Tarea no encontrada")
+        raise error_con_codigo(404, "no_encontrado", detail="Tarea no encontrada", que="tarea")
     if link_type == "schedule" and tareas[predecessor_id].project_id != tareas[successor_id].project_id:
-        raise ErrorDeDominio(400, "Una dependencia que planifica une tareas del mismo proyecto")
+        raise error_con_codigo(400, "dependencia_mismo_proyecto")
     if link_type == "schedule" and _cierra_un_ciclo(db, predecessor_id, successor_id):
-        raise ErrorDeDominio(400, "Esa dependencia cerraría un ciclo: la tarea siguiente ya va antes que la anterior")
+        raise error_con_codigo(400, "dependencia_ciclo")
     existing = (
         db.query(TaskDependency)
         .filter(
@@ -777,7 +771,7 @@ def create_task_dependency(
         ).first()
     )
     if existing and existing.is_active:
-        raise ErrorDeDominio(409, "La dependencia ya existe")
+        raise error_con_codigo(409, "dependencia_ya_existe", detail="La dependencia ya existe")
     if existing:
         dep = existing
         dep.is_active = True
@@ -809,14 +803,14 @@ def update_task_dependency(db: Session, dep_id: str, cambios: dict) -> dict:
     """Cambia tipo, desfase, vínculo o nota de una dependencia y recalcula el plan."""
     dep = db.query(TaskDependency).filter(TaskDependency.id == dep_id, TaskDependency.is_active == True).first()
     if not dep:
-        raise ErrorDeDominio(404, "Dependencia no encontrada")
+        raise error_con_codigo(404, "no_encontrado", detail="Dependencia no encontrada", que="dependencia")
     tipo, vinculo, pred, suc = _normalizar_tipo(
         cambios.get("dependency_type") or dep.dependency_type,
         cambios.get("link_type") or dep.link_type, dep.predecessor_id, dep.successor_id)
     if (pred, suc) != (dep.predecessor_id, dep.successor_id):
-        raise ErrorDeDominio(400, "Para invertir una dependencia, bórrala y créala al revés")
+        raise error_con_codigo(400, "dependencia_no_invertible")
     if vinculo == "schedule" and dep.link_type != "schedule" and _cierra_un_ciclo(db, pred, suc):
-        raise ErrorDeDominio(400, "Esa dependencia cerraría un ciclo: la tarea siguiente ya va antes que la anterior")
+        raise error_con_codigo(400, "dependencia_ciclo")
     dep.dependency_type, dep.link_type = tipo, vinculo
     if cambios.get("lag_days") is not None:
         dep.lag_days = int(cambios["lag_days"])
@@ -833,7 +827,7 @@ def delete_task_dependency(db: Session, dep_id: str) -> dict:
     """Delete a task dependency by id. Raises 404 if not found."""
     dep = db.query(TaskDependency).filter(TaskDependency.id == dep_id, TaskDependency.is_active == True).first()
     if not dep:
-        raise ErrorDeDominio(404, "Dependencia no encontrada")
+        raise error_con_codigo(404, "no_encontrado", detail="Dependencia no encontrada", que="dependencia")
     dep.is_active = False
     db.commit()
     from app.services.planificador.servicio import recalcular_si_procede

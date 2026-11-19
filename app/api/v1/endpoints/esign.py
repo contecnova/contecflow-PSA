@@ -33,6 +33,7 @@ from app.core.abac_enforce import enforce_abac
 from app.services import esign_service
 from app.core.errores import ErrorDeDominio
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.core.codigos_de_error import error_http, desde_valor
 
 router = APIRouter()
 _logger = logging.getLogger(__name__)
@@ -156,11 +157,11 @@ def create_envelope(
     _rol: User = Depends(require_admin),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
 ):
     if not body.signers:
-        raise HTTPException(400, "Al menos un firmante es obligatorio")
+        raise error_http(400, "esign_sin_firmantes", detail="Al menos un firmante es obligatorio")
 
     doc = esign_service.get_document(db, body.document_id)
     if not doc:
-        raise HTTPException(404, "Documento no encontrado")
+        raise error_http(404, "no_encontrado", detail="Documento no encontrado", que="documento")
 
     # Build a temporary envelope object for provider helper (no db write yet)
     _tmp = ESignEnvelope(
@@ -178,7 +179,7 @@ def create_envelope(
     try:
         provider_result = _create_provider_envelope(_tmp, doc, db)
     except ValueError as exc:
-        raise HTTPException(400, str(exc))
+        raise desde_valor(400, exc)
 
     return APIResponse.ok(data=esign_service.create_envelope(
         db,
@@ -290,7 +291,7 @@ def get_envelope(
 ):
     env = esign_service.get_envelope(db, envelope_id)
     if not env:
-        raise HTTPException(404, "Solicitud no encontrada")
+        raise error_http(404, "no_encontrado", detail="Solicitud no encontrada", que="solicitud")
     return APIResponse.ok(data=env)
 
 
@@ -305,7 +306,7 @@ def update_status(
     try:
         new_status = ESignStatus(status)
     except ValueError:
-        raise HTTPException(400, f"Estado inválido: {status}")
+        raise error_http(400, "estado_no_valido_valor", detail=f"Estado inválido: {status}", estado=status)
 
     env = esign_service.get_envelope(db, envelope_id)
     if not env:
@@ -325,7 +326,7 @@ def mark_signer_signed(
 ):
     signer = esign_service.get_signer(db, signer_id, envelope_id)
     if not signer:
-        raise HTTPException(404, "Firmante no encontrado")
+        raise error_http(404, "no_encontrado", detail="Firmante no encontrado", que="firmante")
 
     envelope = esign_service.get_envelope(db, envelope_id)
     esign_service.mark_signer_signed(db, signer, envelope)
@@ -357,9 +358,7 @@ def _exigir_creador_o_gestor(usuario: User, creador_id) -> None:
         return
     if usuario.role in _GESTORES_DE_FIRMA:
         return
-    raise HTTPException(
-        403, "Solo quien creo la solicitud de firma, o un gestor, puede anularla"
-    )
+    raise error_http(403, "esign_solo_creador", detail="Solo quien creo la solicitud de firma, o un gestor, puede anularla")
 
 
 @router.delete("/{envelope_id}", summary="Anular solicitud de firma")
@@ -377,7 +376,7 @@ def void_envelope(
     # por la respuesta si existe.
     _exigir_creador_o_gestor(current_user, env.created_by_id)
     if env.status == ESignStatus.completed:
-        raise HTTPException(400, "No se puede anular una solicitud ya completada")
+        raise error_http(400, "esign_ya_completada")
     esign_service.void_envelope(db, env)
     return APIResponse.ok(data={"id": envelope_id, "status": "voided"})
 
@@ -401,7 +400,7 @@ async def docusign_webhook(
         payload_str = body.decode("utf-8", errors="replace")
     except Exception as e:
         _logger.warning(f"[eSign] DocuSign webhook body read failed: {e}")
-        raise HTTPException(400, "Cuerpo del webhook ilegible")
+        raise error_http(400, "webhook_cuerpo_ilegible", detail="Cuerpo del webhook ilegible")
 
     # Authenticate BEFORE parsing/mutating: gather every X-DocuSign-Signature-N
     # header (DocuSign emits one per active HMAC key during rotation).
@@ -411,14 +410,14 @@ async def docusign_webhook(
     ]
     if not esign_service.verify_docusign_signature(body, signature_headers):
         _logger.warning("[eSign] DocuSign webhook rejected: invalid/missing HMAC signature")
-        raise HTTPException(403, "Firma de webhook DocuSign inválida")
+        raise error_http(403, "git_firma_no_valida", detail="Firma de webhook DocuSign inválida", servicio="DocuSign")
 
     m_id = re.search(r'<EnvelopeID[^>]*>([^<]+)<', payload_str)
     m_st = re.search(r'<Status[^>]*>([^<]+)<', payload_str)
 
     if not (m_id and m_st):
         _logger.warning("[eSign] DocuSign webhook missing EnvelopeID/Status")
-        raise HTTPException(400, "Payload DocuSign sin EnvelopeID/Status")
+        raise error_http(400, "esign_payload_incompleto", detail="Payload DocuSign sin EnvelopeID/Status", servicio="DocuSign")
 
     provider_id = m_id.group(1).strip()
     raw_status  = m_st.group(1).strip().lower()
@@ -442,7 +441,7 @@ async def docusign_webhook(
         env = await run_db(esign_service.get_envelope_by_provider_id, db, provider_id)
         if not env:
             _logger.warning(f"[eSign] DocuSign webhook: envelope {provider_id} no encontrado")
-            raise HTTPException(404, f"Envelope {provider_id} no encontrado")
+            raise error_http(404, "no_encontrado", detail=f"Envelope {provider_id} no encontrado", que="sobre_de_firma")
         await run_db(esign_service.update_envelope_from_webhook, db, env, new_status)
         _logger.info(f"[eSign] DocuSign webhook: envelope {provider_id} → {new_status}")
     # intentional: chained re-raise preserves context
@@ -451,7 +450,7 @@ async def docusign_webhook(
     except Exception:
         _logger.exception(f"[eSign] DocuSign webhook processing failed for {provider_id}")
         # 500 hace que DocuSign reintente — preferible a 200 OK silencioso.
-        raise HTTPException(500, "Error procesando webhook DocuSign")
+        raise error_http(500, "webhook_error_procesando", detail="Error procesando webhook DocuSign", servicio="DocuSign")
 
     return {"status": "ok"}
 
@@ -464,7 +463,7 @@ async def adobe_webhook_verify(request: Request, response: Response):
     client_id = request.headers.get("X-AdobeSign-ClientId")
     if not esign_service.verify_adobe_client_id(client_id):
         _logger.warning("[eSign] Adobe webhook verify rejected: client id mismatch")
-        raise HTTPException(403, "Adobe Sign client id inválido")
+        raise error_http(403, "esign_client_id_no_valido", detail="Adobe Sign client id inválido")
     response.headers["X-AdobeSign-ClientId"] = client_id
     return {"xAdobeSignClientId": client_id}
 
@@ -481,21 +480,21 @@ async def adobe_webhook(
     client_id = request.headers.get("X-AdobeSign-ClientId")
     if not esign_service.verify_adobe_client_id(client_id):
         _logger.warning("[eSign] Adobe webhook rejected: client id mismatch")
-        raise HTTPException(403, "Adobe Sign client id inválido")
+        raise error_http(403, "esign_client_id_no_valido", detail="Adobe Sign client id inválido")
     response.headers["X-AdobeSign-ClientId"] = client_id
 
     try:
         payload = await request.json()
     except Exception as e:
         _logger.warning(f"[eSign] Adobe webhook JSON inválido: {e}")
-        raise HTTPException(400, "JSON inválido")
+        raise error_http(400, "json_no_valido", detail="JSON inválido")
 
     agreement   = payload.get("agreement", {}) if isinstance(payload, dict) else {}
     provider_id = agreement.get("id")
 
     if not provider_id:
         _logger.warning("[eSign] Adobe webhook sin agreement.id")
-        raise HTTPException(400, "Payload Adobe sin agreement.id")
+        raise error_http(400, "esign_payload_incompleto", detail="Payload Adobe sin agreement.id", servicio="Adobe Sign")
 
     # Auditoria 2026-11: el client id no es un secreto, asi que el estado del
     # cuerpo no se cree: se lee de la API de Adobe. Si no se puede, 503 y Adobe
@@ -507,7 +506,7 @@ async def adobe_webhook(
     env = await run_db(esign_service.get_envelope_by_provider_id, db, provider_id)
     if not env:
         _logger.warning(f"[eSign] Adobe webhook: agreement {provider_id} no encontrado")
-        raise HTTPException(404, f"Agreement {provider_id} no encontrado")
+        raise error_http(404, "no_encontrado", detail=f"Agreement {provider_id} no encontrado", que="acuerdo")
     from app.services.service_desk.ticket_events import como_organizacion
 
     def _estado_en_su_empresa():
@@ -516,7 +515,7 @@ async def adobe_webhook(
 
     raw_status = await run_db(_estado_en_su_empresa)
     if raw_status is None:
-        raise HTTPException(503, "No se pudo confirmar el estado con Adobe Sign")
+        raise error_http(503, "esign_estado_no_confirmado", detail="No se pudo confirmar el estado con Adobe Sign", servicio="Adobe Sign")
     raw_status = raw_status.lower()
 
     status_map = {
@@ -540,7 +539,7 @@ async def adobe_webhook(
         raise
     except Exception:
         _logger.exception(f"[eSign] Adobe webhook processing failed for {provider_id}")
-        raise HTTPException(500, "Error procesando webhook Adobe")
+        raise error_http(500, "webhook_error_procesando", detail="Error procesando webhook Adobe", servicio="Adobe Sign")
 
     return {"status": "ok"}
 
@@ -561,11 +560,13 @@ def docusign_oauth_authorize(
 
     integration_key = _get_esign_setting(db, current_user, "esign.docusign_integration_key") or _s.DOCUSIGN_INTEGRATION_KEY
     if not integration_key:
-        raise HTTPException(400, "DocuSign integration_key no configurado. Guárdalo en /esign/config primero.")
+        raise error_http(400, "esign_guardar_config_primero", detail="DocuSign integration_key no configurado. Guárdalo en /esign/config primero.", servicio="DocuSign")
 
-    is_demo = (_get_esign_setting(db, current_user, "esign.docusign_is_demo") or "true").lower() == "true"
+    # 19-11-2026: sin «demo» por defecto (demo solo fuera de staging/producción).
+    from app.core.comprobacion_de_produccion import docusign_es_demo
+    is_demo = docusign_es_demo(_get_esign_setting(db, current_user, "esign.docusign_is_demo"))
     if not _s.FRONTEND_URL:
-        raise HTTPException(500, "FRONTEND_URL no configurado: imposible construir redirect_uri OAuth seguro")
+        raise error_http(500, "frontend_url_no_configurada", detail="FRONTEND_URL no configurado: imposible construir redirect_uri OAuth seguro")
     redirect_uri = f"{_s.FRONTEND_URL}/api/v1/esign/auth/docusign/callback"
 
     from app.services import oauth_state
@@ -593,17 +594,19 @@ def docusign_oauth_callback(
 
     integration_key = _get_esign_setting(db, current_user, "esign.docusign_integration_key") or _s.DOCUSIGN_INTEGRATION_KEY
     secret_key = _get_esign_setting(db, current_user, "esign.docusign_secret_key") or _s.DOCUSIGN_SECRET_KEY
-    is_demo = (_get_esign_setting(db, current_user, "esign.docusign_is_demo") or "true").lower() == "true"
+    # 19-11-2026: sin «demo» por defecto (demo solo fuera de staging/producción).
+    from app.core.comprobacion_de_produccion import docusign_es_demo
+    is_demo = docusign_es_demo(_get_esign_setting(db, current_user, "esign.docusign_is_demo"))
     if not _s.FRONTEND_URL:
-        raise HTTPException(500, "FRONTEND_URL no configurado: imposible construir redirect_uri OAuth seguro")
+        raise error_http(500, "frontend_url_no_configurada", detail="FRONTEND_URL no configurado: imposible construir redirect_uri OAuth seguro")
     redirect_uri = f"{_s.FRONTEND_URL}/api/v1/esign/auth/docusign/callback"
 
     if not integration_key or not secret_key:
-        raise HTTPException(400, "DocuSign integration_key o secret_key no configurados.")
+        raise error_http(400, "esign_credenciales_incompletas", detail="DocuSign integration_key o secret_key no configurados.", servicio="DocuSign")
 
     result = docusign_exchange_code(integration_key, secret_key, code, redirect_uri, is_demo=is_demo)
     if not result["ok"]:
-        raise HTTPException(400, f"Error en intercambio de código DocuSign: {result.get('error')}")
+        raise error_http(400, "esign_intercambio_codigo_fallo", detail=f"Error en intercambio de código DocuSign: {result.get('error')}", servicio="DocuSign")
 
     _set_esign_setting(db, current_user, "esign.docusign_access_token", result["access_token"])
     if result.get("refresh_token"):
@@ -619,16 +622,16 @@ def adobe_oauth_authorize(
     current_user: User = Depends(require_admin),
 ):
     """Return the Adobe Sign OAuth authorization URL."""
-    from app.services.esign_providers import adobe_sign_auth_url
+    from app.services.esign_providers import adobe_sign_auth_url, adobe_sign_base_url
     from app.core.config import settings as _s
 
     client_id = _get_esign_setting(db, current_user, "esign.adobe_sign_client_id") or _s.ADOBE_SIGN_CLIENT_ID
     if not client_id:
-        raise HTTPException(400, "Adobe Sign client_id no configurado. Guárdalo en /esign/config primero.")
+        raise error_http(400, "esign_guardar_config_primero", detail="Adobe Sign client_id no configurado. Guárdalo en /esign/config primero.", servicio="Adobe Sign")
 
-    base_url = _get_esign_setting(db, current_user, "esign.adobe_sign_base_url") or _s.ADOBE_SIGN_BASE_URL
+    base_url = _get_esign_setting(db, current_user, "esign.adobe_sign_base_url") or adobe_sign_base_url()
     if not _s.FRONTEND_URL:
-        raise HTTPException(500, "FRONTEND_URL no configurado: imposible construir redirect_uri OAuth seguro")
+        raise error_http(500, "frontend_url_no_configurada", detail="FRONTEND_URL no configurado: imposible construir redirect_uri OAuth seguro")
     redirect_uri = f"{_s.FRONTEND_URL}/api/v1/esign/auth/adobe/callback"
 
     from app.services import oauth_state
@@ -645,7 +648,7 @@ def adobe_oauth_callback(
     current_user: User = Depends(require_admin),
 ):
     """Exchange authorization code for Adobe Sign access + refresh tokens and store them."""
-    from app.services.esign_providers import adobe_sign_exchange_code
+    from app.services.esign_providers import adobe_sign_base_url, adobe_sign_exchange_code
     from app.services import oauth_state
     from app.core.config import settings as _s
 
@@ -655,17 +658,17 @@ def adobe_oauth_callback(
 
     client_id = _get_esign_setting(db, current_user, "esign.adobe_sign_client_id") or _s.ADOBE_SIGN_CLIENT_ID
     client_secret = _get_esign_setting(db, current_user, "esign.adobe_sign_client_secret") or _s.ADOBE_SIGN_CLIENT_SECRET
-    base_url = _get_esign_setting(db, current_user, "esign.adobe_sign_base_url") or _s.ADOBE_SIGN_BASE_URL
+    base_url = _get_esign_setting(db, current_user, "esign.adobe_sign_base_url") or adobe_sign_base_url()
     if not _s.FRONTEND_URL:
-        raise HTTPException(500, "FRONTEND_URL no configurado: imposible construir redirect_uri OAuth seguro")
+        raise error_http(500, "frontend_url_no_configurada", detail="FRONTEND_URL no configurado: imposible construir redirect_uri OAuth seguro")
     redirect_uri = f"{_s.FRONTEND_URL}/api/v1/esign/auth/adobe/callback"
 
     if not client_id or not client_secret:
-        raise HTTPException(400, "Adobe Sign client_id o client_secret no configurados.")
+        raise error_http(400, "esign_credenciales_incompletas", detail="Adobe Sign client_id o client_secret no configurados.", servicio="Adobe Sign")
 
     result = adobe_sign_exchange_code(client_id, client_secret, code, redirect_uri, base_url=base_url)
     if not result["ok"]:
-        raise HTTPException(400, f"Error en intercambio de código Adobe Sign: {result.get('error')}")
+        raise error_http(400, "esign_intercambio_codigo_fallo", detail=f"Error en intercambio de código Adobe Sign: {result.get('error')}", servicio="Adobe Sign")
 
     _set_esign_setting(db, current_user, "esign.adobe_sign_access_token", result["access_token"])
     if result.get("refresh_token"):
@@ -687,7 +690,7 @@ def store_docusign_token(
     access_token = payload.get("access_token", "").strip()
     refresh_token = payload.get("refresh_token", "").strip()
     if not access_token:
-        raise HTTPException(400, "access_token requerido")
+        raise error_http(400, "campo_obligatorio", detail="access_token requerido", campo="access_token")
     _set_esign_setting(db, current_user, "esign.docusign_access_token", access_token)
     if refresh_token:
         _set_esign_setting(db, current_user, "esign.docusign_refresh_token", refresh_token)
@@ -704,7 +707,7 @@ def store_adobe_token(
     access_token = payload.get("access_token", "").strip()
     refresh_token = payload.get("refresh_token", "").strip()
     if not access_token:
-        raise HTTPException(400, "access_token requerido")
+        raise error_http(400, "campo_obligatorio", detail="access_token requerido", campo="access_token")
     _set_esign_setting(db, current_user, "esign.adobe_sign_access_token", access_token)
     if refresh_token:
         _set_esign_setting(db, current_user, "esign.adobe_sign_refresh_token", refresh_token)

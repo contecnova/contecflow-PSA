@@ -16,6 +16,7 @@ from app.services.collaboration._permissions import _org
 from app.core.errores import ErrorDeDominio
 
 from app.services.collaboration.workspaces._comun import _usuarios_por_id
+from app.core.codigos_de_error import error
 
 
 # ── Presencia ────────────────────────────────────────────────────────────────
@@ -112,7 +113,7 @@ def mark_notification_read(db: Session, user, notif_id: str) -> None:
         .first()
     )
     if not n:
-        raise ErrorDeDominio(404, "Notificación no encontrada")
+        raise error(404, "no_encontrado", detail="Notificación no encontrada", que="notificacion")
     n.is_read = True
     n.read_at = utcnow()
     db.commit()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 from sqlalchemy.orm import Session
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 # Devuelve un query filtrable y el total para paginación
 def query_documents(db: Session, current_user, category=None, tags=None, search=None, project_id=None, is_archived=False, task_id=None, ticket_id=None):
     q = db.query(Document).filter(Document.is_archived == is_archived)
@@ -133,7 +134,7 @@ def get_document_or_404(db, doc_id: str, current_user=None):
         q = q.filter(Document.created_by.in_(org_user_ids))
     doc = q.first()
     if not doc:
-        raise ErrorDeDominio(404, "Document not found")
+        raise error(404, "no_encontrado", detail="Document not found", que="documento")
     return doc
 
 
@@ -204,7 +205,7 @@ def check_document_access(doc, user, required_level=None) -> None:
     if de_ausencia is not None:
         if de_ausencia:
             return
-        raise ErrorDeDominio(403, "Insufficient access level to this document")
+        raise error(403, "documento_acceso_insuficiente", detail="Insufficient access level to this document")
     if user.role == UserRole.admin:
         return
     if doc.created_by == user.id:
@@ -216,7 +217,7 @@ def check_document_access(doc, user, required_level=None) -> None:
 
     if _nivel_concedido(doc, user) >= _NIVELES.index(required_level):
         return
-    raise ErrorDeDominio(403, "Insufficient access level to this document")
+    raise error(403, "documento_acceso_insuficiente", detail="Insufficient access level to this document")
 
 
 # ── Serialization ─────────────────────────────────────────────────────────────
@@ -778,21 +779,18 @@ def add_document_permission(db, doc_id: str, payload, current_user):
     user_id / role / department."""
     subjects = [bool(payload.user_id), bool(payload.role), bool(payload.department)]
     if sum(subjects) != 1:
-        raise ErrorDeDominio(
-            status_code=400,
-            detail="Provide exactly one of user_id, role or department",
-        )
+        raise error(400, "documento_acceso_un_destino", detail="Provide exactly one of user_id, role or department")
 
     user = None
     if payload.user_id:
         user = db.query(User).filter(User.id == payload.user_id).first()
         if not user:
-            raise ErrorDeDominio(status_code=404, detail="User not found")
+            raise error(404, "no_encontrado", detail="User not found", que="usuario")
 
     if payload.role:
         valid_roles = {r.value for r in UserRole}
         if payload.role not in valid_roles:
-            raise ErrorDeDominio(status_code=400, detail=f"Invalid role: {payload.role}")
+            raise error(400, "valor_no_valido", detail=f"Invalid role: {payload.role}", valor=payload.role)
 
     # Detect duplicate grant (same subject)
     q = db.query(DocumentPermission).filter(DocumentPermission.document_id == doc_id)
@@ -803,7 +801,7 @@ def add_document_permission(db, doc_id: str, payload, current_user):
     elif payload.department:
         q = q.filter(DocumentPermission.department == payload.department)
     if q.first():
-        raise ErrorDeDominio(status_code=409, detail="A grant already exists for this subject")
+        raise error(409, "documento_acceso_ya_existe", detail="A grant already exists for this subject")
 
     perm = DocumentPermission(
         document_id=doc_id,
@@ -853,14 +851,14 @@ def remove_document_permission(db, doc_id: str, perm_id: str):
         )
     ).first()
     if not perm:
-        raise ErrorDeDominio(status_code=404, detail="Permission not found")
+        raise error(404, "no_encontrado", detail="Permission not found", que="permiso")
     db.delete(perm)
     db.commit()
 
 
 def approve_document(db, doc, payload, current_user):
     if not doc.requires_approval:
-        raise ErrorDeDominio(status_code=400, detail="This document does not require approval")
+        raise error(400, "documento_sin_aprobacion", detail="This document does not require approval")
 
     if doc.approval_request_id:
         # Route through the multi-level workflow engine
@@ -893,14 +891,14 @@ def submit_for_approval(db, doc, current_user):
         new ApprovalRequest is opened.
     """
     if not doc.requires_approval:
-        raise ErrorDeDominio(status_code=400, detail="This document does not require approval")
+        raise error(400, "documento_sin_aprobacion", detail="This document does not require approval")
 
     if doc.approval_request_id:
         from app.models.billing_reports import ApprovalRequest as ARModel
         prev = db.get(ARModel, doc.approval_request_id)
         prev_status = (getattr(prev, "status", None) or "").lower() if prev else None
         if prev and prev_status not in ("rejected", "cancelled"):
-            raise ErrorDeDominio(status_code=409, detail="Document already has an active approval request")
+            raise error(409, "documento_aprobacion_en_curso", detail="Document already has an active approval request")
         # Reset document to allow a fresh submission. The previous request stays
         # in the DB as audit trail; we just unlink it from the document.
         doc.approval_request_id = None
@@ -912,11 +910,7 @@ def submit_for_approval(db, doc, current_user):
 
     ar_id = _auto_create_approval_request(db, doc, current_user)
     if not ar_id:
-        raise ErrorDeDominio(
-            status_code=422,
-            detail="No approval workflow configured for this document category. "
-                   "Please configure a workflow in Settings > Approval Workflows.",
-        )
+        raise error(422, "documento_sin_flujo_aprobacion", detail="No approval workflow configured for this document category. Please configure a workflow in Settings > Approval Workflows.")
     db.commit()
     db.refresh(doc)
     return serialize_document(db, doc, current_user)
@@ -999,7 +993,7 @@ def remove_tag(db, doc_id: str, tag_name: str):
         DocumentTag.tag_name == tag_name,
     ).first()
     if not tag:
-        raise ErrorDeDominio(404, "Tag not found")
+        raise error(404, "no_encontrado", detail="Tag not found", que="etiqueta")
     db.delete(tag)
     db.commit()
 

@@ -9,35 +9,19 @@
 import constants from './constants.json'
 import businessConfig from './business_config.json'
 
-// Configuración de negocio y catálogos
-export const TIMEOUT: unknown = businessConfig.TIMEOUT
-export const PAGINATION: unknown = businessConfig.PAGINATION
-export const REFETCH: unknown = businessConfig.REFETCH
-export const LIMITS: unknown = businessConfig.LIMITS
+// 19-11-2026: se borraron TIMEOUT, PAGINATION, REFETCH, LIMITS, AUTOMATION_*, PROJECT_TYPES,
+// TASK_*, TICKET_TYPES, SLA_LEVELS y EMAIL_PROVIDER_GUIDES: 0 referencias (grep). Los catálogos
+// de tipos/estados salen del backend (`hooks/useCatalogos`) o de `constants/catalogos.ts`.
+// 19-11-2026 (matriz de permisos): fuera ROLES, ROLE_LABELS y ROLE_COLORS. Los roles reales
+// salen de `GET /auth/roles` (`hooks/useRolesReales`); las etiquetas, de `rol_usuario` (i18n).
 
 // Catálogos de negocio
-export const ROLES: unknown = constants.ROLES
-export const PROJECT_TYPES: unknown = constants.PROJECT_TYPES
 export const BILLING_TYPES: unknown = constants.BILLING_TYPES
-export const TASK_PRIORITIES: unknown = constants.TASK_PRIORITIES
-export const TASK_STATUSES: unknown = constants.TASK_STATUSES
-export const TICKET_TYPES: unknown = constants.TICKET_TYPES
-export const SLA_LEVELS: unknown = constants.SLA_LEVELS
 
 // Integraciones y automatizaciones
 export const INTEGRATION_CATALOG: unknown = businessConfig.INTEGRATION_CATALOG
-export const AUTOMATION_TRIGGERS: unknown = businessConfig.AUTOMATION_TRIGGERS
-export const AUTOMATION_ACTIONS: unknown = businessConfig.AUTOMATION_ACTIONS
-export const AUTOMATION_OPERATORS: unknown = businessConfig.AUTOMATION_OPERATORS
-export const AUTOMATION_ACTION_PARAMS: unknown = businessConfig.AUTOMATION_ACTION_PARAMS
 
 // Proveedores AI y docs
 export const PROVIDER_META: unknown = businessConfig.PROVIDER_META
 export const PROVIDER_DOCS: unknown = constants.PROVIDER_DOCS
 
-// Roles y colores
-export const ROLE_LABELS: Record<string, string> = businessConfig.ROLE_LABELS as Record<string, string>
-export const ROLE_COLORS: Record<string, string> = businessConfig.ROLE_COLORS as Record<string, string>
-
-// Guías de email providers
-export const EMAIL_PROVIDER_GUIDES: unknown = businessConfig.EMAIL_PROVIDER_GUIDES

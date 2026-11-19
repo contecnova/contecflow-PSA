@@ -32,6 +32,7 @@ from app.models.project import Project as Proj
 from app.services.notifications import notify_user
 from app.core import timeutil
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +128,7 @@ def complete_milestone(milestone_id: str, current_user: User, db: Session):
     if not m:
         raise ErrorDeDominio(404)
     if m.billing_status not in ("pending", "rejected"):
-        raise ErrorDeDominio(400, f"No se puede completar en estado '{m.billing_status}'")
+        raise error(400, "hito_no_completable", detail=f"No se puede completar en estado '{m.billing_status}'", estado=m.billing_status)
 
     m.is_completed = True
     m.completed_date = timeutil.today()
@@ -154,7 +155,7 @@ def uncomplete_milestone(milestone_id: str, current_user: User, db: Session):
     if not m:
         raise ErrorDeDominio(404)
     if m.billing_status in ("approved", "invoiced"):
-        raise ErrorDeDominio(400, "No se puede revertir un milestone aprobado o facturado")
+        raise error(400, "hito_no_revertible", detail="No se puede revertir un milestone aprobado o facturado")
 
     m.is_completed = False
     m.completed_date = None
@@ -180,7 +181,7 @@ def request_milestone_approval(
     if not m:
         raise ErrorDeDominio(404)
     if m.billing_status != "completed":
-        raise ErrorDeDominio(400, "El milestone debe estar completado antes de solicitar aprobación")
+        raise error(400, "hito_no_completado", detail="El milestone debe estar completado antes de solicitar aprobación")
 
     m.billing_status = "pending_approval"
     m.approval_requested_at = datetime.now(timezone.utc)
@@ -211,7 +212,7 @@ def decide_milestone_approval(
     if not m:
         raise ErrorDeDominio(404)
     if m.billing_status != "pending_approval":
-        raise ErrorDeDominio(400, f"El milestone no está pendiente de aprobación (estado: {m.billing_status})")
+        raise error(400, "hito_no_pendiente", detail=f"El milestone no está pendiente de aprobación (estado: {m.billing_status})", estado=m.billing_status)
     # Revisión 2026-11: quien pidió la aprobación no la decide (segregación de funciones).
     from app.services.approval_engine._base import exigir_que_no_sea_suyo
     exigir_que_no_sea_suyo(db, m.approval_requested_by, current_user, "milestone", m.id)
@@ -226,7 +227,7 @@ def decide_milestone_approval(
         _notify_requester_approved(m, current_user, db)
     else:
         if not rejection_reason:
-            raise ErrorDeDominio(400, "Indica el motivo del rechazo")
+            raise error(400, "motivo_de_rechazo_obligatorio")
         m.billing_status = "rejected"
         m.rejected_at = datetime.now(timezone.utc)
         m.rejected_by = current_user.id
@@ -253,19 +254,19 @@ def generate_milestone_invoice(milestone_id: str, current_user: User, db: Sessio
     if not m:
         raise ErrorDeDominio(404)
     if m.billing_status != "approved":
-        raise ErrorDeDominio(400, f"El milestone debe estar aprobado para facturar (estado: {m.billing_status})")
+        raise error(400, "hito_no_aprobado", detail=f"El milestone debe estar aprobado para facturar (estado: {m.billing_status})", estado=m.billing_status)
     # Re-check under the lock: if a concurrent transaction already invoiced this
     # milestone, bail out idempotently.
     if m.invoice_id:
-        raise ErrorDeDominio(400, "Este milestone ya tiene una factura generada")
+        raise error(400, "hito_ya_facturado", detail="Este milestone ya tiene una factura generada")
 
     proj = db.query(Project).filter(Project.id == m.project_id).first()
     if not proj:
-        raise ErrorDeDominio(404, "Proyecto no encontrado")
+        raise error(404, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")
 
     amount = compute_billing_amount(m, db)
     if not amount or amount <= 0:
-        raise ErrorDeDominio(400, "El milestone no tiene importe de facturación definido")
+        raise error(400, "hito_sin_importe", detail="El milestone no tiene importe de facturación definido")
 
     invoice_num = _next_invoice_number(db)
     # 18-11-2026: IVA y moneda de la empresa del proyecto (antes `settings.DEFAULT_TAX_RATE`

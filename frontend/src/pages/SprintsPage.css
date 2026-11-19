@@ -46,7 +46,7 @@
 .spr-tag--pts { font-weight: 400; background: var(--surface-4); color: var(--text-2); }
 .spr-menu {
   position: absolute; top: 0; right: 0; background: var(--surface-2); border: 1px solid var(--surface-4);
-  border-radius: 8px; padding: 8px; z-index: 10; min-width: 160px; box-shadow: var(--shadow-lg);
+  border-radius: 8px; padding: 8px; z-index: calc(var(--z-content) + 9); min-width: 160px; box-shadow: var(--shadow-lg);
 }
 .spr-menu__title { font-size: var(--text-xs); font-weight: 700; color: var(--text-2); padding: 4px 8px; margin-bottom: 4px; }
 .spr-menu__item {

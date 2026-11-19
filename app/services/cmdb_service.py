@@ -23,7 +23,7 @@ from app.models.cmdb import (
 )
 from app.models.sprints import SprintTask
 from app.core import timeutil
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ _CI_SPECIFIC = [
 
 
 def _404(m):
-    raise ErrorDeDominio(404, f"{m} no encontrado")
+    raise error(404, "no_encontrado", detail=f"{m} no encontrado", que="tipo_de_incidencia")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -73,7 +73,7 @@ def delete_wiki_tag(tag_id: str, db: Session) -> dict:
     if not t: _404("Etiqueta")
     linked_pages = db.query(func.count(WikiPageTag.id)).filter(WikiPageTag.tag_id == tag_id).scalar() or 0
     if linked_pages > 0:
-        raise ErrorDeDominio(400, f"No se puede eliminar: la etiqueta esta asociada a {linked_pages} pagina(s)")
+        raise error(400, "etiqueta_en_uso", detail=f"No se puede eliminar: la etiqueta esta asociada a {linked_pages} pagina(s)", n=linked_pages)
     t.is_active = False
     db.commit()
     return {"ok": True, "message": "Etiqueta eliminada correctamente"}
@@ -261,14 +261,14 @@ def add_kanban_column(
     wip_limit: Optional[int], color: Optional[str], sort_order: int, db: Session,
 ) -> dict:
     cfg = db.query(KanbanConfig).filter(KanbanConfig.project_id == project_id).first()
-    if not cfg: raise ErrorDeDominio(400, "Configura el tablero Kanban primero")
+    if not cfg: raise error(400, "kanban_sin_configurar")
     existing = db.query(KanbanColumn).filter(
         KanbanColumn.config_id == cfg.id,
         KanbanColumn.status == status,
         KanbanColumn.is_active == True,
     ).first()
     if existing:
-        raise ErrorDeDominio(400, f"El estado '{status}' ya tiene columna")
+        raise error(400, "kanban_estado_con_columna", detail=f"El estado '{status}' ya tiene columna", estado=status)
     col = KanbanColumn(config_id=cfg.id, status=status, label=label,
                        wip_limit=wip_limit, color=color, sort_order=sort_order)
     db.add(col); db.commit(); db.refresh(col)
@@ -295,7 +295,7 @@ def delete_kanban_column(column_id: str, db: Session) -> dict:
         Task.status == col.status,
     ).scalar() or 0
     if tasks_using_column > 0:
-        raise ErrorDeDominio(400, f"No se puede eliminar: {tasks_using_column} tarea(s) usan esta columna")
+        raise error(400, "kanban_columna_en_uso", n=tasks_using_column)
     col.is_active = False
     db.commit()
     return {"ok": True, "message": "Columna eliminada correctamente"}
@@ -365,7 +365,7 @@ def generate_sprint_plan(
     ).all()
 
     if not backlog_raw:
-        raise ErrorDeDominio(400, "No hay tareas en estado 'todo' en este proyecto")
+        raise error(400, "proyecto_sin_tareas_pendientes", detail="No hay tareas en estado 'todo' en este proyecto")
 
     # Revisión 2026-11: la estimación por defecto vive sólo en el plan; antes
     # se escribía `story_points = 1` en cada tarea sin estimar y se guardaba.
@@ -455,14 +455,14 @@ def list_sprint_plans(project_id: str, db: Session) -> list:
 
 def update_sprint_plan_status(plan_id: str, status: str, db: Session) -> dict:
     if status not in ("draft", "accepted", "rejected"):
-        raise ErrorDeDominio(400, "Estado válido: draft, accepted, rejected")
+        raise error(400, "plan_estado_no_valido")
     plan = db.query(SprintPlan).filter(SprintPlan.id == plan_id, SprintPlan.is_active == True).first()
     if not plan: _404("Plan")
     anadidas = 0
     if status == "accepted" and plan.status != "accepted":
         # Revisión 2026-11: aceptar mete las tareas del plan en su sprint (antes sólo cambiaba el estado).
         if not plan.sprint_id:
-            raise ErrorDeDominio(400, "El plan no tiene sprint: genéralo eligiendo el sprint para poder aceptarlo")
+            raise error(400, "plan_sin_sprint")
         from app.services.sprint_service import add_tasks_to_sprint
         anadidas = add_tasks_to_sprint(db, plan.sprint_id, plan.project_id, [pt.task_id for pt in plan.tasks])
     plan.status = status; db.commit()
@@ -473,7 +473,7 @@ def delete_sprint_plan(plan_id: str, db: Session) -> dict:
     plan = db.query(SprintPlan).filter(SprintPlan.id == plan_id, SprintPlan.is_active == True).first()
     if not plan: _404("Plan")
     if plan.status == "accepted":
-        raise ErrorDeDominio(400, "No se puede eliminar un plan aceptado")
+        raise error(400, "plan_aceptado_no_eliminable")
     plan.is_active = False
     db.commit()
     return {"ok": True, "message": "Plan eliminado correctamente"}
@@ -519,14 +519,15 @@ def delete_sla_calendar(cal_id: str, db: Session) -> dict:
         V21SLAHoliday.is_active == True,
     ).scalar() or 0
     if holiday_count > 0:
-        raise ErrorDeDominio(400, f"No se puede eliminar: el calendario tiene {holiday_count} festivo(s) activos")
+        raise error(400, "calendario_con_festivos", detail=f"No se puede eliminar: el calendario tiene {holiday_count} festivo(s) activos", n=holiday_count)
     from app.models.service_desk import SLAPolicy
     en_uso = db.query(SLAPolicy.name).filter(
         SLAPolicy.calendar_id == cal_id, SLAPolicy.is_active == True,  # noqa: E712
     ).all()
     if en_uso:
-        raise ErrorDeDominio(400, "No se puede eliminar: lo usan las políticas SLA "
-                                 + ", ".join(n for (n,) in en_uso))
+        nombres = ", ".join(n for (n,) in en_uso)
+        raise error(400, "en_uso_por_politicas", detail="No se puede eliminar: lo usan las políticas SLA " + nombres,
+                    politicas=nombres)
     c.is_active = False
     db.commit()
     return {"ok": True, "message": "Calendario eliminado correctamente"}
@@ -595,7 +596,7 @@ def check_is_business_day(cal_id: str, check_date: str, db: Session) -> dict:
     try:
         d = date.fromisoformat(check_date)
     except ValueError:
-        raise ErrorDeDominio(400, "Formato de fecha inválido. Usa YYYY-MM-DD")
+        raise error(400, "fecha_no_valida_formato", detail="Formato de fecha inválido. Usa YYYY-MM-DD")
     work_days = set(int(x) for x in c.work_days.split(",") if x.strip())
     dow = d.isoweekday()
     is_weekend  = dow not in work_days

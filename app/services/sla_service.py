@@ -27,6 +27,7 @@ from app.models.service_desk import ConfigurationItem
 from app.models.service_desk import TicketHistory
 import jwt
 from app.core import timeutil
+from app.core.codigos_de_error import ErrorConCodigo
 
 if TYPE_CHECKING:
     from app.models.service_desk import SLAPolicy, Ticket, TicketHistory
@@ -170,7 +171,7 @@ def _siguiente_momento_laborable(current: datetime, work_start: dt_time, work_en
     la tarde cae en sábado, que tampoco vale.
     """
     if not days:
-        raise ValueError("el calendario no tiene ningún día laborable")
+        raise ErrorConCodigo("calendario_sin_dias_laborables", detail="el calendario no tiene ningún día laborable")
     while True:
         dia = current.date()
         if not _es_laborable(dia, holidays, days) or current.time() >= work_end:
@@ -213,7 +214,7 @@ def add_working_hours(
         - datetime.combine(timeutil.today(), work_start)
     ).total_seconds()
     if jornada <= 0:
-        raise ValueError("work_end must be after work_start")
+        raise ErrorConCodigo("jornada_fin_antes_de_inicio", detail="work_end must be after work_start")
 
     current = _siguiente_momento_laborable(start_dt, work_start, work_end, holidays, days)
     restantes = hours
@@ -258,7 +259,7 @@ def _zona(nombre: Optional[str]) -> tzinfo:
     try:
         return ZoneInfo(nombre or settings.DEFAULT_TIMEZONE)
     except (ZoneInfoNotFoundError, ValueError) as exc:
-        raise ValueError(f"zona horaria desconocida: {nombre!r}") from exc
+        raise ErrorConCodigo("zona_horaria_desconocida", detail=f"zona horaria desconocida: {nombre!r}", zona=nombre) from exc
 
 
 def parse_dias_laborables(raw: Optional[str]) -> frozenset:
@@ -269,10 +270,10 @@ def parse_dias_laborables(raw: Optional[str]) -> frozenset:
         if not trozo:
             continue
         if not trozo.isdigit() or not 1 <= int(trozo) <= 7:
-            raise ValueError(f"día laborable inválido: {trozo!r} (1 = lunes ... 7 = domingo)")
+            raise ErrorConCodigo("dia_semana_no_valido", detail=f"día laborable inválido: {trozo!r} (1 = lunes ... 7 = domingo)")
         dias.add(int(trozo))
     if not dias:
-        raise ValueError("el calendario no tiene ningún día laborable")
+        raise ErrorConCodigo("calendario_sin_dias_laborables", detail="el calendario no tiene ningún día laborable")
     return frozenset(dias)
 
 
@@ -281,11 +282,11 @@ def parse_hora(raw: str) -> dt_time:
     try:
         hh, mm = (int(x) for x in str(raw).strip().split(":"))
     except (TypeError, ValueError) as exc:
-        raise ValueError(f"hora inválida: {raw!r} (usa HH:MM)") from exc
+        raise ErrorConCodigo("hora_no_valida", detail=f"hora inválida: {raw!r} (usa HH:MM)", valor=raw) from exc
     if (hh, mm) == (24, 0):
         return dt_time(23, 59, 59, 999999)
     if not (0 <= hh <= 23 and 0 <= mm <= 59):
-        raise ValueError(f"hora inválida: {raw!r} (usa HH:MM)")
+        raise ErrorConCodigo("hora_no_valida", detail=f"hora inválida: {raw!r} (usa HH:MM)", valor=raw)
     return dt_time(hh, mm)
 
 
@@ -312,7 +313,7 @@ def _calendario_de_servicio(db: Session, policy: "SLAPolicy", org_id: Optional[s
         return None
     inicio, fin = parse_hora(cal.work_start), parse_hora(cal.work_end)
     if fin <= inicio:
-        raise ValueError(f"jornada inválida en el calendario {cal.name}: {cal.work_start}-{cal.work_end}")
+        raise ErrorConCodigo("jornada_fin_antes_de_inicio", detail=f"jornada inválida en el calendario {cal.name}: {cal.work_start}-{cal.work_end}")
     return CalendarioSLA(
         zona=_zona(cal.timezone), inicio=inicio, fin=fin,
         dias=parse_dias_laborables(cal.work_days),
@@ -394,7 +395,7 @@ def calendario_sla(
         dias = parse_dias_laborables(settings.SLA_BUSINESS_DAYS)
 
     if not (0 <= inicio < fin <= 24):
-        raise ValueError(f"jornada inválida: {inicio}-{fin}")
+        raise ErrorConCodigo("jornada_fin_antes_de_inicio", detail=f"jornada inválida: {inicio}-{fin}")
     return CalendarioSLA(
         zona=zona,
         inicio=dt_time(inicio, 0),

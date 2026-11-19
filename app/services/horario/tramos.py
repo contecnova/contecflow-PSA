@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import time
 from typing import Iterable, Optional, Sequence
+from app.core.codigos_de_error import ErrorConCodigo
 
 DIA = 1440
 
@@ -20,7 +21,7 @@ class Tramo:
 
     def __post_init__(self) -> None:
         if self.fin <= self.inicio:
-            raise ValueError("un tramo acaba después de empezar")
+            raise ErrorConCodigo("tramo_no_valido", detail="un tramo acaba después de empezar")
 
     @property
     def minutos(self) -> int:
@@ -41,7 +42,7 @@ def minutos(v) -> int:
     h, m = str(v).strip().split(":")[:2]
     h, m = int(h), int(m)
     if not (0 <= h <= 24 and 0 <= m < 60) or h * 60 + m > DIA:
-        raise ValueError(f"hora no válida: {v}")
+        raise ErrorConCodigo("hora_no_valida", detail=f"hora no válida: {v}", valor=v)
     return h * 60 + m
 
 
@@ -167,5 +168,5 @@ def de_lista(lista: Optional[Iterable]) -> tuple[Tramo, ...]:
     orden = sorted(salida)
     for x, y in zip(orden, orden[1:]):
         if y.inicio < x.fin:
-            raise ValueError("los tramos se solapan")
+            raise ErrorConCodigo("tramos_solapados", detail="los tramos se solapan")
     return tuple(orden)

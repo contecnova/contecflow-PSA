@@ -17,8 +17,8 @@ import '../../components/servicedesk/sdMercado.css'
 
 export default function ConfigCanales() {
   const t = useAppT()
-  const { user } = useAuth()
-  const esAdmin = user?.role === 'admin'
+  const { puede } = useAuth()
+  const esAdmin = puede('sd.administrar')
   const { data, isLoading } = useQuery({ queryKey: ['sdm-canales'], queryFn: canalesApi.estado, enabled: esAdmin })
   if (!esAdmin) return <EmptyState icon={<Lock size={28} />} title={t('sd_mercado.solo_admin')} />
   if (isLoading || !data) return <Spinner />

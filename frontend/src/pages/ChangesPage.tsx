@@ -31,10 +31,6 @@ type ProjectPick = {
   name?: string
 }
 
-type RoleAuth = {
-  hasRole: (...roles: string[]) => boolean
-}
-
 type TFn = (key: string, params?: Record<string, unknown>) => string
 
 const IMPACT_CFG: Record<string, { labelKey: string; color: string }> = {
@@ -249,7 +245,7 @@ function ReviewCRModal({ cr, projectId, onClose }: { cr: SolicitudDeCambio; proj
 function CABBoard() {
   const fmtMoneda = useFormatoMoneda()
   const t = useAppT()
-  const { hasRole } = useAuth() as RoleAuth
+  const { puede } = useAuth()
   // Cerrar es de admin en el servidor. Contra el recuento, o con empate, pide motivo (revisión 2026-11).
   const cerrar = async (cr: CambioEnCab, decision: 'approved' | 'rejected') => {
     const aFavor = cr.votes?.approve ?? 0, enContra = cr.votes?.reject ?? 0
@@ -329,7 +325,7 @@ function CABBoard() {
                       <Button size="sm" variant="secondary" icon={<X size={14} />} onClick={() => vote({ id:cr.id, vote:'reject' })}>{t('changes.reject')}</Button>
                       <Button size="sm" variant="ghost" onClick={() => vote({ id:cr.id, vote:'abstain' })}>{t('changes.abstain')}</Button>
                     </>}
-                    {hasRole('admin') && ['submitted', 'under_review'].includes(cr.status ?? '') && (
+                    {puede('org.administrar') && ['submitted', 'under_review'].includes(cr.status ?? '') && (
                       <div className="chg-admin-actions">
                         <Button size="sm" onClick={() => cerrar(cr, 'approved')}>{t('changes.close_approved')}</Button>
                         <Button size="sm" variant="secondary" onClick={() => cerrar(cr, 'rejected')}>{t('changes.close_rejected')}</Button>
@@ -363,7 +359,7 @@ export default function ChangesPage(): JSX.Element {
   const t = useAppT()
   const toast = useToast()
 
-  const { hasRole } = useAuth() as RoleAuth
+  const { puede } = useAuth()
   const qc = useQueryClient()
   const [selectedProject, setSelectedProject] = useState<string | number>('')
   const [showCreate, setShowCreate] = useState(false)
@@ -382,7 +378,7 @@ export default function ChangesPage(): JSX.Element {
   const { data: allPending = [] } = useQuery({
     queryKey: ['all-pending-crs'],
     queryFn: () => projectChangesApi.allPending().then(r => r.data),
-    enabled: hasRole('admin', 'pm') && tab === 'pending',
+    enabled: puede('cambios.gestionar') && tab === 'pending',
   })
 
   const { mutate: submit, isPending: saving } = useMutation({
@@ -422,7 +418,7 @@ export default function ChangesPage(): JSX.Element {
       <Tabs
         items={[
           { id: 'project', label: t('changes.tab_project'), icon: <FolderOpen size={14} /> },
-          ...(hasRole('admin', 'pm') ? [{ id: 'pending', label: t('changes.tab_pending'), count: allPending.length, icon: <Hourglass size={14} /> }] : []),
+          ...(puede('cambios.gestionar') ? [{ id: 'pending', label: t('changes.tab_pending'), count: allPending.length, icon: <Hourglass size={14} /> }] : []),
           { id: 'cab', label: t('changes.tab_cab'), icon: <Users size={14} /> },
         ]}
         active={tab}
@@ -482,7 +478,7 @@ export default function ChangesPage(): JSX.Element {
                             <IconButton onClick={() => setEditing(cr)} ariaLabel={t('changes.edit_aria', { code: cr.code ?? '' })}><Pencil size={14} /></IconButton>
                             <Button size="sm" onClick={() => submit(cr)} loading={saving}>{t('changes.send')}</Button>
                           </>}
-                          {['submitted', 'under_review'].includes(cr.status ?? '') && hasRole('admin', 'pm') && (
+                          {['submitted', 'under_review'].includes(cr.status ?? '') && puede('cambios.gestionar') && (
                             <Button size="sm" onClick={() => setReviewing(cr)}>{t('changes.review')}</Button>
                           )}
                           {cr.status === 'approved' && (

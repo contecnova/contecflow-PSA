@@ -14,6 +14,7 @@ from app.core.responses import APIResponse, APIListResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.core.deps import get_current_portal_client
+from app.core.codigos_de_error import error_http
 
 router = APIRouter()
 
@@ -171,7 +172,7 @@ def diff_dynamic_forms(payload: DiffIn, db: Session = Depends(get_db), current_u
     left_rules = (left or {}).get("rules") if left else current_rules
     right_rules = (right or {}).get("rules") if right else current_rules
     if not isinstance(left_rules, dict) or not isinstance(right_rules, dict):
-        raise HTTPException(status_code=400, detail="Snapshots inválidos para diff")
+        raise error_http(400, "snapshots_no_validos", detail="Snapshots inválidos para diff")
 
     left_fields = {str(f.get("id")): f for f in (left_rules.get("fields") or []) if f.get("id")}
     right_fields = {str(f.get("id")): f for f in (right_rules.get("fields") or []) if f.get("id")}
@@ -226,11 +227,11 @@ def rollback_dynamic_forms(payload: RollbackIn, db: Session = Depends(get_db), c
 
     match = next((x for x in history if x.get("snapshot_id") == payload.snapshot_id), None)
     if not match:
-        raise HTTPException(status_code=404, detail="Snapshot not found")
+        raise error_http(404, "no_encontrado", detail="Snapshot not found", que="instantanea")
 
     restored = match.get("rules")
     if not isinstance(restored, dict):
-        raise HTTPException(status_code=400, detail="Snapshot is invalid")
+        raise error_http(400, "snapshots_no_validos", detail="Snapshot is invalid")
 
     rules = _save_rules_with_history(
         db,
@@ -249,10 +250,10 @@ def preview_dynamic_forms_import(payload: ImportPreviewIn, current_user: User = 
     try:
         reader = csv.DictReader(stream)
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"CSV inválido: {exc}")
+        raise error_http(400, "csv_no_valido", detail=f"CSV inválido: {exc}")
 
     if not reader.fieldnames:
-        raise HTTPException(status_code=400, detail="CSV sin cabeceras")
+        raise error_http(400, "csv_sin_cabeceras", detail="CSV sin cabeceras")
 
     rows = []
     for i, row in enumerate(reader):

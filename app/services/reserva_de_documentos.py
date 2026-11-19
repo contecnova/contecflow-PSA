@@ -17,6 +17,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 
 
@@ -89,7 +90,7 @@ def liberar(db, doc, usuario, *, forzar: bool = False) -> None:
         return
     if reserva["user_id"] != usuario.id:
         if not forzar:
-            raise ErrorDeDominio(409, "La reserva es de otra persona: solo quien administra el documento puede forzarla")
+            raise error(409, "reserva_documento_ajena")
         check_document_access(doc, usuario, DocumentAccessLevel.admin)
     audit_log(db, usuario, "CHECKIN_FORCED" if reserva["user_id"] != usuario.id else "CHECKIN", "documents",
               doc.id, doc.title, metadata={"held_by": reserva["user_id"], "held_since": reserva["at"]})

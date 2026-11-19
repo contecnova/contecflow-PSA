@@ -21,10 +21,10 @@ import { useAppT } from '../i18n/AppLangContext'
 import { INTEGRATION_CATALOG } from '../constants/api'
 import { Building2, CalendarDays, CheckCircle2, FileUp, Github, History, Key, KeyRound, KanbanSquare, Mail, MessageSquare, Pencil, Plug, Plus, Receipt, RefreshCw, ScrollText, Send, ShieldCheck, Trash2, Users, Webhook, X, XCircle } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
 import useMediaQuery from '../hooks/useMediaQuery'
 import { AUDIT_LOG_PAGE_SIZE, AUDIT_LOG_SMALL_PAGE_SIZE, SMALL_PAGE_SIZE } from '../constants/pagination'
 import './EnterprisePage.css'
+import { useRolesReales } from '../hooks/useRolesReales'
 
 const GDPR_POR_PAGINA = SMALL_PAGE_SIZE
 
@@ -62,7 +62,6 @@ const iconoIntegracion = (tipo?: string) => ICONO_INTEGRACION[tipo || ''] || Plu
 /** Etiqueta de un código (`<prefijo>_<codigo>`); si no hay clave, el código tal cual. */
 const etiq = (t: (k: string, f?: string) => string, prefijo: string, codigo?: string | null) =>
   codigo ? t(`${prefijo}_${String(codigo).toLowerCase()}`, String(codigo)) : '—'
-const ROLES_SSO = ['employee', 'team_lead', 'pm', 'hr', 'admin', 'subcontractor']
 
 function WebhooksTab({ showCreate, setShowCreate }: AltaProps) {
   const { t } = useAppLang()
@@ -780,6 +779,8 @@ function APIKeysTab({ showCreate, setShowCreate }: AltaProps) {
 
 function SSOTab({ showCreate, setShowCreate }: AltaProps) {
   const { t } = useAppLang()
+  // 19-11-2026: roles reales del backend (`GET /auth/roles`).
+  const roles = useRolesReales()
   const idCampo = useId()
   const traducir = useAppT()
   const isNarrow = useMediaQuery('(max-width: 900px)')
@@ -926,7 +927,7 @@ function SSOTab({ showCreate, setShowCreate }: AltaProps) {
             <div>
               <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="enterprise-page-e20">{traducir('enterprise.sso_rol_defecto')}</label>
               <Select suelto placeholder={false} id={`${idCampo}-7`} value={form.default_role} onChange={e => setForm(f=>({...f,default_role:e.target.value}))} className="enterprise-page-e19">
-                {ROLES_SSO.map(r => <option key={r} value={r}>{etiquetaCodigo(t, 'rol_usuario', r)}</option>)}
+                {roles.map(r => <option key={r.id} value={r.id}>{r.etiqueta}</option>)}
               </Select>
             </div>
             <div>

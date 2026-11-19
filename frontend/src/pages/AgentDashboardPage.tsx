@@ -9,6 +9,7 @@ import { CON_HORA, codigoDeErrorDePeriodo, formatearTramo } from '../utils/perio
 import { useAppT } from '../i18n/AppLangContext'
 import { BarChart2, CheckCircle2, Clock, Inbox, ShieldCheck, Star, User } from 'lucide-react'
 import { fmtNumber } from '../utils/helpers'
+import { useTono } from '../hooks/useOrgSettings'
 import './AgentDashboardPage.css'
 import { LEYENDA_XS } from '../constants/estilosGrafico'
 
@@ -24,6 +25,7 @@ const TOOLTIP_STYLE = {
 export default function AgentDashboardPage(): JSX.Element {
   const idCampo = useId()
   const t = useAppT()
+  const tono = useTono()
   const [agentId, setAgentId] = useState('')
   const [_inputId, _setInputId] = useState('')
   // Periodo libre (16-11-2026): antes 7/14/30/60/90 días propios y tendencia siempre por día.
@@ -117,8 +119,8 @@ export default function AgentDashboardPage(): JSX.Element {
               icon={<ShieldCheck size={16} />}
               label={t('agent_dashboard.kpi_sla_compliance')}
               value={`${kpis.sla_compliance_pct || 0}%`}
-              danger={(kpis.sla_compliance_pct || 0) < 70}
-              warning={(kpis.sla_compliance_pct || 0) >= 70 && (kpis.sla_compliance_pct || 0) < 90}
+              danger={tono('sla', kpis.sla_compliance_pct || 0) === 'danger'}
+              warning={tono('sla', kpis.sla_compliance_pct || 0) === 'warning'}
             />
             <KpiCard icon={<Star size={16} />} label={t('agent_dashboard.kpi_avg_csat')} value={kpis.avg_csat ? fmtNumber(kpis.avg_csat, 1) + '/5' : t('agent_dashboard.no_data')} />
           </div>

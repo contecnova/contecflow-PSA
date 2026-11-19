@@ -60,7 +60,8 @@ export default function MisEquiposPage() {
           {tab === 'equipos' && <Equipos filas={d.equipos} onAccion={setAccion} />}
           {tab === 'licencias' && <Licencias filas={d.licencias} onAccion={setAccion} />}
           {tab === 'actas' && <Actas filas={d.actas_pendientes} onAccion={setAccion} />}
-          {tab === 'peticiones' && <Peticiones filas={d.peticiones} />}
+          {tab === 'peticiones' && <Peticiones filas={d.peticiones} onAccion={setAccion}
+            licencia={Boolean(opciones.data?.puede_pedir_licencia)} equipo={Boolean(opciones.data?.puede_pedir_equipo)} />}
           {tab === 'historial' && <Historial filas={d.historial} devoluciones={d.devoluciones} />}
         </div>
       </>}
@@ -132,8 +133,16 @@ function Actas({ filas, onAccion }: { filas: ActaResumen[]; onAccion: (a: Accion
   ]} />
 }
 
-function Peticiones({ filas }: { filas: Peticion[] }) {
+/** 19-11-2026: sin peticiones, el estado vacío explica y ofrece pedir (antes era una pantalla sin salida). */
+function Peticiones({ filas, onAccion, licencia, equipo }: { filas: Peticion[]; onAccion: (a: Accion) => void; licencia: boolean; equipo: boolean }) {
   const t = useAppT()
+  if (filas.length === 0) {
+    return <EmptyState icon={<Send size={28} />} title={t('almint.sin_peticiones')} description={t('almint.sin_peticiones_ayuda')}
+      action={<div className="almint-acciones">
+        {licencia && <Button variant="secondary" icon={<KeyRound size={14} />} onClick={() => onAccion({ tipo: 'pedir', que: 'licencia' })}>{t('almint.pedir_licencia')}</Button>}
+        {equipo && <Button icon={<PackagePlus size={14} />} onClick={() => onAccion({ tipo: 'pedir', que: 'equipo' })}>{t('almint.pedir_equipo')}</Button>}
+      </div>} />
+  }
   return <DataTable<Peticion> data={filas} emptyIcon={<Send size={28} />} emptyTitle={t('almint.sin_peticiones')} columns={[
     { key: 'tipo', label: t('almint.col_que'), render: (_v, f) => f.tipo === 'licencia' ? f.license_name : etiqueta(t, 'tipo_equipo', f.asset_type) },
     { key: 'estado', label: t('almint.col_estado'), render: (_v, f) => <span className="almint-pastillas"><Estado t={t} codigo={f.estado} />{f.aprobacion === 'pending' && <Estado t={t} codigo="en_aprobacion" />}</span> },

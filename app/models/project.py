@@ -53,7 +53,7 @@ class Project(Base):
     description = Column(Text)
 
     # Classification
-    project_type = Column(Enum(ProjectType), nullable=False, index=True)
+    project_type = Column(String(50), nullable=False, index=True)  # clave de `custom_project_types` (19-11-2026)
     status = Column(Enum(ProjectStatus), default=ProjectStatus.planning, nullable=False, index=True)
     risk_level = Column(Enum(ProjectRisk), default=ProjectRisk.low)
 

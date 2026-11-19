@@ -3,7 +3,7 @@
   position: fixed;
   bottom: 16px;
   right: 16px;
-  z-index: 9000;
+  z-index: calc(var(--z-drag) - 999);
   display: flex;
   flex-direction: column;
   align-items: flex-end;

@@ -17,6 +17,7 @@ from app.models.user import User
 # New modular metrics system
 from app.services.metrics import METRICS_REGISTRY as MODULAR_METRICS_REGISTRY
 from app.services import analytics_service as _svc
+from app.core.codigos_de_error import error_http
 
 router = APIRouter()
 
@@ -905,7 +906,7 @@ def run_query(
     current_user: User = Depends(get_current_user),
 ):
     if metric_id not in CATALOGUE:
-        raise HTTPException(404, f"Métrica '{metric_id}' no encontrada")
+        raise error_http(404, "metrica_no_encontrada", detail=f"Métrica '{metric_id}' no encontrada", metrica=metric_id)
 
     from app.services.formato_regional import con_moneda
     simbolo = _simbolo(db, current_user)
@@ -922,7 +923,7 @@ def run_query(
     # Pedir un proyecto concreto y quedarse sin ninguno visible es un intento de
     # acceso ajeno, no un resultado vacío.
     if project_id and project_ids == []:
-        raise HTTPException(403, "No tienes acceso a este proyecto")
+        raise error_http(403, "sin_acceso_proyecto_operador")
 
     filtros = {
         "date_from": str(d_from), "date_to": str(d_to),
@@ -1075,7 +1076,7 @@ def save_ask_example(payload: EjemploAskIn, db: Session = Depends(get_db),
     try:
         fila = ask_banco.guardar(db, current_user.organization_id, current_user.id, payload.question, payload.sql)
     except SQLValidationError as e:
-        raise HTTPException(422, f"SQL no permitido: {e}")
+        raise error_http(422, "sql_no_permitido", detail=f"SQL no permitido: {e}")
     return APIResponse.ok(data={"id": fila.id, "question": fila.question})
 
 
@@ -1084,7 +1085,7 @@ def delete_ask_example(example_id: str, db: Session = Depends(get_db),
                        current_user: User = Depends(require_admin_or_pm)):
     from app.services import ask_banco
     if not ask_banco.borrar(db, current_user.organization_id, example_id):
-        raise HTTPException(404, "No existe")
+        raise error_http(404, "no_encontrado_generico", detail="No existe")
     return APIResponse.ok(data={"deleted": example_id})
 
 

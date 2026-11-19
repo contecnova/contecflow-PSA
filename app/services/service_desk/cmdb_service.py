@@ -15,6 +15,7 @@ from app.services.service_desk.scoping import scope_ci_query as _scope_ci_query
 from app.services.sla_service import next_ci_number as _next_ci_number
 import logging
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -109,13 +110,13 @@ def enforce_ci_org_constraints(db: Session, current_user: User, payload: CIIn, *
         ).first()
         if not project:
             if is_update:
-                raise ErrorDeDominio(403, "No puedes mover CIs fuera de tu organización")
-            raise ErrorDeDominio(403, "No puedes crear CIs para proyectos fuera de tu organización")
+                raise error(403, "mover_fuera_de_empresa", detail="No puedes mover CIs fuera de tu organización")
+            raise error(403, "proyecto_fuera_de_empresa", detail="No puedes crear CIs para proyectos fuera de tu organización")
 
     if payload.owner_user_id:
         owner = db.query(User).filter(User.id == payload.owner_user_id).first()
         if not owner or owner.organization_id != current_user.organization_id:
-            raise ErrorDeDominio(403, "No puedes asignar owner fuera de tu organización")
+            raise error(403, "responsable_fuera_de_empresa", detail="No puedes asignar owner fuera de tu organización")
 
 
 def _columnas(payload: CIIn) -> dict:
@@ -134,7 +135,7 @@ def _clase_propia(db: Session, payload: CIIn, org_id) -> None:
     clase = db.query(CIClass).filter(CIClass.organization_id == org_id, CIClass.key == payload.ci_class,
                                      CIClass.is_active.is_(True)).first()
     if clase is None:
-        raise ErrorDeDominio(422, f"Clase de CI desconocida: {payload.ci_class}")
+        raise error(422, "ci_clase_desconocida", clase=payload.ci_class)
     payload.ci_type = clase.base_type
 
 

@@ -12,6 +12,7 @@ import type { AxiosError } from 'axios';
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api, { documentsApi, projectsApi, usersApi, esFichaCompleta, type ApiError, type PathId } from '../services/api';
+import { PREFIJO_API_SERVIDOR } from '../services/api/urls';
 import type { Documento, DocumentoEnLista, PermisoDeDocumento, ReservaDeDocumento, VersionDeDocumento } from '../services/api/tipos-documentos'
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext'
@@ -31,6 +32,7 @@ import { STALE_DEFAULT_MS, STALE_SHORT_MS } from '../constants/timings'
 import { DOCUMENTS_LIST_LIMIT } from '../constants/pagination'
 import './DocumentsPage.css'
 import { px } from '../utils/estilos'
+import { useRolesReales } from '../hooks/useRolesReales'
 
 // ── Utilidades ─────────────────────────────────────────
 function fmtBytes(b: number | null | undefined) {
@@ -521,7 +523,6 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
 // ── Document Drawer (panel lateral) ─────────────────────────────────────────
 
 // ── Share panel (per-document permissions) ────────────────────────────────────
-const ROLES_AVAILABLE = ['admin', 'pm', 'team_lead', 'hr', 'employee', 'subcontractor'];
 const ACCESS_LEVELS = [
   { v: 'viewer', l: 'pagina_docs.lector_abrir_y_descargar' },
   { v: 'editor', l: 'pagina_docs.editor_subir_versiones' },
@@ -530,6 +531,8 @@ const ACCESS_LEVELS = [
 
 function SharePanel({ documentId }: { documentId: PathId }) {
   const idCampo = useId()
+  // 19-11-2026: roles reales del backend (`GET /auth/roles`).
+  const roles = useRolesReales()
   const t = useAppT()
   const toast = useToast();
   const qc = useQueryClient();
@@ -635,7 +638,7 @@ function SharePanel({ documentId }: { documentId: PathId }) {
           <div className="u-mb-12">
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="documents-page-e9">{t('pagina_docs.rol_2')}</label>
             <Select suelto placeholder={false} id={`${idCampo}-2`} value={roleVal} onChange={e => setRoleVal(e.target.value)} className="documents-page-e10">
-              {ROLES_AVAILABLE.map(r => <option key={r} value={r}>{etiquetaCodigo(t, 'rol_usuario', r)}</option>)}
+              {roles.map(r => <option key={r.id} value={r.id}>{r.etiqueta}</option>)}
             </Select>
           </div>
         )}
@@ -802,7 +805,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
     if (!activeVer?.download_url) return;
     setPreviewError(false);
     // Only validate local API file URLs (S3 presigned URLs embed auth in query params)
-    if (!activeVer.download_url.startsWith('/api/')) return;
+    if (!activeVer.download_url.startsWith(`${PREFIJO_API_SERVIDOR}/`)) return;
     const fileType = detectFileType(activeVer.file_mime_type, activeVer.file_name);
     if (fileType !== 'pdf' && fileType !== 'image') return;
     // Por el cliente (refresco de sesión). La URL ya trae el prefijo de la API:

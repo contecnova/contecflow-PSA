@@ -142,6 +142,26 @@ def _compute_bottleneck_item(row: dict) -> dict:
         "bottleneck_score": round(bottleneck_score, 3),
     }
 
+def _cortes_de_aprobaciones(db, org_id: Optional[str]) -> dict:
+    """Umbrales de aprobaciones de la empresa (`app.core.umbrales`)."""
+    from app.core.umbrales import cortes, umbral
+    return {
+        "riesgo_sla": cortes("aprobacion_riesgo_sla", db, org_id),
+        "rechazo": cortes("aprobacion_rechazo", db, org_id),
+        "pendientes": umbral("UMBRAL_APROBACION_PENDIENTES_CRITICO", db, org_id),
+        "decision_horas": umbral("UMBRAL_APROBACION_DECISION_HORAS", db, org_id),
+    }
+
+
+def _marcar_paso(it: dict, c: dict) -> None:
+    """Añade a un paso sus tonos (`sla_risk_tone`, `rejection_tone`) y `is_critical`."""
+    from app.core.umbrales import tono_con
+    it["sla_risk_tone"] = tono_con("aprobacion_riesgo_sla", it["sla_risk_pct"], *c["riesgo_sla"])
+    it["rejection_tone"] = tono_con("aprobacion_rechazo", it["rejection_rate_pct"], *c["rechazo"])
+    it["is_critical"] = (it["sla_risk_tone"] == "danger" or it["rejection_tone"] == "danger"
+                         or it["pending_count"] >= c["pendientes"])
+
+
 def _compute_trend(requests, p: Periodo) -> list:
     """Decisiones y rechazos por tramo del periodo (periodo libre, 16-11-2026).
 
@@ -217,10 +237,12 @@ def _compute_top_workflows(items: list) -> list:
     )
     return top_workflows
 
-def _compute_bottleneck_recommendations(items: list) -> list:
+def _compute_bottleneck_recommendations(items: list, c: Optional[dict] = None) -> list:
+    """`c`: cortes de la empresa (`_cortes_de_aprobaciones`); sin ellos, los de `Settings`."""
+    c = c or _cortes_de_aprobaciones(None, None)
     recommendations: list = []
     worst = items[0] if items else None
-    if worst and worst["sla_risk_pct"] >= 80:
+    if worst and worst["sla_risk_pct"] >= c["riesgo_sla"][1]:
         recommendations.append({
             "priority": "high",
             "title": f"Mitigar riesgo SLA en '{worst['workflow_name']}' paso {worst['step_order']}",
@@ -228,7 +250,7 @@ def _compute_bottleneck_recommendations(items: list) -> list:
             "why": f"Riesgo SLA {worst['sla_risk_pct']}% con {worst['pending_count']} pendientes.",
         })
 
-    high_reject = next((it for it in items if it["rejection_rate_pct"] >= 25), None)
+    high_reject = next((it for it in items if it["rejection_rate_pct"] >= c["rechazo"][1]), None)
     if high_reject:
         recommendations.append({
             "priority": "medium",
@@ -237,7 +259,7 @@ def _compute_bottleneck_recommendations(items: list) -> list:
             "why": f"Tasa de rechazo {high_reject['rejection_rate_pct']}%.",
         })
 
-    slow = next((it for it in items if it["avg_decision_time_hours"] >= 24), None)
+    slow = next((it for it in items if it["avg_decision_time_hours"] >= c["decision_horas"]), None)
     if slow:
         recommendations.append({
             "priority": "medium",
@@ -291,12 +313,14 @@ def get_workflow_bottlenecks(
 
     trend = _compute_trend(requests, p)
     top_workflows = _compute_top_workflows(items)
-    recommendations = _compute_bottleneck_recommendations(items)
+    c = _cortes_de_aprobaciones(db, getattr(current_user, "organization_id", None))
+    recommendations = _compute_bottleneck_recommendations(items, c)
 
-    critical_steps = [
-        it for it in items
-        if it["sla_risk_pct"] >= 80 or it["pending_count"] >= 3 or it["rejection_rate_pct"] >= 25
-    ]
+    # 19-11-2026: el estado de cada paso se calcula aquí con los umbrales de la
+    # empresa (UMBRAL_APROBACION_*) y la pantalla lo pinta (antes 80/3/25 en los dos lados).
+    for it in items:
+        _marcar_paso(it, c)
+    critical_steps = [it for it in items if it["is_critical"]]
     pending_total = sum(it["pending_count"] for it in items)
     avg_decision_time = round(
         (sum(it["avg_decision_time_hours"] for it in items) / len(items)) if items else 0.0,

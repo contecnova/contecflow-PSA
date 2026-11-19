@@ -161,7 +161,7 @@ function DeliverableFormModal({ del, projectId, onClose }: { del?: Entregable | 
 export default function DeliverablesPage(): JSX.Element {
   const t = useAppT()
   const toast = useToast()
-  const { hasRole } = useAuth()
+  const { puede } = useAuth()
   const qc = useQueryClient()
   const [selectedProject, setSelectedProject] = useState('')
   const [showCreate, setShowCreate] = useState(false)
@@ -211,7 +211,7 @@ export default function DeliverablesPage(): JSX.Element {
   return (
     <PageShell>
       <PageHeader icon={<Package size={18} />} title={t('nav.deliverables')} subtitle={t('deliverables.subtitle')}
-        actions={tab === 'project' && selectedProject && hasRole('admin', 'pm')
+        actions={tab === 'project' && selectedProject && puede('proyectos.gestionar')
           ? <Button onClick={() => setShowCreate(true)} icon={<Plus size={14} />}>{t('deliverables.new_deliverable')}</Button>
           : undefined} />
 
@@ -249,7 +249,7 @@ export default function DeliverablesPage(): JSX.Element {
             <EmptyState icon={<FolderKanban size={28} />} title={t('deliverables.selecciona_un_proyecto')} description={t('deliverables.elige_proyecto_desc')} />
           ) : isLoading ? <Spinner /> : deliverables.length === 0 ? (
             <EmptyState icon={<Package size={28} />} title={t('deliverables.no_deliverables')} description={t('deliverables.sin_entregables_desc')}
-              action={hasRole('admin', 'pm') ? <Button onClick={() => setShowCreate(true)} icon={<Plus size={14} />}>{t('deliverables.new_deliverable')}</Button> : undefined} />
+              action={puede('proyectos.gestionar') ? <Button onClick={() => setShowCreate(true)} icon={<Plus size={14} />}>{t('deliverables.new_deliverable')}</Button> : undefined} />
           ) : (
             <div className="u-stack-10">
               {deliverables.map(d => {
@@ -278,15 +278,15 @@ export default function DeliverablesPage(): JSX.Element {
                       <div className="dlv-card__actions">
                         <StatusDropdown del={d} onUpdate={(status) => updateStatus({ id: d.id, status })} />
                         <div className="u-row-6">
-                          {d.status === 'delivered' && hasRole('admin', 'pm') && (
+                          {d.status === 'delivered' && puede('proyectos.gestionar') && (
                             <>
                               <Button size="sm" onClick={() => accept(d.id)}>{t('deliverables.aceptar')}</Button>
                               <Button size="sm" variant="danger" onClick={async () => { const r = await pedirTexto({ title: t('deliverables.rechazar_titulo'), message: t('deliverables.rechazar_mensaje'), label: t('deliverables.rechazar_motivo'), required: true, multiline: true, danger: true, confirmLabel: t('deliverables.rechazar_confirmar') }); if (r) reject({ id: d.id, reason: r }) }}>{t('deliverables.rechazar')}</Button>
                             </>
                           )}
-                          {hasRole('admin', 'pm') && <IconButton onClick={() => setEditing(d)}
+                          {puede('proyectos.gestionar') && <IconButton onClick={() => setEditing(d)}
                             ariaLabel={t('deliverables.editar_n', { nombre: d.name })}><Pencil size={14} aria-hidden /></IconButton>}
-                          {hasRole('admin', 'pm') && <IconButton className="dlv-icon-btn--danger" onClick={() => { openConfirmGlobal({ message: t('deliverables.confirmar_eliminar'), onConfirm: () => del(d.id), danger: true }) }}
+                          {puede('proyectos.gestionar') && <IconButton className="dlv-icon-btn--danger" onClick={() => { openConfirmGlobal({ message: t('deliverables.confirmar_eliminar'), onConfirm: () => del(d.id), danger: true }) }}
                             ariaLabel={t('deliverables.eliminar_n', { nombre: d.name })}><Trash2 size={14} aria-hidden /></IconButton>}
                         </div>
                       </div>

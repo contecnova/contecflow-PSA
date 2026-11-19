@@ -54,7 +54,10 @@ def create_api_key_record(payload, user_id, db) -> dict:
     from app.core.credenciales_delegadas import ALCANCES_VALIDOS, huella
     invalidos = sorted(set(payload.scopes) - set(ALCANCES_VALIDOS))
     if invalidos or not payload.scopes:
-        raise ErrorDeDominio(422, f"Alcances no válidos: {', '.join(invalidos) or 'ninguno'}. "
+        from app.core.codigos_de_error import error
+        raise error(422, "oauth_alcances_no_validos", alcances=", ".join(invalidos) or "-",
+                    validos=", ".join(ALCANCES_VALIDOS),
+                    detail=f"Alcances no válidos: {', '.join(invalidos) or 'ninguno'}. "
                                  f"Válidos: {', '.join(ALCANCES_VALIDOS)}")
     raw_key    = f"nxpm_{secrets.token_hex(24)}"
     key_prefix = raw_key[:12]

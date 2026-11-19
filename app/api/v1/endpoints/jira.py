@@ -37,6 +37,7 @@ from app.models.user import User
 from app.services.pagination_service import paginate_query
 from app.services import jira_service
 from app.services.jira_service import JIRA_STATUS_MAP, JIRA_PRIORITY_MAP
+from app.core.codigos_de_error import error_http
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Jira Integration"])
@@ -122,10 +123,10 @@ def list_jira_issues(
 ):
     cfg = jira_service.get_jira_config(db, current_user.organization_id)
     if not cfg["jira_url"] or not cfg["jira_api_token"]:
-        raise HTTPException(400, "Jira no configurado.")
+        raise error_http(400, "integracion_no_configurada", detail="Jira no configurado.", nombre="Jira")
     key = project_key or cfg["jira_project_key"]
     if not key and not jql:
-        raise HTTPException(400, "Proporciona project_key o un jql personalizado.")
+        raise error_http(400, "jira_indica_clave_o_jql", detail="Proporciona project_key o un jql personalizado.")
 
     query = jql or f"project = {key} ORDER BY updated DESC"
     data = jira_service.llamar_a_jira(cfg, "POST", "/rest/api/3/issue/search", timeout=15, json={
@@ -162,11 +163,11 @@ def sync_jira_to_nexus(
     """
     cfg = jira_service.get_jira_config(db, current_user.organization_id)
     if not cfg["jira_url"] or not cfg["jira_api_token"]:
-        raise HTTPException(400, "Jira no configurado.")
+        raise error_http(400, "integracion_no_configurada", detail="Jira no configurado.", nombre="Jira")
 
     key = payload.project_key or cfg["jira_project_key"]
     if not key:
-        raise HTTPException(400, "Proporciona project_key.")
+        raise error_http(400, "jira_indica_clave", detail="Proporciona project_key.")
 
     cutoff = (utcnow() - datetime.timedelta(days=payload.since_days)).strftime("%Y-%m-%d")
     jql = f"project = {key} AND updated >= '{cutoff}' ORDER BY updated DESC"
@@ -208,11 +209,11 @@ def push_nexus_to_jira(
     """
     cfg = jira_service.get_jira_config(db, current_user.organization_id)
     if not cfg["jira_url"] or not cfg["jira_api_token"]:
-        raise HTTPException(400, "Jira no configurado.")
+        raise error_http(400, "integracion_no_configurada", detail="Jira no configurado.", nombre="Jira")
 
     proj_key = payload.jira_project_key or cfg["jira_project_key"]
     if not proj_key:
-        raise HTTPException(400, "Proporciona jira_project_key.")
+        raise error_http(400, "jira_indica_clave", detail="Proporciona jira_project_key.")
 
     # Segunda auditoria 2026-11 (n.º 20): una llamada a Jira (15 s) por tarea
     # iba dentro de la peticion. Ahora va al worker; con cola: 202
@@ -273,12 +274,12 @@ async def jira_webhook(
                           x_atlassian_webhook_token, x_hub_signature_256, org)
     if not org_id:
         logger.warning("Jira webhook rejected: invalid/missing authentication token")
-        raise HTTPException(403, "Invalid Jira webhook authentication")
+        raise error_http(403, "webhook_auth_no_valida", detail="Invalid Jira webhook authentication", servicio="Jira")
 
     try:
         payload = json.loads(body or b"{}")
     except (ValueError, TypeError):
-        raise HTTPException(400, "Invalid JSON payload")
+        raise error_http(400, "json_no_valido", detail="Invalid JSON payload")
 
     event = payload.get("webhookEvent", "")
     issue = payload.get("issue", {})

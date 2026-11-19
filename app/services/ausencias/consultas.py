@@ -10,6 +10,7 @@ from app.core.errores import ErrorDeDominio
 from app.models.ausencias import EventoDeAusencia
 from app.models.resources import Absence, AbsenceStatus
 from app.services.ausencias import cupos, documentos
+from app.core.codigos_de_error import error
 
 
 def _rol(u) -> str:
@@ -22,12 +23,12 @@ def visible(db: Session, usuario, absence_id: str) -> Absence:
     calendario de equipo). Si no, 404 (no se filtra que existe)."""
     a = db.query(Absence).filter(Absence.id == absence_id).first()
     if a is None:
-        raise ErrorDeDominio(404, "Ausencia no encontrada")
+        raise error(404, "no_encontrado", detail="Ausencia no encontrada", que="ausencia")
     if (a.user_id == usuario.id or a.substitute_id == usuario.id or usuario.is_superadmin
             or _rol(usuario) in ("admin", "hr", "pm", "team_lead")
             or documentos._es_responsable(db, usuario, a) or documentos._es_aprobador(db, usuario, a)):
         return a
-    raise ErrorDeDominio(404, "Ausencia no encontrada")
+    raise error(404, "no_encontrado", detail="Ausencia no encontrada", que="ausencia")
 
 
 def _nombres(db: Session, ids) -> dict:

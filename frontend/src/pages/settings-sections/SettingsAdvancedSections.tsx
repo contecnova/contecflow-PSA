@@ -761,13 +761,14 @@ const RUNTIME_GROUPS = [
   { id: 'licencias_integracion', label: 'Licencias y equipos: altas y bajas', description: 'Cuándo se liberan las licencias de quien se va, qué pasa con el equipo sin devolver, colas de devolución, compras y averías, y el kit de alta.' },
   { id: 'conectores',      label: 'Conectores contecmind / contecintelligence', description: 'Tiempos de espera, roles que escriben o analizan, tamaño de subida y registro de llamadas.' },
   { id: 'informes',        label: 'Informes', description: 'Periodo libre: rango máximo que se puede pedir, puntos máximos de una serie por granularidad y objetivo de la granularidad automática.' },
+  { id: 'semaforos',       label: 'Semáforos', description: 'Cortes de aviso y crítico por métrica (presupuesto, carga, SLA, OKR, NPS, margen, sprint, aprobaciones, vencimientos, hitos del portal), los mismos en todas las pantallas e informes. Riesgo, salud y EVM siguen en sus grupos.' },
 ]
 
 
 export function RuntimeGroupEditor({ groupId, description, ocultar = [] }: { groupId: string; description?: string; ocultar?: string[] }) {
   const { t } = useAppLang()
   // Los ajustes de plataforma sólo los cambia el superadmin (revisión 2026-11).
-  const esSuperadmin = !!useAuth().user?.is_superadmin
+  const esSuperadmin = useAuth().puede('plataforma.empresas')
   const toast = useToast()
   const qc = useQueryClient()
 
@@ -831,21 +832,24 @@ export function RuntimeGroupEditor({ groupId, description, ocultar = [] }: { gro
 
 function RuntimeFlagRow({ item, current, isBool, dirty, disabled, onChange, onSave }: { item: RuntimeSetting; current: string; isBool: boolean; dirty: boolean; disabled: boolean; onChange: (v: string) => void; onSave: () => void }) {
   const { t } = useAppLang()
+  // 19-11-2026: etiqueta traducida por clave (`ajuste_clave.<CLAVE>` en es/en/zh);
+  // el texto del backend (inglés) queda de respaldo para claves nuevas.
+  const etiqueta = t(`ajuste_clave.${item.key}`, item.label)
   return (
     <>
       <div className="seadse-stack-2">
-        <span className="u-text1-sm-600">{item.label}</span>
+        <span className="u-text1-sm-600">{etiqueta}</span>
         {item.plataforma && <span className="seadse-txt-2">{t('settingsadvanced.solo_superadmin')}</span>}
       </div>
       <div>
         {isBool ? (
-          <Select suelto placeholder={false} value={String(current)} onChange={(e) => onChange(e.target.value)} aria-label={item.label} className="seadse-inputstyle" disabled={disabled && item.plataforma}>
+          <Select suelto placeholder={false} value={String(current)} onChange={(e) => onChange(e.target.value)} aria-label={etiqueta} className="seadse-inputstyle" disabled={disabled && item.plataforma}>
             <option value="true">{t('settingsadvanced.activado')}</option>
             <option value="false">{t('settingsadvanced.desactivado')}</option>
           </Select>
         ) : (
           <input
-            aria-label={item.label}
+            aria-label={etiqueta}
             type={item.type === 'int' || item.type === 'float' ? 'number' : 'text'}
             step={item.type === 'float' ? 'any' : (item.type === 'int' ? '1' : undefined)}
             value={current}

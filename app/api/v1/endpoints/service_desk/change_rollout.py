@@ -22,6 +22,7 @@ from app.core.ratelimit import limiter
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.user import User
+from app.core.codigos_de_error import desde_valor
 from app.services.service_desk.change_rollout_service import (
     create_rollout_plan,
     get_plan,
@@ -162,7 +163,7 @@ def get_rollout_plan(
     try:
         return APIResponse.ok(data=get_plan(db, org_id=org_id, plan_id=plan_id))
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise desde_valor(404, exc)
 
 
 @router.post("/changes/rollout-plans/{plan_id}/approve", summary="Aprobar plan de rollout")
@@ -181,7 +182,7 @@ def approve_rollout_plan(
         return APIResponse.ok(data=approve_plan(db, org_id=org_id, plan_id=plan_id, approver_user_id=current_user.id,
                                                   approver=current_user))
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise desde_valor(404, exc)
 
 
 @router.post("/changes/rollout-plans/{plan_id}/advance-phase", summary="Avanzar al siguiente fase de rollout")
@@ -200,7 +201,7 @@ def advance_rollout_phase(
     try:
         return APIResponse.ok(data=advance_phase(db, org_id=org_id, plan_id=plan_id, phase_notes=body.phase_notes if body else None))
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise desde_valor(400, exc)
 
 
 @router.post("/changes/rollout-plans/simulate", summary="Simulación de impacto de rollout (what-if)")

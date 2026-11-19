@@ -49,6 +49,7 @@ from app.services.security_observability import (
 )
 from app.core.responses import APIResponse, APIListResponse
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.core.codigos_de_error import error_http
 
 router = APIRouter(prefix="/soc", tags=["Security Observability"])
 
@@ -250,7 +251,7 @@ def get_detection(
     svc = SecurityEventService(db=db, org_id=_org(current_user))
     det = svc.get_detection_by_id(detection_id)
     if not det:
-        raise HTTPException(status_code=404, detail="Detection not found")
+        raise error_http(404, "no_encontrado", detail="Detection not found", que="deteccion")
     return APIResponse.ok(data=DetectionOut.model_validate(det))
 
 
@@ -269,7 +270,7 @@ def update_detection_status(
     allowed = {IncidentStatus.OPEN, IncidentStatus.INVESTIGATING,
                IncidentStatus.CONTAINED, IncidentStatus.RESOLVED, IncidentStatus.FALSE_POS}
     if body.status not in allowed:
-        raise HTTPException(status_code=422, detail=f"Invalid status: {body.status}")
+        raise error_http(422, "estado_no_valido_valor", detail=f"Invalid status: {body.status}", estado=body.status)
 
     svc = SecurityEventService(db=db, org_id=_org(current_user))
     try:
@@ -280,7 +281,7 @@ def update_detection_status(
             reason=body.reason,
         )
     except ValueError:
-        raise HTTPException(status_code=404, detail="Detection not found")
+        raise error_http(404, "no_encontrado", detail="Detection not found", que="deteccion")
     return APIResponse.ok(data=DetectionOut.model_validate(det))
 
 
@@ -339,7 +340,7 @@ def get_incident(
     svc = SecurityEventService(db=db, org_id=_org(current_user))
     inc = svc.get_incident_by_id(incident_id)
     if not inc:
-        raise HTTPException(status_code=404, detail="Incident not found")
+        raise error_http(404, "no_encontrado", detail="Incident not found", que="incidente")
     return APIResponse.ok(data=IncidentOut.model_validate(inc))
 
 
@@ -361,7 +362,7 @@ def resolve_incident(
             lessons     = body.lessons_learned,
         )
     except ValueError:
-        raise HTTPException(status_code=404, detail="Incident not found")
+        raise error_http(404, "no_encontrado", detail="Incident not found", que="incidente")
     return APIResponse.ok(data=IncidentOut.model_validate(inc))
 
 
@@ -403,7 +404,7 @@ def resolve_anomaly(
     svc = SecurityEventService(db=db, org_id=_org(current_user))
     anomaly = svc.resolve_anomaly(anomaly_id)
     if not anomaly:
-        raise HTTPException(status_code=404, detail="Anomaly not found")
+        raise error_http(404, "no_encontrado", detail="Anomaly not found", que="anomalia")
     return APIResponse.ok(data={"id": anomaly_id, "is_resolved": True})
 
 

@@ -41,6 +41,7 @@ from typing import Any, Iterable, Sequence
 
 from app.core.descargas import Descarga
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 #: Los dos formatos que entiende. Un tercero se añade aquí y en `_ESCRITORES`.
 FORMATOS = ("csv", "xlsx")
@@ -135,8 +136,7 @@ def respuesta_tabular(
     """
     formato = (formato or "csv").lower()
     if formato not in FORMATOS:
-        raise ErrorDeDominio(
-            400, f"Formato no soportado: {formato!r}. Admitidos: {', '.join(FORMATOS)}")
+        raise error(400, "formato_no_soportado", detail=f"Formato no soportado: {formato!r}. Admitidos: {', '.join(FORMATOS)}", formato=formato, opciones=', '.join(FORMATOS))
 
     filas = list(filas)
     contenido = _csv(cabecera, filas) if formato == "csv" else _xlsx(cabecera, filas, nombre)

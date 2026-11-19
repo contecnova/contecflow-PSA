@@ -25,6 +25,7 @@ from app.db.session import get_db, SessionLocal, publicar_contexto_de_tenant
 from app.models.user import User
 from app.services import bi_intelligence_service as svc
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.core.codigos_de_error import desde_valor, error_http
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +116,7 @@ def phase2_report_preview(
             limit=payload.limit,
         ))
     except ValueError:
-        raise HTTPException(status_code=404, detail="Preset no encontrado")
+        raise error_http(404, "no_encontrado", detail="Preset no encontrado", que="preajuste")
 
 
 @router.get(
@@ -153,8 +154,8 @@ def phase2_visual_query_builder_preview(
         ))
     except ValueError as exc:
         if str(exc) == "entity_not_found":
-            raise HTTPException(status_code=404, detail="Entidad no soportada") from exc
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+            raise error_http(404, "entidad_no_soportada", detail="Entidad no soportada") from exc
+        raise desde_valor(422, exc) from exc
 
 
 @router.get(
@@ -195,8 +196,8 @@ def phase2_save_visual_query_builder_template(
         )
     except ValueError as exc:
         if str(exc) == "entity_not_found":
-            raise HTTPException(status_code=404, detail="Entidad no soportada") from exc
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+            raise error_http(404, "entidad_no_soportada", detail="Entidad no soportada") from exc
+        raise desde_valor(422, exc) from exc
     return APIResponse.ok(data={"ok": True, "item": item})
 
 
@@ -221,8 +222,8 @@ def phase2_delete_visual_query_builder_template(
         )
     except ValueError as exc:
         if str(exc) == "template_not_found":
-            raise HTTPException(status_code=404, detail="Plantilla no encontrada") from exc
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+            raise error_http(404, "no_encontrado", detail="Plantilla no encontrada", que="plantilla") from exc
+        raise desde_valor(422, exc) from exc
     return APIResponse.ok(data={"ok": True, "template_id": template_id})
 
 
@@ -501,7 +502,7 @@ def get_delivery_schedule(
     try:
         return APIResponse.ok(data=delivery_svc.get_schedule(db, organization_id=org_id, schedule_id=schedule_id))
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise desde_valor(404, exc) from exc
 
 
 @router.post("/bi/delivery/schedules", summary="Crear schedule de entrega programada BI", status_code=201)
@@ -529,7 +530,7 @@ def create_delivery_schedule(
             send_only_on_change=body.send_only_on_change,
         ))
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise desde_valor(422, exc) from exc
 
 
 @router.put("/bi/delivery/schedules/{schedule_id}", summary="Actualizar schedule de entrega BI")
@@ -550,7 +551,7 @@ def update_delivery_schedule(
         ))
     except ValueError as exc:
         code = 404 if "not_found" in str(exc) else 422
-        raise HTTPException(status_code=code, detail=str(exc)) from exc
+        raise desde_valor(code, exc) from exc
 
 
 @router.delete("/bi/delivery/schedules/{schedule_id}", summary="Eliminar schedule de entrega BI", status_code=200)
@@ -566,7 +567,7 @@ def delete_delivery_schedule(
         delivery_svc.delete_schedule(db, organization_id=org_id, schedule_id=schedule_id)
         return APIResponse.ok(data={"ok": True, "schedule_id": schedule_id})
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise desde_valor(404, exc) from exc
 
 
 @router.post("/bi/delivery/schedules/{schedule_id}/send-now", summary="Ejecutar entrega BI ahora (manual)")
@@ -587,7 +588,7 @@ def send_delivery_now(
         resultado = encolar(delivery_svc.send_schedule_now, organization_id=org_id,
                             schedule_id=schedule_id, _organizacion=org_id, _sesion=db)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise desde_valor(404, exc) from exc
     if resultado is EN_COLA:
         return respuesta_en_cola(schedule_id=schedule_id)
     return APIResponse.ok(data=resultado)
@@ -603,4 +604,4 @@ def get_delivery_diff(
     try:
         return APIResponse.ok(data=delivery_svc.get_schedule_report_diff(db, organization_id=org_id, schedule_id=schedule_id))
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise desde_valor(404, exc) from exc

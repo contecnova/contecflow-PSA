@@ -21,9 +21,8 @@ import type { CicloDeVida, EstadoDeCiclo, ReglaSla } from '../../services/api/se
 import { etiquetaSd } from './sdUtils'
 import '../../components/servicedesk/sdMercado.css'
 
-const PRIORIDADES = ['p1_critical', 'p2_high', 'p3_medium', 'p4_low']
-const TIPOS = ['incident', 'service_request', 'change', 'problem', 'question']
-const ESTADOS_BASE = ['new', 'assigned', 'in_progress', 'pending_client', 'pending_third', 'resolved', 'closed', 'cancelled']
+// 19-11-2026: una sola fuente para estados, tipos y prioridades ITSM.
+import { ESTADOS_DE_TICKET as ESTADOS_BASE, PRIORIDADES_DE_TICKET as PRIORIDADES, TIPOS_DE_TICKET as TIPOS } from '../../constants/catalogos'
 const VACIA: ReglaSla = { name: '', is_active: true, sort_order: 0, service_item_id: null, ticket_type: null, client_id: null, contract_id: null, priority: null, response_hours: null, resolution_hours: null, sla_policy_id: null }
 
 function useErr() {
@@ -38,8 +37,8 @@ export function ReglasSlaYOla() {
   const toast = useToast()
   const qc = useQueryClient()
   const err = useErr()
-  const { user } = useAuth()
-  const esAdmin = user?.role === 'admin'
+  const { puede } = useAuth()
+  const esAdmin = puede('sd.administrar')
   const [editando, setEditando] = useState<ReglaSla | null>(null)
   const reglas = useQuery({ queryKey: ['sdm-sla-rules'], queryFn: slaAvanzadoApi.reglas })
   const catalogo = useQuery({ queryKey: ['sd-catalog'], queryFn: () => sdCatalogApi.list().then(r => r.data) })
@@ -201,8 +200,8 @@ export function CiclosDeVida() {
   const toast = useToast()
   const qc = useQueryClient()
   const err = useErr()
-  const { user } = useAuth()
-  const esAdmin = user?.role === 'admin'
+  const { puede } = useAuth()
+  const esAdmin = puede('sd.administrar')
   const { data = [], isLoading } = useQuery({ queryKey: ['sdm-lifecycles'], queryFn: slaAvanzadoApi.ciclos })
   const [editando, setEditando] = useState<CicloDeVida | null>(null)
   const borrar = useMutation({ mutationFn: slaAvanzadoApi.borrarCiclo, onSuccess: () => qc.invalidateQueries({ queryKey: ['sdm-lifecycles'] }), onError: err })

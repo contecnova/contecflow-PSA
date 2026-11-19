@@ -25,7 +25,7 @@ from app.models.collaboration import (
 )
 from app.services.collaboration._permissions import _org
 from app.services.traffic_control_service import consume_quota
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 #: Ventana del tope del webhook entrante, en segundos.
 VENTANA_DE_CUOTA_SEGUNDOS = 60
@@ -87,7 +87,7 @@ def delete_integration(db: Session, user, integration_id: str) -> None:
         .first()
     )
     if not fila:
-        raise ErrorDeDominio(404, "Integración no encontrada")
+        raise error(404, "no_encontrado", detail="Integración no encontrada", que="integracion")
     db.delete(fila)
     db.commit()
 
@@ -147,7 +147,7 @@ def deliver_incoming(db: Session, token: str, payload: dict) -> None:
         .first()
     )
     if not fila or fila.direction != "incoming" or not fila.target_channel_id:
-        raise ErrorDeDominio(404, "Webhook inválido")
+        raise error(404, "webhook_no_autorizado", detail="Webhook inválido")
     # Segunda auditoría 2026-11 (#10): organización desactivada → 403.
     from app.db.session import exigir_organizacion_activa
     exigir_organizacion_activa(db, fila.organization_id)
@@ -159,10 +159,7 @@ def deliver_incoming(db: Session, token: str, payload: dict) -> None:
         window_seconds=VENTANA_DE_CUOTA_SEGUNDOS,
     )
     if not cuota["allowed"]:
-        raise ErrorDeDominio(
-            status_code=429,
-            detail=f"Webhook rate limit exceeded. Retry in {cuota['retry_after']}s",
-        )
+        raise error(429, "limite_webhook", detail=f"Webhook rate limit exceeded. Retry in {cuota['retry_after']}s", segundos=cuota['retry_after'])
 
     canal = (
         db.query(CollaborationChannel)
@@ -170,7 +167,7 @@ def deliver_incoming(db: Session, token: str, payload: dict) -> None:
         .first()
     )
     if not canal:
-        raise ErrorDeDominio(404, "Canal del webhook no encontrado")
+        raise error(404, "no_encontrado", detail="Canal del webhook no encontrado", que="canal")
 
     bot = (
         db.query(CollaborationBotApp)

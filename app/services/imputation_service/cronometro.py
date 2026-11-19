@@ -27,6 +27,7 @@ from app.services.imputation_service._comun import (
     resolve_user_rate,
     sync_imputation_week_timesheet,
 )
+from app.core.codigos_de_error import error
 
 
 def _resolve_timer_stop_task(payload, timer: TimerSession, db: Session) -> Optional[Task]:
@@ -40,15 +41,10 @@ def _resolve_timer_stop_task(payload, timer: TimerSession, db: Session) -> Optio
         Task.project_id == timer.project_id,
     ).first()
     if not task:
-        raise ErrorDeDominio(status_code=404, detail="Tarea no encontrada o no pertenece al proyecto")
+        raise error(404, "tarea_no_en_proyecto")
     if task.status in (TaskStatus.done, TaskStatus.cancelled):
-        raise ErrorDeDominio(
-            status_code=400,
-            detail=(
-                f"La tarea '{task.title or task.id}' está en estado '{task.status.value}' "
-                "y no admite nuevas imputaciones."
-            ),
-        )
+        raise error(400, "imputar_tarea_estado", detail=f"La tarea '{task.title or task.id}' está en estado '{task.status.value}' "
+                "y no admite nuevas imputaciones.", tarea=task.title or task.id, estado=task.status.value)
     return task
 
 
@@ -75,13 +71,10 @@ def start_timer_session(payload, current_user: User, db: Session):
         and_(TimerSession.user_id == current_user.id, TimerSession.ended_at == None)
     ).first()
     if existing:
-        raise ErrorDeDominio(status_code=409, detail="User already has an active timer")
+        raise error(409, "cronometro_ya_activo", detail="User already has an active timer")
 
     if not resolve_user_rate(db, current_user):
-        raise ErrorDeDominio(
-            status_code=400,
-            detail="No puedes iniciar el cronómetro sin tener una tarifa horaria asignada. Contacta con Recursos Humanos.",
-        )
+        raise error(400, "sin_tarifa_horaria", detail="No puedes iniciar el cronómetro sin tener una tarifa horaria asignada. Contacta con Recursos Humanos.")
 
     # Audit #62 — org-scoped project lookup
     project_q = db.query(Project).filter(Project.id == payload.project_id)
@@ -89,20 +82,20 @@ def start_timer_session(payload, current_user: User, db: Session):
         project_q = project_q.filter(Project.organization_id == current_user.organization_id)
     project = project_q.first()
     if not project:
-        raise ErrorDeDominio(status_code=404, detail="Proyecto no encontrado")
+        raise error(404, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")
 
     task = None
     if payload.task_id:
         task = db.query(Task).filter(Task.id == payload.task_id, Task.project_id == payload.project_id).first()
         if not task:
-            raise ErrorDeDominio(status_code=404, detail="Tarea no encontrada o no pertenece al proyecto")
+            raise error(404, "tarea_no_en_proyecto")
 
     # Project membership guard (same rules as validate_and_create_imputation)
     _assert_project_membership(project, task, current_user, db)
 
     # Additional check: timer on a task requires being the assignee
     if task and current_user.role != UserRole.admin and task.assignee_id != current_user.id:
-        raise ErrorDeDominio(status_code=403, detail="No puedes iniciar el cronómetro en una tarea que no está asignada a ti.")
+        raise error(403, "cronometro_tarea_no_asignada")
 
     now = datetime.now(timezone.utc)
     timer = TimerSession(
@@ -124,7 +117,7 @@ def pause_timer_session(current_user: User, db: Session):
         and_(TimerSession.user_id == current_user.id, TimerSession.ended_at == None)
     ).first()
     if not timer:
-        raise ErrorDeDominio(status_code=404, detail="No active timer found")
+        raise error(404, "cronometro_sin_activo", detail="No active timer found")
 
     timer.paused_at = datetime.now(timezone.utc)
     db.commit()
@@ -142,7 +135,7 @@ def resume_timer_session(current_user: User, db: Session):
         )
     ).first()
     if not timer:
-        raise ErrorDeDominio(status_code=404, detail="No paused timer found")
+        raise error(404, "cronometro_sin_activo", detail="No paused timer found")
 
     if timer.paused_at:
         paused_at = timer.paused_at if timer.paused_at.tzinfo else timer.paused_at.replace(tzinfo=timezone.utc)
@@ -160,7 +153,7 @@ def cancel_timer_session(current_user: User, db: Session):
         and_(TimerSession.user_id == current_user.id, TimerSession.ended_at == None)
     ).first()
     if not timer:
-        raise ErrorDeDominio(status_code=404, detail="No active timer found")
+        raise error(404, "cronometro_sin_activo", detail="No active timer found")
 
     db.delete(timer)
     db.commit()
@@ -180,22 +173,14 @@ def _proyecto_valido_para_parar(timer, current_user: User, db: Session):
     todos los informes de rentabilidad en silencio.
     """
     if not resolve_user_rate(db, current_user):
-        raise ErrorDeDominio(
-            status_code=400,
-            detail="No puedes registrar horas sin tener una tarifa horaria asignada. Contacta con Recursos Humanos.",
-        )
+        raise error(400, "sin_tarifa_horaria", detail="No puedes registrar horas sin tener una tarifa horaria asignada. Contacta con Recursos Humanos.")
 
     project = db.query(Project).filter(Project.id == timer.project_id).first()
     if not project:
-        raise ErrorDeDominio(status_code=404, detail="El proyecto asociado ya no existe.")
+        raise error(404, "no_encontrado", detail="El proyecto asociado ya no existe.", que="proyecto")
     if project.status not in (_PS.active, _PS.on_hold, _PS.paused):
-        raise ErrorDeDominio(
-            status_code=400,
-            detail=(
-                f"El proyecto '{project.name}' está en estado '{project.status.value}' "
-                "y no admite nuevas imputaciones."
-            ),
-        )
+        raise error(400, "imputar_proyecto_estado", detail=f"El proyecto '{project.name}' está en estado '{project.status.value}' "
+                "y no admite nuevas imputaciones.", proyecto=project.name, estado=project.status.value)
     return project
 
 
@@ -249,24 +234,15 @@ def _comprobar_cierre_y_tope_diario(current_user: User, db: Session,
         minima = get_lockout_cutoff(current_user, db)
         if fecha < minima:
             dias = (today_for_user(current_user) - minima).days
-            raise ErrorDeDominio(
-                status_code=400,
-                detail=(
-                    f"No puedes imputar en fechas anteriores a hace {dias} días "
-                    f"({minima}). El temporizador empezó en una fecha bloqueada."
-                ),
-            )
+            raise error(400, "imputar_fecha_bloqueada_cronometro", dias=dias, fecha=minima)
 
     ya_registradas = db.query(func.sum(Imputation.hours)).filter(
         Imputation.user_id == current_user.id,
         Imputation.date == fecha,
     ).scalar() or 0.0
     if ya_registradas + horas > 24:
-        raise ErrorDeDominio(
-            status_code=400,
-            detail=(f"No puedes imputar más de 24h en un día. Ya tienes "
-                    f"{ya_registradas}h registradas para el {fecha}."),
-        )
+        raise error(400, "imputar_mas_de_24h", detail=f"No puedes imputar más de 24h en un día. Ya tienes "
+                    f"{ya_registradas}h registradas para el {fecha}.", horas=ya_registradas)
 
 
 def stop_timer_session(payload, current_user: User, db: Session):
@@ -276,7 +252,7 @@ def stop_timer_session(payload, current_user: User, db: Session):
         and_(TimerSession.user_id == current_user.id, TimerSession.ended_at == None)
     ).first()
     if not timer:
-        raise ErrorDeDominio(status_code=404, detail="No active timer found")
+        raise error(404, "cronometro_sin_activo", detail="No active timer found")
 
     project = _proyecto_valido_para_parar(timer, current_user, db)
     task = _resolve_timer_stop_task(payload, timer, db)
@@ -298,7 +274,7 @@ def stop_timer_session(payload, current_user: User, db: Session):
         if duplicate:
             duplicate_imputation_id = duplicate[0]
             if not payload.force_duplicate:
-                raise ErrorDeDominio(status_code=409, detail="Ya existe una imputación para esta tarea en esa fecha.")
+                raise error(409, "imputacion_duplicada")
     else:
         duplicate = db.query(Imputation.id).filter(
             Imputation.user_id == current_user.id,
@@ -309,7 +285,7 @@ def stop_timer_session(payload, current_user: User, db: Session):
         if duplicate:
             duplicate_imputation_id = duplicate[0]
             if not payload.force_duplicate:
-                raise ErrorDeDominio(status_code=409, detail="Ya existe una imputación sin tarea para este proyecto en esa fecha.")
+                raise error(409, "imputacion_duplicada", detail="Ya existe una imputación sin tarea para este proyecto en esa fecha.")
 
     timer_rate = resolve_user_rate(db, current_user, imputation_date, timer.project_id)
     imputation = Imputation(

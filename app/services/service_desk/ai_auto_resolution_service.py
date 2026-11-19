@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings as _settings
 from app.models.service_desk import Ticket, TicketStatus, KBArticle, KBStatus
 from app.services.ai_provider_service import call_ai
+from app.core.config import settings  # topes de tokens de IA (19-11-2026)
 
 _logger = logging.getLogger("ai_auto_resolution")
 
@@ -633,7 +634,7 @@ def analyze_ticket_for_resolution(
             module="auto_resolution",
             user_id=current_user.id if current_user else None,
             model=None,
-            max_tokens=500,
+            max_tokens=settings.AI_BRIEF_ANSWER_MAX_TOKENS,
             # Pasar contexto org evita que el dispatcher no encuentre
             # provider scoped por organización.
             is_superadmin=bool(getattr(current_user, "is_superadmin", False)) if current_user else True,

@@ -58,6 +58,7 @@ from app.services.service_desk.auto_resolucion_operaciones import (
     validar_auto_resolucion,
 )
 from app.models.user import UserRole
+from app.core.codigos_de_error import error_http
 
 router = APIRouter(tags=["Service Desk - AI Auto-Resolution"])
 _logger = logging.getLogger("sd_auto_resolution_endpoint")
@@ -123,7 +124,7 @@ def analyze_ticket_for_ai_resolution(
         ticket.assigned_to_user_id != current_user.id
         and current_user.role not in [UserRole.admin]  # 2026-11: "support" no existe en UserRole; nunca coincidia
     ):
-        raise HTTPException(status_code=403, detail="Not authorized")
+        raise error_http(403, "sin_permiso", detail="Not authorized")
 
     result = analyze_ticket_for_resolution(db, ticket, current_user)
     return APIResponse.ok(data=result)
@@ -152,7 +153,7 @@ def apply_ai_auto_resolution(
     Only admins or L3 support can apply auto-resolution.
     """
     if current_user.role not in [UserRole.admin]:  # 2026-11: "support" no existe en UserRole; nunca coincidia
-        raise HTTPException(status_code=403, detail="Only admins/support can apply auto-resolution")
+        raise error_http(403, "solo_admin_o_soporte", detail="Only admins/support can apply auto-resolution")
 
     ticket = org_scoped_or_404(db, Ticket, ticket_id, current_user, detail="Ticket not found")
 
@@ -189,7 +190,7 @@ def run_auto_resolution_job(
     }
     """
     if current_user.role != UserRole.admin:
-        raise HTTPException(status_code=403, detail="Only admins can run this job")
+        raise error_http(403, "solo_admin", detail="Only admins can run this job")
 
     return APIResponse.ok(data=lanzar_trabajo(
         db, _organizacion_de(current_user), limit, run_async, background_tasks.add_task))
@@ -217,7 +218,7 @@ def validate_ticket_auto_resolution(
     Returns: {validated, reopened, ticket_id, ticket_number}
     """
     if current_user.role not in [UserRole.admin]:  # 2026-11: "support" no existe en UserRole; nunca coincidia
-        raise HTTPException(status_code=403, detail="Not authorized")
+        raise error_http(403, "sin_permiso", detail="Not authorized")
 
     ticket = org_scoped_or_404(db, Ticket, ticket_id, current_user, detail="Ticket not found")
 
@@ -248,7 +249,7 @@ def submit_auto_resolution_feedback(
     Body: {"success": true | false}
     """
     if current_user.role not in [UserRole.admin]:  # 2026-11: "support" no existe en UserRole; nunca coincidia
-        raise HTTPException(status_code=403, detail="Not authorized")
+        raise error_http(403, "sin_permiso", detail="Not authorized")
 
     ticket = org_scoped_or_404(db, Ticket, ticket_id, current_user, detail="Ticket not found")
 
@@ -274,7 +275,7 @@ def get_auto_resolution_statistics(
     Returns: {total_auto_resolved, total_feedback, success_rate, buckets}
     """
     if current_user.role != UserRole.admin:
-        raise HTTPException(status_code=403, detail="Admin only")
+        raise error_http(403, "solo_admin", detail="Admin only")
 
     org = _organizacion_de(current_user)
     payload = get_auto_resolution_stats(db, org)
@@ -294,7 +295,7 @@ def get_auto_resolution_config_endpoint(
     db: Session = Depends(get_db),
 ):
     if current_user.role != UserRole.admin:
-        raise HTTPException(status_code=403, detail="Admin only")
+        raise error_http(403, "solo_admin", detail="Admin only")
     return APIResponse.ok(data=get_auto_resolution_config(db, _organizacion_de(current_user)))
 
 
@@ -311,7 +312,7 @@ def update_auto_resolution_config_endpoint(
     _rol: User = Depends(require_admin),  # auditoria 2026-09: configuracion: la forma de la ruta manda sobre el fichero
 ):
     if current_user.role != UserRole.admin:
-        raise HTTPException(status_code=403, detail="Admin only")
+        raise error_http(403, "solo_admin", detail="Admin only")
 
     payload = body.model_dump(exclude_unset=True)
     cfg = guardar_configuracion(db, payload, _organizacion_de(current_user))
@@ -339,7 +340,7 @@ def run_auto_close_job_endpoint(
     Admin-only. Returns: {closed, validated, errors}
     """
     if current_user.role != UserRole.admin:
-        raise HTTPException(status_code=403, detail="Admin only")
+        raise error_http(403, "solo_admin", detail="Admin only")
 
     stats = cerrar_resueltos(db, _organizacion_de(current_user))
     return APIResponse.ok(data={

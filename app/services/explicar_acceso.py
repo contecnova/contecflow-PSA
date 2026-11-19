@@ -29,6 +29,7 @@ from typing import Optional
 
 from starlette.routing import Match
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 PERMITE, DENIEGA, NO_APLICA, NO_SE_SABE = "allow", "deny", "not_applicable", "unknown"
 
@@ -104,7 +105,7 @@ def usuario_explicable(db, quien_pregunta, user_id: str):
         usuario = db.get(User, user_id)
     if usuario is None or (not quien_pregunta.is_superadmin
                            and usuario.organization_id != quien_pregunta.organization_id):
-        raise ErrorDeDominio(404, "Usuario no encontrado")
+        raise error(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
     return usuario
 
 

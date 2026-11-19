@@ -30,6 +30,7 @@ from app.services.portal_conversation_service._comun import (
     _now,
     _resolve_group_members,
 )
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 SENSITIVE_EMAIL_RE = re.compile(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.IGNORECASE)
@@ -166,7 +167,7 @@ def list_policies(current_user, db: Session) -> list:
 def update_policy(topic_type: str, payload: dict, current_user, db: Session) -> dict:
     org_id = getattr(current_user, "organization_id", None)
     if not org_id:
-        raise ValueError("No se pudo resolver organization_id")
+        raise ErrorConCodigo("error_interno", detail="No se pudo resolver organization_id")
     policy = _get_or_create_policy(org_id, topic_type, db)
     for field in [
         "is_active",

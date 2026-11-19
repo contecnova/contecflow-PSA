@@ -23,7 +23,7 @@ export default function PanelValorGanado({ projectId }: { projectId: string }) {
   const toast = useToast()
   const qc = useQueryClient()
   const dinero = useFormatoMoneda()
-  const gestiona = useAuth().hasRole('admin', 'pm')
+  const gestiona = useAuth().puede('proyectos.gestionar')
 
   const { data: curva, isLoading, isError, error } = useQuery({
     queryKey: ['curva-s', projectId],

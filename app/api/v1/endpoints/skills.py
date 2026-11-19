@@ -10,6 +10,7 @@ from app.models.user import User, UserRole
 from app.services import skill_service
 from app.schemas.skills import SkillIn, UserSkillIn
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.core.codigos_de_error import error_http
 
 router = APIRouter()
 
@@ -44,7 +45,7 @@ def create_skill(
     current_user: User = Depends(require_admin_or_hr),
 ):
     if skill_service.get_skill_by_name(db, payload.name):
-        raise HTTPException(400, "Ya existe un skill con ese nombre")
+        raise error_http(400, "skill_nombre_duplicado", detail="Ya existe un skill con ese nombre")
     s = skill_service.create_skill(db, payload.model_dump())
     return APIResponse.ok(data={"id": s.id, "name": s.name, "category": s.category})
 
@@ -58,7 +59,7 @@ def update_skill(
 ):
     s = skill_service.get_skill_by_id(db, skill_id)
     if not s:
-        raise HTTPException(404, "Skill no encontrado")
+        raise error_http(404, "no_encontrado", detail="Skill no encontrado", que="habilidad")
     s = skill_service.update_skill(db, s, payload.model_dump())
     return APIResponse.ok(data={"id": s.id, "name": s.name})
 
@@ -72,7 +73,7 @@ def delete_skill(
     enforce_abac(db, current_user, "skill", skill_id, action="delete")
     s = skill_service.get_skill_by_id(db, skill_id)
     if not s:
-        raise HTTPException(404, "Skill no encontrado")
+        raise error_http(404, "no_encontrado", detail="Skill no encontrado", que="habilidad")
     skill_service.deactivate_skill(db, s)
     return APIResponse.ok(data={"ok": True, "message": "Skill eliminada correctamente"})
 
@@ -113,7 +114,7 @@ def add_user_skill(
     current_user: User = Depends(get_current_user),
 ):
     if current_user.role not in [UserRole.admin, UserRole.hr] and current_user.id != user_id:
-        raise HTTPException(403, "Solo puedes editar tus propios skills")
+        raise error_http(403, "sin_permiso", detail="Solo puedes editar tus propios skills")
     us, updated = skill_service.upsert_user_skill(db, user_id, payload.model_dump(), current_user.id)
     return APIResponse.ok(data={"id": us.id, "message": "Skill actualizado" if updated else "Skill añadido"})
 
@@ -131,13 +132,13 @@ def remove_user_skill(
     _rol: User = Depends(require_internal_user),
 ):
     if current_user.role not in [UserRole.admin, UserRole.hr] and current_user.id != user_id:
-        raise HTTPException(403, "Acceso denegado")
+        raise error_http(403, "sin_permiso", detail="Acceso denegado")
     enforce_abac(db, current_user, "user_skill", skill_id, action="delete")
     us = skill_service.get_user_skill_by_id(db, skill_id)
     # La skill tiene que ser de ese usuario: si no, bastaba poner el propio
     # `user_id` en la ruta para borrar la skill de otro por su id.
     if not us or us.user_id != user_id:
-        raise HTTPException(404, "No encontrado")
+        raise error_http(404, "no_encontrado_generico")
     skill_service.remove_user_skill(db, us)
     return APIResponse.ok(data={"ok": True, "message": "Skill de usuario eliminada correctamente"})
 
@@ -231,7 +232,7 @@ def record_skill_assessment(
     new_level = payload.get("new_level")
     notes     = payload.get("notes")
     if not skill_id or not new_level:
-        raise HTTPException(400, "skill_id y new_level son obligatorios")
+        raise error_http(400, "campos_obligatorios", detail="skill_id y new_level son obligatorios", campos="skill_id, new_level")
     entry = skill_service.record_skill_assessment(db, user_id, skill_id, new_level, notes, cu.id)
     return APIResponse.ok(data={
         "id": entry.id,

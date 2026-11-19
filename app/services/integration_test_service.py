@@ -66,7 +66,7 @@ def _test_aws_s3(cfg: dict, db: Session) -> dict:
             return {"ok": False, "detail": "Bucket no configurado"}
         client = boto3.client(
             "s3",
-            region_name=cfg.get("region") or "eu-west-1",
+            region_name=cfg.get("region") or settings.AWS_REGION,  # 19-11-2026: sin región fija
             aws_access_key_id=cfg.get("access_key"),
             aws_secret_access_key=cfg.get("secret_key"),
         )

@@ -24,7 +24,7 @@ export default function PanelDelPlan({ projectId }: { projectId: string }) {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const puedeEditar = useAuth().hasRole('admin', 'pm')
+  const puedeEditar = useAuth().puede('proyectos.gestionar')
 
   const { data: plan, isLoading } = useQuery({
     queryKey: ['plan', projectId],

@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.service_desk import Ticket, TicketLink
 import logging
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ def serialize_ticket_link(link: TicketLink, ticket_id: str) -> dict:
 
 def ensure_ticket_exists(db: Session, ticket_id: str, detail: str) -> None:
     if not db.query(Ticket).filter(Ticket.id == ticket_id).first():
-        raise ErrorDeDominio(404, detail)
+        raise error(404, "no_encontrado", detail=detail, que="ticket")
 
 
 def ensure_link_can_be_created(db: Session, source_id: str, target_id: str) -> None:
@@ -46,7 +47,7 @@ def ensure_link_can_be_created(db: Session, source_id: str, target_id: str) -> N
     ensure_ticket_exists(db, target_id, "Ticket destino no encontrado")
 
     if source_id == target_id:
-        raise ErrorDeDominio(400, "No se puede vincular un ticket consigo mismo")
+        raise error(400, "ticket_vincular_consigo_mismo")
 
     existing = db.query(TicketLink).filter(
         or_(
@@ -55,7 +56,7 @@ def ensure_link_can_be_created(db: Session, source_id: str, target_id: str) -> N
         )
     ).first()
     if existing:
-        raise ErrorDeDominio(409, "Ya existe un vínculo entre estos tickets")
+        raise error(409, "ticket_vinculo_ya_existe")
 
 
 def build_ticket_link(source_id: str, target_id: str, link_type: str, created_by: str) -> TicketLink:

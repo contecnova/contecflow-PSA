@@ -18,6 +18,7 @@ from app.core.config_groups import (
     ALMUsoSettingsMixin,
     ALMIntegracionSettingsMixin,
     TraduccionSettingsMixin,
+    UmbralesSettingsMixin,
 )
 
 
@@ -36,6 +37,7 @@ class Settings(
     ALMUsoSettingsMixin,
     ALMIntegracionSettingsMixin,
     TraduccionSettingsMixin,
+    UmbralesSettingsMixin,
     BaseSettings,
 ):
     """
@@ -167,13 +169,28 @@ class Settings(
     DOCUSIGN_SECRET_KEY:       str = Field(default="", env="DOCUSIGN_SECRET_KEY")
     DOCUSIGN_ACCOUNT_ID:       str = Field(default="", env="DOCUSIGN_ACCOUNT_ID")
     DOCUSIGN_BASE_URL:         str = Field(default="", env="DOCUSIGN_BASE_URL")
+    # 19-11-2026 (auditoría de hardcodeados): antes `is_demo` valía true por
+    # defecto y la región de la API era na1 fija. Sin valor (None), DocuSign usa
+    # su entorno DEMO fuera de producción y el REAL en staging/producción;
+    # `app/core/comprobacion_de_produccion.py` no deja arrancar producción con
+    # DOCUSIGN_DEMO=true. Las URL de autorización y de API son configurables
+    # (cuentas EU/AU/CA: https://eu.docusign.net, etc.).
+    DOCUSIGN_DEMO:             Optional[bool] = Field(default=None, env="DOCUSIGN_DEMO")
+    DOCUSIGN_AUTH_BASE_DEMO:   str = Field(default="https://account-d.docusign.com", env="DOCUSIGN_AUTH_BASE_DEMO")
+    DOCUSIGN_AUTH_BASE_PROD:   str = Field(default="https://account.docusign.com", env="DOCUSIGN_AUTH_BASE_PROD")
+    DOCUSIGN_API_BASE_DEMO:    str = Field(default="https://demo.docusign.net", env="DOCUSIGN_API_BASE_DEMO")
+    DOCUSIGN_API_BASE_PROD:    str = Field(default="https://na1.docusign.net", env="DOCUSIGN_API_BASE_PROD")
     # DocuSign Connect HMAC key (Connect → "Include HMAC Signature"). Used to
     # verify the `X-DocuSign-Signature-1..N` headers on inbound webhooks.
     # When empty, DocuSign webhook requests are REJECTED (fail-closed).
     DOCUSIGN_CONNECT_HMAC_KEY: str = Field(default="", env="DOCUSIGN_CONNECT_HMAC_KEY")
     ADOBE_SIGN_CLIENT_ID:      str = Field(default="", env="ADOBE_SIGN_CLIENT_ID")
     ADOBE_SIGN_CLIENT_SECRET:  str = Field(default="", env="ADOBE_SIGN_CLIENT_SECRET")
-    ADOBE_SIGN_BASE_URL:       str = Field(default="https://api.na1.adobesign.com/api/rest/v6", env="ADOBE_SIGN_BASE_URL")
+    # 19-11-2026: la región (na1, eu1, jp1…) es la de la cuenta; vacío = na1 solo
+    # fuera de producción (`adobe_sign_base_url()`); en producción, con Adobe Sign
+    # configurado y sin URL, no arranca (comprobacion_de_produccion).
+    ADOBE_SIGN_BASE_URL:       str = Field(default="", env="ADOBE_SIGN_BASE_URL")
+    ADOBE_SIGN_DEV_BASE_URL:   str = Field(default="https://api.na1.adobesign.com/api/rest/v6", env="ADOBE_SIGN_DEV_BASE_URL")
 
     # ── Infrastructure provisioning (Terraform / Ansible runners) ──────────────
     # Running IaC from tenant-stored config is RCE-prone, so it is OFF by default
@@ -221,6 +238,9 @@ class Settings(
 
     # ── URLs ──────────────────────────────────────────────────────────────────
     BASE_URL: str = Field(default="http://localhost:8000", env="BASE_URL")
+    # 19-11-2026: base de los logos del catálogo de conectores (marketplace). Una
+    # instalación aislada puede servirlos desde su propio host (p. ej. /static/connectors).
+    CONNECTOR_LOGO_BASE_URL: str = Field(default="https://cdn.contecflow.app/connectors", env="CONNECTOR_LOGO_BASE_URL")
 
     # ── OpenTelemetry distributed tracing ───────────────────────────────────
     OTEL_ENABLED: bool = Field(default=False, env="OTEL_ENABLED")
@@ -288,6 +308,10 @@ class Settings(
     DEFAULT_TIMEZONE: str = Field(default="Europe/Madrid", env="DEFAULT_TIMEZONE")
     DEFAULT_LANGUAGE: str = Field(default="es", env="DEFAULT_LANGUAGE")
     DEFAULT_CURRENCY: str = Field(default="EUR", env="DEFAULT_CURRENCY")
+    # 19-11-2026: país (ISO 3166-1 alfa-2) por defecto de las altas de clientes y
+    # proveedores. Antes "ES" fijo en los modelos; ahora es ajuste por empresa
+    # (grupo locale) y `por_empresa.rellenar_altas_por_empresa` lo aplica.
+    DEFAULT_COUNTRY: str = Field(default="ES", env="DEFAULT_COUNTRY")
     # Revisión 2026-11: las monedas que ofrecen las pantallas y sus símbolos (antes, listas fijas en cada sitio).
     SUPPORTED_CURRENCIES: str = Field(default="EUR,USD,GBP,PLN,CHF,SEK,DKK,NOK,JPY,CAD,AUD,MXN,BRL", env="SUPPORTED_CURRENCIES")
     CURRENCY_SYMBOLS: str = Field(default="EUR:€,USD:$,GBP:£", env="CURRENCY_SYMBOLS")
@@ -476,10 +500,13 @@ class Settings(
     # Azure Speech-to-Text
     AZURE_SPEECH_KEY: str = Field(default="", env="AZURE_SPEECH_KEY")
     AZURE_SPEECH_REGION: str = Field(default="westeurope", env="AZURE_SPEECH_REGION")
-    AZURE_STT_LANGUAGE: str = Field(default="es-ES", env="AZURE_STT_LANGUAGE")
+    # 19-11-2026: vacío por defecto. La transcripción usa el idioma del usuario
+    # (`formato_regional.a_bcp47`) y, sin él, el de la empresa/DEFAULT_LANGUAGE;
+    # este ajuste solo fija la VARIANTE regional (p. ej. es-MX) si se rellena.
+    AZURE_STT_LANGUAGE: str = Field(default="", env="AZURE_STT_LANGUAGE")
     # Google Cloud Speech-to-Text (API key auth — service account no soportado por simplicidad)
     GOOGLE_STT_API_KEY: str = Field(default="", env="GOOGLE_STT_API_KEY")
-    GOOGLE_STT_LANGUAGE: str = Field(default="es-ES", env="GOOGLE_STT_LANGUAGE")
+    GOOGLE_STT_LANGUAGE: str = Field(default="", env="GOOGLE_STT_LANGUAGE")  # vacío = idioma del usuario/empresa (19-11-2026)
 
     # ── Slack integration ─────────────────────────────────────────────────────
     SLACK_API_BASE: str = Field(default="https://slack.com/api", env="SLACK_API_BASE")

@@ -31,7 +31,7 @@ from app.models.service_desk._enums import ESTADOS_DE_TICKET_ABIERTOS
 from app.models.service_desk import ConfigurationItem, MonitoringAlert, Ticket, TicketComment
 from app.services import settings_service as _ss
 from app.services.service_desk.ticket_events import como_organizacion
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ def organizacion_del_token(db: Session, token: Optional[str]) -> Optional[str]:
     from app.services.integration_credentials_service import _resolve_value, _field_spec
 
     if not token:
-        raise ErrorDeDominio(403, "Falta X-Contecflow-Event-Token")
+        raise error(403, "token_requerido", detail="Falta X-Contecflow-Event-Token")
     campo = _field_spec("monitoring", "ingest_token")
     with sin_filtro_de_tenant(db):
         filas = db.query(IntegrationCredential).filter(
@@ -66,7 +66,7 @@ def organizacion_del_token(db: Session, token: Optional[str]) -> Optional[str]:
         valor = _resolve_value(fila, campo)
         if valor and hmac.compare_digest(str(valor), token):
             return _empresa_de_la_alerta(db, fila.organization_id)
-    raise ErrorDeDominio(403, "Token de monitorización inválido")
+    raise error(403, "token_no_valido", detail="Token de monitorización inválido")
 
 
 def _empresa_de_la_alerta(db: Session, org_id: Optional[str]) -> str:
@@ -83,8 +83,7 @@ def _empresa_de_la_alerta(db: Session, org_id: Optional[str]) -> str:
         from app.services.git_service import unica_empresa
         org_id = unica_empresa(db)
         if org_id is None:
-            raise ErrorDeDominio(403, "Token de monitorización global con varias empresas: "
-                                      "configúralo en la empresa que recibe las alertas")
+            raise error(403, "monitorizacion_token_global_varias_empresas")
     exigir_organizacion_activa(db, org_id)
     return org_id
 
@@ -111,7 +110,7 @@ def leer(payload) -> list[Alerta]:
     salida = []
     for e in elementos:
         if not isinstance(e, dict) or not (e.get("key") and e.get("title")):
-            raise ErrorDeDominio(422, "Cada alerta necesita key y title")
+            raise error(422, "campos_obligatorios", detail="Cada alerta necesita key y title", campos="key, title")
         salida.append(Alerta(
             clave=str(e["key"])[:255], estado="resolved" if e.get("status") == "resolved" else "firing",
             gravedad=e.get("severity"), titulo=str(e["title"])[:500], descripcion=e.get("description"),

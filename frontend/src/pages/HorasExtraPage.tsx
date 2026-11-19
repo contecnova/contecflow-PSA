@@ -29,12 +29,12 @@ import CicloHorasExtra from '../components/horas-extra/CicloHorasExtra'
 
 export default function HorasExtraPage(): JSX.Element {
   const { th, t } = useTh()
-  const { hasRole } = useAuth()
+  const { puede } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const pedida = searchParams.get('tab')
-  const gestiona = hasRole('admin', 'hr', 'pm', 'team_lead')
-  const administra = hasRole('admin', 'hr')
+  const gestiona = puede('horas_extra.gestionar')
+  const administra = puede('horas_extra.config')
   const validas = ['mias', 'aprobar', ...(gestiona ? ['gestion', 'resumen'] : [])]
   const [tab, setTab] = useState(pedida && validas.includes(pedida) ? pedida : 'mias')
   const [abierta, setAbierta] = useState<string | null>(null)

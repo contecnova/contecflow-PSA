@@ -37,6 +37,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.lecciones import Leccion, LeccionAccion, LeccionUso
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger("contecflow.lecciones")
 
@@ -203,7 +204,7 @@ def _hechos_problema(db: Session, usuario, id_: str) -> dict:
     from app.services.service_desk.scoping import scope_problem_query
     p = scope_problem_query(db.query(Problem), db, usuario).filter(Problem.id == id_).first()
     if p is None:
-        raise ErrorDeDominio(404, "Problema no encontrado")
+        raise error(404, "no_encontrado", detail="Problema no encontrado", que="problema")
     tickets = db.query(func.count(Ticket.id)).filter(Ticket.problem_id == p.id).scalar() or 0
     hechos = [
         _h("Estado", getattr(p.status, "value", p.status)),
@@ -222,7 +223,7 @@ def _hechos_incidente_grave(db: Session, usuario, id_: str) -> dict:
     from app.models.service_desk.tickets import Ticket
     m = db.query(MajorIncident).filter(MajorIncident.id == id_).first()
     if m is None:
-        raise ErrorDeDominio(404, "Incidente grave no encontrado")
+        raise error(404, "no_encontrado", detail="Incidente grave no encontrado", que="incidente_grave")
     tickets = db.query(func.count(Ticket.id)).filter(Ticket.major_incident_id == m.id).scalar() or 0
     hechos = [
         _h("Severidad", m.severity),
@@ -241,7 +242,7 @@ def _hechos_sprint(db: Session, usuario, id_: str) -> dict:
     from app.services.project_service import get_project_scoped_or_404
     s = db.query(Sprint).filter(Sprint.id == id_).first()
     if s is None:
-        raise ErrorDeDominio(404, "Sprint no encontrado")
+        raise error(404, "no_encontrado", detail="Sprint no encontrado", que="sprint")
     p = get_project_scoped_or_404(db, s.project_id, usuario)
     hechos = [
         _h("Proyecto", p.code),
@@ -261,11 +262,11 @@ def _hechos_sprint(db: Session, usuario, id_: str) -> dict:
 def _hechos_incidente_seguridad(db: Session, usuario, id_: str) -> dict:
     from app.models.security_observability import SecurityIncident
     if _rol(usuario) != "admin":
-        raise ErrorDeDominio(403, "Los incidentes de seguridad sólo los abre un administrador")
+        raise error(403, "incidente_seguridad_solo_admin")
     i = db.query(SecurityIncident).filter(SecurityIncident.id == id_,
                                           SecurityIncident.org_id == usuario.organization_id).first()
     if i is None:
-        raise ErrorDeDominio(404, "Incidente de seguridad no encontrado")
+        raise error(404, "no_encontrado", detail="Incidente de seguridad no encontrado", que="incidente_de_seguridad")
     hechos = [
         _h("Severidad", i.severity),
         _h("Estado", i.status),
@@ -286,7 +287,7 @@ _HECHOS = {"project": _hechos_proyecto, "ticket": _hechos_ticket, "problem": _he
 
 def hechos_de(db: Session, usuario, origen_tipo: str, origen_id: str) -> dict:
     if origen_tipo not in _HECHOS:
-        raise ErrorDeDominio(400, f"Origen desconocido: {origen_tipo}")
+        raise error(400, "valor_no_valido", detail=f"Origen desconocido: {origen_tipo}", valor=origen_tipo)
     return _HECHOS[origen_tipo](db, usuario, origen_id)
 
 
@@ -373,20 +374,20 @@ _CAMPOS = ("titulo", "tipo", "categoria", "severidad", "que_paso", "causa", "imp
 
 def _validar_campos(db: Session, org, datos: dict) -> None:
     if "tipo" in datos and datos["tipo"] not in TIPOS:
-        raise ErrorDeDominio(400, f"Tipo no válido: {datos['tipo']}")
+        raise error(400, "tipo_no_valido_valor", tipo=datos['tipo'])
     if "severidad" in datos and datos["severidad"] not in SEVERIDADES:
-        raise ErrorDeDominio(400, f"Severidad no válida: {datos['severidad']}")
+        raise error(400, "valor_no_valido", detail=f"Severidad no válida: {datos['severidad']}", valor=datos['severidad'])
     if "categoria" in datos and datos["categoria"] not in categorias(db, org):
-        raise ErrorDeDominio(400, f"Categoría no válida: {datos['categoria']} (las de LESSONS_CATEGORIES)")
+        raise error(400, "categoria_no_valida", detail=f"Categoría no válida: {datos['categoria']} (las de LESSONS_CATEGORIES)", valor=datos['categoria'])
     for k in ("titulo", "que_paso", "recomendacion"):
         if k in datos and not str(datos[k] or "").strip():
-            raise ErrorDeDominio(400, f"«{k}» no puede quedar vacío")
+            raise error(400, "campo_vacio", campo=k)
 
 
 def _cargar(db: Session, id_: str) -> Leccion:
     l = db.query(Leccion).filter(Leccion.id == id_).first()
     if l is None:
-        raise ErrorDeDominio(404, "Lección no encontrada")
+        raise error(404, "no_encontrado", detail="Lección no encontrada", que="leccion")
     return l
 
 
@@ -426,7 +427,7 @@ def crear(db: Session, usuario, datos: dict) -> dict:
     from app.services.numbering import next_numbered_code
     origen_tipo = datos.get("origen_tipo") or "manual"
     if origen_tipo not in ORIGENES:
-        raise ErrorDeDominio(400, f"Origen desconocido: {origen_tipo}")
+        raise error(400, "valor_no_valido", detail=f"Origen desconocido: {origen_tipo}", valor=origen_tipo)
     campos = {k: datos.get(k) for k in _CAMPOS if datos.get(k) not in (None, "")}
     campos.setdefault("tipo", "evitar")
     campos.setdefault("severidad", "media")
@@ -438,7 +439,7 @@ def crear(db: Session, usuario, datos: dict) -> dict:
                 estado="en_revision" if datos.get("enviar_a_revision") else "borrador", **campos)
     if origen_tipo != "manual":
         if not datos.get("origen_id"):
-            raise ErrorDeDominio(400, "Falta el origen")
+            raise error(400, "falta_origen")
         h = hechos_de(db, usuario, origen_tipo, str(datos["origen_id"]))   # comprueba el acceso al origen
         l.origen_id, l.origen_ref, l.hechos = str(datos["origen_id"]), h["ref"], json.dumps(h["hechos"], ensure_ascii=False, default=str)
         for k, v in h["ambito"].items():
@@ -458,7 +459,7 @@ def editar(db: Session, usuario, id_: str, datos: dict) -> dict:
     from app.services.audit import audit_log
     l = _cargar(db, id_)
     if not puede_editar(db, usuario, l):
-        raise ErrorDeDominio(403, "Sólo quien la escribió (antes de validarla) o quien valida puede editarla")
+        raise error(403, "leccion_no_editable")
     cambios = {k: datos[k] for k in _CAMPOS if k in datos}
     _validar_campos(db, usuario.organization_id, cambios)
     antes = {k: getattr(l, k) for k in cambios}
@@ -476,13 +477,13 @@ def editar(db: Session, usuario, id_: str, datos: dict) -> dict:
 def cambiar_estado(db: Session, usuario, id_: str, estado: str) -> dict:
     from app.services.audit import audit_log
     if estado not in ESTADOS:
-        raise ErrorDeDominio(400, f"Estado no válido: {estado}")
+        raise error(400, "estado_no_valido_valor", estado=estado)
     l = _cargar(db, id_)
     if estado in ("validada", "archivada") or l.estado in ("validada", "archivada"):
         if not puede_validar(db, usuario):
-            raise ErrorDeDominio(403, "Validar o archivar es de los roles de LESSONS_VALIDATOR_ROLES")
+            raise error(403, "leccion_rol_no_valida", detail="Validar o archivar es de los roles de LESSONS_VALIDATOR_ROLES")
     elif not puede_editar(db, usuario, l):
-        raise ErrorDeDominio(403, "No puedes cambiar esta lección")
+        raise error(403, "leccion_sin_permiso")
     antes = l.estado
     l.estado = estado
     if estado == "validada":
@@ -495,7 +496,7 @@ def cambiar_estado(db: Session, usuario, id_: str, estado: str) -> dict:
 def borrar(db: Session, usuario, id_: str) -> None:
     from app.services.audit import audit_log
     if _rol(usuario) != "admin":
-        raise ErrorDeDominio(403, "Sólo un administrador borra lecciones (lo normal es archivarlas)")
+        raise error(403, "leccion_borrar_solo_admin")
     l = _cargar(db, id_)
     audit_log(db, usuario, "DELETE", "lecciones", l.id, l.codigo, old_values={"titulo": l.titulo})
     db.delete(l)
@@ -598,7 +599,7 @@ def contexto_de(db: Session, usuario, contexto_tipo: str, contexto_id: Optional[
     if contexto_tipo in ("project", "ticket"):
         h = hechos_de(db, usuario, contexto_tipo, str(contexto_id))
         return {"ambito": h["ambito"], "texto": h["texto"], "excluir": (contexto_tipo, str(contexto_id))}
-    raise ErrorDeDominio(400, f"Contexto desconocido: {contexto_tipo}")
+    raise error(400, "valor_no_valido", detail=f"Contexto desconocido: {contexto_tipo}", valor=contexto_tipo)
 
 
 def _frase(l: Leccion) -> str:
@@ -664,7 +665,7 @@ def recomendar(db: Session, usuario, contexto_tipo: str, contexto_id: Optional[s
 def valorar(db: Session, usuario, leccion_id: str, contexto_tipo: str, contexto_id: Optional[str], valor: str,
             nota: Optional[str] = None) -> dict:
     if valor not in VALORES_DE_USO:
-        raise ErrorDeDominio(400, f"Valor no válido: {valor}")
+        raise error(400, "valor_no_valido", valor=valor)
     l = _cargar(db, leccion_id)
     if contexto_tipo in ("project", "ticket") and contexto_id:
         hechos_de(db, usuario, contexto_tipo, str(contexto_id))
@@ -695,11 +696,11 @@ def crear_accion(db: Session, usuario, leccion_id: str, descripcion: str, respon
                  fecha_limite: Optional[date]) -> dict:
     l = _cargar(db, leccion_id)
     if not (puede_editar(db, usuario, l) or puede_validar(db, usuario)):
-        raise ErrorDeDominio(403, "No puedes añadir acciones a esta lección")
+        raise error(403, "leccion_sin_permiso_acciones")
     if responsable_id:
         from app.models.user import User
         if db.query(User.id).filter(User.id == responsable_id).first() is None:
-            raise ErrorDeDominio(404, "Responsable no encontrado")
+            raise error(404, "no_encontrado", detail="Responsable no encontrado", que="responsable")
     a = LeccionAccion(organization_id=usuario.organization_id, leccion_id=l.id, descripcion=descripcion.strip(),
                       responsable_id=responsable_id, fecha_limite=fecha_limite, created_by=usuario.id)
     db.add(a)
@@ -710,13 +711,13 @@ def crear_accion(db: Session, usuario, leccion_id: str, descripcion: str, respon
 def editar_accion(db: Session, usuario, accion_id: str, datos: dict) -> dict:
     a = db.query(LeccionAccion).filter(LeccionAccion.id == accion_id).first()
     if a is None:
-        raise ErrorDeDominio(404, "Acción no encontrada")
+        raise error(404, "no_encontrado", detail="Acción no encontrada", que="accion")
     l = _cargar(db, a.leccion_id)
     if not (a.responsable_id == usuario.id or puede_editar(db, usuario, l) or puede_validar(db, usuario)):
-        raise ErrorDeDominio(403, "Sólo el responsable o quien edita la lección")
+        raise error(403, "leccion_solo_responsable_o_editor")
     if "estado" in datos:
         if datos["estado"] not in ESTADOS_DE_ACCION:
-            raise ErrorDeDominio(400, f"Estado no válido: {datos['estado']}")
+            raise error(400, "estado_no_valido_valor", estado=datos['estado'])
         a.estado = datos["estado"]
         a.cerrada_en = datetime.now(timezone.utc) if a.estado in ("hecha", "descartada") else None
     for k in ("descripcion", "resultado", "responsable_id", "fecha_limite"):

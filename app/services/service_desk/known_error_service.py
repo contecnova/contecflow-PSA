@@ -28,6 +28,7 @@ from app.models.service_desk import (
     ProblemStatus,
     TicketStatus,
 )
+from app.core.codigos_de_error import ErrorConCodigo
 
 _logger = logging.getLogger(__name__)
 
@@ -192,7 +193,7 @@ def promote_to_known_error(
     Returns serialized KEDB entry dict.
     """
     if not problem.workaround and not workaround:
-        raise ValueError("A workaround is required to promote a problem to Known Error")
+        raise ErrorConCodigo("error_conocido_sin_solucion_temporal", detail="A workaround is required to promote a problem to Known Error")
 
     if workaround:
         problem.workaround = workaround

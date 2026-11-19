@@ -39,6 +39,7 @@ from app.models.workflow_designer import (
     WorkflowRunStepStatus,
 )
 from app.services.settings_service import outbound_http_timeout
+from app.core.codigos_de_error import ErrorConCodigo
 
 logger = logging.getLogger(__name__)
 
@@ -228,14 +229,14 @@ def start_run(
 ) -> WorkflowRun:
     bp = db.query(WorkflowBlueprint).filter(WorkflowBlueprint.id == blueprint_id).first()
     if not bp:
-        raise ValueError("blueprint not found")
+        raise ErrorConCodigo("no_encontrado", detail="blueprint not found", que="blueprint")
     pub = _get_published_version(db, blueprint_id)
     if not pub:
-        raise ValueError("blueprint sin versión publicada — publica una versión antes de ejecutar")
+        raise ErrorConCodigo("blueprint_sin_publicar", detail="blueprint sin versión publicada — publica una versión antes de ejecutar")
     graph = _graph_of(pub)
     start_id = _start_node_id(graph)
     if not start_id:
-        raise ValueError("blueprint sin nodo 'start'")
+        raise ErrorConCodigo("blueprint_sin_inicio", detail="blueprint sin nodo 'start'")
 
     run = WorkflowRun(
         organization_id=organization_id,
@@ -379,7 +380,7 @@ def resume(
 ) -> WorkflowRun:
     """Reanuda un run en estado `waiting` (aprobación / wait expirado)."""
     if run.status != WorkflowRunStatus.waiting:
-        raise ValueError(f"run no está en waiting (estado actual: {run.status})")
+        raise ErrorConCodigo("ejecucion_no_en_espera", detail=f"run no está en waiting (estado actual: {run.status})", estado=run.status)
 
     pub = (
         db.query(WorkflowBlueprintVersion)
@@ -848,7 +849,7 @@ def _execute_node(ntype: str, config: dict, run: WorkflowRun, db: "Session") -> 
     """Devuelve (branch_taken, payload_dict, wait_seconds_if_wait)."""
     ejecutar = _EJECUTORES.get(ntype)
     if ejecutar is None:
-        raise ValueError(f"tipo de nodo no soportado por el motor: {ntype}")
+        raise ErrorConCodigo("tipo_desconocido", detail=f"tipo de nodo no soportado por el motor: {ntype}", tipo=ntype)
     return ejecutar(_Nodo(
         config=config,
         ctx=dict(run.context_json or {}),

@@ -7,6 +7,8 @@ import { useAppLang } from '../i18n/AppLangContext'
 import { useDialogo } from '../components/ui/useDialogo'
 import { Button } from '../components/ui'
 import { SESSION_EXPIRED_NOTICE_MS } from '../constants/timings'
+import { tieneCapacidad } from '../permisos/capacidades'
+import type { Capacidad } from '../permisos/capacidades'
 import './AuthContext.estilos.css'
 
 // Prevent Vite from hot-replacing this module individually: a partial HMR reload
@@ -21,9 +23,10 @@ if (import.meta.hot) (import.meta.hot as { decline?: () => void }).decline?.()
 //   import type { Role, User, AuthContextValue } from '../context/AuthContext'
 
 /**
- * Application-level user role.
- * 'superadmin' is the cross-org platform owner; it intentionally bypasses
- * most role checks (see hasRole logic).
+ * Rol base del usuario (`users.role`): admin, pm, team_lead, hr, employee,
+ * subcontractor. La lista real con etiquetas viene de `GET /auth/roles`
+ * (`hooks/useRolesReales`). Los permisos NO se deciden por rol en la pantalla:
+ * se pregunta por capacidades (`puede`, `permisos/usePermiso`).
  */
 export type Role =
   | 'admin'
@@ -31,10 +34,7 @@ export type Role =
   | 'team_lead'
   | 'employee'
   | 'hr'
-  | 'finance'
-  | 'sales'
-  | 'client'
-  | 'superadmin'
+  | 'subcontractor'
   | string
 
 /**
@@ -48,10 +48,11 @@ export interface User {
   full_name?: string | null
   role: Role
   is_active?: boolean
-  is_superadmin?: boolean
   organization_id?: string | null
   department?: string | null
   hourly_rate?: number | null
+  /** Capacidades efectivas (backend `app/core/capacidades.py`; superadmin y rol personalizado ya resueltos). */
+  capacidades?: string[]
   // Allow forwards-compatible extra fields from the API.
   [key: string]: unknown
 }
@@ -75,7 +76,8 @@ export interface AuthContextValue extends AuthState {
   /** Call after MFA or passkey verification — cookies already set by backend. */
   acceptSession: (userData: User) => void
   logout: () => Promise<void>
-  hasRole: (...roles: Role[]) => boolean
+  /** 19-11-2026: ¿tiene el usuario esta capacidad? (matriz de permisos; sustituye a `hasRole`). */
+  puede: (capacidad: Capacidad) => boolean
   /** False when the user's role closes the module this route belongs to. */
   canOpen: (path: string) => boolean
 }
@@ -223,10 +225,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setUser(null)
   }, [])
 
-  const hasRole = useCallback((...roles: Role[]): boolean => {
-    if (!user) return false
-    return roles.includes(user.role)
-  }, [user])
+  const puede = useCallback((capacidad: Capacidad): boolean => tieneCapacidad(user?.capacidades, capacidad), [user])
 
   const canOpen = useCallback((path: string): boolean => {
     const blocked = Array.isArray(user?.blocked_routes) ? (user?.blocked_routes as string[]) : []
@@ -245,7 +244,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const avisoRef = useDialogo<HTMLDivElement>(showWarning, dismiss)
 
   return (
-    <AuthContext.Provider value={{ user, setUser, loading, login, acceptSession, logout, hasRole, canOpen, sessionExpired }}>
+    <AuthContext.Provider value={{ user, setUser, loading, login, acceptSession, logout, puede, canOpen, sessionExpired }}>
       {children}
       {showWarning && (
         <div role="presentation" className="auth-context-e1">

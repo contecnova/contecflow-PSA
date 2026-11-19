@@ -12,6 +12,7 @@ from app.services.service_desk.analytics_service import get_itil_metrics_payload
 from app.core.errores import ErrorDeDominio
 from app.services.service_desk.dashboard_layout_service import WIDGETS, get_layout, reset_layout, save_layout
 from app.services.service_desk.incident_intelligence_service import detect_recurring_incidents
+from app.core.codigos_de_error import error
 
 router = APIRouter()
 
@@ -60,7 +61,7 @@ def put_dashboard_layout(
     # toda la empresa. El de la empresa es de administrador; el resto, el suyo.
     org_id = getattr(current_user, "organization_id", None)
     if scope == "org" and getattr(current_user.role, "value", current_user.role) != "admin":
-        raise ErrorDeDominio(403, "Solo un administrador cambia el panel de la empresa")
+        raise error(403, "solo_admin", detail="Solo un administrador cambia el panel de la empresa")
     return APIResponse.ok(data={"role": role, "layout": save_layout(
         db, org_id, role, layout, None if scope == "org" else current_user.id)})
 

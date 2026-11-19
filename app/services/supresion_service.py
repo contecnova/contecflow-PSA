@@ -70,7 +70,9 @@ def exigir_sin_bloqueo_legal(db: Session, user) -> None:
     from app.core.errores import ErrorDeDominio
     casos = sorted({b.case_reference for b in bloqueos_de_la_persona(db, user)})
     if casos:
-        raise ErrorDeDominio(409, "La persona está bajo bloqueo legal y no se puede suprimir: " + ", ".join(casos))
+        from app.core.codigos_de_error import error
+        raise error(409, "bloqueo_legal_no_suprimible", casos=", ".join(casos),
+                    detail="La persona está bajo bloqueo legal y no se puede suprimir: " + ", ".join(casos))
 
 
 def suprimir_persona(db: Session, user) -> dict:

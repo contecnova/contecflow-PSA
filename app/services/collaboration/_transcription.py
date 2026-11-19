@@ -13,6 +13,7 @@ import subprocess
 import tempfile
 from typing import Optional
 from app.services.settings_service import outbound_ai_timeout
+from app.core.config import settings  # topes de tokens de IA (19-11-2026)
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +137,7 @@ def _summarize_con_call_ai(text: str, db, organization_id) -> Optional[tuple[str
                                 # 18-11-2026: idioma de la empresa (antes, castellano fijo).
                                 + instruccion_de_idioma_para(db, org_id=organization_id)),
                         module="meeting_assistant", organization_id=organization_id, is_superadmin=False,
-                        max_tokens=800)
+                        max_tokens=settings.AI_MEDIUM_ANSWER_MAX_TOKENS)
     except PresupuestoDeIAAgotado:
         logger.info("resumen de reunión: tope diario de IA alcanzado; resumen heurístico")
         return None

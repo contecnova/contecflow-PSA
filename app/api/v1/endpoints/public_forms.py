@@ -31,6 +31,7 @@ from app.services.formato_regional import IDIOMA_DE_RESPALDO
 from app.services.public_forms_service import serialize_form as _form_out
 from app.core.paginacion import Paginacion, lista_paginada, paginacion
 from app.core.responses import APIListResponse, APIResponse
+from app.core.codigos_de_error import error_http, desde_valor
 
 router = APIRouter(prefix="/forms", tags=["Public Forms"])
 log = logging.getLogger(__name__)
@@ -97,7 +98,7 @@ def create_form(
     try:
         public_forms_service.validar_destino(payload.form_type, payload.target_project_id)
     except ValueError as exc:
-        raise HTTPException(400, str(exc))
+        raise desde_valor(400, exc)
     form = public_forms_service.create_form(
         db,
         name=payload.name,
@@ -119,7 +120,7 @@ def create_form(
 def get_form(form_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     form = public_forms_service.get_form_by_id(db, form_id)
     if not form:
-        raise HTTPException(404, "Formulario no encontrado")
+        raise error_http(404, "no_encontrado", detail="Formulario no encontrado", que="formulario")
     return APIResponse.ok(data=_form_out(form))
 
 
@@ -133,14 +134,14 @@ def update_form(
 ):
     form = public_forms_service.get_form_by_id(db, form_id)
     if not form:
-        raise HTTPException(404, "Formulario no encontrado")
+        raise error_http(404, "no_encontrado", detail="Formulario no encontrado", que="formulario")
     if form.created_by != current_user.id and current_user.role != UserRole.admin:
-        raise HTTPException(403, "Acceso denegado")
+        raise error_http(403, "sin_permiso", detail="Acceso denegado")
     cambios = payload.model_dump(exclude_none=True)
     try:
         public_forms_service.validar_destino(form.form_type, cambios.get("target_project_id", form.target_project_id))
     except ValueError as exc:
-        raise HTTPException(400, str(exc))
+        raise desde_valor(400, exc)
     form = public_forms_service.update_form(db, form, cambios)
     return APIResponse.ok(data=_form_out(form))
 
@@ -151,9 +152,9 @@ def delete_form(form_id: str, db: Session = Depends(get_db), current_user: User 
 ):
     form = public_forms_service.get_form_by_id(db, form_id)
     if not form:
-        raise HTTPException(404, "Formulario no encontrado")
+        raise error_http(404, "no_encontrado", detail="Formulario no encontrado", que="formulario")
     if form.created_by != current_user.id and current_user.role != UserRole.admin:
-        raise HTTPException(403, "Acceso denegado")
+        raise error_http(403, "sin_permiso", detail="Acceso denegado")
     enforce_abac(db, current_user, "public_form", form_id, action="delete")
     public_forms_service.delete_form(db, form)
     return APIResponse.ok(data={"ok": True, "message": "Formulario eliminado correctamente"})
@@ -164,9 +165,9 @@ def list_submissions(form_id: str, response: Response, pagina: Paginacion = Depe
                      db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     form = public_forms_service.get_form_by_id(db, form_id)
     if not form:
-        raise HTTPException(404, "Formulario no encontrado")
+        raise error_http(404, "no_encontrado", detail="Formulario no encontrado", que="formulario")
     if form.created_by != current_user.id and current_user.role != UserRole.admin:
-        raise HTTPException(403, "Acceso denegado")
+        raise error_http(403, "sin_permiso", detail="Acceso denegado")
     subs = public_forms_service.list_submissions(db, form_id, pagina)
     return lista_paginada(response, subs.mapear(lambda s: {
             "id": s.id,
@@ -202,7 +203,7 @@ def get_public_form(token: str, response: Response, db: Session = Depends(get_db
     _abierto(response)
     form = public_forms_service.get_active_form_by_token(db, token)
     if not form:
-        raise HTTPException(404, "Formulario no encontrado o inactivo")
+        raise error_http(404, "no_encontrado", detail="Formulario no encontrado o inactivo", que="formulario")
     idioma = _idioma(db, form)
     return {
         "idioma": idioma,
@@ -229,7 +230,7 @@ def submit_public_form(
     _abierto(response)
     form = public_forms_service.get_active_form_by_token(db, token)
     if not form:
-        raise HTTPException(404, "Formulario no encontrado o inactivo")
+        raise error_http(404, "no_encontrado", detail="Formulario no encontrado o inactivo", que="formulario")
 
     priority = payload.priority or form.default_priority
     category = payload.category or form.default_category

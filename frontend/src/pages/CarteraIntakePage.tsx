@@ -34,7 +34,7 @@ const KIND: Record<string, 'neutral' | 'warning' | 'info' | 'success' | 'danger'
 
 export default function CarteraIntakePage() {
   const t = useAppT()
-  const gestiona = useAuth().hasRole('admin', 'pm')
+  const gestiona = useAuth().puede('cartera.gestionar')
   const [tab, setTab] = useState('proposals')
   const [editando, setEditando] = useState<Propuesta | 'nueva' | null>(null)
   return (
@@ -58,7 +58,7 @@ function ListaDePropuestas({ onEditar, onNueva }: { onEditar: (p: Propuesta) => 
   const { pedirTexto } = useConfirm()
   const qc = useQueryClient()
   const dinero = useFormatoMoneda()
-  const gestiona = useAuth().hasRole('admin', 'pm')
+  const gestiona = useAuth().puede('cartera.gestionar')
   const [estado, setEstado] = useState('')
   const [abierta, setAbierta] = useState<string>('')
   const { data: propuestas = [], isLoading } = useQuery({ queryKey: ['propuestas', estado], queryFn: () => carteraApi.propuestas(estado || undefined) })

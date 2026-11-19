@@ -26,6 +26,7 @@ from app.models.user import User
 from app.schemas.collaboration import AttachmentOut
 from app.services.collaboration import files as svc
 from app.services.collaboration._storage import FileStorage
+from app.core.codigos_de_error import error_http
 
 router = APIRouter()
 
@@ -99,6 +100,6 @@ def get_attachment(attachment_id: str, current_user: User = Depends(get_current_
 def download_by_token(token: str, db: Session = Depends(get_db)):
     rec = FileStorage.resolve_token(token)
     if not rec:
-        raise HTTPException(404, "Token inválido o caducado")
+        raise error_http(404, "token_no_valido", detail="Token inválido o caducado")
     datos, mime = svc.registrar_descarga_por_token(db, rec["key"])
     return Response(content=datos, media_type=mime or "application/octet-stream")

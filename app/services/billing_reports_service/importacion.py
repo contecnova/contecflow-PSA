@@ -21,6 +21,7 @@ from app.services.audit import audit_log
 from app.core.security import get_password_hash
 
 from app.services.billing_reports_service._comun import _logger
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -151,7 +152,7 @@ def validate_import_csv(entity_type: str, content: bytes) -> dict:
     """Comprueba un CSV antes de importarlo y devuelve una previsualizacion."""
     reader, rows = _leer_csv(content, "validation")
     if not rows:
-        raise ValueError("empty")
+        raise ErrorConCodigo("fichero_vacio", detail="empty")
     if entity_type not in IMPORT_TEMPLATES:
         raise ValueError("invalid_type")
 
@@ -257,9 +258,9 @@ def _crear_imputacion(db: Session, row: dict, i: int, current_user: User, ctx: d
     user = db.query(User).filter(User.email == row.get("user_email")).first()
     project = db.query(Project).filter(Project.code == row.get("project_code")).first()
     if not user:
-        raise ValueError(f"Usuario no encontrado: {row.get('user_email')}")
+        raise ErrorConCodigo("no_encontrado", detail=f"Usuario no encontrado: {row.get('user_email')}", que="usuario")
     if not project:
-        raise ValueError(f"Proyecto no encontrado: {row.get('project_code')}")
+        raise ErrorConCodigo("no_encontrado", detail=f"Proyecto no encontrado: {row.get('project_code')}", que="proyecto")
     return Imputation(
         user_id=user.id,
         project_id=project.id,

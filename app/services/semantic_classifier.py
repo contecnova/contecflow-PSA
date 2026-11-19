@@ -866,7 +866,7 @@ class SemanticAssigner(ServiceBase):
             system += " " + instruccion_de_idioma_para(self.db, user_id=kwargs.get("user_id"),
                                                        org_id=kwargs.get("organization_id"))
             resp = call_ai(self.db, messages, system=system,
-                           module="semantic_assign", max_tokens=200, **kwargs)
+                           module="semantic_assign", max_tokens=settings.AI_SHORT_ANSWER_MAX_TOKENS, **kwargs)
             if es_aviso_de_ia(resp):
                 return None
             import re

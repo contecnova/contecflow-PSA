@@ -25,6 +25,7 @@ from app.services.scim_service import (
     process_bulk_operations as _process_bulk_operations,
 )
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.core.codigos_de_error import error_http
 
 router = APIRouter(prefix="/scim/v2/{org_id}", tags=["SCIM"])
 
@@ -144,7 +145,7 @@ def get_scim_user(
     _ensure_org(db, org_id)
     user = _get_user_by_id_and_org(db, user_id, org_id)
     if not user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        raise error_http(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
     return _to_scim_user(user)
 
 
@@ -159,7 +160,7 @@ def put_scim_user(
     _ensure_org(db, org_id)
     user = _put_scim_user_record(db, user_id, org_id, payload)
     if not user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        raise error_http(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
     return _to_scim_user(user)
 
 
@@ -174,7 +175,7 @@ def patch_scim_user(
     _ensure_org(db, org_id)
     user = _patch_scim_user_record(db, user_id, org_id, payload)
     if not user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        raise error_http(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
     return _to_scim_user(user)
 
 
@@ -241,7 +242,7 @@ def scim_bulk(
     operations = payload.get("Operations") or []
     fail_on_errors = payload.get("failOnErrors")
     if len(operations) > 100:
-        raise HTTPException(status_code=400, detail="Maximum 100 operations per Bulk request")
+        raise error_http(400, "max_operaciones_bulk", detail="Maximum 100 operations per Bulk request", max=100)
     responses = _process_bulk_operations(org_id, operations, fail_on_errors, db)
     return {
         "schemas": ["urn:ietf:params:scim:api:messages:2.0:BulkResponse"],

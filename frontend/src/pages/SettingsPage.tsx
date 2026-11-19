@@ -39,12 +39,12 @@ export default function SettingsPage() {
   const { seccion } = useParams()
   const { search } = useLocation()
   const navigate = useNavigate()
-  const { user, hasRole, canOpen } = useAuth()
+  const { puede, canOpen } = useAuth()
   const [consulta, setConsulta] = useState('')
 
   const visibles = useMemo(() => SECCIONES_DE_AJUSTES.filter(s => puedeVerSeccion(s, {
-    hasRole, esSuperadmin: !!user?.is_superadmin, canOpen: canOpen ?? (() => true),
-  })), [user, hasRole, canOpen])
+    puede, canOpen: canOpen ?? (() => true),
+  })), [puede, canOpen])
 
   const titulo = (s: Seccion) => t(claveDeSeccion(s.id))
   const descripcion = (s: Seccion) => t(`${claveDeSeccion(s.id)}_d`)

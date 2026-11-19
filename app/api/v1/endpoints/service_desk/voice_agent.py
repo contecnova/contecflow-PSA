@@ -35,6 +35,7 @@ from app.services.service_desk.voice_agent_service import (
 )
 from app.core.config import settings
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.core.codigos_de_error import error_http
 
 router = APIRouter(prefix="/voice", tags=["Service Desk - Voice Agent IVR"])
 
@@ -126,7 +127,7 @@ def get_voice_session(
     sessions_svc = list_sessions(db, str(org_id) if org_id else None, limit=10000)
     session = next((s for s in sessions_svc if s["id"] == session_id), None)
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise error_http(404, "no_encontrado", detail="Session not found", que="sesion")
     return APIResponse.ok(data=session)
 
 

@@ -24,6 +24,7 @@ from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.services import bi_dashboard_collab_service as svc
+from app.core.codigos_de_error import desde_valor
 
 router = APIRouter()
 
@@ -102,7 +103,7 @@ def resolve_comment(
     try:
         return APIResponse.ok(data=svc.resolve_comment(db, org_id=org_id, comment_id=comment_id))
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise desde_valor(404, exc)
 
 
 @router.post("/bi/collab/views", summary="Guardar vista compartida del dashboard", status_code=201)

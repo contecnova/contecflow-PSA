@@ -34,7 +34,7 @@ const valorTexto = (v: unknown) => typeof v === 'number' ? v.toLocaleString(loca
 
 export default function PreguntarALaEmpresaPage() {
   const t = useAppT()
-  const { user } = useAuth() as { user?: { role?: string } }
+  const { puede } = useAuth()
   const [params] = useSearchParams()
   const [tab, setTab] = useState('preguntar')
   const disp = useQuery({ queryKey: ['conectores', 'ci-disponible'], queryFn: conectoresApi.ciDisponible })
@@ -46,7 +46,7 @@ export default function PreguntarALaEmpresaPage() {
       <Page icon={icono} title={t('nav.ask_company')} subtitle={t('ci.subtitulo')}>
         <div className="ds-card">
           <EmptyState icon={<Database size={28} />} title={t('ci.no_configurado')}
-            description={user?.role === 'admin' ? t('ci.no_configurado_admin') : t('ci.no_configurado_usuario')} />
+            description={puede('org.administrar') ? t('ci.no_configurado_admin') : t('ci.no_configurado_usuario')} />
         </div>
       </Page>
     )

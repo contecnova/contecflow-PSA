@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from sqlalchemy.orm import Session
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 
 @dataclass(frozen=True)
@@ -39,10 +39,10 @@ def _contrato(db, usuario, id_):
     from app.models.user import UserRole
     from app.services.contract_service import get_contract
     if getattr(usuario, "role", None) not in (UserRole.admin, UserRole.pm, UserRole.team_lead, UserRole.hr):
-        raise ErrorDeDominio(403, "Los contratos sólo los abren los responsables")
+        raise error(403, "contratos_solo_responsables", detail="Los contratos sólo los abren los responsables")
     c = get_contract(db, id_, usuario)
     if c is None:
-        raise ErrorDeDominio(404, "Contrato no encontrado")
+        raise error(404, "no_encontrado", detail="Contrato no encontrado", que="contrato")
     return c
 
 
@@ -66,7 +66,7 @@ def registrar_ficha(ficha: Ficha) -> None:
 
 def ficha(clave: str) -> Ficha:
     if clave not in FICHAS:
-        raise ErrorDeDominio(404, f"Tipo de ficha desconocido: {clave}")
+        raise error(404, "tipo_desconocido", detail=f"Tipo de ficha desconocido: {clave}", tipo=clave)
     return FICHAS[clave]
 
 

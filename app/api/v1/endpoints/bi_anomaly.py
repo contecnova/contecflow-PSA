@@ -20,6 +20,7 @@ from app.core.ratelimit import limiter
 from app.models.user import User
 from app.services import bi_anomaly_service as svc
 from sqlalchemy.orm import Session
+from app.core.codigos_de_error import ErrorConCodigo, desde_valor
 
 router = APIRouter()
 
@@ -87,7 +88,7 @@ def detect_anomalies(
             values, meses = serie_con_meses(db, str(body.metric), org_id)
 
         if len(values) < 4:
-            raise ValueError("At least 4 data points required for anomaly detection")
+            raise ErrorConCodigo("anomalias_pocos_datos", detail="At least 4 data points required for anomaly detection")
 
         result = svc.detect_anomalies(
             values=values,
@@ -107,7 +108,7 @@ def detect_anomalies(
         return APIResponse.ok(data=result)
     except ValueError as exc:
         from fastapi import HTTPException
-        raise HTTPException(status_code=422, detail=str(exc))
+        raise desde_valor(422, exc)
 
 
 @router.post("/bi/churn/predict", summary="Predicción de churn de clientes con LightGBM")

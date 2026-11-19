@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 
 from app.models.bi_collaboration import DashboardComment, DashboardVersion
 from app.models.settings import AppSetting
+from app.core.codigos_de_error import ErrorConCodigo
 
 _KEY_REACTIONS = "bi.collab.reactions"
 
@@ -137,7 +138,7 @@ def resolve_comment(db: Session, *, org_id: Optional[str], comment_id: str) -> d
         DashboardComment.organization_id == org_id,
     ).first()
     if not obj:
-        raise ValueError(f"Comment '{comment_id}' not found")
+        raise ErrorConCodigo("no_encontrado", detail=f"Comment '{comment_id}' not found", que="comentario")
     obj.resolved = True
     obj.resolved_at = datetime.now(timezone.utc)
     db.commit()

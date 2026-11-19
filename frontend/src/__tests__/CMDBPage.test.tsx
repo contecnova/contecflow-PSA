@@ -25,11 +25,12 @@ vi.mock('../services/api', () => ({
 vi.mock('../context/ToastContext', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn() }) }))
 vi.mock('../context/ConfirmContext', () => ({ openConfirmGlobal: vi.fn() }))
 vi.mock('../i18n/AppLangContext', () => ({ useAppT: () => (k: string) => k }))
-vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: { role: 'admin' } }) }))
+vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: { role: 'admin' }, puede: (c: string) => puedeComo('admin')(c) }) }))
 vi.mock('../components/layout/PageHeader', () => ({ default: ({ actions }: { actions: JSX.Element }) => <div>{actions}</div> }))
 vi.mock('../components/layout/PageShell', () => ({ default: ({ children }: { children: JSX.Element }) => <div>{children}</div> }))
 
 import CMDBPage from '../pages/CMDBPage'
+import { puedeComo } from './capacidadesDelBackend'
 
 const pintar = () => render(
   <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>

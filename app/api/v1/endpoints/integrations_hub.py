@@ -18,6 +18,7 @@ from app.core.deps import require_any_manager, require_admin
 from app.models.user import User
 from app.core.errores import ErrorDeDominio
 from app.services.settings_service import outbound_http_timeout
+from app.core.codigos_de_error import error_http, desde_valor
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +72,7 @@ def test_slack(
     )
     result = send_slack_message(payload.webhook_url, payload.message, blocks=blocks)
     if not result["ok"]:
-        raise HTTPException(400, f"Error Slack: {result.get('error')}")
+        raise error_http(400, "servicio_externo_fallo", detail=f"Error Slack: {result.get('error')}", servicio="Slack")
     return APIResponse.ok(data={"ok": True, "message": "Mensaje enviado a Slack correctamente"})
 
 
@@ -84,13 +85,15 @@ def notify_slack(
     from app.services.integrations import send_slack_message, get_active_integration
     import json
     cfg = get_active_integration(db, payload.get("integration_id"))
-    if not cfg: raise HTTPException(404, "Integración no encontrada")
+    if not cfg: raise error_http(404, "no_encontrado", detail="Integración no encontrada", que="integracion")
     cfg_dict     = decrypt_config_secrets(json.loads(cfg.config or "{}"))
     webhook_url  = cfg_dict.get("webhook_url", "")
-    if not webhook_url: raise HTTPException(400, "Webhook URL no configurada")
+    if not webhook_url: raise error_http(400, "webhook_url_no_configurada", detail="Webhook URL no configurada")
 
     result = send_slack_message(webhook_url, payload.get("text", f"Notificación de {NOMBRE_DEL_PRODUCTO}"))
-    if not result["ok"]: raise HTTPException(400, result.get("error"))
+    if not result["ok"]:
+        logger.warning("Slack: %s", result.get("error"))
+        raise error_http(400, "servicio_externo_fallo", servicio="Slack")
     return APIResponse.ok(data={"ok": True})
 
 
@@ -108,7 +111,7 @@ def test_teams(
         facts=[("Usuario", current_user.full_name), ("Hora", datetime.now().strftime("%H:%M"))],
     )
     if not result["ok"]:
-        raise HTTPException(400, f"Error Teams: {result.get('error')}")
+        raise error_http(400, "servicio_externo_fallo", detail=f"Error Teams: {result.get('error')}", servicio="Teams")
     return APIResponse.ok(data={"ok": True, "message": "Mensaje enviado a Teams correctamente"})
 
 
@@ -140,7 +143,7 @@ def put_jira_hub_config(
             api_token=payload.api_token or None, project_key=payload.project_key,
             name=payload.name, user_id=current_user.id)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
     auditar_y_confirmar(db, current_user, "UPDATE", "jira_config", config.id, config.name,
                         new_values={"base_url": config.jira_base_url, "email": config.jira_email,
                                     "token_changed": bool(payload.api_token)})
@@ -154,7 +157,7 @@ def delete_jira_hub_config(
 ):
     from app.services import jira_service
     if not jira_service.desactivar_desde_hub(db, current_user.organization_id):
-        raise HTTPException(404, "Jira no está configurado en esta organización")
+        raise error_http(404, "integracion_no_configurada", detail="Jira no está configurado en esta organización", nombre="Jira")
     return APIResponse.ok(data={"ok": True, "deactivated": True})
 
 
@@ -169,7 +172,8 @@ def sync_jira_hub(
     synced, errors = sincronizar_tareas_con_jira(db, cfg, current_user.organization_id)
     jira_service.marcar_sincronizacion_completa(db, current_user.organization_id)
     if errors and not synced:
-        raise HTTPException(400, errors[0])
+        logger.warning("Sincronizacion Jira: %s", errors[0])
+        raise error_http(400, "servicio_externo_fallo", servicio="Jira")
     return APIResponse.ok(data={"ok": True, "synced": synced, "errors": errors[:5]})
 
 
@@ -191,7 +195,7 @@ def test_jira(
             cfg["email"] = payload.email
     result = get_jira_projects(cfg)
     if not result["ok"]:
-        raise HTTPException(400, f"Error Jira: {result.get('error')}")
+        raise error_http(400, "servicio_externo_fallo", detail=f"Error Jira: {result.get('error')}", servicio="Jira")
     projects = result["data"].get("values", [])
     return APIResponse.ok(data={
         "ok": True,
@@ -220,7 +224,7 @@ def create_jira_issue(
         labels=payload.labels or [],
     )
     if not result["ok"]:
-        raise HTTPException(400, f"Error Jira: {result.get('error')}")
+        raise error_http(400, "servicio_externo_fallo", detail=f"Error Jira: {result.get('error')}", servicio="Jira")
 
     if payload.nexus_task_id and result.get("key"):
         link_jira_to_task(db, payload.nexus_task_id, result["key"])
@@ -241,7 +245,9 @@ def search_jira(
 
     cfg_dict = jira_service.credenciales_del_hub(db, current_user.organization_id)
     result = search_jira_issues(cfg_dict, jql, max_results)
-    if not result["ok"]: raise HTTPException(400, result.get("error"))
+    if not result["ok"]:
+        logger.warning("Jira: %s", result.get("error"))
+        raise error_http(400, "servicio_externo_fallo", servicio="Jira")
     issues = result["data"].get("issues", [])
     return APIResponse.ok(data={
         "total": result["data"].get("total", 0),
@@ -266,7 +272,9 @@ def transition_jira(
 
     cfg_dict = jira_service.credenciales_del_hub(db, current_user.organization_id)
     result = transition_jira_issue(cfg_dict, payload.get("issue_key"), payload.get("transition"))
-    if not result["ok"]: raise HTTPException(400, result.get("error"))
+    if not result["ok"]:
+        logger.warning("Jira: %s", result.get("error"))
+        raise error_http(400, "servicio_externo_fallo", servicio="Jira")
     return APIResponse.ok(data={"ok": True})
 
 
@@ -329,11 +337,11 @@ async def _verificar_firma_de_slack(request: Request, db=None) -> bytes:
         try:
             org = await run_db(organizacion_del_workspace_de_slack, db, team_id)
         except VinculoAmbiguo:
-            raise HTTPException(403, "Slack workspace linked to several organizations")
+            raise error_http(403, "slack_espacio_en_varias_orgs", detail="Slack workspace linked to several organizations")
         signing_secret = await run_db(secreto_de_firma_de_slack, db, org)
     if not signing_secret:
         if not en_pruebas():
-            raise HTTPException(503, "Slack inbound commands are not configured")
+            raise error_http(503, "slack_comandos_no_configurados", detail="Slack inbound commands are not configured", servicio="Slack")
         return body_bytes
 
     ts = request.headers.get("X-Slack-Request-Timestamp", "")
@@ -341,14 +349,14 @@ async def _verificar_firma_de_slack(request: Request, db=None) -> bytes:
     try:
         import time as _time
         if abs(_time.time() - float(ts)) > 300:
-            raise HTTPException(403, "Request timestamp too old")
+            raise error_http(403, "slack_marca_tiempo_antigua", detail="Request timestamp too old")
     except (ValueError, TypeError):
-        raise HTTPException(403, "Missing or invalid X-Slack-Request-Timestamp")
+        raise error_http(403, "slack_marca_tiempo_no_valida", detail="Missing or invalid X-Slack-Request-Timestamp")
 
     base = f"v0:{ts}:{body_bytes.decode()}"
     expected = "v0=" + hmac.new(signing_secret.encode(), base.encode(), hashlib.sha256).hexdigest()
     if not hmac.compare_digest(expected, sig):
-        raise HTTPException(403, "Invalid Slack signature")
+        raise error_http(403, "firma_no_valida", detail="Invalid Slack signature")
     return body_bytes
 
 
@@ -385,8 +393,7 @@ def _claves_de_bot_framework(metadata_url: str):
         metadatos = _json.loads(resp.read())
     jwks_uri = metadatos.get("jwks_uri")
     if not jwks_uri:
-        raise HTTPException(
-            502, "Los metadatos de Bot Framework no declaran `jwks_uri`")
+        raise error_http(502, "jwks_uri_ausente", detail="Los metadatos de Bot Framework no declaran `jwks_uri`")
     validate_https_discovery_url(jwks_uri)
 
     cliente = _jwt.PyJWKClient(jwks_uri)
@@ -424,12 +431,12 @@ def _verificar_token_de_teams(request: Request) -> Optional[dict]:
     bot_app_id = settings.TEAMS_BOT_APP_ID
     if not bot_app_id:
         if not en_pruebas():
-            raise HTTPException(503, "Teams inbound commands are not configured")
+            raise error_http(503, "slack_comandos_no_configurados", detail="Teams inbound commands are not configured", servicio="Teams")
         return None
 
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
-        raise HTTPException(401, "Missing Teams bearer token")
+        raise error_http(401, "teams_token_ausente", detail="Missing Teams bearer token")
     raw_token = auth_header.removeprefix("Bearer ").strip()
 
     try:
@@ -456,7 +463,7 @@ def _verificar_token_de_teams(request: Request) -> Optional[dict]:
         logger.warning(
             "Bearer de Teams rechazado (firma, emisor, audiencia o caducidad)",
             exc_info=True)
-        raise HTTPException(403, "Invalid Teams bearer token")
+        raise error_http(403, "teams_token_no_valido", detail="Invalid Teams bearer token")
 
 
 # ── Inbound bot — Slack slash commands ────────────────────────────────────────

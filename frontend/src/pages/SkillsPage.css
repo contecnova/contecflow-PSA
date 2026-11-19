@@ -15,13 +15,13 @@
 
 /* Matriz */
 .skl-matrix { border-collapse: separate; border-spacing: 2px; font-size: var(--text-xs); }
-.skl-matrix__corner { padding: 8px 12px; text-align: left; color: var(--text-2); min-width: 150px; position: sticky; left: 0; background: var(--surface-2); z-index: 2; }
+.skl-matrix__corner { padding: 8px 12px; text-align: left; color: var(--text-2); min-width: 150px; position: sticky; left: 0; background: var(--surface-2); z-index: calc(var(--z-content) + 1); }
 .skl-matrix__corner--blank { padding: 0; min-width: 0; }
 .skl-matrix__skill { padding: 4px 6px; color: var(--text-2); text-align: center; min-width: 70px; max-width: 80px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .skl-matrix__rot { transform: rotate(-35deg); transform-origin: bottom left; height: 60px; display: flex; align-items: flex-end; }
 .skl-matrix__catcell { padding: 2px 4px; text-align: center; }
 .skl-matrix__cat { display: flex; justify-content: center; color: var(--text-2); }
-.skl-matrix__user { padding: 4px 12px; position: sticky; left: 0; background: var(--surface-2); z-index: 1; border-bottom: 1px solid var(--surface-4); }
+.skl-matrix__user { padding: 4px 12px; position: sticky; left: 0; background: var(--surface-2); z-index: var(--z-content); border-bottom: 1px solid var(--surface-4); }
 .skl-matrix__name { font-size: var(--text-sm); font-weight: 600; }
 .skl-matrix__cell { padding: 2px; text-align: center; border-bottom: 1px solid color-mix(in srgb, var(--surface-4) 13%, transparent); }
 .skl-level {

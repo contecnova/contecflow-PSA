@@ -65,6 +65,7 @@ from app.services.service_desk.status_page_service import (
     create_status_incident_record, add_status_incident_update_record,
 )
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.core.codigos_de_error import error_http, desde_valor
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -382,7 +383,7 @@ def assess_change_risk(change_id: str, db: Session = Depends(get_db), current_us
 ):
     cr = get_change_by_id(db, current_user, change_id)
     if not cr:
-        raise HTTPException(404, "Change request no encontrado")
+        raise error_http(404, "no_encontrado", detail="Change request no encontrado", que="solicitud_de_cambio")
 
     try:
         impacted = json.loads(cr.affected_cis) if cr.affected_cis else []
@@ -417,7 +418,7 @@ def plan_change_rollout(
 ):
     cr = get_change_by_id(db, current_user, change_id)
     if not cr:
-        raise HTTPException(404, "Change request no encontrado")
+        raise error_http(404, "no_encontrado", detail="Change request no encontrado", que="solicitud_de_cambio")
 
     try:
         impacted = json.loads(cr.affected_cis) if cr.affected_cis else []
@@ -444,7 +445,7 @@ def plan_change_rollout(
 def automation_check(change_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     cr = get_change_by_id(db, current_user, change_id)
     if not cr:
-        raise HTTPException(404, "Change request no encontrado")
+        raise error_http(404, "no_encontrado", detail="Change request no encontrado", que="solicitud_de_cambio")
 
     risk_str = (cr.risk.value if cr.risk else "medium").lower()
     type_str = (cr.change_type.value if cr.change_type else "normal").lower()
@@ -470,7 +471,7 @@ def rollback_script(change_id: str, db: Session = Depends(get_db), current_user:
 ):
     cr = get_change_by_id(db, current_user, change_id)
     if not cr:
-        raise HTTPException(404, "Change request no encontrado")
+        raise error_http(404, "no_encontrado", detail="Change request no encontrado", que="solicitud_de_cambio")
 
     try:
         impacted = json.loads(cr.affected_cis) if cr.affected_cis else []
@@ -639,7 +640,7 @@ def merge_cluster_to_problem(
     try:
         result = _svc(db, ticket_ids=payload.ticket_ids, current_user=current_user, auto_rca=payload.auto_rca)
     except ValueError as exc:
-        raise HTTPException(400, detail=str(exc))
+        raise desde_valor(400, exc)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"ok": True, **result})
 
@@ -686,7 +687,7 @@ def get_rollout_state(
     from app.services.service_desk.change_management_service import get_rollout_execution_state
     state = get_rollout_execution_state(db, change_id)
     if not state:
-        raise HTTPException(404, "No hay ejecución de rollout para este cambio")
+        raise error_http(404, "rollout_sin_ejecucion")
     return APIResponse.ok(data=state)
 
 
@@ -702,7 +703,7 @@ def advance_phase(
     try:
         state = advance_rollout_phase(db, change_id=change_id, phase_number=phase_number, phase_status=payload.status, notes=payload.notes, current_user=current_user)
     except ValueError as exc:
-        raise HTTPException(400, detail=str(exc))
+        raise desde_valor(400, exc)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"ok": True, "state": state})
 
@@ -731,7 +732,7 @@ def emergency_cab_fast_track(
     try:
         result = fast_track_emergency_cab(db, change_id=change_id, approver_ids=payload.approver_ids, justification=payload.justification, current_user=current_user)
     except ValueError as exc:
-        raise HTTPException(400, detail=str(exc))
+        raise desde_valor(400, exc)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"ok": True, **result})
 

@@ -19,6 +19,7 @@ from app.services import currency_rates_service
 from app.schemas.currency_rates import ExchangeRateCreate
 from app.core.responses import APIListResponse, APIResponse
 from app.core import timeutil
+from app.core.codigos_de_error import error_http
 
 router = APIRouter()
 
@@ -37,7 +38,7 @@ class ConvertCurrencyRequest(BaseModel):
 def _validate_currency_code(code: str) -> str:
     normalized = (code or "").upper().strip()
     if len(normalized) != 3 or not normalized.isalpha():
-        raise HTTPException(status_code=422, detail="Currency codes must be 3-letter ISO values")
+        raise error_http(422, "moneda_codigo_no_valido", detail="Currency codes must be 3-letter ISO values")
     return normalized
 
 
@@ -72,7 +73,7 @@ def upsert_exchange_rate(
     from_c = _validate_currency_code(payload.from_currency)
     to_c = _validate_currency_code(payload.to_currency)
     if payload.rate <= 0:
-        raise HTTPException(status_code=400, detail="Rate must be positive")
+        raise error_http(400, "tipo_cambio_no_positivo", detail="Rate must be positive")
     eff = payload.effective_date or timeutil.today()
     rate_obj, created = currency_rates_service.registrar_tipo_de_cambio(
         db,
@@ -116,7 +117,7 @@ def _convert_currency_impl(
     from_c = _validate_currency_code(from_currency)
     to_c = _validate_currency_code(to_currency)
     if amount < 0:
-        raise HTTPException(status_code=422, detail="Amount must be non-negative")
+        raise error_http(422, "importe_negativo", detail="Amount must be non-negative")
 
     if from_c == to_c:
         return {
@@ -131,7 +132,7 @@ def _convert_currency_impl(
     ref_date = as_of_date or timeutil.today()
     snapshot = currency_rates_service.resolve_rate_with_snapshot(db, from_c, to_c, ref_date)
     if snapshot["source"] == "fallback":
-        raise HTTPException(status_code=404, detail=f"No exchange rate found for {from_c}->{to_c}")
+        raise error_http(404, "tipo_cambio_no_encontrado", detail=f"No exchange rate found for {from_c}->{to_c}", origen=from_c, destino=to_c)
 
     converted = amount * snapshot["rate"]
     currency_rates_service.registrar_conversion(

@@ -68,7 +68,7 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +130,7 @@ def _ticket_por_numero(db: Session, usuario, numero: str):
     from app.services.service_desk.scoping import scope_ticket_query
     t = scope_ticket_query(db.query(Ticket), db, usuario).filter(Ticket.number == numero.strip().upper()).first()
     if t is None:
-        raise ErrorDeDominio(404, f"No encuentro el ticket {numero}")
+        raise error(404, "no_encontrado", detail=f"No encuentro el ticket {numero}", que="ticket")
     return t
 
 
@@ -209,14 +209,14 @@ def leer_interaccion(db: Session, cuerpo: bytes, marca: str, firma: str) -> tupl
     try:
         payload = json.loads((parse_qs(cuerpo.decode(errors="replace")).get("payload") or ["{}"])[0])
     except ValueError:
-        raise ErrorDeDominio(400, "Payload de Slack ilegible")
+        raise error(400, "webhook_cuerpo_ilegible", detail="Payload de Slack ilegible")
     equipo = (payload.get("team") or {}).get("id")
     try:
         org = organizacion_del_workspace_de_slack(db, equipo)
     except VinculoAmbiguo:
-        raise ErrorDeDominio(403, "Slack workspace linked to several organizations")
+        raise error(403, "slack_espacio_en_varias_orgs", detail="Slack workspace linked to several organizations")
     if not firma_valida(secreto_de_firma_de_slack(db, org), marca, cuerpo, firma):
-        raise ErrorDeDominio(403, "Invalid Slack signature")
+        raise error(403, "firma_no_valida", detail="Invalid Slack signature")
     persona = payload.get("user") or {}
     usuario = find_user_by_slack_name(db, persona.get("username") or persona.get("name") or "", equipo)
     return payload, usuario
@@ -444,19 +444,19 @@ def leer_evento(db: Session, cuerpo: bytes, marca: str, firma: str) -> tuple[dic
     try:
         payload = json.loads(cuerpo or b"{}")
     except ValueError:
-        raise ErrorDeDominio(400, "Cuerpo de Slack ilegible")
+        raise error(400, "webhook_cuerpo_ilegible", detail="Cuerpo de Slack ilegible")
     if payload.get("type") == "url_verification":
         if not any(firma_valida(s, marca, cuerpo, firma) for s in _secretos_de_firma(db)):
-            raise ErrorDeDominio(403, "Invalid Slack signature")
+            raise error(403, "firma_no_valida", detail="Invalid Slack signature")
         return payload, None
     try:
         org = organizacion_del_workspace_de_slack(db, payload.get("team_id"))
     except VinculoAmbiguo:
-        raise ErrorDeDominio(403, "Slack workspace linked to several organizations")
+        raise error(403, "slack_espacio_en_varias_orgs", detail="Slack workspace linked to several organizations")
     if org is None:
-        raise ErrorDeDominio(403, "Slack workspace not linked to an organization (SLACK_TEAM_ID)")
+        raise error(403, "integracion_no_configurada", detail="Slack workspace not linked to an organization (SLACK_TEAM_ID)", nombre="Slack")
     if not firma_valida(secreto_de_firma_de_slack(db, org), marca, cuerpo, firma):
-        raise ErrorDeDominio(403, "Invalid Slack signature")
+        raise error(403, "firma_no_valida", detail="Invalid Slack signature")
     return payload, org
 
 

@@ -1,5 +1,5 @@
 from datetime import date
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -35,6 +35,7 @@ class ProjectHealthItem(BaseModel):
     tasks_done: int = Field(0, description="Tareas finalizadas")
     progress_pct: float = Field(0.0, description="Porcentaje de avance global")
     health_score: int = Field(100, description="Puntuación global de salud (0-100)")
+    budget_tone: Optional[str] = Field(None, description="Semáforo del presupuesto consumido (success/warning/danger, UMBRAL_PRESUPUESTO_*)")
 
 
 class ResourceLoadItem(BaseModel):

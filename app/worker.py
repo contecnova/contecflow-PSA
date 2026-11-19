@@ -14,25 +14,33 @@ celery_app = Celery(
 )
 
 celery_app.conf.beat_schedule = {
-    # Recordatorios de evaluaciones de desempeño — a diario a las 09:00
+    # Recordatorios de evaluaciones de desempeño — a NOTIFICATIONS_PERF_REMINDERS_TIME
+    # local de cada empresa (09:00 por defecto; antes 09:00 fijas del worker, 19-11-2026)
     "perf-reminders-daily": {
         "task": "app.worker.run_perf_reminders",
-        "schedule": crontab(hour=9, minute=0),  # misma hora que en APScheduler
+        "schedule": crontab(minute="*/15"),
     },
-    # Motor de alertas — a diario a las 08:00
+    # 19-11-2026 (semana laboral): alertas, campaña de presupuestos e
+    # imputaciones van a la hora LOCAL de cada empresa. La entrada corre cada
+    # cuarto de hora y cada pasada procesa solo las empresas cuya hora (en su
+    # DEFAULT_TIMEZONE) cae en el tramo de su ajuste NOTIFICATIONS_*_TIME
+    # (08:00, 08:30 y 18:00 por defecto, las horas fijas de antes):
+    # `trabajos_de_fondo.organizaciones_a_su_hora`.
+    # Motor de alertas — a diario a NOTIFICATIONS_ALERTS_TIME
     "run-alert-engine-daily": {
         "task": "app.worker.run_alert_engine",
-        "schedule": crontab(hour=8, minute=0),
+        "schedule": crontab(minute="*/15"),
     },
-    # Recordatorio de la campaña de presupuestos (revisión 2026-11)
+    # Recordatorio de la campaña de presupuestos (revisión 2026-11) — a NOTIFICATIONS_BUDGET_CAMPAIGN_TIME
     "budget-campaign-reminder": {
         "task": "app.worker.recordar_campana_de_presupuestos",
-        "schedule": crontab(hour=8, minute=30),
+        "schedule": crontab(minute="*/15"),
     },
-    # Check missing imputations every weekday at 18:00
+    # Imputaciones sin hacer — a NOTIFICATIONS_MISSING_IMPUTATIONS_TIME; solo a
+    # quien ese día trabaja según su horario efectivo (antes, L-V fijo).
     "check-missing-imputations": {
         "task": "app.worker.check_missing_imputations",
-        "schedule": crontab(hour=18, minute=0, day_of_week="1-5"),
+        "schedule": crontab(minute="*/15"),
     },
     # Externos (migracion 178): aviso de fin de acceso y caducidad — a diario 06:30
     "externos-caducidad": {
@@ -412,8 +420,11 @@ def sync_connector_data(connector_id: str, org_id: str | None = None):
 
 @celery_app.task(name="app.worker.run_alert_engine")
 def run_alert_engine():
+    """Motor de alertas en las empresas cuya hora local es NOTIFICATIONS_ALERTS_TIME (19-11-2026)."""
     from app.services.alert_service import run_alert_engine as _alertas
-    return _por_organizacion("run_alert_engine", lambda db, org: _alertas(db))
+    from app.services.trabajos_de_fondo import organizaciones_a_su_hora
+    return _por_organizacion("run_alert_engine", lambda db, org: _alertas(db),
+                             organizaciones=organizaciones_a_su_hora("NOTIFICATIONS_ALERTS_TIME"))
 
 
 @celery_app.task(name="app.worker.guardar_puntos_de_curva_s")
@@ -425,16 +436,21 @@ def guardar_puntos_de_curva_s():
 
 @celery_app.task(name="app.worker.run_perf_reminders")
 def run_perf_reminders():
-    """Recordatorios de evaluaciones de desempeño pendientes."""
+    """Recordatorios de evaluaciones de desempeño pendientes, en las empresas cuya
+    hora local es NOTIFICATIONS_PERF_REMINDERS_TIME (19-11-2026)."""
     from app.services.perf_reminder_service import send_pending_review_reminders
-    return _por_organizacion("run_perf_reminders", lambda db, org: send_pending_review_reminders(db))
+    from app.services.trabajos_de_fondo import organizaciones_a_su_hora
+    return _por_organizacion("run_perf_reminders", lambda db, org: send_pending_review_reminders(db),
+                             organizaciones=organizaciones_a_su_hora("NOTIFICATIONS_PERF_REMINDERS_TIME"))
 
 
 @celery_app.task(name="app.worker.check_missing_imputations")
 def check_missing_imputations():
-    """Quien no ha imputado sus horas de hoy (el «hoy» de cada empleado)."""
-    from app.services.trabajos_de_fondo import imputaciones_pendientes_de_hoy
-    return _por_organizacion("check_missing_imputations", imputaciones_pendientes_de_hoy)
+    """Quien no ha imputado sus horas de hoy (el «hoy» de cada empleado), en las
+    empresas cuya hora local es NOTIFICATIONS_MISSING_IMPUTATIONS_TIME (19-11-2026)."""
+    from app.services.trabajos_de_fondo import imputaciones_pendientes_de_hoy, organizaciones_a_su_hora
+    return _por_organizacion("check_missing_imputations", imputaciones_pendientes_de_hoy,
+                             organizaciones=organizaciones_a_su_hora("NOTIFICATIONS_MISSING_IMPUTATIONS_TIME"))
 
 
 @celery_app.task(name="app.worker.externos_caducidad")
@@ -672,9 +688,12 @@ def autonomous_agent_scan():
 
 @celery_app.task(name="app.worker.recordar_campana_de_presupuestos")
 def recordar_campana_de_presupuestos():
-    """Avisa a los responsables de presupuestos sin enviar cuando cierra su campaña."""
+    """Avisa a los responsables de presupuestos sin enviar cuando cierra su campaña,
+    a la hora local de cada empresa (NOTIFICATIONS_BUDGET_CAMPAIGN_TIME, 19-11-2026)."""
     from app.services.presupuestos_preparar import recordar_campana
-    return _por_organizacion("recordar_campana_de_presupuestos", lambda db, org: {"avisos": recordar_campana(db)})
+    from app.services.trabajos_de_fondo import organizaciones_a_su_hora
+    return _por_organizacion("recordar_campana_de_presupuestos", lambda db, org: {"avisos": recordar_campana(db)},
+                             organizaciones=organizaciones_a_su_hora("NOTIFICATIONS_BUDGET_CAMPAIGN_TIME"))
 
 
 # ── Por fila (el servicio publica la organizacion de cada fila) ──────────────

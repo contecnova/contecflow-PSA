@@ -144,7 +144,7 @@ def _client_portal_chat_for_user(db: Session, client_user, message: str, session
     try:
         response_text = call_ai_unified(
             db, messages, system=system,
-            module="client_portal", max_tokens=800
+            module="client_portal", max_tokens=settings.AI_MEDIUM_ANSWER_MAX_TOKENS
         )
     except Exception as exc:
         from app.services.ai_provider_service import PresupuestoDeIAAgotado
@@ -277,123 +277,25 @@ def revenue_forecast(db: Session, months_ahead: int = 3) -> dict:
     }
 
 def smart_schedule(db: Session, payload, current_user) -> dict:
-    import re as _re
-    import json as _json
+    """Auto-planificar tareas sin fecha (19-11-2026: motor determinista).
 
-    # 18-11-2026: también el superadministrador planifica con SU empresa (la
-    # activa de la sesión o la de su ficha). Antes, sin filtro, mandaba al
-    # proveedor de IA los nombres de los usuarios de todas las empresas y
-    # planificaba tareas de todas: fuga de datos personales entre empresas.
-    user_org = (db.info or {}).get("organization_id") or getattr(current_user, "organization_id", None)
+    Antes lo decidía un modelo de IA (lento, sin dependencias, festivos,
+    ausencias ni carga real, y con plan vacío silencioso si el proveedor
+    fallaba). Ahora lo calcula `app/services/planificador/sin_fecha.py` con el
+    horario efectivo y la carga de cada responsable; la respuesta conserva la
+    forma de siempre (`scheduled`, `unscheduled_count`) y el motivo va en datos.
+    """
+    from app.services.planificador import sin_fecha
 
-    # Multi-tenant: filtrar tasks por org del current_user a través de Project,
-    # excepto si es superadmin. Antes leía tasks globalmente.
-    q = db.query(Task).filter(Task.start_date == None, Task.due_date == None)
-    if payload.project_id:
-        q = q.filter(Task.project_id == payload.project_id)
-    if user_org:
-        # Filtrar via join con Project.organization_id
-        q = q.join(Project, Task.project_id == Project.id).filter(
-            Project.organization_id == user_org
-        )
-    unscheduled = q.filter(Task.status.notin_(ESTADOS_DE_TAREA_TERMINADOS)).limit(payload.max_tasks).all()
-
-    if not unscheduled:
-        return {"scheduled": [], "message": "No unscheduled tasks found"}
-
-    now   = utcnow()
-    w4ago = (now - timedelta(weeks=4)).date()
-    capacity = []
-    users_q = db.query(User).filter(User.is_active == True)
-    if user_org:
-        users_q = users_q.filter(User.organization_id == user_org)
-    users = users_q.all()
-    # 18-11-2026: la capacidad de cada persona (o la de su empresa), antes 40 fijas.
-    from app.services.settings_service.por_empresa import capacidad_semanal, capacidad_semanal_de_empresa
-    for u in users:
-        hrs = db.query(func.sum(Imputation.hours)).filter(
-            Imputation.user_id == u.id, Imputation.date >= w4ago
-        ).scalar() or 0
-        available = max(0, capacidad_semanal(db, u) - round(hrs / 4, 1))
-        capacity.append({"name": u.full_name, "available_hours_per_week": available})
-
-    # Auditoria 2026-11: el prompt pedia `"task_id": <int>` y los ids son UUID;
-    # el modelo devolvia 1, 2, 3 y aplicar el plan daba 500. Ahora cada tarea
-    # lleva un numero y la respuesta se traduce de vuelta a su id.
-    por_numero = {i: t.id for i, t in enumerate(unscheduled, 1)}
-    task_list = "\n".join(
-        f"- [{i}] {t.title} (priority={t.priority or 'medium'}, points={t.story_points or '?'})"
-        for i, t in enumerate(unscheduled, 1)
-    )
-    capacity_str = "\n".join(f"  {c['name']}: ~{c['available_hours_per_week']}h/week free" for c in capacity[:10])
-    today_str = now.strftime("%Y-%m-%d")
-
-    # Item #70: prompts en español; la respuesta, en el idioma del usuario (18-11-2026).
-    from app.services.formato_regional import instruccion_de_idioma_para
-    _weekly_cap = capacidad_semanal_de_empresa(db, user_org)
-    system = (
-        "Eres una IA experta en planificación de proyectos. Recibes una lista "
-        "de tareas sin fechas y la capacidad disponible del equipo. Genera un "
-        "plan realista empezando hoy. "
-        "Responde SOLO con un array JSON, sin texto adicional:\n"
-        '[{"task_id": <numero entre corchetes de la tarea>, "suggested_start": "YYYY-MM-DD", '
-        '"suggested_due": "YYYY-MM-DD", "rationale": "..."}]\n'
-        # 18-11-2026: el «rationale» lo lee el usuario: en su idioma.
-        + instruccion_de_idioma_para(db, user_id=getattr(current_user, "id", None), org_id=user_org)
-    )
-    user_msg = (
-        f"Hoy: {today_str}\n\n"
-        f"Tareas pendientes de planificar:\n{task_list}\n\n"
-        f"Capacidad del equipo (horas disponibles/semana):\n{capacity_str}\n\n"
-        "Planifica las tareas teniendo en cuenta prioridad y capacidad. "
-        f"Asume 1 story point ≈ 8 horas. Capacidad base {_weekly_cap:.0f}h/semana por persona."
-    )
-
-    try:
-        response = call_ai_unified(db, [{"role": "user", "content": user_msg}], system=system,
-                                   module="smart_schedule", user_id=current_user.id, max_tokens=2000)
-        # call_ai_unified ya devuelve texto plano (call_ai dispatcher → str;
-        # fallback claude → extract_text aplicado dentro). Aplicar extract_text
-        # a un string vuelve a `.get(...)` y lanza AttributeError → la respuesta
-        # IA se perdía silenciosamente.
-        text = response if isinstance(response, str) else extract_text(response)
-        match = _re.search(r'\[.*\]', text, _re.DOTALL)
-        if match:
-            try:
-                scheduled = _json.loads(match.group(0))
-            except _json.JSONDecodeError:
-                _cleaned = _re.sub(r",\s*([}\]])", r"\1", match.group(0))
-                scheduled = _json.loads(_cleaned)
-        else:
-            scheduled = []
-        traducidas = []
-        for item in scheduled if isinstance(scheduled, list) else []:
-            try:
-                real = por_numero.get(int(str(item.get("task_id")).strip("[] ")))
-            except (TypeError, ValueError, AttributeError):
-                real = None
-            if real is None and item.get("task_id") in por_numero.values():
-                real = item.get("task_id")
-            if real is not None:
-                traducidas.append({**item, "task_id": real})
-        scheduled = traducidas
-    except Exception as exc:
-        _log.exception("Smart schedule AI call failed for user=%s project=%s", current_user.id, payload.project_id)
-        return {"scheduled": [], "error": str(exc),
-                "message": "AI scheduling falló — configura un proveedor IA en IA & Conectores"}
-
-    # Item #71: persistir traza de la sugerencia. Antes el LLM proponía y la
-    # UI tenía que aplicar manualmente sin que quedara registro de qué
-    # sugerencia se mostró. log_action deja entrada en AIActionLog (tabla
-    # existente, indexada por user/module/created_at).
+    plan = sin_fecha.proponer(db, current_user, project_id=payload.project_id,
+                              max_tareas=int(payload.max_tasks or 20))
     try:
         log_action(
             db, current_user.id, "smart_schedule", "suggest",
-            input_s=f"tasks={len(unscheduled)} project={payload.project_id or '-'}",
-            output_s=json.dumps(scheduled)[:2000],
+            input_s=f"tasks={plan['unscheduled_count']} project={payload.project_id or '-'}",
+            output_s=json.dumps(plan["scheduled"], default=str)[:2000],
             status="success",
         )
     except Exception:
         _log.debug("Best-effort audit log_action failed for smart_schedule", exc_info=True)
-
-    return {"scheduled": scheduled, "unscheduled_count": len(unscheduled), "capacity_summary": capacity[:10]}
+    return plan

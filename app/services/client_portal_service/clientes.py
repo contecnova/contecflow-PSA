@@ -71,9 +71,9 @@ def create_client(payload, db: Session) -> dict:
         *([payload.project_id] if payload.project_id else [])
     ]))
     if not all_project_ids and not payload.client_org_id:
-        raise ValueError("Debe especificar al menos un proyecto o una empresa cliente")
+        raise ErrorConCodigo("portal_usuario_sin_alcance", detail="Debe especificar al menos un proyecto o una empresa cliente")
     if db.query(ClientUser).filter(ClientUser.email == payload.email).first():
-        raise ValueError("Ya existe un usuario de portal con ese email")
+        raise ErrorConCodigo("email_ya_registrado", detail="Ya existe un usuario de portal con ese email")
     # Revisión 2026-11: el tope de usuarios por cliente sólo lo aplicaba un
     # segundo camino de alta sin pantalla (/clients/{id}/portal-users, retirado).
     if payload.client_org_id:
@@ -83,7 +83,7 @@ def create_client(payload, db: Session) -> dict:
             activos = db.query(ClientUser).filter(ClientUser.client_org_id == payload.client_org_id,
                                                   ClientUser.is_active == True).count()  # noqa: E712
             if activos >= cfg.max_portal_users:
-                raise ValueError(f"Límite de usuarios de portal alcanzado ({cfg.max_portal_users})")
+                raise ErrorConCodigo("portal_limite_usuarios", max=cfg.max_portal_users)
     company = payload.company
     empresa = db.query(ClientOrg).filter(ClientOrg.id == payload.client_org_id).first() if payload.client_org_id else None
     if empresa and not company:

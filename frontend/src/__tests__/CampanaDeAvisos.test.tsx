@@ -26,7 +26,7 @@ vi.mock('../hooks/useAvisosEnVivo', () => ({
   default: (_activo: boolean, cb?: (m: unknown) => void) => { h.ws.oyente = cb ?? null; return h.ws.enVivo },
 }))
 vi.mock('../context/AuthContext', () => ({
-  useAuth: () => ({ user: { id: 'u1' }, loading: false, hasRole: () => h.veAlertas }),
+  useAuth: () => ({ user: { id: 'u1' }, loading: false, puede: () => h.veAlertas }),
 }))
 vi.mock('../context/ToastContext', () => ({ useToast: () => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }) }))
 vi.mock('../i18n/AppLangContext', () => {

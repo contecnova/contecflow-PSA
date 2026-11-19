@@ -17,6 +17,7 @@ from app.services import proposal_service as proposal_svc
 from app.schemas.pipeline import OpportunityIn, OpportunityUpdate, PipelineActivityIn as ActivityIn, StageConfigIn
 from app.core.responses import APIListResponse, APIResponse
 from app.core import timeutil
+from app.core.codigos_de_error import error_http
 
 router = APIRouter()
 
@@ -346,7 +347,7 @@ def create_stage_config(
         # Si es duplicado, devolver 400 (no 409) para cumplir el contrato de test
         from fastapi import HTTPException
         if (hasattr(e, 'status_code') and getattr(e, 'status_code', None) in (400, 409)) and 'ya existe' in str(e):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+            raise error_http(status.HTTP_400_BAD_REQUEST, "elemento_duplicado", detail=str(e))
         raise
 
 

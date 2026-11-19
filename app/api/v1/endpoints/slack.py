@@ -22,6 +22,7 @@ from app.core.deps import require_any_manager, require_admin
 from app.models.user import User
 from app.core.responses import APIListResponse, APIResponse
 import app.services.slack_service as _slack
+from app.core.codigos_de_error import desde_valor
 from app.schemas.auth_payloads import (
     SlackTestIn, SlackNotifyIn,
 )
@@ -87,5 +88,5 @@ def slack_notify(
             db,
         ))
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
 

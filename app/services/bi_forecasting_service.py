@@ -16,6 +16,7 @@ import logging
 
 import math
 from typing import Any, Optional
+from app.core.codigos_de_error import ErrorConCodigo
 
 # ── Graceful Prophet import ────────────────────────────────────────────────────
 try:
@@ -126,11 +127,11 @@ def forecast(
         metric, method, horizon, history, forecast, lower_bound, upper_bound
     """
     if metric not in SUPPORTED_METRICS:
-        raise ValueError(f"Unsupported metric '{metric}'. Supported: {SUPPORTED_METRICS}")
+        raise ErrorConCodigo("metrica_no_soportada", detail=f"Unsupported metric '{metric}'. Supported: {SUPPORTED_METRICS}", metrica=metric, opciones=SUPPORTED_METRICS)
     if method not in SUPPORTED_METHODS:
-        raise ValueError(f"Unsupported method '{method}'. Supported: {SUPPORTED_METHODS}")
+        raise ErrorConCodigo("metodo_no_soportado", detail=f"Unsupported method '{method}'. Supported: {SUPPORTED_METHODS}", metodo=method, opciones=SUPPORTED_METHODS)
     if len(values) < 2:
-        raise ValueError("At least 2 historical values required")
+        raise ErrorConCodigo("prevision_pocos_datos", detail="At least 2 historical values required")
     horizon = max(1, min(horizon, 36))
 
     if method == "linear_trend":

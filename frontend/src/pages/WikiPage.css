@@ -215,7 +215,7 @@
 }
 .wk-present-bar {
   position: sticky; top: 0; background: var(--surface-2); border-bottom: 1px solid var(--surface-4);
-  padding: 10px 24px; display: flex; align-items: center; justify-content: space-between; z-index: 10;
+  padding: 10px 24px; display: flex; align-items: center; justify-content: space-between; z-index: calc(var(--z-content) + 9);
 }
 .wk-present-name { font-size: var(--text-md); font-weight: 700; color: var(--text-1); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wk-present-body { max-width: 860px; margin: 0 auto; padding: 48px 32px; width: 100%; }

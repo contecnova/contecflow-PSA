@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 import jwt
 from app.core.config import settings
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,20 @@ def validate_password_policy(password: str, db=None, org_id: Optional[str] = Non
     if _p.PASSWORD_REQUIRE_SPECIAL and not re.search(r"[^A-Za-z0-9]", password):
         return False, "La contraseña debe incluir al menos un carácter especial"
     return True, None
+
+
+def codigo_de_politica_de_contrasena(mensaje: str | None) -> tuple[str, dict]:
+    """(codigo, params) del mensaje de `validate_password_policy` (19-11-2026):
+    la interfaz lo traduce (`err_srv.<codigo>`); `detail` sigue con el texto."""
+    texto = mensaje or ""
+    m = re.search(r"al menos (\d+) caracteres", texto)
+    if m:
+        return "contrasena_min_caracteres", {"n": int(m.group(1))}
+    for clave, codigo in (("mayúscula", "contrasena_sin_mayuscula"), ("minúscula", "contrasena_sin_minuscula"),
+                          ("número", "contrasena_sin_numero"), ("especial", "contrasena_sin_especial")):
+        if clave in texto:
+            return codigo, {}
+    return "contrasena_no_cumple_politica", {}
 
 
 _JWT_RESERVED_CLAIMS = {"sub", "exp", "iat", "type", "jti"}
@@ -199,14 +214,10 @@ def verify_admin_or_governance_role(user) -> None:
     dejar una puerta a un valor que nadie puede tener. El nombre se conserva
     porque lo importan los endpoints de ABAC.
     """
-    from app.core.errores import ErrorDeDominio
     from app.models.user import UserRole
 
     if getattr(user, 'is_superadmin', False):
         return
     if getattr(user, 'role', None) == UserRole.admin:
         return
-    raise ErrorDeDominio(
-        status_code=403,
-        detail="Admin role required"
-    )
+    raise error(403, "solo_admin", detail="Admin role required")

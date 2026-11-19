@@ -5,6 +5,7 @@ import logging
 from app.core.deps import get_current_user, get_db, require_any_manager
 from app.models.user import User
 import app.services.integrations as _svc
+from app.core.codigos_de_error import error_http
 
 router = APIRouter(tags=["Notifications", "Slack"])
 logger = logging.getLogger(__name__)
@@ -34,10 +35,7 @@ def send_slack_block_kit(
         webhook_url = _svc.get_slack_webhook_url(db, org_id)
 
     if not webhook_url:
-        raise HTTPException(
-            status_code=503,
-            detail="No Slack webhook URL configured. Set it in Settings -> Integrations -> Slack.",
-        )
+        raise error_http(503, "slack_sin_webhook", detail="No Slack webhook URL configured. Set it in Settings -> Integrations -> Slack.")
 
     # Auditoria 2026-11 (#35): `httpx` directo, sin validar la URL que llega en
     # el cuerpo (SSRF). Ahora la URL se valida (400 si es interna) y el envio
@@ -49,7 +47,7 @@ def send_slack_block_kit(
     resultado = enviar_a_webhook(webhook_url, block_kit)
     if not resultado.ok:
         logger.warning("Slack block kit delivery failed: %s", resultado.error)
-        raise HTTPException(status_code=502, detail="Slack delivery failed")
+        raise error_http(502, "webhook_entrega_fallida", detail="Slack delivery failed", servicio="Slack")
 
     return {"ok": True, "event_type": event_type, "blocks_count": len(block_kit.get("blocks", []))}
 
@@ -59,10 +57,17 @@ def preview_block_kit(
     event_type: str = Query(...),
     current_user: User = Depends(get_current_user),
 ):
+    # 19-11-2026: sin nombres de demo (Alice Smith, Acme Corp…): la vista previa
+    # usa a quien la pide, la moneda de su empresa y textos neutros de ejemplo.
+    from app.core.timeutil import utcnow
+    from app.services.settings_service import por_empresa as _pe
+    hoy = utcnow().date().isoformat()
+    quien = getattr(current_user, "full_name", None) or getattr(current_user, "email", "")
+    moneda = _pe.moneda_de_empresa(None, current_user.organization_id)
     sample_data = {
-        "task_overdue": {"task_title": "API Integration", "project_name": "CRM Relaunch", "due_date": "2026-04-01", "assignee": "Alice Smith", "task_id": "xxx"},
-        "invoice_paid": {"invoice_number": "INV-2026-042", "amount": 12500.0, "currency": "EUR", "client_name": "Acme Corp", "paid_at": "2026-04-11"},
-        "approval_required": {"entity_type": "expense", "submitter": "Bob Jones", "amount": "€850", "project_name": "Digital Transformation", "request_id": "req-001"},
+        "task_overdue": {"task_title": "Tarea de ejemplo", "project_name": "Proyecto de ejemplo", "due_date": hoy, "assignee": quien, "task_id": "ejemplo"},
+        "invoice_paid": {"invoice_number": "FAC-EJEMPLO", "amount": 1000.0, "currency": moneda, "client_name": "Cliente de ejemplo", "paid_at": hoy},
+        "approval_required": {"entity_type": "expense", "submitter": quien, "amount": f"100 {moneda}", "project_name": "Proyecto de ejemplo", "request_id": "ejemplo"},
     }
     data = sample_data.get(event_type, {"message": f"Sample {event_type} event"})
     return _build_block_kit_message(event_type, data)

@@ -11,6 +11,7 @@ from app.models.bookings import ExchangeRate
 from sqlalchemy import func
 from app.core import timeutil
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 
 # ── Exchange Rates ────────────────────────────────────────────────────────────
@@ -45,10 +46,10 @@ def upsert_exchange_rate_record(payload: dict, db) -> dict:
     to_currency   = payload.get("to_currency", "USD").upper()
     _iso3 = _re.compile(r"^[A-Z]{3}$")
     if not _iso3.match(from_currency) or not _iso3.match(to_currency):
-        raise ErrorDeDominio(422, "Currency codes must be 3-letter ISO codes (e.g. EUR, USD)")
+        raise error(422, "moneda_codigo_no_valido", detail="Currency codes must be 3-letter ISO codes (e.g. EUR, USD)")
     rate_value    = float(payload.get("rate", 1.0))
     if rate_value <= 0:
-        raise ErrorDeDominio(400, "El tipo de cambio debe ser mayor que cero")
+        raise error(400, "tipo_de_cambio_positivo")
     source = payload.get("source", "manual")
     effective_date = date.fromisoformat(payload.get("effective_date", str(timeutil.today())))
     primary_obj = None
@@ -98,7 +99,7 @@ def convert_currency_amount(payload: dict, db) -> dict:
         ExchangeRate.effective_date <= on_date,
     ).order_by(ExchangeRate.effective_date.desc(), ExchangeRate.organization_id.is_(None)).first()
     if not rate_row:
-        raise ErrorDeDominio(404, f"Sin tipo de cambio {from_curr}→{to_curr}. Configura los tipos en Configuración → Monedas.")
+        raise error(404, "tipo_de_cambio_no_configurado", desde=from_curr, hasta=to_curr)
     converted = round(amount * rate_row.rate, 2)
     return {
         "converted_amount": converted, "amount": amount,

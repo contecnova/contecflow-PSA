@@ -17,7 +17,7 @@ import type { CSSProperties } from 'react'
 
 export default function EstadoDelAlmacen() {
   const { t } = useAppLang()
-  const { user } = useAuth()
+  const { puede } = useAuth()
   const toast = useToast()
   const qc = useQueryClient()
   const { data } = useQuery({ queryKey: ['olap-status'], queryFn: () => analyticsApi.olapStatus().then(r => r.data) })
@@ -43,7 +43,7 @@ export default function EstadoDelAlmacen() {
         {fallo && ` · ${t('dataexplorer.almacen_fallo', { error: String(data.last_run?.detail?.error ?? '') })}`}
       </span>
       {/* 2026-11: la recarga es global (todas las empresas): solo superadmin. */}
-      {user?.is_superadmin && (
+      {puede('plataforma.empresas') && (
         <Button size="sm" variant="secondary" icon={<RefreshCw size={14} />} onClick={() => cargar.mutate()} disabled={cargar.isPending} loading={cargar.isPending}>
           {t('dataexplorer.almacen_cargar')}
         </Button>

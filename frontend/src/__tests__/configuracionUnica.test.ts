@@ -7,7 +7,8 @@ import { describe, expect, it } from 'vitest'
 import es from '../i18n/langs/es.mjs'
 import en from '../i18n/langs/en.mjs'
 import zh from '../i18n/langs/zh.mjs'
-import type { Role } from '../context/AuthContext'
+import type { Capacidad } from '../permisos/capacidades'
+import { puedeComo } from './capacidadesDelBackend'
 import {
   GRUPOS_DE_AJUSTES, IDS_ANTIGUOS, SECCIONES_DE_AJUSTES, puedeVerSeccion,
 } from '../pages/settings/catalogoDeAjustes'
@@ -16,8 +17,9 @@ const raiz = resolve(__dirname, '..')
 const app = readFileSync(resolve(raiz, 'App.tsx'), 'utf8')
 const layout = readFileSync(resolve(raiz, 'components/layout/Layout.tsx'), 'utf8')
 
-const visiblesPara = (rol: Role, esSuperadmin = false) => SECCIONES_DE_AJUSTES
-  .filter(s => puedeVerSeccion(s, { hasRole: (...r) => r.includes(rol), esSuperadmin, canOpen: () => true }))
+// 19-11-2026: las secciones piden capacidades; el rol se simula con el catálogo del backend.
+const visiblesPara = (rol: string, esSuperadmin = false) => SECCIONES_DE_AJUSTES
+  .filter(s => puedeVerSeccion(s, { puede: (c: Capacidad) => puedeComo(rol, esSuperadmin)(c), canOpen: () => true }))
   .map(s => s.id)
 
 describe('catálogo de Configuración', () => {
@@ -59,7 +61,7 @@ describe('catálogo de Configuración', () => {
 
   it('el bloqueo por ruta del usuario sigue valiendo con la ruta de antes', () => {
     const tarifas = SECCIONES_DE_AJUSTES.find(s => s.id === 'rates')!
-    expect(puedeVerSeccion(tarifas, { hasRole: () => true, esSuperadmin: false, canOpen: r => r !== '/rate-cards' })).toBe(false)
+    expect(puedeVerSeccion(tarifas, { puede: () => true, canOpen: r => r !== '/rate-cards' })).toBe(false)
   })
 
   it('las rutas de antes redirigen a su sección y ya no pintan su propia pantalla', () => {

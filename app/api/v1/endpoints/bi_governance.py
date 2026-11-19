@@ -13,6 +13,7 @@ from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.user import User
 from app.services import bi_governance_service as svc
+from app.core.codigos_de_error import error_http
 
 router = APIRouter()
 
@@ -238,5 +239,5 @@ def upsert_field(
             current_user=current_user,
         )
     except ValueError:
-        raise HTTPException(status_code=400, detail='sensitivity_level invalido')
+        raise error_http(400, "campo_no_valido_opciones", detail="sensitivity_level invalido", campo="sensitivity_level", opciones="public, internal, confidential, restricted")
     return APIResponse.ok(data={'ok': True, 'field': row})

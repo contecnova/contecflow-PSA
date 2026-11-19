@@ -8,6 +8,7 @@ from app.models.service_desk import CannedResponse
 from app.schemas.service_desk import CannedResponseIn
 import logging
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +76,7 @@ def get_canned_response_by_id(db: Session, canned_id: str) -> CannedResponse:
         CannedResponse.is_active == True,
     ).first()
     if not canned:
-        raise ErrorDeDominio(404, "Respuesta rápida no encontrada")
+        raise error(404, "no_encontrado", detail="Respuesta rápida no encontrada", que="respuesta_rapida")
     return canned
 
 

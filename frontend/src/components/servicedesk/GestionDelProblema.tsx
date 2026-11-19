@@ -37,8 +37,8 @@ interface SdProblema {
 export default function GestionDelProblema({ problema, onClose }: { problema: SdProblema; onClose: () => void }) {
   const t = useAppT()
   const [vista, setVista] = useState('incidentes')
-  const { user } = useAuth()
-  const esAdmin = user?.role === 'admin'
+  const { puede } = useAuth()
+  const esAdmin = puede('sd.administrar')
   return (
     <Modal open size="lg" onClose={onClose} title={[problema.number, problema.title].filter(Boolean).join(" · ")}>
       <Tabs active={vista} onChange={setVista} ariaLabel={t('sd_mercado.problema')} items={[

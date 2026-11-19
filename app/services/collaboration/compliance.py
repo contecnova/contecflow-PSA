@@ -66,6 +66,7 @@ from app.models.settings import AppSetting
 from app.services.collaboration import audit_log
 from app.services.collaboration._permissions import _org
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 #: Clave del ajuste por tenant con los meses de retención por defecto y el tope.
 RETENTION_SETTINGS_KEY = "collaboration.retention.settings"
@@ -168,10 +169,7 @@ def create_policy(db: Session, user, datos: dict) -> CollaborationRetentionPolic
     ajustes = get_retention_settings(db, org)
     meses = datos.get("retention_months")
     if meses is not None and meses > ajustes["max_months"]:
-        raise ErrorDeDominio(
-            status_code=422,
-            detail=f"retention_months exceeds tenant max ({ajustes['max_months']})",
-        )
+        raise error(422, "retencion_supera_maximo", detail=f"retention_months exceeds tenant max ({ajustes['max_months']})", max=ajustes['max_months'])
 
     fila = CollaborationRetentionPolicy(
         organization_id=org, workspace_id=ws.id,
@@ -300,7 +298,7 @@ def release_hold(db: Session, user, hold_id: str) -> None:
         .first()
     )
     if not fila:
-        raise ErrorDeDominio(404, "Hold no encontrado")
+        raise error(404, "no_encontrado", detail="Hold no encontrado", que="bloqueo_legal")
     fila.is_active = False
     fila.ended_at = utcnow()
     audit_log.write(

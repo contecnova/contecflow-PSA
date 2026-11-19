@@ -19,6 +19,7 @@ from app.core import timeutil
 from app.core.serializers import DIAS_RENOVACION_URGENTE
 from app.core.errores import ErrorDeDominio
 from app.core.paginacion import Pagina, Paginacion, paginar
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -339,7 +340,7 @@ def get_vendor_record(vid: str, db: Session) -> dict:
 
     v = db.query(ALMVendor).filter(ALMVendor.id == vid, ALMVendor.is_active == True).first()
     if not v:
-        raise ErrorDeDominio(404, "Proveedor no encontrado")
+        raise error(404, "no_encontrado", detail="Proveedor no encontrado", que="proveedor")
     return serialize_vendor(v)
 
 
@@ -374,10 +375,7 @@ def delete_vendor_record(vid: str, db: Session) -> dict:
         ALMAsset.is_active == True,
     ).scalar() or 0
     if active_contracts or active_licenses or active_assets:
-        raise ErrorDeDominio(
-            400,
-            f"No se puede eliminar: contratos={active_contracts}, licencias={active_licenses}, activos={active_assets}",
-        )
+        raise error(400, "alm_no_eliminable_contratos_licencias_activos", detail=f"No se puede eliminar: contratos={active_contracts}, licencias={active_licenses}, activos={active_assets}", contratos=active_contracts, licencias=active_licenses, activos=active_assets)
     v.is_active = False
     db.commit()
     return {"ok": True, "message": "Proveedor eliminado correctamente"}
@@ -448,7 +446,7 @@ def _limpiar_contrato(data: dict) -> dict:
     )
     for campo in ("resolution_hours", "response_hours"):
         if clean.get(campo) is not None and clean[campo] <= 0:
-            raise ErrorDeDominio(422, "Los plazos del proveedor (UC) son horas mayores que cero, o vacío")
+            raise error(422, "uc_plazos_no_validos")
     return clean
 
 
@@ -493,7 +491,7 @@ def delete_contract_record(cid: str, db: Session) -> dict:
         ALMLicense.is_active == True,
     ).scalar() or 0
     if active_licenses > 0:
-        raise ErrorDeDominio(400, f"No se puede eliminar: {active_licenses} licencia(s) activas asociadas")
+        raise error(400, "alm_no_eliminable_licencias", detail=f"No se puede eliminar: {active_licenses} licencia(s) activas asociadas", licencias=active_licenses)
     c.is_active = False
     c.status = "cancelled"
     db.commit()
@@ -634,10 +632,7 @@ def delete_license_record(lid: str, db: Session) -> dict:
         ALMSoftwareInstall.is_active == True,
     ).scalar() or 0
     if active_assignments or active_installs:
-        raise ErrorDeDominio(
-            400,
-            f"No se puede eliminar: asignaciones={active_assignments}, instalaciones={active_installs}",
-        )
+        raise error(400, "alm_no_eliminable_asignaciones_instalaciones", detail=f"No se puede eliminar: asignaciones={active_assignments}, instalaciones={active_installs}", asignaciones=active_assignments, instalaciones=active_installs)
     lic.is_active = False
     lic.status = "cancelled"
     db.commit()
@@ -826,10 +821,7 @@ def delete_asset_record(aid: str, db: Session, current_user=None) -> dict:
         ALMAsignacion.status.in_(("active", "pending")),
     ).scalar() or 0
     if active_installs or active_assignments:
-        raise ErrorDeDominio(
-            400,
-            f"No se puede eliminar: instalaciones={active_installs}, asignaciones={active_assignments}",
-        )
+        raise error(400, "alm_no_eliminable_asignaciones_instalaciones", detail=f"No se puede eliminar: instalaciones={active_installs}, asignaciones={active_assignments}", instalaciones=active_installs, asignaciones=active_assignments)
     aplicar_con_historial(db, a, {"status": "retired"}, getattr(current_user, "id", None))
     a.is_active = False
     db.commit()
@@ -916,10 +908,7 @@ def delete_cost_center_record(cid: str, db: Session) -> dict:
         ALMLicense.is_active == True,
     ).scalar() or 0
     if active_contracts or active_licenses:
-        raise ErrorDeDominio(
-            400,
-            f"No se puede eliminar: contratos={active_contracts}, licencias={active_licenses}",
-        )
+        raise error(400, "alm_no_eliminable_contratos_licencias", detail=f"No se puede eliminar: contratos={active_contracts}, licencias={active_licenses}", contratos=active_contracts, licencias=active_licenses)
     c.is_active = False
     db.commit()
     return {"ok": True, "message": "Centro de coste eliminado correctamente"}
@@ -931,20 +920,20 @@ def add_install_record(aid: str, data: dict, installed_by_id: str, db: Session) 
 
     license_id = data.get("license_id")
     if not license_id:
-        raise ErrorDeDominio(400, "license_id es obligatorio")
+        raise error(400, "campo_obligatorio", detail="license_id es obligatorio", campo="license_id")
     asset = db.query(ALMAsset).filter(ALMAsset.id == aid, ALMAsset.is_active == True).first()
     if not asset:
-        raise ErrorDeDominio(404, "Activo no encontrado")
+        raise error(404, "no_encontrado", detail="Activo no encontrado", que="activo")
     license_obj = db.query(ALMLicense).filter(ALMLicense.id == license_id, ALMLicense.is_active == True).first()
     if not license_obj:
-        raise ErrorDeDominio(404, "Licencia no encontrada")
+        raise error(404, "no_encontrado", detail="Licencia no encontrada", que="licencia")
     existing = db.query(ALMSoftwareInstall).filter(
         ALMSoftwareInstall.asset_id == aid,
         ALMSoftwareInstall.license_id == license_id,
         ALMSoftwareInstall.is_active == True,
     ).first()
     if existing:
-        raise ErrorDeDominio(400, "La instalacion ya existe")
+        raise error(400, "instalacion_ya_existe", detail="La instalacion ya existe")
     inst = ALMSoftwareInstall(
         asset_id     = aid,
         license_id   = license_id,

@@ -27,8 +27,13 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 # ── DocuSign auth base URLs ────────────────────────────────────────────────────
-_DS_AUTH_DEMO = "https://account-d.docusign.com"
-_DS_AUTH_PROD = "https://account.docusign.com"
+# 19-11-2026: configurables (DOCUSIGN_AUTH_BASE_DEMO/PROD) y sin «demo» por
+# defecto: `is_demo=None` = demo solo fuera de staging/producción.
+from app.core.comprobacion_de_produccion import adobe_sign_base_url, docusign_auth_base, docusign_es_demo
+
+
+def _ds_auth(is_demo: Optional[bool]) -> str:
+    return docusign_auth_base(docusign_es_demo() if is_demo is None else is_demo)
 
 # ── Low-level HTTP helper ──────────────────────────────────────────────────────
 
@@ -66,7 +71,7 @@ def docusign_auth_url(
     integration_key: str,
     redirect_uri: str,
     *,
-    is_demo: bool = True,
+    is_demo: Optional[bool] = None,
     scopes: str = "signature impersonation",
     state: Optional[str] = None,
 ) -> str:
@@ -74,7 +79,7 @@ def docusign_auth_url(
 
     `state`: el de `app.services.oauth_state` (auditoria 2026-11 #26).
     """
-    base = _DS_AUTH_DEMO if is_demo else _DS_AUTH_PROD
+    base = _ds_auth(is_demo)
     params = urllib.parse.urlencode({
         "response_type": "code",
         "scope": scopes,
@@ -91,13 +96,13 @@ def docusign_exchange_code(
     code: str,
     redirect_uri: str,
     *,
-    is_demo: bool = True,
+    is_demo: Optional[bool] = None,
 ) -> dict:
     """Exchange authorization code for access + refresh tokens.
 
     Returns {"ok": True, "access_token": str, "refresh_token": str, "expires_in": int}
     """
-    base = _DS_AUTH_DEMO if is_demo else _DS_AUTH_PROD
+    base = _ds_auth(is_demo)
     creds = base64.b64encode(f"{integration_key}:{secret_key}".encode()).decode()
     body_str = urllib.parse.urlencode({
         "grant_type": "authorization_code",
@@ -135,13 +140,13 @@ def docusign_refresh_token(
     secret_key: str,
     refresh_token: str,
     *,
-    is_demo: bool = True,
+    is_demo: Optional[bool] = None,
 ) -> dict:
     """Obtain a new access token using refresh token.
 
     Returns {"ok": True, "access_token": str, "refresh_token": str}
     """
-    base = _DS_AUTH_DEMO if is_demo else _DS_AUTH_PROD
+    base = _ds_auth(is_demo)
     creds = base64.b64encode(f"{integration_key}:{secret_key}".encode()).decode()
     body_str = urllib.parse.urlencode({
         "grant_type": "refresh_token",
@@ -308,7 +313,7 @@ def adobe_sign_auth_url(
 
     `state`: el de `app.services.oauth_state` (auditoria 2026-11 #26).
     """
-    base = (base_url or settings.ADOBE_SIGN_BASE_URL).rstrip("/").replace("/api/rest/v6", "")
+    base = adobe_sign_base_url(base_url).rstrip("/").replace("/api/rest/v6", "")
     params = urllib.parse.urlencode({
         "response_type": "code",
         "scope": scopes,
@@ -330,7 +335,7 @@ def adobe_sign_exchange_code(
 
     Returns {"ok": True, "access_token": str, "refresh_token": str, "api_access_point": str}
     """
-    base = (base_url or settings.ADOBE_SIGN_BASE_URL).rstrip("/").replace("/api/rest/v6", "")
+    base = adobe_sign_base_url(base_url).rstrip("/").replace("/api/rest/v6", "")
     body_str = urllib.parse.urlencode({
         "grant_type": "authorization_code",
         "code": code,
@@ -352,7 +357,7 @@ def adobe_sign_exchange_code(
             "access_token": data.get("access_token", ""),
             "refresh_token": data.get("refresh_token", ""),
             "expires_in": data.get("expires_in", 3600),
-            "api_access_point": data.get("api_access_point", base_url or settings.ADOBE_SIGN_BASE_URL),
+            "api_access_point": data.get("api_access_point", adobe_sign_base_url(base_url)),
         }
     except urllib.error.HTTPError as exc:
         err = exc.read().decode()[:300]
@@ -372,7 +377,7 @@ def adobe_sign_refresh_token(
 
     Returns {"ok": True, "access_token": str}
     """
-    base = (base_url or settings.ADOBE_SIGN_BASE_URL).rstrip("/").replace("/api/rest/v6", "")
+    base = adobe_sign_base_url(base_url).rstrip("/").replace("/api/rest/v6", "")
     body_str = urllib.parse.urlencode({
         "grant_type": "refresh_token",
         "client_id": client_id,

@@ -27,6 +27,7 @@ import app.services.organizations_service as _orgs
 from app.schemas.auth_payloads import (
     AssignUserOrgIn,
 )
+from app.core.codigos_de_error import error_http, desde_valor
 
 router = APIRouter()
 
@@ -45,8 +46,9 @@ def remove_user_from_org(
     except ValueError as e:
         msg = str(e)
         if msg.startswith("404:"):
-            raise HTTPException(404, msg[4:])
-        raise HTTPException(400, msg)
+            raise error_http(404, getattr(e, "codigo", "no_encontrado_generico"), detail=msg[4:],
+                             **(getattr(e, "params", None) or {}))
+        raise desde_valor(400, e)
 
 
 @router.get("/organizations", summary="Listar organizaciones (super-admin)")
@@ -108,7 +110,7 @@ def create_organization(
             datos["max_projects"] = get_runtime_int(db, "ORG_DEFAULT_MAX_PROJECTS")
         return APIResponse.ok(data=_orgs.create_organization(datos, current_user, db))
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
 
 
 @router.get("/organizations/{org_id}", summary="Detalle de organización")
@@ -134,9 +136,9 @@ def update_organization(
         return APIResponse.ok(data=_orgs.update_organization(org_id, payload.model_dump(exclude_unset=True), db))
     except ValueError as e:
         if str(e) == "motivo_requerido":
-            raise HTTPException(422, "Para suspender una empresa hay que indicar el motivo")
+            raise error_http(422, "suspension_requiere_motivo")
         if str(e) != "not_found":
-            raise HTTPException(400, str(e))
+            raise desde_valor(400, e)
         raise HTTPException(404)
 
 
@@ -152,8 +154,9 @@ def assign_user_to_org(
     except ValueError as e:
         msg = str(e)
         if msg.startswith("404:"):
-            raise HTTPException(404, msg[4:])
-        raise HTTPException(400, msg)
+            raise error_http(404, getattr(e, "codigo", "no_encontrado_generico"), detail=msg[4:],
+                             **(getattr(e, "params", None) or {}))
+        raise desde_valor(400, e)
 
 
 # ── Revision multitenant 2026-11: baja definitiva y «entrar como» ────────────
@@ -172,7 +175,7 @@ def _org_o_404(db: Session, org_id: str):
     try:
         return _baja.obtener(db, org_id)
     except ValueError:
-        raise HTTPException(404, "Empresa no encontrada")
+        raise error_http(404, "no_encontrado", detail="Empresa no encontrada", que="empresa")
 
 
 @router.post("/organizations/{org_id}/deletion", summary="Pedir la baja definitiva (cuarentena)")
@@ -211,7 +214,7 @@ def impersonate(org_id: str, payload: EntrarComoIn, response: Response, db: Sess
     try:
         usuario = _baja.usuario_de(db, payload.user_id)
     except ValueError:
-        raise HTTPException(404, "Usuario no encontrado")
+        raise error_http(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
     token = entrar_como(db, current_user, org, usuario, payload.reason)
     # Solo la cookie de acceso: la de refresco sigue siendo la del superadmin,
     # y refrescar le devuelve su propia sesion.

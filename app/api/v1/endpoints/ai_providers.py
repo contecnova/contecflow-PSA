@@ -28,6 +28,7 @@ from app.services.ai_provider_service import (
     update_provider_test_result,
 )
 from app.services import ai_provider_service as _ia
+from app.core.codigos_de_error import error_http, desde_valor
 
 _logger = logging.getLogger("ai_providers")
 
@@ -92,7 +93,7 @@ def import_env_provider(db: Session = Depends(get_db), cu=Depends(require_admin)
     try:
         p = _ia.importar_proveedor_de_entorno(db, cu)
     except ValueError as e:
-        raise HTTPException(409, str(e))
+        raise desde_valor(409, e)
     return APIResponse.ok(data=_out(p))
 
 
@@ -100,7 +101,7 @@ def import_env_provider(db: Session = Depends(get_db), cu=Depends(require_admin)
 def test_env_provider(_=Depends(require_admin)):
     p = _ia.proveedor_desde_entorno()
     if p is None:
-        raise HTTPException(404, "No hay proveedor de IA en el .env")
+        raise error_http(404, "ia_sin_proveedor", detail="No hay proveedor de IA en el .env")
     t0 = time.time()
     try:
         resultado = _ia.call_provider(p, [{"role": "user", "content": _MENSAJE_DE_PRUEBA}],
@@ -128,7 +129,7 @@ def create_provider(data: dict = Body(...), db: Session = Depends(get_db), cu=De
 def update_provider(pid: str, data: dict = Body(...), db: Session = Depends(get_db), _=Depends(require_admin)):
     p = get_provider(db, pid, is_superadmin=_.is_superadmin, organization_id=_.organization_id)
     if not p:
-        raise HTTPException(status_code=404, detail="AI provider not found")
+        raise error_http(404, "no_encontrado", detail="AI provider not found", que="proveedor_ia")
     p = svc_update_provider(db, p, data, is_superadmin=_.is_superadmin, organization_id=_.organization_id)
     return APIResponse.ok(data=_out(p))
 
@@ -138,7 +139,7 @@ def delete_provider(pid: str, db: Session = Depends(get_db), _=Depends(require_a
     enforce_abac(db, _, "ai_provider", pid, action="delete")
     p = get_provider(db, pid, is_superadmin=_.is_superadmin, organization_id=_.organization_id)
     if not p:
-        raise HTTPException(status_code=404, detail="AI provider not found")
+        raise error_http(404, "no_encontrado", detail="AI provider not found", que="proveedor_ia")
     svc_delete_provider(db, p)
     return APIResponse.ok(data={"ok": True})
 
@@ -147,7 +148,7 @@ def delete_provider(pid: str, db: Session = Depends(get_db), _=Depends(require_a
 def set_default(pid: str, db: Session = Depends(get_db), _=Depends(require_admin)):
     p = svc_set_default_provider(db, pid, is_superadmin=_.is_superadmin, organization_id=_.organization_id)
     if not p:
-        raise HTTPException(status_code=404, detail="AI provider not found")
+        raise error_http(404, "no_encontrado", detail="AI provider not found", que="proveedor_ia")
     return APIResponse.ok(data={"ok": True})
 
 
@@ -178,14 +179,14 @@ def _anotar_resultado_de_prueba(db, proveedor, *, ok: bool, error: str = "") -> 
 #: manera** y ninguno expone un código estable. El orden importa: gana la
 #: primera que encaje, y las credenciales van primero porque un 401 mal
 #: clasificado como 502 manda a mirar el sitio equivocado.
-_ERRORES_DE_PROVEEDOR: tuple[tuple[tuple[str, ...], int, str], ...] = (
+_ERRORES_DE_PROVEEDOR: tuple[tuple[tuple[str, ...], int, str, str], ...] = (
     (("api key not valid", "api key invalid", "invalid api key", "unauthorized",
       " 401", "authentication", "permission denied", " 403", "forbidden"),
-     401, "Credenciales inválidas en el proveedor"),
+     401, "Credenciales inválidas en el proveedor", "ia_credenciales_no_validas"),
     (("rate limit", "rate_limit", " 429", "too many requests", "quota"),
-     429, "Límite de uso alcanzado en el proveedor"),
+     429, "Límite de uso alcanzado en el proveedor", "ia_limite_de_uso"),
     (("model not found", "not_found", " 404", "no such model"),
-     404, "Modelo o endpoint no encontrado"),
+     404, "Modelo o endpoint no encontrado", "ia_modelo_no_encontrado"),
 )
 
 
@@ -196,10 +197,10 @@ def _http_del_error_de_proveedor(mensaje: str) -> HTTPException:
     devolver 500 haría pensar que el fallo es nuestro.
     """
     minusculas = mensaje.lower()
-    for marcas, codigo, texto in _ERRORES_DE_PROVEEDOR:
+    for marcas, codigo, texto, clave in _ERRORES_DE_PROVEEDOR:
         if any(marca in minusculas for marca in marcas):
-            return HTTPException(codigo, f"{texto}: {mensaje[:300]}")
-    return HTTPException(502, f"El proveedor devolvió un error: {mensaje[:300]}")
+            return error_http(codigo, clave, detail=f"{texto}: {mensaje[:300]}")
+    return error_http(502, "ia_proveedor_error", detail=f"El proveedor devolvió un error: {mensaje[:300]}")
 
 
 @router.post("/test-config", summary="Probar una configuración sin guardarla")
@@ -208,7 +209,7 @@ def test_unsaved(data: dict = Body(...), _=Depends(require_admin)):
     try:
         p = _ia.proveedor_sin_guardar(data)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
     t0 = time.time()
     try:
         resultado = _ia.call_provider(p, [{"role": "user", "content": _MENSAJE_DE_PRUEBA}],
@@ -225,7 +226,7 @@ def discover_unsaved(data: dict = Body(...), _=Depends(require_admin)):
     try:
         modelos = _ia.list_models_for_provider(_ia.proveedor_sin_guardar(data))
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
     except Exception as e:
         raise _http_del_error_de_proveedor(str(e))
     return APIResponse.ok(data={"models": modelos})
@@ -260,7 +261,7 @@ def put_routing(data: dict = Body(...), db: Session = Depends(get_db), cu=Depend
     for ruta in rutas.values():
         pid = (ruta or {}).get("provider_id")
         if pid and not get_provider(db, pid, is_superadmin=cu.is_superadmin, organization_id=cu.organization_id):
-            raise HTTPException(400, "Ese proveedor no es de esta empresa")
+            raise error_http(400, "ia_proveedor_ajeno", detail="Ese proveedor no es de esta empresa")
     return APIResponse.ok(data={"routes": _ia.guardar_rutas(db, cu.organization_id, rutas)})
 
 
@@ -269,7 +270,7 @@ def test_provider(pid: str, db: Session = Depends(get_db), _=Depends(require_adm
     """Probar la conexión con el proveedor enviando un mensaje de prueba."""
     p = get_provider(db, pid, is_superadmin=_.is_superadmin, organization_id=_.organization_id)
     if not p:
-        raise HTTPException(status_code=404, detail="AI provider not found")
+        raise error_http(404, "no_encontrado", detail="AI provider not found", que="proveedor_ia")
 
     t0 = time.time()
     try:
@@ -279,10 +280,12 @@ def test_provider(pid: str, db: Session = Depends(get_db), _=Depends(require_adm
         )
     except ValueError as e:
         _anotar_resultado_de_prueba(db, p, ok=False, error=str(e))
-        raise HTTPException(400, f"Error de datos: {str(e)[:200]}")
+        _logger.warning("Prueba de proveedor IA: error de datos: %s", e)
+        raise error_http(400, "ia_error_datos")
     except ConnectionError as e:
         _anotar_resultado_de_prueba(db, p, ok=False, error=str(e))
-        raise HTTPException(503, f"No se pudo conectar con el proveedor: {str(e)[:200]}")
+        _logger.warning("Prueba de proveedor IA: sin conexion: %s", e)
+        raise error_http(503, "ia_proveedor_sin_conexion")
     except Exception as e:
         _anotar_resultado_de_prueba(db, p, ok=False, error=str(e))
         raise _http_del_error_de_proveedor(str(e))
@@ -301,7 +304,7 @@ def sync_provider_models(pid: str, db: Session = Depends(get_db), _=Depends(requ
     """Discover and persist the live model list from the upstream provider."""
     p = get_provider(db, pid, is_superadmin=_.is_superadmin, organization_id=_.organization_id)
     if not p:
-        raise HTTPException(status_code=404, detail="AI provider not found")
+        raise error_http(404, "no_encontrado", detail="AI provider not found", que="proveedor_ia")
 
     try:
         models = svc_sync_provider_models(db, p)
@@ -313,11 +316,11 @@ def sync_provider_models(pid: str, db: Session = Depends(get_db), _=Depends(requ
             "default_model": p.default_model,
         })
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
     except Exception as e:
         _logger.exception("svc_sync_provider_models failed for provider=%s", p.id)
         update_provider_test_result(db, p, success=False, error=str(e))
-        raise HTTPException(500, f"No se pudieron sincronizar modelos: {str(e)}")
+        raise error_http(500, "ia_modelos_no_sincronizados")
 
 
 @router.post("/sync-models/all")
@@ -411,7 +414,7 @@ def unified_chat(data: dict = Body(...), db: Session = Depends(get_db),
     """Chat unificado que usa el proveedor configurado."""
     messages = data.get("messages", [])
     if not messages:
-        raise HTTPException(400, "messages requerido")
+        raise error_http(400, "campo_obligatorio", detail="messages requerido", campo="messages")
     system   = data.get("system", f"Eres NexusAssist, el asistente IA de {NOMBRE_DEL_PRODUCTO}.")
     module   = data.get("module", "chat")
     provider_id = data.get("provider_id")

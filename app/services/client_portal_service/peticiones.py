@@ -247,7 +247,7 @@ def respond_to_fr(fr_id: str, payload, current_user, db: Session) -> dict:
     # Presupuestar sin explicar el presupuesto deja al cliente con una cifra y
     # ningún motivo.
     if payload.status == "estimated" and not payload.pm_response:
-        raise ValueError("pm_response es obligatorio para presupuestar una solicitud")
+        raise ErrorConCodigo("campo_obligatorio", detail="pm_response es obligatorio para presupuestar una solicitud", campo="pm_response")
 
     for clave, valor in payload.model_dump(exclude_unset=True, exclude_none=True).items():
         setattr(fr, clave, valor)

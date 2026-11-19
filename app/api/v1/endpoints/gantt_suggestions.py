@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.user import User
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error_http
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -20,4 +21,4 @@ def get_gantt_suggestions(project_id: str, db: Session = Depends(get_db), curren
         raise  # preserve the original status/detail
     except Exception:
         logger.exception("Gantt suggestions failed for project=%s", project_id)
-        raise HTTPException(status_code=500, detail="Error generating gantt suggestions")
+        raise error_http(500, "ia_sugerencias_gantt_fallo", detail="Error generating gantt suggestions")

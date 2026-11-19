@@ -38,12 +38,12 @@ import TarjetasDeSaldo from '../components/ausencias/Saldos'
 
 export default function AbsencesPage(): JSX.Element {
   const { t, ta } = useTa()
-  const { hasRole } = useAuth()
+  const { puede } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const pedida = searchParams.get('tab')
-  const gestiona = hasRole('admin', 'hr', 'pm', 'team_lead')
-  const planifica = hasRole('admin', 'hr')
+  const gestiona = puede('ausencias.gestionar')
+  const planifica = puede('ausencias.config')
   const validas = ['mias', 'equipo', 'aprobar', ...(planifica ? ['cuadrante', 'cobertura'] : [])]
   const [tab, setTab] = useState(pedida && validas.includes(pedida) ? pedida : 'mias')
   const [pidiendo, setPidiendo] = useState(false)

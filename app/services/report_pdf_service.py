@@ -23,6 +23,7 @@ import logging
 from datetime import datetime
 from typing import Optional
 from app.services.textos_de_salida import texto
+from app.core.codigos_de_error import ErrorConCodigo
 
 logger = logging.getLogger(__name__)
 
@@ -382,7 +383,7 @@ def datos_de_la_metrica(report, db, org_id, idioma: Optional[str] = None) -> tup
         filtros = {}
     manejador = METRICS_REGISTRY.get(report.metric or "")
     if manejador is None:
-        raise ValueError(f"Métrica desconocida: {report.metric}")
+        raise ErrorConCodigo("metrica_no_encontrada", detail=f"Métrica desconocida: {report.metric}", metrica=report.metric)
     d_from, d_to = parse_date_range(filtros.get("date_from"), filtros.get("date_to"))
     resultado = manejador(db=db, d_from=d_from, d_to=d_to, top_n=int(filtros.get("top_n") or 20),
                           project_id=filtros.get("project_id"), department=filtros.get("department"),

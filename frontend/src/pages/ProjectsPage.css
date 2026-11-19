@@ -23,14 +23,14 @@
 .prj-box-2 {
   position: fixed;
   inset: 0;
-  z-index: 10;
+  z-index: calc(var(--z-content) + 9);
 }
 
 .prj-card-2 {
   position: absolute;
   top: 110%;
   left: 0;
-  z-index: 20;
+  z-index: calc(var(--z-content) + 19);
   background: var(--surface-3);
   border: 1px solid var(--surface-4);
   border-radius: var(--radius-md);

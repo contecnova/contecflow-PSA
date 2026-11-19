@@ -31,6 +31,7 @@ from app.services.user_service import (
     deactivate_user_record,
     delete_user_record,
 )
+from app.core.codigos_de_error import error_http
 
 router = APIRouter()
 
@@ -176,7 +177,7 @@ def user_approval_chain(
 ):
     user = get_user_by_id(db, user_id)
     if not user:
-        raise HTTPException(404, "Usuario no encontrado")
+        raise error_http(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
     enforce_abac(db, _, "user", user_id, action="read")
     _ensure_same_org_user_access(user, _)
     chain = approval_chain_for_user(user, db, _)
@@ -198,7 +199,7 @@ def get_user(
 
     user = get_user_by_id(db, user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        raise error_http(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
     _ensure_same_org_user_access(user, current_user)
 
     # Segunda auditoría 2026-11: quién ve qué ficha lo decide la política.
@@ -242,7 +243,7 @@ def deactivate_user(
 ):
     user = get_user_by_id(db, user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        raise error_http(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
     _ensure_same_org_user_access(user, _)
     enforce_abac(db, _, "user", user_id, action="delete")
     baja = deactivate_user_record(user, db, _, confirmar_equipos=confirmar_equipos)
@@ -256,10 +257,10 @@ def delete_user_permanent(
     current_user: User = Depends(require_admin),
 ):
     if current_user.id == user_id:
-        raise HTTPException(status_code=400, detail="No puedes eliminarte a ti mismo")
+        raise error_http(400, "no_puedes_contigo", detail="No puedes eliminarte a ti mismo")
     user = get_user_by_id(db, user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        raise error_http(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
     _ensure_same_org_user_access(user, current_user)
     enforce_abac(db, current_user, "user", user_id, action="delete")
     delete_user_record(user, db)

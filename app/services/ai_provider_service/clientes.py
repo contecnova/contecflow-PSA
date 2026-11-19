@@ -20,6 +20,7 @@ from app.services.ai_provider_service.catalogo import (
     _normalize_openai_base,
     _validate_model,
 )
+from app.core.codigos_de_error import ErrorConCodigo
 
 _logger = logging.getLogger("ai_provider_service")
 
@@ -53,10 +54,10 @@ def _con_adjuntos(messages: list, familia: str) -> list:
                            "_partes": [{"inline_data": {"mime_type": a["media"], "data": a["datos"]}} for a in adjuntos]})
         elif familia == "ollama":
             if any(a["media"] == "application/pdf" for a in adjuntos):
-                raise ValueError("Ollama no lee PDF: sube una imagen o usa otro proveedor")
+                raise ErrorConCodigo("ia_ollama_sin_pdf")
             salida.append({"role": m["role"], "content": texto, "images": [a["datos"] for a in adjuntos]})
         else:
-            raise ValueError(f"El proveedor {familia} no admite adjuntos")
+            raise ErrorConCodigo("ia_proveedor_sin_adjuntos", proveedor=familia)
     return salida
 
 
@@ -143,7 +144,7 @@ def _call_gemini(api_key, model, messages, system, max_tokens, temperature) -> d
         break
     if not text:
         motivo = candidato.get("finishReason") or "sin texto"
-        raise ValueError(f"Gemini no devolvió texto ({motivo}; {pensado} tokens "
+        raise ErrorConCodigo("ia_sin_texto_tokens", detail=f"Gemini no devolvió texto ({motivo}; {pensado} tokens "
                          f"de razonamiento de {tope}): sube el máximo de tokens del proveedor")
     if cortado:
         _logger.warning("Gemini cortó la respuesta en el tope (%s tokens, %s de razonamiento)", tope, pensado)
@@ -192,7 +193,7 @@ def _call_ollama(base_url, model, messages, system, max_tokens, temperature) -> 
 def _list_openai_compatible_models(base_url: str, api_key: str) -> list[str]:
     base = _normalize_openai_base(base_url)
     if not base:
-        raise ValueError("Base URL vacía para proveedor compatible OpenAI")
+        raise ErrorConCodigo("integracion_no_configurada", detail="Base URL vacía para proveedor compatible OpenAI", nombre="OpenAI")
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     resp = httpx.get(f"{base}/models", headers=headers, timeout=espera_de_ia("AI_MODELS_LIST_TIMEOUT_SECONDS"))
     if resp.status_code != 200:
@@ -248,7 +249,7 @@ def _list_gemini_models(api_key: str) -> list[str]:
 def _list_ollama_models(base_url: str) -> list[str]:
     base = _normalize_ollama_base(base_url)
     if not base:
-        raise ValueError("Base URL vacía para Ollama")
+        raise ErrorConCodigo("integracion_no_configurada", detail="Base URL vacía para Ollama", nombre="Ollama")
     resp = httpx.get(f"{base}/api/tags", timeout=espera_de_ia("AI_MODELS_LIST_TIMEOUT_SECONDS"))
     if resp.status_code != 200:
         raise Exception(f"Ollama list models {resp.status_code}: {resp.text[:250]}")
@@ -261,7 +262,7 @@ def _list_ollama_models(base_url: str) -> list[str]:
 def _list_azure_models(base_url: str, api_key: str) -> list[str]:
     base = _normalize_openai_base(base_url)
     if not base:
-        raise ValueError("Base URL vacía para Azure OpenAI")
+        raise ErrorConCodigo("integracion_no_configurada", detail="Base URL vacía para Azure OpenAI", nombre="Azure OpenAI")
     headers = {"api-key": api_key, "Content-Type": "application/json"}
     # Data-plane model listing in Azure OpenAI
     resp = httpx.get(f"{base}/models?api-version=2024-10-21", headers=headers, timeout=espera_de_ia("AI_MODELS_LIST_TIMEOUT_SECONDS"))
@@ -283,25 +284,25 @@ def list_models_for_provider(provider) -> list[str]:
 
     if provider_type == "anthropic":
         if not api_key:
-            raise ValueError("Falta API key para listar modelos de Anthropic")
+            raise ErrorConCodigo("ia_falta_api_key", detail="Falta API key para listar modelos de Anthropic", proveedor="Anthropic")
         return _list_anthropic_models(api_key)
 
     if provider_type == "gemini":
         if not api_key:
-            raise ValueError("Falta API key para listar modelos de Gemini")
+            raise ErrorConCodigo("ia_falta_api_key", detail="Falta API key para listar modelos de Gemini", proveedor="Gemini")
         return _list_gemini_models(api_key)
 
     if provider_type in ("openai", "groq", "mistral", "deepseek"):
         if not api_key:
-            raise ValueError(f"Falta API key para listar modelos de {provider_type}")
+            raise ErrorConCodigo("ia_falta_api_key", detail=f"Falta API key para listar modelos de {provider_type}", proveedor=provider_type)
         return _list_openai_compatible_models(base_url, api_key)
 
     if provider_type == "azure":
         if not api_key:
-            raise ValueError("Falta API key para listar modelos de Azure")
+            raise ErrorConCodigo("ia_falta_api_key", detail="Falta API key para listar modelos de Azure", proveedor="Azure")
         return _list_azure_models(base_url, api_key)
 
-    raise ValueError(f"Proveedor no soportado para list models: {provider_type}")
+    raise ErrorConCodigo("proveedor_no_soportado", detail=f"Proveedor no soportado para list models: {provider_type}", proveedor=provider_type)
 
 
 def sync_provider_models(db: Session, provider) -> list[str]:
@@ -350,7 +351,7 @@ def call_provider(provider, messages: list, system: str = None,
     elif provider.provider == "ollama":
         return _call_ollama(base_url or settings.OLLAMA_BASE_URL, model, messages, system, max_tokens, temperature)
     else:
-        raise ValueError(f"Proveedor no soportado: {provider.provider}")
+        raise ErrorConCodigo("proveedor_no_soportado", proveedor=provider.provider)
 
 
 # ── Diagnóstico por proveedor ─────────────────────────────────────────────────

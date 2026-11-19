@@ -22,7 +22,7 @@ from app.models.settings import AppSetting
 from app.models.task import Task
 from app.core import timeutil
 from app.services.pagination_service import paginate_query
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 # ── Entity catalog (static config) ───────────────────────────────────────────
 
@@ -602,18 +602,12 @@ def apply_filter(query, model, column: str, operator: str, value: Any):
     traducción son incoherencias del servidor, y se lanzan como tales.
     """
     if not hasattr(model, column):
-        raise ErrorDeDominio(
-            500,
-            f"Catálogo de informes incoherente: la columna '{column}' no existe "
-            f"en {model.__name__}",
-        )
+        raise error(500, "error_interno", detail=f"Catálogo de informes incoherente: la columna '{column}' no existe "
+            f"en {model.__name__}")
     clausula = _CLAUSULAS.get(operator)
     if clausula is None:
-        raise ErrorDeDominio(
-            500,
-            f"Catálogo de informes incoherente: el operador '{operator}' no "
-            f"tiene traducción a SQL",
-        )
+        raise error(500, "error_interno", detail=f"Catálogo de informes incoherente: el operador '{operator}' no "
+            f"tiene traducción a SQL")
     return query.filter(clausula(getattr(model, column), value))
 
 
@@ -712,7 +706,7 @@ def _exigir_columnas_de_tarifa_visibles(entity: str, filters: list, sort_column:
         vetadas.add("cost_amount")
     for f in filters:
         if _valor_del_filtro(f, "column", "") in vetadas:
-            raise ErrorDeDominio(403, "No puedes filtrar por tarifas o costes que no puedes ver")
+            raise error(403, "informe_filtro_financiero")
     return None if sort_column in vetadas else sort_column
 
 
@@ -748,14 +742,14 @@ def _preparar_consulta(
     """
     model = get_model_class(entity)
     if model is None:
-        raise ErrorDeDominio(400, f"Entidad '{entity}' no soportada en este entorno")
+        raise error(400, "entidad_desconocida", detail=f"Entidad '{entity}' no soportada en este entorno", entidad=entity)
 
     entity_def = ENTITIES.get(entity, {})
     allowed_cols = set(entity_def.get("columns", {}).keys())
 
     for c in columns:
         if c not in allowed_cols:
-            raise ErrorDeDominio(400, f"Columna '{c}' no permitida para la entidad '{entity}'")
+            raise error(400, "informe_columna_no_permitida", detail=f"Columna '{c}' no permitida para la entidad '{entity}'", columna=c, entidad=entity)
 
     db_query = _acotar_por_tenant(db.query(model), model, current_user, db)
     sort_column = _exigir_columnas_de_tarifa_visibles(entity, filters, sort_column, current_user, db)
@@ -765,9 +759,9 @@ def _preparar_consulta(
         op = _valor_del_filtro(f, "operator", "")
         val = _valor_del_filtro(f, "value")
         if col_name not in allowed_cols:
-            raise ErrorDeDominio(400, f"Columna de filtro '{col_name}' no permitida")
+            raise error(400, "informe_columna_filtro_no_permitida", detail=f"Columna de filtro '{col_name}' no permitida", columna=col_name)
         if op not in OPERATORS:
-            raise ErrorDeDominio(400, f"Operador '{op}' no soportado")
+            raise error(400, "operador_desconocido", detail=f"Operador '{op}' no soportado", operador=op)
         db_query = apply_filter(db_query, model, col_name, op, val)
 
     # Un `sort_column` que no esté en el catálogo se ignora en silencio, y es lo

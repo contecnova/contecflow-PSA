@@ -1964,8 +1964,8 @@ export default function PerformanceReviewsPage() {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const { user } = useAuth()
-  const isManager = ['admin', 'hr'].includes(user?.role ?? '')
+  const { user, puede } = useAuth()
+  const isManager = puede('evaluaciones.gestionar')
 
   const [tab, setTab] = useState('cycles')
 

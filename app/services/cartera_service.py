@@ -33,6 +33,7 @@ from sqlalchemy.orm import Session
 from app.core import timeutil
 from app.core.errores import ErrorDeDominio
 from app.models.portfolio import PortfolioCriterion, PortfolioGate, PortfolioProposal
+from app.core.codigos_de_error import error
 
 TIPO_DE_APROBACION = "portfolio_gate"
 _VALOR_MAXIMO = 10.0
@@ -78,7 +79,7 @@ def fases(db: Session, user, solo_activas: bool = True) -> list[PortfolioGate]:
 def guardar_criterio(db: Session, user, datos: dict, criterio_id: Optional[str] = None) -> dict:
     from app.services.audit import audit_log
     if datos.get("weight") is not None and datos["weight"] < 0:
-        raise ErrorDeDominio(422, "El peso no puede ser negativo")
+        raise error(422, "peso_negativo")
     c = _propio(db, user, PortfolioCriterion, criterio_id) if criterio_id else PortfolioCriterion(
         organization_id=_org(user))
     for campo in ("name", "description", "weight", "inverse", "sort_order", "is_active"):
@@ -96,7 +97,7 @@ def guardar_fase(db: Session, user, datos: dict, fase_id: Optional[str] = None) 
     from app.services.audit import audit_log
     if datos.get("workflow_id") and db.query(ApprovalWorkflow.id).filter(
             ApprovalWorkflow.id == datos["workflow_id"]).first() is None:
-        raise ErrorDeDominio(422, "Ese flujo de aprobación no existe")
+        raise error(422, "no_encontrado", detail="Ese flujo de aprobación no existe", que="flujo")
     g = _propio(db, user, PortfolioGate, fase_id) if fase_id else PortfolioGate(organization_id=_org(user))
     for campo in ("name", "description", "sort_order", "workflow_id", "min_score", "is_active"):
         if campo in datos:
@@ -111,7 +112,7 @@ def guardar_fase(db: Session, user, datos: dict, fase_id: Optional[str] = None) 
 def _propio(db: Session, user, modelo, fila_id: str):
     fila = db.query(modelo).filter(modelo.id == fila_id, modelo.organization_id == _org(user)).first()
     if not fila:
-        raise ErrorDeDominio(404, "No encontrado")
+        raise error(404, "no_encontrado_generico")
     return fila
 
 
@@ -173,14 +174,14 @@ def guardar(db: Session, user, datos: dict, propuesta_id: Optional[str] = None) 
     if propuesta_id:
         p = obtener(db, user, propuesta_id)
         if p.status not in ("draft", "in_progress", "rejected"):
-            raise ErrorDeDominio(409, "Una propuesta en revisión, aprobada o convertida no se edita")
+            raise error(409, "propuesta_no_editable")
     else:
         p = PortfolioProposal(organization_id=_org(user), requested_by=user.id, status="draft")
     for campo in _CAMPOS:
         if campo in datos:
             setattr(p, campo, datos[campo])
     if p.wanted_start and p.wanted_end and p.wanted_end < p.wanted_start:
-        raise ErrorDeDominio(422, "El fin deseado es anterior al inicio")
+        raise error(422, "fecha_fin_anterior_a_inicio", detail="El fin deseado es anterior al inicio")
     if "roles_needed" in datos:
         p.roles_needed = json.dumps([{"role": str(r.get("role") or "").strip(), "hours": float(r.get("hours") or 0)}
                                      for r in (datos["roles_needed"] or []) if str(r.get("role") or "").strip()])
@@ -205,17 +206,16 @@ def enviar_a_fase(db: Session, user, propuesta_id: str) -> dict:
     p = obtener(db, user, propuesta_id)
     lista = fases(db, user)
     if not lista:
-        raise ErrorDeDominio(409, "La empresa no tiene fases de cartera: créalas en la configuración de la cartera")
+        raise error(409, "cartera_sin_fases")
     if p.status not in ("draft", "in_progress"):
-        raise ErrorDeDominio(409, "Solo se envía una propuesta en borrador o entre fases")
+        raise error(409, "propuesta_no_enviable")
     if p.gate_index >= len(lista):
-        raise ErrorDeDominio(409, "La propuesta ya superó todas las fases")
+        raise error(409, "propuesta_fases_superadas")
     fase = lista[p.gate_index]
     minimo = fase.min_score if fase.min_score is not None else (
         get_runtime_float(db, "PORTFOLIO_MIN_SCORE_TO_ADVANCE", _org(user)) or 0.0)
     if p.score is None or p.score < minimo:
-        raise ErrorDeDominio(422, f"La puntuación ({p.score if p.score is not None else '—'}) "
-                                  f"no llega al mínimo de la fase ({minimo})")
+        raise error(422, "propuesta_puntuacion_insuficiente", puntuacion=p.score if p.score is not None else '—', minimo=minimo)
     p.status = "in_review"
     audit_log(db, user, "SUBMIT", "portfolio_proposal", p.id, p.title, new_values={"gate": fase.name})
     db.commit()
@@ -232,7 +232,7 @@ def aplicar_decision(db: Session, propuesta_id: str, aprobado: bool, actor, nota
     from app.services.audit import audit_log
     p = db.query(PortfolioProposal).filter(PortfolioProposal.id == propuesta_id).first()
     if p is None or p.status != "in_review":
-        raise ErrorDeDominio(409, "La propuesta no está esperando decisión")
+        raise error(409, "propuesta_no_pendiente")
     total = db.query(func.count(PortfolioGate.id)).filter(
         PortfolioGate.organization_id == p.organization_id, PortfolioGate.is_active.is_(True)).scalar() or 0
     p.decision_note = nota
@@ -251,7 +251,7 @@ def decidir_en_pantalla(db: Session, user, propuesta_id: str, aprobado: bool, no
     from app.services.approval_engine import fuentes
     p = obtener(db, user, propuesta_id)
     if fuentes.estado(db, TIPO_DE_APROBACION, p.id) == "pending":
-        raise ErrorDeDominio(409, "Esta fase la decide su flujo de aprobación: hazlo desde la bandeja")
+        raise error(409, "fase_decide_flujo")
     aplicar_decision(db, p.id, aprobado, user, nota)
     db.refresh(p)
     return propuesta_dict(db, p, fases(db, user))
@@ -266,7 +266,7 @@ def convertir_en_proyecto(db: Session, user, propuesta_id: str, datos: dict) -> 
 
     p = obtener(db, user, propuesta_id)
     if p.status != "approved":
-        raise ErrorDeDominio(409, "Solo se convierte una propuesta aprobada")
+        raise error(409, "propuesta_solo_aprobada_convertible")
     org = _org(user)
     if p.template_id:
         from app.services.plantillas_de_proyecto import instanciar

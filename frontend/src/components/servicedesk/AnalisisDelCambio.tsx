@@ -34,7 +34,6 @@ import './sdMercado.css'
 
 interface CambioMin { id: string; number?: string; status?: string | null; change_type?: string | null; affected_cis?: string[]; requester_id?: string | null }
 
-const ROLES_RESPONSABLES = ['admin', 'pm', 'team_lead', 'hr']
 
 export default function AnalisisDelCambio({ cambio }: { cambio: CambioMin }) {
   const t = useAppT()
@@ -164,9 +163,9 @@ function Aprobacion({ cambio }: { cambio: CambioMin }) {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
-  const { user } = useAuth()
-  const esAdmin = user?.role === 'admin'
-  const esResponsable = ROLES_RESPONSABLES.includes(String(user?.role))
+  const { user, puede } = useAuth()
+  const esAdmin = puede('sd.administrar')
+  const esResponsable = puede('sd.gestionar')
   const esSolicitante = !!user?.id && user.id === cambio.requester_id
   const [motivo, setMotivo] = useState('')
   const [justificacion, setJustificacion] = useState('')

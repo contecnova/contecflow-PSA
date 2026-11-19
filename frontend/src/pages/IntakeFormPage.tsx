@@ -6,10 +6,9 @@ import { useState, useId } from 'react'
 import type { ChangeEvent, CSSProperties } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import axios from 'axios'
 import { CheckCircle2 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
-import { apiUrl } from '../services/api/urls'
+import { apiPublica } from '../services/api/clienteBase'
 import './IntakeFormPage.css'
 import { Pulsable, Select } from '../components/ui'
 
@@ -51,7 +50,7 @@ export default function IntakeFormPage(): JSX.Element {
 
   const { data: form, isLoading, error } = useQuery<PublicFormResponse>({
     queryKey: ['public-form', token],
-    queryFn: () => axios.get(apiUrl(`/forms/public/${token}`)).then(r => r.data),
+    queryFn: () => apiPublica.get(`/forms/public/${token}`).then(r => r.data),
     retry: false,
   })
 
@@ -63,7 +62,7 @@ export default function IntakeFormPage(): JSX.Element {
     setFields((p) => ({ ...p, [k]: e.target.value }))
 
   const { mutate, isPending, isError, error: submitError } = useMutation({
-    mutationFn: (data: IntakeFields) => axios.post(apiUrl(`/forms/public/${token}/submit`), data).then(r => r.data),
+    mutationFn: (data: IntakeFields) => apiPublica.post(`/forms/public/${token}/submit`, data).then(r => r.data),
     onSuccess: () => setSubmitted(true),
   })
 

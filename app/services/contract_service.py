@@ -7,6 +7,7 @@ from app.models.project import Project
 from app.models.user import User
 from app.services.numbering import next_numbered_code
 import logging
+from app.core.codigos_de_error import ErrorConCodigo
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +97,7 @@ def update_contract(db: Session, c: Contract, updates: dict) -> Contract:
             if new_status == old_status:
                 continue
             if new_status not in allowed_status_transitions.get(old_status, []):
-                raise ValueError(f"Transición de estado no permitida: {old_status} → {new_status}")
+                raise ErrorConCodigo("transicion_no_permitida", detail=f"Transición de estado no permitida: {old_status} → {new_status}", desde=old_status, hasta=new_status)
         setattr(c, k, v)
     db.commit()
     db.refresh(c)
@@ -106,14 +107,14 @@ def update_contract(db: Session, c: Contract, updates: dict) -> Contract:
 def delete_contract(db: Session, c: Contract) -> None:
     active_work_orders = db.query(WorkOrder).filter(WorkOrder.contract_id == c.id).count()
     if active_work_orders > 0:
-        raise ValueError(f"No se puede eliminar: {active_work_orders} orden(es) de trabajo vinculadas")
+        raise ErrorConCodigo("contrato_con_ordenes", n=active_work_orders)
 
     linked_clients = db.query(ClientContractLink).filter(
         ClientContractLink.contract_id == c.id,
         ClientContractLink.is_active == True,
     ).count()
     if linked_clients > 0:
-        raise ValueError(f"No se puede eliminar: {linked_clients} vinculo(s) de cliente activos")
+        raise ErrorConCodigo("contrato_con_clientes", detail=f"No se puede eliminar: {linked_clients} vinculo(s) de cliente activos", n=linked_clients)
 
     c.is_active = False
     db.commit()

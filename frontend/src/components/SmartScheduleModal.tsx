@@ -4,8 +4,10 @@
  * Modal compartido para todos los entry points (Gantt, Tasks, Project Detail,
  * QuickCreate). Flow:
  *   1. Abre modal con ``projectId`` opcional.
- *   2. POST /ai-modules/smart-schedule con {project_id, max_tasks} → LLM
- *      devuelve [{task_id, suggested_start, suggested_due, rationale}].
+ *   2. POST /ai-modules/smart-schedule con {project_id, max_tasks} → motor de
+ *      planificación (19-11-2026: ya no IA; horario, festivos, ausencias, carga
+ *      y dependencias de cada responsable) devuelve [{task_id, title,
+ *      suggested_start, suggested_due, assignee_name, motivo}].
  *   3. Muestra preview con checkbox por tarea, fechas editables, rationale.
  *   4. User selecciona las tareas a aplicar y pulsa "Aplicar seleccionadas".
  *   5. POST /tasks/bulk-dates con los updates → fechas escritas.
@@ -19,16 +21,14 @@
  */
 import { useState, useMemo, useEffect, useId } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import {
-  smartScheduleApi, taskDependenciesApi, tasksApi,
-} from '../services/api'
-import type { FechaSugerida } from '../services/api/tipos-analitica'
+import { smartScheduleApi, taskDependenciesApi } from '../services/api'
+import { extractErr } from '../utils/helpers'
+import type { FechaSugerida, MotivoDePlanificacion } from '../services/api/tipos-analitica'
 import { useToast } from '../context/ToastContext'
 import { AlertTriangle, Check, CheckCircle2, Lightbulb, Sparkles, X, RefreshCw } from 'lucide-react'
 import { useAppLang } from '../i18n/AppLangContext'
 import { Button, Checkbox, IconButton, useDialogo } from './ui'
 import DateInput from './ui/DateInput'
-import { SCHEDULE_TASKS_LIST_SIZE } from '../constants/pagination'
 import './SmartScheduleModal.css'
 
 /** Una sugerencia del modelo con lo que el usuario edita en el modal. */
@@ -51,6 +51,20 @@ interface ErrLike {
   message?: string
 }
 
+type Traducir = (clave: string, params?: Record<string, string | number>) => string
+
+/** El motivo de la propuesta, en el idioma del usuario. */
+function textoDelMotivo(m: MotivoDePlanificacion | undefined, traducir: Traducir): string {
+  if (!m) return ''
+  if (m.codigo === 'sin_hueco') return traducir('smartschedulemodal.motivo_sin_hueco', { horas: m.horas })
+  const partes = [traducir(`smartschedulemodal.motivo_horas_${m.origen_horas ?? 'estimacion'}`, { horas: m.horas })]
+  partes.push(m.sin_responsable
+    ? traducir('smartschedulemodal.motivo_sin_responsable', { dias: m.dias ?? 0 })
+    : traducir('smartschedulemodal.motivo_persona', { persona: m.persona ?? '', dias: m.dias ?? 0 }))
+  if (m.espera_predecesora) partes.push(traducir('smartschedulemodal.motivo_espera'))
+  return partes.join(' · ')
+}
+
 export default function SmartScheduleModal({ open, onClose, projectId, projectName }: SmartScheduleModalProps) {
   const idCampo = useId()
   const { t: traducir } = useAppLang()
@@ -60,10 +74,6 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
   const [unscheduledCount, setUnscheduledCount] = useState(0)
   const [maxTasks, setMaxTasks] = useState(20)
   const [error, setError] = useState<string | null>(null)
-  // `tasksById` no se lee en ninguna parte: se conserva solo el setter para no
-  // alterar el comportamiento existente. Estado de solo escritura, candidato a
-  // retirar cuando se revise este modal.
-  const [, setTasksById] = useState<Record<string, string>>({})
 
   // ── Suggest mutation ─────────────────────────────────────────────────────
   const { mutate: requestSuggestions, isPending: isLoading, reset: resetSuggest } = useMutation({
@@ -71,33 +81,19 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
       project_id: projectId || null,
       max_tasks: maxTasks,
     }).then(r => r.data),
-    onSuccess: async (data) => {
-      const arr: Suggestion[] = data.scheduled
+    onSuccess: (data) => {
+      const arr: Suggestion[] = data.scheduled ?? []
       setUnscheduledCount(data.unscheduled_count || 0)
-
-      // Buscar títulos de cada task para mostrar al user. Hacemos una llamada
-      // ligera por proyecto si está disponible; si no, una a una.
-      const title_map: Record<string, string> = {}
-      try {
-        if (projectId) {
-          const res = await tasksApi.list({ project_id: String(projectId), page_size: SCHEDULE_TASKS_LIST_SIZE })
-          const items: Array<{ id: string | number; title: string }> = res.data ?? []
-          for (const t of items) title_map[String(t.id)] = t.title
-        }
-      } catch { /* noop, falls back below */ }
-      setTasksById(title_map)
-
       setSuggestions(arr.map((s) => ({
         ...s,
-        _selected: true,           // por defecto, todas seleccionadas
-        _title: title_map[String(s.task_id)] || traducir('smartschedulemodal.tarea_n', { id: String(s.task_id).slice(0, 8) }),
+        // Sin hueco en el horizonte no hay fechas que aplicar: llega desmarcada.
+        _selected: Boolean(s.suggested_start && s.suggested_due),
+        _title: s.title || traducir('smartschedulemodal.tarea_n', { id: String(s.task_id).slice(0, 8) }),
       })))
-      if (arr.length === 0) {
-        toast.info(data.message || traducir('smartschedulemodal.nada_que_planificar'))
-      }
+      if (arr.length === 0) toast.info(traducir('smartschedulemodal.nada_que_planificar'))
     },
     onError: (e: ErrLike) => {
-      setError(e?.response?.data?.detail || e?.message || traducir('smartschedulemodal.error_sugerencias'))
+      setError(extractErr(e, traducir('smartschedulemodal.error_sugerencias')))
     },
   })
 
@@ -138,8 +134,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
       onClose()
     },
     onError: (e: ErrLike) => {
-      const detail = e?.response?.data?.detail || e?.message || traducir('smartschedulemodal.error_aplicar')
-      toast.error(detail)
+      toast.error(extractErr(e, traducir('smartschedulemodal.error_aplicar')))
     },
   })
 
@@ -211,7 +206,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
           )}
           {isLoading ? (
             <div className="smscmo-box-5">
-              {traducir('smartschedulemodal.generando_sugerencias_con_ia')}
+              {traducir('smartschedulemodal.calculando_plan')}
             </div>
           ) : suggestions.length === 0 ? (
             <div className="smscmo-box-5">
@@ -226,7 +221,7 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
                   aria-label={traducir('smartschedulemodal.seleccionar_deseleccionar_todas')}
                   onChange={() => _toggleAll()}
                 />
-                <div>{traducir('smartschedulemodal.tarea_razon_ia')}</div>
+                <div>{traducir('smartschedulemodal.tarea_y_motivo')}</div>
                 <div>{traducir('smartschedulemodal.inicio')}</div>
                 <div>{traducir('smartschedulemodal.vencimiento')}</div>
               </div>
@@ -242,9 +237,9 @@ export default function SmartScheduleModal({ open, onClose, projectId, projectNa
                     <div className="u-text1-sm-600">
                       {s._title}
                     </div>
-                    {s.rationale && (
+                    {(s.motivo || s.rationale) && (
                       <div className="smscmo-box-6">
-                        <Lightbulb size={12} aria-hidden /> {s.rationale}
+                        <Lightbulb size={12} aria-hidden /> {s.motivo ? textoDelMotivo(s.motivo, traducir) : s.rationale}
                       </div>
                     )}
                   </div>

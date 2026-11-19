@@ -16,6 +16,7 @@ from app.db.session import get_db
 from app.models.user import User
 from app.services.audit import auditar_y_confirmar
 import app.services.governance_service as _gsvc
+from app.core.codigos_de_error import error_http
 _org_id = _gsvc.get_org_id
 
 router = APIRouter(prefix="/governance", tags=["Governance"])
@@ -60,7 +61,7 @@ def upsert_policy_pack(
     current_user: User = Depends(require_admin),
 ):
     if pack_key not in DEFAULT_POLICY_PACKS:
-        raise HTTPException(404, "Policy pack no reconocido")
+        raise error_http(404, "policy_pack_no_reconocido", detail="Policy pack no reconocido")
     organization_id = _org_id(current_user)
     row = _gsvc.upsert_policy_pack(
         db,
@@ -86,7 +87,7 @@ def upsert_policy_pack(
 def _marco(framework: str) -> str:
     fw = framework.upper()
     if fw not in marcos.CONTROLES:
-        raise HTTPException(422, f"Framework no soportado. Usa {' o '.join(marcos.CONTROLES)}")
+        raise error_http(422, "framework_no_soportado", detail=f"Framework no soportado. Usa {' o '.join(marcos.CONTROLES)}", opciones=' o '.join(marcos.CONTROLES))
     return fw
 
 
@@ -111,7 +112,7 @@ def create_evidence(
     # tiene el fichero (`artifact_sha256`) o no se guarda.
     control_id = marcos.canonico(payload.control_id)
     if control_id not in marcos.CONTROLES[framework]:
-        raise HTTPException(422, f"Control desconocido en {framework}: {payload.control_id}")
+        raise error_http(422, "control_desconocido", marco=framework, control=payload.control_id)
 
     evidence = _gsvc.create_compliance_evidence(
         db,
@@ -268,7 +269,7 @@ def retention_preview(entity: str, keep_days: int = Query(..., ge=1, le=36500), 
                       current_user: User = Depends(require_admin)):
     from app.services import retencion
     if entity not in retencion.TIPOS:
-        raise HTTPException(422, f"Tipo desconocido: {entity}")
+        raise error_http(422, "tipo_desconocido", tipo=entity)
     return APIResponse.ok(data=retencion.vista_previa(db, current_user.organization_id, entity, keep_days))
 
 
@@ -335,7 +336,7 @@ def patch_ai_module_config(
     current_user: User = Depends(require_admin),
 ):
     if module not in AI_MODULES:
-        raise HTTPException(404, "Módulo no reconocido")
+        raise error_http(404, "modulo_no_reconocido")
     # Revisión GRC 16-11-2026: era un `dict` y cualquier valor se guardaba
     # tal cual en una columna booleana.
     is_enabled = payload.is_enabled

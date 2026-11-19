@@ -34,6 +34,8 @@ import CampanaDelPortal from './CampanaDelPortal'
 import Tabs from '../../components/ui/Tabs'
 import { Button, EmptyState, Pulsable, Select } from '../../components/ui'
 import { formatearMoneda } from '../../utils/helpers'
+import { tonoDe, UMBRALES_POR_DEFECTO } from '../../utils/umbrales'
+import type { Umbrales } from '../../utils/umbrales'
 import StatusBadge, { type StatusBadgeKind } from '../../components/ui/StatusBadge'
 import './PortalUI.css'
 import { px } from '../../utils/estilos'
@@ -568,11 +570,14 @@ interface PortalProgressProps {
   color?: string
   height?: number
   showLabel?: boolean
+  /** Sin `color`: semáforo de presupuesto con estos umbrales (los de la empresa llegan con el panel). */
+  umbrales?: Umbrales
 }
 
-export function PortalProgress({ value, max = 100, color, height = 6, showLabel = false }: PortalProgressProps) {
+export function PortalProgress({ value, max = 100, color, height = 6, showLabel = false, umbrales = UMBRALES_POR_DEFECTO }: PortalProgressProps) {
   const pct = max ? Math.min((value / max) * 100, 100) : 0
-  const c = color || (pct > 90 ? 'var(--danger)' : pct > 70 ? 'var(--warning)' : 'var(--success)')
+  // 19-11-2026: los umbrales de presupuesto de la empresa (antes 70/90 aquí).
+  const c = color || `var(--${tonoDe('presupuesto', pct, umbrales) ?? 'success'})`
   return (
     <div>
       <div className="portui-box-30 portal-ui-e27" style={{ '--portal-ui-height': px(height) } as CSSProperties}>

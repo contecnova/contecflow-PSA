@@ -43,7 +43,7 @@ from app.models.service_desk import (
 from app.services.service_desk.incident_intelligence_service import (
     score_auto_resolution,
 )
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -531,7 +531,7 @@ def run_autonomous_resolution(
     """
     ticket = _ticket_de_la_organizacion(db, ticket_id, org_id)
     if not ticket:
-        raise ErrorDeDominio(404, "Ticket no encontrado")
+        raise error(404, "no_encontrado", detail="Ticket no encontrado", que="ticket")
 
     status_val = getattr(ticket.status, "value", str(ticket.status))
     if status_val in ESTADOS_DE_TICKET_RESUELTOS:
@@ -592,9 +592,9 @@ def decidir_sugerencia(db: Session, execution_id: str, user, aplicar: bool) -> d
         AutonomousPlaybookExecution.organization_id == getattr(user, "organization_id", None),
     ).first()
     if not fila:
-        raise ErrorDeDominio(404, "Ejecución no encontrada")
+        raise error(404, "no_encontrado", detail="Ejecución no encontrada", que="ejecucion")
     if fila.status != "suggested":
-        raise ErrorDeDominio(409, "La propuesta ya está decidida")
+        raise error(409, "propuesta_ya_decidida")
     fila.decided_by_user_id = user.id
     fila.decided_at = datetime.now(timezone.utc)
     if not aplicar:
@@ -603,10 +603,10 @@ def decidir_sugerencia(db: Session, execution_id: str, user, aplicar: bool) -> d
         return {"id": fila.id, "status": fila.status}
     ticket = _ticket_de_la_organizacion(db, fila.ticket_id, fila.organization_id)
     if not ticket or getattr(ticket.status, "value", str(ticket.status)) in ESTADOS_DE_TICKET_RESUELTOS:
-        raise ErrorDeDominio(409, "El ticket ya no está abierto")
+        raise error(409, "ticket_ya_no_abierto")
     playbook = _playbook_por_id(db, fila.organization_id, fila.playbook_id or fila.playbook_type)
     if not playbook:
-        raise ErrorDeDominio(409, "El playbook ya no existe")
+        raise error(409, "no_encontrado", detail="El playbook ya no existe", que="playbook")
     resultado = execute_playbook(db, ticket, playbook, user.id)
     fila.status = "applied"
     fila.actions_json = json.dumps(resultado["steps_executed"], default=str)
@@ -729,7 +729,7 @@ def _validar_pasos(pasos: list) -> list[dict]:
     for p in pasos or []:
         tipo = (p or {}).get("type")
         if tipo not in _TIPOS_DE_PASO:
-            raise ErrorDeDominio(422, f"Tipo de paso no válido: {tipo}")
+            raise error(422, "tipo_no_valido_valor", detail=f"Tipo de paso no válido: {tipo}", tipo=tipo)
         salida.append({"type": tipo, "content": str(p.get("content") or "")[:4000]})
     return salida
 
@@ -759,7 +759,7 @@ def _playbook_propio(db: Session, playbook_id: str, org_id):
     row = db.query(AutonomousPlaybook).filter(
         AutonomousPlaybook.id == playbook_id, AutonomousPlaybook.organization_id == org_id).first()
     if not row:
-        raise ErrorDeDominio(404, "Playbook not found")
+        raise error(404, "no_encontrado", detail="Playbook not found", que="playbook")
     return row
 
 
@@ -871,7 +871,7 @@ def guardar_configuracion_del_agente(db: Session, org_id, datos: dict) -> dict:
     from app.services.settings_service import update_setting
     if "mode" in datos and datos["mode"] is not None:
         if datos["mode"] not in MODOS_DEL_AGENTE:
-            raise ErrorDeDominio(422, "Modo no válido")
+            raise error(422, "modo_no_valido")
         update_setting("SD_AUTONOMOUS_AGENT_MODE", datos["mode"], org_id, db)
     if datos.get("enabled") is not None:
         update_setting("SD_AUTONOMOUS_AGENT_ENABLED", "true" if datos["enabled"] else "false", org_id, db)
@@ -880,7 +880,7 @@ def guardar_configuracion_del_agente(db: Session, org_id, datos: dict) -> dict:
         if datos.get(campo) is not None:
             valor = float(datos[campo])
             if not 0 <= valor <= 1:
-                raise ErrorDeDominio(422, "El umbral va de 0 a 1")
+                raise error(422, "umbral_0_a_1")
             update_setting(clave, str(valor), org_id, db)
     if datos.get("disabled_playbooks") is not None:
         validos = set(ids_de_serie())

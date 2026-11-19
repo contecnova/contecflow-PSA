@@ -41,6 +41,7 @@ from app.services.resource_analytics import (
 )
 from app.core import timeutil
 from app.core.periodo import SEMANA, Periodo, periodo
+from app.core.codigos_de_error import error_http
 
 router = APIRouter(tags=["resource-forecast"])
 
@@ -191,7 +192,7 @@ def forecast_user_detail(
     if current_user.id != user_id and current_user.role not in (
             UserRole.admin, UserRole.pm, UserRole.team_lead, UserRole.hr):
         from fastapi import HTTPException
-        raise HTTPException(403, "Solo responsables o la propia persona")
+        raise error_http(403, "sin_permiso", detail="Solo responsables o la propia persona")
     u = get_forecast_user_by_id(db, user_id)
     if not u:
         from fastapi import HTTPException

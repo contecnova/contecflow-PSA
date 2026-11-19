@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from app.core.errores import ErrorDeDominio
 from app.services.politicas import catalogo, motor
 from app.services.politicas.servicio import _fecha, _org, detalle, validar
+from app.core.codigos_de_error import error
 
 
 def _compilar_doc(doc: dict) -> dict:
@@ -47,7 +48,7 @@ def simular(db: Session, usuario, *, politica_id: Optional[str] = None, document
             ultimos: Optional[int] = None, desde: Optional[str] = None, hasta: Optional[str] = None) -> dict:
     from app.services import settings_service as s
     if documento is None and politica_id is None:
-        raise ErrorDeDominio(422, "Indica la política que se simula")
+        raise error(422, "simulacion_sin_politica")
     doc = documento if documento is not None else detalle(db, politica_id)
     errores = validar(db, usuario, doc)
     if errores:
@@ -90,7 +91,7 @@ def simular(db: Session, usuario, *, politica_id: Optional[str] = None, document
                       "explicacion": tras["explicacion"] if cambia else None})
     if db.new or db.dirty or db.deleted:
         db.rollback()
-        raise ErrorDeDominio(500, "La simulación intentó escribir datos: se ha deshecho")
+        raise error(500, "simulacion_intento_escribir")
     return {"dominio": dominio.clave, "evaluadas": len(items), "tope": tope, "cambian": sum(i["cambia"] for i in items),
             "resumen_de_cambios": cambios, "por_decision": por_decision,
             "items": sorted(items, key=lambda i: (not i["cambia"], i["fecha"] or ""), reverse=False)}

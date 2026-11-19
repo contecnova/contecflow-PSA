@@ -193,7 +193,7 @@ function GroupedNotifList({ notifications, onMarkRead }: { notifications: Notifi
 /** `embedded`: dentro de la Bandeja de entrada (/inbox), que ya pinta la cabecera de página. */
 export default function NotificationsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const t = useAppT()
-  const { user, hasRole } = useAuth()
+  const { user, puede } = useAuth()
   const toast = useToast()
   const toastRef = useRef(toast)
   const qc = useQueryClient()
@@ -216,7 +216,7 @@ export default function NotificationsPage({ embedded = false }: { embedded?: boo
     queryKey: ['alerts-count'],
     queryFn: () => alertsApi.list({ resolved: false }).then(r => r.data).catch((): AlertItem[] => []),
     refetchInterval: POLL_DEFAULT_MS,
-    enabled: hasRole('admin', 'pm', 'hr'),
+    enabled: puede('alertas.ver'),
   })
 
   // Normalize alerts to notification shape for unified display

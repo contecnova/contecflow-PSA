@@ -12,6 +12,7 @@ from app.models.resources import ChangeRequest
 from app.services import change_service
 from app.schemas.changes import CRIn, CRReview
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.core.codigos_de_error import error_http, desde_valor
 
 router = APIRouter()
 
@@ -163,9 +164,9 @@ def update_change_request(
 ):
     cr = change_service.get_by_id(db, cr_id, project_id=project_id)
     if not cr:
-        raise HTTPException(404, "CR no encontrada")
+        raise error_http(404, "no_encontrado", detail="CR no encontrada", que="solicitud_de_cambio")
     if cr.status not in ["draft", "submitted"]:
-        raise HTTPException(400, "Solo se pueden editar CRs en borrador o enviadas")
+        raise error_http(400, "cr_solo_borrador_o_enviada", detail="Solo se pueden editar CRs en borrador o enviadas")
     cr = change_service.update_change_request(db, cr, **payload.model_dump(exclude_unset=True))
     return APIResponse.ok(data=ChangeRequestOut.from_orm_obj(cr).model_dump())
 
@@ -180,9 +181,9 @@ def submit_cr(
 ):
     cr = change_service.get_by_id(db, cr_id)
     if not cr:
-        raise HTTPException(404, "CR no encontrada")
+        raise error_http(404, "no_encontrado", detail="CR no encontrada", que="solicitud_de_cambio")
     if cr.status != "draft":
-        raise HTTPException(400, "Solo se pueden enviar CRs en borrador")
+        raise error_http(400, "cr_solo_borrador", detail="Solo se pueden enviar CRs en borrador")
     cr = change_service.submit_change_request(db, cr)
     return APIResponse.ok(data={"message": "CR enviada para revisión", "status": cr.status})
 
@@ -197,9 +198,9 @@ def review_cr(
 ):
     cr = change_service.get_by_id(db, cr_id)
     if not cr:
-        raise HTTPException(404, "CR no encontrada")
+        raise error_http(404, "no_encontrado", detail="CR no encontrada", que="solicitud_de_cambio")
     if cr.status not in ["submitted", "under_review"]:
-        raise HTTPException(400, "Solo se pueden revisar CRs enviadas")
+        raise error_http(400, "cr_solo_enviada", detail="Solo se pueden revisar CRs enviadas")
     from app.services.approval_engine._base import exigir_que_no_sea_suyo
     exigir_que_no_sea_suyo(db, cr.requested_by, current_user, "change_request", cr.id)
     cr = change_service.review_change_request(
@@ -220,9 +221,9 @@ def implement_cr(
 ):
     cr = change_service.get_by_id(db, cr_id)
     if not cr:
-        raise HTTPException(404, "CR no encontrada")
+        raise error_http(404, "no_encontrado", detail="CR no encontrada", que="solicitud_de_cambio")
     if cr.status != "approved":
-        raise HTTPException(400, "Solo se pueden implementar CRs aprobadas")
+        raise error_http(400, "cr_solo_aprobada", detail="Solo se pueden implementar CRs aprobadas")
     change_service.implement_change_request(db, cr)
     return APIResponse.ok(data={"message": "CR marcada como implementada"})
 
@@ -236,10 +237,10 @@ def delete_cr(
 ):
     cr = change_service.get_by_id(db, cr_id)
     if not cr:
-        raise HTTPException(404, "CR no encontrada")
+        raise error_http(404, "no_encontrado", detail="CR no encontrada", que="solicitud_de_cambio")
     enforce_abac(db, current_user, "change_request", cr_id, action="delete")
     try:
         change_service.delete_change_request(db, cr)
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
     return APIResponse.ok(data={"ok": True, "message": "Solicitud de cambio eliminada correctamente"})

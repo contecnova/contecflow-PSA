@@ -7,6 +7,7 @@ from app.models.service_desk import OnCallEntry, OnCallSchedule
 from app.schemas.service_desk import OnCallEntryIn, OnCallScheduleIn
 import logging
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +86,7 @@ def delete_oncall_schedule(db: Session, schedule_id: str) -> None:
 
 def validate_oncall_entry_dates(payload: OnCallEntryIn) -> None:
     if payload.start_dt >= payload.end_dt:
-        raise ErrorDeDominio(400, "start_dt must be before end_dt")
+        raise error(400, "fecha_fin_anterior_a_inicio", detail="start_dt must be before end_dt")
 
 
 def build_oncall_entry(schedule_id: str, payload: OnCallEntryIn) -> OnCallEntry:

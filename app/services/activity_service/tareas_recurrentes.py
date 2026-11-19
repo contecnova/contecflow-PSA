@@ -14,6 +14,7 @@ from app.models.activity import RecurringTask, RecurringFreqType
 from app.models.task import Task
 from app.core import timeutil
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 
 TaskModel = Task
@@ -48,11 +49,11 @@ def create_recurring_task_record(db: Session, payload, current_user: User) -> di
     try:
         RecurringFreqType(payload.freq)
     except ValueError:
-        raise ErrorDeDominio(400, f"Invalid freq: {payload.freq}. Use: daily, weekly, monthly, custom")
+        raise error(400, "frecuencia_no_valida", detail=f"Invalid freq: {payload.freq}. Use: daily, weekly, monthly, custom", opciones="daily, weekly, monthly, custom", frecuencia=payload.freq)
     try:
         start = date.fromisoformat(payload.start_date)
     except ValueError:
-        raise ErrorDeDominio(400, "start_date must be YYYY-MM-DD")
+        raise error(400, "fecha_no_valida", detail="start_date must be YYYY-MM-DD")
     end = date.fromisoformat(payload.end_date) if payload.end_date else None
     rt = RecurringTask(
         **{k: v for k, v in payload.model_dump().items() if k not in ("start_date", "end_date")},

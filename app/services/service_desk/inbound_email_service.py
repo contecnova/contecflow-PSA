@@ -11,7 +11,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.services.service_desk import inbound_mail
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 
 def _secreto(db: Session, org_id: Optional[str]) -> str:
@@ -21,9 +21,9 @@ def _secreto(db: Session, org_id: Optional[str]) -> str:
 
 def _validate_inbound_secret(configured_secret: str, provided_secret: Optional[str]) -> None:
     if not configured_secret:
-        raise ErrorDeDominio(403, "Email inbound deshabilitado: configura el secreto de la pasarela")
+        raise error(403, "webhook_secreto_no_configurado", detail="Email inbound deshabilitado: configura el secreto de la pasarela", servicio="Email")
     if not hmac.compare_digest(provided_secret or "", configured_secret):
-        raise ErrorDeDominio(403, "Firma inválida")
+        raise error(403, "firma_no_valida", detail="Firma inválida")
 
 
 def process_inbound_email(db: Session, payload: dict, provided_secret: Optional[str]) -> inbound_mail.Resultado:

@@ -16,6 +16,7 @@ from app.models.clients import Client
 from app.models.nps import ClientNPS
 from app.services.settings_service import get_runtime_namespace
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 _HEALTH_KEYS = {
     "HEALTH_NPS_LOOKBACK_DAYS": "int",
@@ -40,7 +41,7 @@ def compute_composite_health(client_id: str, db: Session) -> dict:
 
     client = db.query(Client).filter(Client.id == client_id).first()
     if not client:
-        raise ErrorDeDominio(404, "Client not found")
+        raise error(404, "no_encontrado", detail="Client not found", que="cliente")
 
     s = get_runtime_namespace(db, _HEALTH_KEYS, org_id=getattr(client, "organization_id", None))
     components: Dict[str, Any] = {}

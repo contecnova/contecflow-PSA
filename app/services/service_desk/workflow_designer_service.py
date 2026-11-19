@@ -18,6 +18,7 @@ from app.models.workflow_designer import (
     WorkflowRun,
 )
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error, desde_valor
 
 
 # ── Catálogo de nodos ─────────────────────────────────────────────────────────
@@ -543,7 +544,7 @@ def builtin_templates() -> list[dict]:
                 "nodes": [
                     {"id": "n1", "type": "start", "position": {"x": 60, "y": 200}, "data": {"label": "Solicitud"}},
                     {"id": "n2", "type": "approval", "position": {"x": 280, "y": 200}, "data": {"label": "Aprueba responsable", "config": {"approver_role": "manager", "deadline_hours": 72}}},
-                    {"id": "n3", "type": "notify", "position": {"x": 520, "y": 100}, "data": {"label": "Aviso a RRHH", "config": {"channel": "email", "recipients": "hr@example.com"}}},
+                    {"id": "n3", "type": "notify", "position": {"x": 520, "y": 100}, "data": {"label": "Aviso a RRHH", "config": {"channel": "email", "recipients": "hr"}}},
                     {"id": "n4", "type": "notify", "position": {"x": 520, "y": 300}, "data": {"label": "Aviso al solicitante (no)", "config": {"channel": "in_app"}}},
                     {"id": "n5", "type": "end", "position": {"x": 760, "y": 100}, "data": {"label": "Aprobado"}},
                     {"id": "n6", "type": "end", "position": {"x": 760, "y": 300}, "data": {"label": "Rechazado"}},
@@ -612,7 +613,7 @@ def blueprint_propio(db: Session, user, blueprint_id: str) -> WorkflowBlueprint:
         .first()
     )
     if not fila:
-        raise ErrorDeDominio(404, "Blueprint not found")
+        raise error(404, "no_encontrado", detail="Blueprint not found", que="blueprint")
     return fila
 
 
@@ -634,7 +635,7 @@ def version_del_blueprint(
         .first()
     )
     if not fila:
-        raise ErrorDeDominio(404, "Version not found")
+        raise error(404, "no_encontrado", detail="Version not found", que="version")
     return fila
 
 
@@ -647,7 +648,7 @@ def grafo_de_cabecera(blueprint: WorkflowBlueprint) -> dict:
     if cabecera is None:
         cabecera = blueprint.versions[0] if blueprint.versions else None
     if cabecera is None:
-        raise ErrorDeDominio(400, "Blueprint sin versiones para clonar")
+        raise error(400, "blueprint_sin_versiones", detail="Blueprint sin versiones para clonar")
     return json.loads(cabecera.graph_json or "{}")
 
 
@@ -685,7 +686,7 @@ def run_propio(db: Session, user, run_id: str) -> WorkflowRun:
         .first()
     )
     if not fila:
-        raise ErrorDeDominio(404, "Run not found")
+        raise error(404, "no_encontrado", detail="Run not found", que="ejecucion")
     return fila
 
 
@@ -781,7 +782,7 @@ def iniciar_ejecucion(db: Session, user, blueprint_id: str, *,
             organization_id=getattr(user, "organization_id", None),
         )
     except ValueError as exc:
-        raise ErrorDeDominio(400, str(exc))
+        raise desde_valor(400, exc)
     db.commit()
     db.refresh(run)
     return run
@@ -793,11 +794,11 @@ def reanudar_ejecucion(db: Session, user, run_id: str, *, branch: Optional[str],
 
     run = run_propio(db, user, run_id)
     if run.status != WorkflowRunStatus.waiting:
-        raise ErrorDeDominio(400, f"run no está en waiting (estado actual: {run.status.value if hasattr(run.status,'value') else run.status})")
+        raise error(400, "ejecucion_no_en_espera", detail=f"run no está en waiting (estado actual: {run.status.value if hasattr(run.status,'value') else run.status})", estado=run.status.value if hasattr(run.status,'value') else run.status)
     try:
         engine.resume(db, run, branch=branch, payload=payload, user_id=user.id)
     except ValueError as exc:
-        raise ErrorDeDominio(400, str(exc))
+        raise desde_valor(400, exc)
     db.commit()
     db.refresh(run)
     return run

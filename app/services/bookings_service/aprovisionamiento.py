@@ -13,6 +13,7 @@ from pathlib import Path
 from app.core.config import settings
 
 from app.services.bookings_service._comun import logger
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 ALLOWED_TERRAFORM_COMMANDS = {"plan", "apply", "destroy"}
@@ -54,14 +55,14 @@ def _safe_provision_path(candidate, *, label: str, required: bool = True) -> "st
     """
     if candidate is None or str(candidate).strip() == "":
         if required:
-            raise ValueError(f"Provisioning '{label}' is required")
+            raise ErrorConCodigo("campo_obligatorio", detail=f"Provisioning '{label}' is required", campo=label)
         return None
     root = _provisioning_root()
     resolved = (root / str(candidate)).resolve()
     try:
         resolved.relative_to(root)
     except ValueError:
-        raise ValueError(f"Provisioning '{label}' escapes the provisioning root")
+        raise ErrorConCodigo("aprovisionamiento_ruta_no_permitida", detail=f"Provisioning '{label}' escapes the provisioning root", campo=label)
     return str(resolved)
 
 
@@ -94,14 +95,14 @@ def _validate_provision_url(url: str) -> None:
 
     parsed = _urlparse(url or "")
     if parsed.scheme.lower() != "https" or not parsed.netloc:
-        raise ValueError("Provision URL must be a valid HTTPS URL")
+        raise ErrorConCodigo("aprovisionamiento_url_no_valida", detail="Provision URL must be a valid HTTPS URL")
 
     hostname = (parsed.hostname or "").strip().lower()
     if not hostname:
-        raise ValueError("Provision URL must include a hostname")
+        raise ErrorConCodigo("aprovisionamiento_url_no_valida", detail="Provision URL must include a hostname")
 
     if hostname in {"localhost", "localhost.localdomain"} or hostname.endswith(".local"):
-        raise ValueError("Provision URL cannot target local hosts")
+        raise ErrorConCodigo("aprovisionamiento_url_no_permitida", detail="Provision URL cannot target local hosts")
 
     try:
         ip_obj = _ipaddress.ip_address(hostname)
@@ -116,7 +117,7 @@ def _validate_provision_url(url: str) -> None:
         or ip_obj.is_reserved
         or ip_obj.is_unspecified
     ):
-        raise ValueError("Provision URL targets a disallowed network range")
+        raise ErrorConCodigo("aprovisionamiento_url_no_permitida", detail="Provision URL targets a disallowed network range")
 
     try:
         addrinfo = _socket.getaddrinfo(hostname, parsed.port or 443, proto=_socket.IPPROTO_TCP)
@@ -135,7 +136,7 @@ def _validate_provision_url(url: str) -> None:
             or resolved_ip.is_reserved
             or resolved_ip.is_unspecified
         ):
-            raise ValueError("Provision URL resolves to a disallowed network range")
+            raise ErrorConCodigo("aprovisionamiento_url_no_permitida", detail="Provision URL resolves to a disallowed network range")
 
 
 def _execute_provision_action(config: dict, context: dict) -> dict:
@@ -154,7 +155,7 @@ def _execute_provision_action(config: dict, context: dict) -> dict:
     operation = str(config.get("operation") or config.get("type") or "provision").lower()
     url = config.get("url")
     if not url:
-        raise ValueError("Provision action requires 'url'")
+        raise ErrorConCodigo("campo_obligatorio", detail="Provision action requires 'url'", campo="url")
 
     # SSRF protection: block requests to internal/private networks
     _validate_provision_url(url)
@@ -193,9 +194,9 @@ def _execute_terraform_action(config: dict, context: dict) -> dict:
         str(c).lower() for c in (config.get("allowed_commands") or sorted(ALLOWED_TERRAFORM_COMMANDS))
     }
     if command not in allowed_commands:
-        raise ValueError(f"Terraform command '{command}' is not in allowed_commands")
+        raise ErrorConCodigo("aprovisionamiento_comando_no_permitido", detail=f"Terraform command '{command}' is not in allowed_commands", comando=command)
     if command not in ALLOWED_TERRAFORM_COMMANDS:
-        raise ValueError(f"Terraform command '{command}' is not allowed by runtime policy")
+        raise ErrorConCodigo("aprovisionamiento_comando_no_permitido", detail=f"Terraform command '{command}' is not allowed by runtime policy", comando=command)
     if not shutil.which("terraform"):
         raise RuntimeError("terraform executable not found in PATH")
 
@@ -244,7 +245,7 @@ def _execute_ansible_action(config: dict, context: dict) -> dict:
     # (already constrained to the root above). Compared on the resolved path.
     allowed_playbooks = {str(p) for p in (config.get("allowed_playbooks") or [])}
     if allowed_playbooks and str(playbook) not in allowed_playbooks:
-        raise ValueError(f"Ansible playbook '{playbook}' is not in allowed_playbooks")
+        raise ErrorConCodigo("aprovisionamiento_comando_no_permitido", detail=f"Ansible playbook '{playbook}' is not in allowed_playbooks", comando=playbook)
 
     cmd = ["ansible-playbook", str(playbook)]
     if inventory:
@@ -319,4 +320,4 @@ def _execute_step_action(config: dict, context: dict, db) -> dict:
     if action_type in {"ansible", "ansible_playbook"}:
         return _execute_ansible_action(config, context)
 
-    raise ValueError(f"Unsupported action type: {action_type}")
+    raise ErrorConCodigo("valor_no_valido", detail=f"Unsupported action type: {action_type}", valor=action_type)

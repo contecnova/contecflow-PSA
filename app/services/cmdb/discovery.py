@@ -18,6 +18,7 @@ from app.services.cmdb.utils import (
     utcnow, PROVIDER_AWS, PROVIDER_K8S, PROVIDER_VSPHERE, PROVIDER_AZURE, PROVIDER_GCP, PROVIDER_SNMP
 )
 from app.services.cmdb.models import reconcile_cis
+from app.core.codigos_de_error import ErrorConCodigo
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,9 @@ def discover_aws(provider_config: dict[str, Any]) -> list[dict[str, Any]]:
             "El proveedor AWS requiere boto3. Instálalo con: pip install boto3"
         ) from exc
 
-    region = provider_config.get("region_name", "us-east-1")
+    # 19-11-2026: sin región fija (antes us-east-1): la de la integración o AWS_REGION.
+    from app.core.config import settings
+    region = provider_config.get("region_name") or settings.AWS_REGION
     session_kwargs: dict[str, Any] = {"region_name": region}
     if provider_config.get("aws_access_key_id"):
         session_kwargs["aws_access_key_id"] = provider_config["aws_access_key_id"]
@@ -413,7 +416,7 @@ def discover_gcp(provider_config: dict) -> list[dict]:
     """Descubre activos de Google Cloud (Compute Engine VMs)."""
     project_id = (provider_config.get("project_id") or "").strip()
     if not project_id:
-        raise ValueError("GCP discovery requiere project_id en provider config")
+        raise ErrorConCodigo("integracion_no_configurada", detail="GCP discovery requiere project_id en provider config", nombre="GCP")
 
     discovered: list[dict] = []
 
@@ -793,7 +796,7 @@ def run_discovery_for_provider(db: Session, provider: CMDBDiscoveryProvider) -> 
         elif provider.provider_type == PROVIDER_SNMP:
             discovered = discover_snmp(config)
         else:
-            raise ValueError(f"Proveedor no soportado: {provider.provider_type}")
+            raise ErrorConCodigo("proveedor_no_soportado", proveedor=provider.provider_type)
 
         stats = reconcile_cis(db, discovered, provider.provider_type, provider=provider)
 

@@ -83,8 +83,8 @@ export default function AskDataWidget({ style = {} }: { style?: React.CSSPropert
     mutationFn: (q: string) => analyticsApi.ask(q).then(r => r.data),
     onSuccess: () => setGuardada(false),
   })
-  const { user } = useAuth()
-  const puedeValidar = user?.role === 'admin' || user?.role === 'pm'
+  const { puede } = useAuth()
+  const puedeValidar = puede('analitica.ver')
   const [guardada, setGuardada] = useState(false)
   const guardar = useMutation({
     mutationFn: () => analyticsApi.saveAskExample(question.trim(), mutation.data?.model_sql || ''),

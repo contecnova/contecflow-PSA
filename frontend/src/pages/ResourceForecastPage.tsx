@@ -24,6 +24,9 @@ import { Card, EmptyState, KpiCard, RejillaPersonaDia, SelectorDePeriodo, Tabs, 
 import type { TonoDeRejilla } from '../components/ui'
 import { fmtNumber } from '../utils/helpers'
 import { usePeriodo } from '../hooks/usePeriodo'
+import { useUmbrales } from '../hooks/useOrgSettings'
+import { tonoDe, UMBRALES_POR_DEFECTO } from '../utils/umbrales'
+import type { Umbrales } from '../utils/umbrales'
 import type { ParamsPeriodoApi } from '../utils/periodo'
 import { AlertTriangle, BarChart3, Briefcase, CalendarClock, Clock, Gauge, Grid3x3, LineChart, UserX } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
@@ -72,11 +75,15 @@ const STATUS_LABEL: Record<string, string> = {
  *  JavaScript `undefined > 100` es falso y la cadena caia hasta el ultimo
  *  escalon. Aqui va escrito en vez de deducirse.
  */
-function estadoDeCarga(pct?: number): string {
+function estadoDeCarga(pct?: number, umbrales: Umbrales = UMBRALES_POR_DEFECTO): string {
+  // 19-11-2026: alto y sobrecargado con UMBRAL_CARGA_* y «medio» desde
+  // RESOURCE_UNDERUSE_PCT de la empresa (antes 100/85/50 aquí). El 10 % solo
+  // separa «casi libre» de «libre» en esta pantalla.
   const carga = pct ?? 0
-  if (carga > 100) return 'overloaded'
-  if (carga > 85) return 'high'
-  if (carga > 50) return 'medium'
+  const tono = tonoDe('carga', carga, umbrales)
+  if (tono === 'danger') return 'overloaded'
+  if (tono === 'warning') return 'high'
+  if (carga > umbrales.sueltos.RESOURCE_UNDERUSE_PCT) return 'medium'
   if (carga > 10) return 'low'
   return 'available'
 }
@@ -87,6 +94,7 @@ function estadoDeCarga(pct?: number): string {
 // ── Panel de detalle de usuario ───────────────────────────────────────────────
 function UserDetailPanel({ userId, weeks, periodo }: { userId: string | number; weeks: number; periodo: ParamsPeriodoApi }) {
   const t = useAppT()
+  const umbrales = useUmbrales()
   const { data, isLoading } = useQuery<ProyeccionDePersona>({
     queryKey: ['forecast-user', userId, periodo],
     queryFn: () => forecastApi.userDetail(userId, { ...periodo }).then(r => r.data),
@@ -119,7 +127,7 @@ function UserDetailPanel({ userId, weeks, periodo }: { userId: string | number; 
           </thead>
           <tbody>
             {(data?.weeks ?? []).map(w => {
-              const color = STATUS_COLOR[estadoDeCarga(w.load_pct)]
+              const color = STATUS_COLOR[estadoDeCarga(w.load_pct, umbrales)]
               return (
                 <tr className="rfc-tr" key={w.week}>
                   <td className="rfc-td-muted">{w.week}</td>
@@ -142,6 +150,7 @@ function UserDetailPanel({ userId, weeks, periodo }: { userId: string | number; 
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function ResourceForecastPage() {
   const t = useAppT()
+  const umbrales = useUmbrales()
   // Horizonte hacia delante, por semanas (la API corta en 52: sin «próximo año»).
   const periodo = usePeriodo({ sentido: 'futuro', defecto: 'prox90d', granularidades: ['week'] })
   const presetsHorizonte = periodo.selector.presets.filter(k => k !== 'prox365d')
@@ -191,7 +200,7 @@ export default function ResourceForecastPage() {
       {summaryData && (
         <div className="ds-grid-stats rfc-grid">
           <KpiCard icon={<Gauge size={16} />} label={t('prevision_recursos_ui.kpi_carga_media')}
-            value={`${summary.avg_team_load_pct}%`} danger={summary.avg_team_load_pct > 85} />
+            value={`${summary.avg_team_load_pct}%`} danger={tonoDe('carga', summary.avg_team_load_pct, umbrales) !== 'success'} />
           <KpiCard icon={<Clock size={16} />} label={t('prevision_recursos_ui.kpi_horas_disponibles')}
             value={`${summary.total_available_hrs}h`} />
           <KpiCard icon={<Briefcase size={16} />} label={t('prevision_recursos_ui.kpi_horas_comprometidas')}
@@ -255,7 +264,7 @@ export default function ResourceForecastPage() {
             celda={(fila, col) => {
               const w = fila.semanas.find(x => x.week_start === col.clave)
               if (!w) return null
-              const estado = w.status ?? estadoDeCarga(w.load_pct)
+              const estado = w.status ?? estadoDeCarga(w.load_pct, umbrales)
               return {
                 estado,
                 contenido: (w.load_pct ?? 0) > 0 ? `${fmtNumber(w.load_pct, 0)}%` : '—',
@@ -296,7 +305,7 @@ export default function ResourceForecastPage() {
           <div className="u-stack-6">
             {(summary.week_trend || []).map(w => {
               const pct = w.load_pct ?? 0
-              const color = STATUS_COLOR[estadoDeCarga(pct)]
+              const color = STATUS_COLOR[estadoDeCarga(pct, umbrales)]
               const enRiesgo = (summary.risk_weeks || []).includes(w.week)
               return (
                 <div key={w.week} className="u-row-center-10">

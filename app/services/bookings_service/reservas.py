@@ -13,6 +13,7 @@ from app.models.user import User
 from sqlalchemy.orm import joinedload
 from app.core import timeutil
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 
 # ── Serialisers ───────────────────────────────────────────────────────────────
@@ -64,6 +65,7 @@ def list_bookings_records(user_id, project_id, start_date, end_date, booking_typ
 
 def get_bookings_heatmap(weeks: int, org_id, db, semanas=None) -> dict:
     """``semanas``: lunes del horizonte pedido (periodo libre); sin ellos, las próximas ``weeks``."""
+    from app.core.umbrales import estado_de_carga
     if semanas:
         monday, weeks = semanas[0], len(semanas)
     else:
@@ -80,12 +82,17 @@ def get_bookings_heatmap(weeks: int, org_id, db, semanas=None) -> dict:
         ResourceBooking.end_date >= monday,
         ResourceBooking.user_id.in_(heatmap_user_ids),
     ).all()
+    # 19-11-2026: las horas de una reserva caen en los días que la persona trabaja
+    # según su horario efectivo (jornada o turno, sin festivos); antes L-V fijo.
+    from app.services.horario import efectivo as hor
+    planes = hor.horarios(db, heatmap_user_ids, monday, monday + timedelta(weeks=weeks, days=-1),
+                          estados_ausencia=None) if bookings else {}
     result = []
     for user in users:
+        trabaja = {d for d, x in (planes.get(user.id) or {}).items() if x.laborable}
         weekly = []
         for w in range(weeks):
             week_start = monday + timedelta(weeks=w)
-            week_end = week_start + timedelta(days=4)
             # Revisión 2026-11: la capacidad de la semana descuenta ausencias aprobadas y festivos,
             # igual que la comprobación al reservar (antes el mapa no los veía).
             from app.services.resource_analytics import get_user_week_hours
@@ -96,17 +103,15 @@ def get_bookings_heatmap(weeks: int, org_id, db, semanas=None) -> dict:
             soft_hours = 0
             for b in bookings:
                 if b.user_id != user.id: continue
-                overlap_start = max(b.start_date, week_start)
-                overlap_end   = min(b.end_date, week_end)
-                if overlap_start <= overlap_end:
-                    overlap_days = min((overlap_end - overlap_start).days + 1, 5)
-                    hours = overlap_days * b.hours_per_day
+                hours = _horas_en_semana(b.start_date, b.end_date, b.hours_per_day or 0, week_start, trabaja)
+                if hours:
                     if b.booking_type == BookingType.hard:
                         hard_hours += hours
                     else:
                         soft_hours += hours
             util_pct = round(hard_hours / capacity * 100, 0) if capacity > 0 else 0
-            status = "overloaded" if util_pct > 100 else "high" if util_pct > 85 else "ok" if util_pct >= 20 else "free"
+            # 19-11-2026: UMBRAL_CARGA_* y RESOURCE_UNDERUSE_PCT (antes 100/85/20 fijos).
+            status = estado_de_carga(util_pct, db, org_id, libre="free")
             weekly.append({
                 "week": str(week_start),
                 "week_label": f"{week_start.day}/{week_start.month}",
@@ -181,9 +186,7 @@ def comprobar_capacidad(db, user_id, inicio, fin, horas_dia, tipo, excluir=None)
         capacidad = capacidad_de_semana(hw, base)
         nuevas = _horas_en_semana(inicio, fin, horas_dia, lunes, trabaja)
         if nuevas and ya + nuevas > capacidad + 1e-6:
-            raise ErrorDeDominio(400, (
-                f"Semana del {lunes}: ya tiene {ya:g} h comprometidas y esta reserva suma {nuevas:g} h; "
-                f"su capacidad es {capacidad:g} h. Resérvala como tentativa (soft) o ajusta las horas."))
+            raise error(400, "reserva_supera_capacidad", semana=lunes, comprometidas=ya, reserva=nuevas, capacidad=capacidad)
         lunes += timedelta(days=7)
 
 
@@ -198,9 +201,9 @@ def create_booking_record(payload, created_by_id, db) -> dict:
             ResourceBooking.end_date >= payload.start_date,
         ).first()
         if duplicate:
-            raise ErrorDeDominio(400, "Este usuario ya tiene una reserva para este proyecto en las fechas indicadas.")
+            raise error(400, "reserva_ya_existe")
     if payload.end_date < payload.start_date:
-        raise ErrorDeDominio(400, "La fecha fin no puede ser anterior al inicio")
+        raise error(400, "fecha_fin_anterior_a_inicio")
     comprobar_capacidad(db, payload.user_id, payload.start_date, payload.end_date,
                         payload.hours_per_day, payload.booking_type)
     days = (payload.end_date - payload.start_date).days + 1
@@ -231,11 +234,11 @@ def update_booking_record(booking_id: str, payload, db) -> dict:
     if not b: raise ErrorDeDominio(404)
     updates = payload.model_dump(exclude_unset=True)
     if "end_date" in updates and "start_date" in updates and updates["end_date"] < updates["start_date"]:
-        raise ErrorDeDominio(400, "La fecha fin no puede ser anterior al inicio")
+        raise error(400, "fecha_fin_anterior_a_inicio")
     if "end_date" in updates and "start_date" not in updates and updates["end_date"] < b.start_date:
-        raise ErrorDeDominio(400, "La fecha fin no puede ser anterior al inicio")
+        raise error(400, "fecha_fin_anterior_a_inicio")
     if "start_date" in updates and "end_date" not in updates and updates["start_date"] > b.end_date:
-        raise ErrorDeDominio(400, "La fecha inicio no puede ser posterior al fin")
+        raise error(400, "fecha_fin_anterior_a_inicio", detail="La fecha inicio no puede ser posterior al fin")
     comprobar_capacidad(db, updates.get("user_id", b.user_id), updates.get("start_date", b.start_date),
                         updates.get("end_date", b.end_date), updates.get("hours_per_day", b.hours_per_day),
                         updates.get("booking_type", b.booking_type), excluir=b)

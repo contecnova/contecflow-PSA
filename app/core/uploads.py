@@ -36,9 +36,9 @@ from typing import Iterable, Optional
 
 from fastapi import UploadFile
 
-from app.core.errores import ErrorDeDominio
 
 from app.core.config import settings
+from app.core.codigos_de_error import error
 
 # ── Catálogos ─────────────────────────────────────────────────────────────────
 
@@ -207,17 +207,9 @@ def _comprobar_extension(file_name: str, permitidas: set) -> None:
     """Rechaza por extensión. Los comprimidos van aparte, y con su motivo."""
     ext = os.path.splitext(file_name or "")[1].lower()
     if ext in BLOCKED_ARCHIVE_EXTENSIONS:
-        raise ErrorDeDominio(
-            415,
-            "Subida de archivos comprimidos bloqueada por seguridad "
-            "(riesgo de fuga de secretos y payloads ocultos).",
-        )
+        raise error(415, "subida_comprimido_bloqueada", detail="Subida de archivos comprimidos bloqueada por seguridad (riesgo de fuga de secretos y payloads ocultos).")
     if ext and ext not in permitidas:
-        raise ErrorDeDominio(
-            415,
-            f"Tipo de archivo no permitido (extensión: {ext}). "
-            f"Formatos aceptados aquí: {', '.join(sorted(permitidas))}.",
-        )
+        raise error(415, "subida_extension_no_permitida", extension=ext, aceptados=', '.join(sorted(permitidas)))
 
 
 def _comprobar_ejecutable(content: bytes) -> None:
@@ -227,11 +219,7 @@ def _comprobar_ejecutable(content: bytes) -> None:
     cabecera = content[:8]
     for magic in BLOCKED_MAGIC_BYTES:
         if cabecera.startswith(magic):
-            raise ErrorDeDominio(
-                415,
-                "El contenido del archivo parece ser un ejecutable o script. "
-                "Subida rechazada por seguridad.",
-            )
+            raise error(415, "subida_ejecutable", detail="El contenido del archivo parece ser un ejecutable o script. Subida rechazada por seguridad.")
 
 
 def _comprobar_tipo_real(content: bytes, content_type: str, permitidos: set) -> None:
@@ -246,22 +234,17 @@ def _comprobar_tipo_real(content: bytes, content_type: str, permitidos: set) -> 
     """
     detectado = detect_mime_from_magic(content)
     if detectado == "application/zip":
-        raise ErrorDeDominio(
-            415, "Contenedor ZIP detectado. Este tipo de archivo está bloqueado por seguridad."
-        )
+        raise error(415, "subida_comprimido_bloqueada", detail="Contenedor ZIP detectado. Este tipo de archivo está bloqueado por seguridad.")
     if detectado and detectado not in permitidos:
-        raise ErrorDeDominio(415, f"Tipo de archivo detectado no permitido: {detectado}")
+        raise error(415, "subida_tipo_no_permitido", detail=f"Tipo de archivo detectado no permitido: {detectado}", tipo=detectado)
     if (
         detectado
         and content_type
         and content_type not in _TIPOS_SIN_OPINION
         and detectado != content_type
     ):
-        raise ErrorDeDominio(
-            415,
-            f"El tipo real del archivo ({detectado}) no coincide con el "
-            f"Content-Type enviado ({content_type}).",
-        )
+        raise error(415, "subida_tipo_no_coincide", detail=f"El tipo real del archivo ({detectado}) no coincide con el "
+            f"Content-Type enviado ({content_type}).", real=detectado, declarado=content_type)
 
 
 def validate_upload(
@@ -285,9 +268,9 @@ def validate_upload(
     # pasaba (un .html o .svg renombrado a `informe`). Sin extension, solo si
     # los bytes dicen que es un tipo permitido.
     if not os.path.splitext(file_name or "")[1] and detect_mime_from_magic(content) not in permitidos:
-        raise ErrorDeDominio(415, "Archivo sin extensión y de tipo no reconocido: añade la extensión.")
+        raise error(415, "subida_sin_extension")
     if content_type and content_type not in permitidos and content_type not in _TIPOS_SIN_OPINION:
-        raise ErrorDeDominio(415, f"Tipo de contenido no permitido: {content_type}.")
+        raise error(415, "subida_tipo_no_permitido", detail=f"Tipo de contenido no permitido: {content_type}.", tipo=content_type)
     _comprobar_ejecutable(content)
     _comprobar_tipo_real(content, content_type, permitidos)
 
@@ -310,11 +293,8 @@ async def read_upload_within_limit(file: UploadFile, max_bytes: int) -> bytes:
             break
         total += len(chunk)
         if total > max_bytes:
-            raise ErrorDeDominio(
-                413,
-                f"El archivo supera el tamaño máximo permitido "
-                f"({max_bytes // (1024 * 1024)} MB).",
-            )
+            raise error(413, "fichero_demasiado_grande", detail=f"El archivo supera el tamaño máximo permitido "
+                f"({max_bytes // (1024 * 1024)} MB).", max=max_bytes // (1024 * 1024))
         chunks.append(chunk)
     return b"".join(chunks)
 
@@ -349,11 +329,8 @@ def read_upload_within_limit_sync(file: UploadFile, max_bytes: int) -> bytes:
             break
         total += len(chunk)
         if total > max_bytes:
-            raise ErrorDeDominio(
-                413,
-                f"El archivo supera el tamaño máximo permitido "
-                f"({max_bytes // (1024 * 1024)} MB).",
-            )
+            raise error(413, "fichero_demasiado_grande", detail=f"El archivo supera el tamaño máximo permitido "
+                f"({max_bytes // (1024 * 1024)} MB).", max=max_bytes // (1024 * 1024))
         chunks.append(chunk)
     return b"".join(chunks)
 

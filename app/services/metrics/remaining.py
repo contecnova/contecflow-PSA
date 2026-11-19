@@ -5,10 +5,9 @@ from sqlalchemy import func, case
 from sqlalchemy.orm import Session
 
 from ._registro import register_metric
-from app.services.settings_service.por_empresa import capacidad_semanal
+from app.services.horario import efectivo as hor
 from app.models.imputation import Imputation
 from app.models.user import User
-from datetime import timedelta
 
 
 @register_metric("sprint_velocity")
@@ -206,10 +205,6 @@ def metric_load_by_person(
     **kwargs
 ) -> tuple[list[dict], dict]:
     """Carga por persona (% sobre su capacidad)."""
-
-    total_days = (d_to - d_from).days + 1
-    working_days = sum(1 for i in range(total_days) if (d_from + timedelta(i)).weekday() < 5)
-
     q = db.query(
         User.id,
         User.full_name,
@@ -228,9 +223,13 @@ def metric_load_by_person(
     if user_id:
         q = q.filter(User.id == user_id)
 
+    filas = q.group_by(User.id, User.full_name, User.weekly_capacity_hours).all()
+    # 19-11-2026: la capacidad es la de SU horario efectivo en el periodo (días de su
+    # jornada o turno, sin festivos de empresa/sede); antes, L-V fijo × capacidad/5.
+    horas_horario = hor.horas_por_persona(db, [r.id for r in filas], d_from, d_to, estados_ausencia=None)
     rows = []
-    for r in q.group_by(User.id, User.full_name, User.weekly_capacity_hours).all():
-        capacity = (capacidad_semanal(db, r)) / 5 * working_days
+    for r in filas:
+        capacity = horas_horario.get(r.id, 0.0)
         actual = float(r.actual or 0)
         if actual > 0 or capacity > 0:
             pct = round(actual / capacity * 100, 1) if capacity > 0 else 0

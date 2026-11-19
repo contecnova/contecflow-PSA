@@ -53,6 +53,7 @@ from app.services.approval_engine import (
 )
 from app.schemas.approvals import WorkflowIn, StepIn, ApprovalRequestIn, DecisionIn
 from app.core.responses import APIListResponse, APIResponse
+from app.core.codigos_de_error import error_http
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +106,7 @@ def create_workflow_from_template_endpoint(
     template_id = payload.get("template_id")
     name = payload.get("name")
     if not template_id:
-        raise HTTPException(400, "template_id es obligatorio")
+        raise error_http(400, "campo_obligatorio", detail="template_id es obligatorio", campo="template_id")
     w = create_workflow_from_template(db, template_id, override_name=name)
     return APIResponse.ok(data=_workflow_out(w, include_steps=True))
 
@@ -208,7 +209,7 @@ def simulate_workflow_endpoint(
     entity_type = payload.get("entity_type")
     context = payload.get("context") or {}
     if not entity_type:
-        raise HTTPException(400, "entity_type es obligatorio")
+        raise error_http(400, "campo_obligatorio", detail="entity_type es obligatorio", campo="entity_type")
     return APIResponse.ok(data=simulate_workflow(db, entity_type=entity_type, context=context))
 
 
@@ -274,7 +275,7 @@ def list_requests_endpoint(
 ):
     # Non-managers can only query their own requests
     if not mine and current_user.role not in (UserRole.admin, UserRole.pm, UserRole.hr):
-        raise HTTPException(403, "Acceso denegado: solo managers pueden ver todas las solicitudes")
+        raise error_http(403, "solo_gestores", detail="Acceso denegado: solo managers pueden ver todas las solicitudes")
     items = [_request_out(r) for r in list_approval_requests(db, current_user, status=status, entity_type=entity_type, mine=mine)]
     return APIListResponse.ok(items=items, total=len(items))
 
@@ -346,11 +347,11 @@ def get_financial_audit_log(
 ):
     req, entries = get_financial_audit_entries(db, request_id, current_user)
     if not req:
-        raise HTTPException(404, "Solicitud no encontrada")
+        raise error_http(404, "no_encontrado", detail="Solicitud no encontrada", que="solicitud")
     if req.entity_type not in _FINANCIAL_ENTITY_TYPES:
-        raise HTTPException(
-            404,
-            f"Esta solicitud es de tipo '{req.entity_type}', que no es una entidad financiera. "
+        raise error_http(
+            404, "solicitud_no_financiera",
+            detail=f"Esta solicitud es de tipo '{req.entity_type}', que no es una entidad financiera. "
             "El audit log financiero sólo existe para: " + ", ".join(sorted(_FINANCIAL_ENTITY_TYPES)),
         )
     return APIResponse.ok(data={

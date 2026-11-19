@@ -32,7 +32,7 @@ from app.models.jira_integration import JiraConfig
 from app.models.settings import AppSetting
 from app.models.task import Task
 from app.core.encryption import encrypt_value, decrypt_value
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +111,7 @@ def generar_secreto_de_webhook(db: Session, org_id: str) -> str:
     import secrets as _secrets
 
     if not org_id:
-        raise ErrorDeDominio(400, "El secreto del webhook de Jira es de una organización")
+        raise error(400, "jira_config_de_empresa", detail="El secreto del webhook de Jira es de una organización")
     secreto = _secrets.token_urlsafe(32)
     set_setting(db, JIRA_WEBHOOK_SECRET_KEY, secreto, org_id)
     db.commit()
@@ -326,7 +326,7 @@ def save_jira_config(
     # Auditoria 2026-11 (#25): la URL se usa para peticiones del servidor (SSRF).
     validate_outbound_url(jira_url or "", field="jira_url")
     if not org_id:
-        raise ErrorDeDominio(400, "La configuración de Jira es de una organización")
+        raise error(400, "jira_config_de_empresa", detail="La configuración de Jira es de una organización")
     config = configuracion_de_tareas(db, org_id)
     if config is None:
         config = JiraConfig(name=NOMBRE_DE_LA_CONEXION_DE_TAREAS, organization_id=org_id,
@@ -363,7 +363,7 @@ def credenciales_del_hub(db: Session, org_id: Optional[str]) -> dict:
     """`{base_url, email, api_token}` de la conexion activa de la organizacion (404 si no hay)."""
     config = configuracion_de_tareas(db, org_id)
     if config is None or config.is_active is False:
-        raise ErrorDeDominio(404, "Jira no está configurado en esta organización")
+        raise error(404, "integracion_no_configurada", detail="Jira no está configurado en esta organización", nombre="Jira")
     c = credenciales(config)
     return {"base_url": c["jira_url"] or "", "email": c["jira_email"] or "",
             "api_token": c["jira_api_token"] or "", "project_key": c["jira_project_key"] or ""}
@@ -377,11 +377,11 @@ def guardar_desde_hub(db: Session, org_id: Optional[str], *, base_url: str, emai
 
     validate_outbound_url(base_url or "", field="base_url")
     if not org_id:
-        raise ErrorDeDominio(400, "La configuración de Jira es de una organización")
+        raise error(400, "jira_config_de_empresa", detail="La configuración de Jira es de una organización")
     config = configuracion_de_tareas(db, org_id)
     if config is None:
         if not api_token:
-            raise ErrorDeDominio(422, "Falta el API token de Jira")
+            raise error(422, "jira_falta_token", detail="Falta el API token de Jira")
         config = JiraConfig(name=name or NOMBRE_DE_LA_CONEXION_DE_TAREAS, organization_id=org_id,
                             usar_para_tareas=True, created_by_user_id=user_id,
                             jira_project_key=project_key or "")
@@ -462,7 +462,6 @@ def sync_jira_issues(
       (lo mismo que hace la sincronizacion periodica del worker).
     """
     if project_id:
-        from app.core.errores import ErrorDeDominio
         from app.models.project import Project
         q_proyecto = db.query(Project.id).filter(Project.id == project_id)
         if org_id:
@@ -471,7 +470,7 @@ def sync_jira_issues(
             from app.services.project_service import scope_projects_query
             q_proyecto = scope_projects_query(q_proyecto, db, viewer)
         if q_proyecto.first() is None:
-            raise ErrorDeDominio(404, "Proyecto no encontrado")
+            raise error(404, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")
 
     created = updated = skipped = sin_proyecto = 0
     now = datetime.datetime.now(datetime.timezone.utc)
@@ -644,12 +643,12 @@ def llamar_a_jira(cfg: dict, method: str, path: str, *, json: Optional[dict] = N
         return llamar_a_jira_crudo(cfg, method, path, json=json, timeout=timeout)
     except httpx.HTTPStatusError as exc:
         logger.warning("Jira %s %s -> HTTP %s", method, path, exc.response.status_code)
-        raise ErrorDeDominio(502, f"Jira devolvió HTTP {exc.response.status_code}") from exc
+        raise error(502, "servicio_externo_fallo", detail=f"Jira devolvió HTTP {exc.response.status_code}", servicio="Jira") from exc
     except (httpx.RequestError, PermissionError) as exc:
         logger.warning("Jira %s %s: no se pudo conectar (%s)", method, path, type(exc).__name__)
-        raise ErrorDeDominio(503, "No se pudo conectar con Jira") from exc
+        raise error(503, "servicio_externo_sin_conexion", detail="No se pudo conectar con Jira", servicio="Jira") from exc
     except ValueError as exc:
-        raise ErrorDeDominio(502, "Respuesta de Jira no válida") from exc
+        raise error(502, "servicio_externo_respuesta_no_valida", detail="Respuesta de Jira no válida", servicio="Jira") from exc
 
 
 def probar_conexion(cfg: dict, timeout: float = 10) -> dict:
@@ -659,7 +658,7 @@ def probar_conexion(cfg: dict, timeout: float = 10) -> dict:
     `/integrations/jira/configs/{id}/test`), cada una con su cliente.
     """
     if not cfg.get("jira_url") or not cfg.get("jira_api_token"):
-        raise ErrorDeDominio(400, "Jira no configurado. Ve a /jira/config primero.")
+        raise error(400, "integracion_no_configurada", detail="Jira no configurado. Ve a /jira/config primero.", nombre="Jira")
     data = llamar_a_jira(cfg, "GET", "/rest/api/3/myself", timeout=timeout)
     return {
         "ok": True,
@@ -749,7 +748,7 @@ def empujar_tareas_a_jira(db: Session, *, project_id: str, statuses: List[str],
     """
     cfg = get_jira_config(db, org_id)
     if not cfg["jira_url"] or not cfg["jira_api_token"]:
-        raise ErrorDeDominio(400, "Jira no configurado.")
+        raise error(400, "integracion_no_configurada", detail="Jira no configurado.", nombre="Jira")
     tasks = get_tasks_for_push(db, project_id, statuses, org_id=org_id)
 
     created = skipped = errors = 0

@@ -29,6 +29,7 @@ from app.services import documents_service as doc_svc
 from app.services import reserva_de_documentos as _reserva
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
 from app.core.codigos_de_error import error as error_con_codigo
+from app.core.codigos_de_error import error_http
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 logger = logging.getLogger(__name__)
@@ -220,10 +221,7 @@ def upload_version(
     max_file_size_bytes = _max_mb * 1024 * 1024
     content = file.file.read(max_file_size_bytes + 1)
     if len(content) > max_file_size_bytes:
-        raise HTTPException(
-            status_code=413,
-            detail=f"File too large (max {_max_mb}MB)"
-        )
+        raise error_http(413, "documentos_demasiado_grande", detail=f"File too large (max {_max_mb}MB)", max=_max_mb)
     # content already holds the complete file bytes — no need to re-read
 
     # P0-2: Validate MIME type and magic bytes
@@ -243,7 +241,7 @@ def upload_version(
         # entrada (tipo no permitido, key inválido…), por lo que es un error
         # del cliente, no un fallo del servidor.
         logger.warning("Storage rejected upload for doc=%s: %s", doc_id, exc)
-        raise HTTPException(status_code=400, detail=f"Archivo rechazado por el sistema de almacenamiento: {exc}")
+        raise error_http(400, "almacenamiento_rechaza_archivo", detail=f"Archivo rechazado por el sistema de almacenamiento: {exc}")
 
     # Create version record
     try:
@@ -408,7 +406,7 @@ def create_and_upload(
     max_bytes = _max_mb * 1024 * 1024
     content = file.file.read(max_bytes + 1)
     if len(content) > max_bytes:
-        raise HTTPException(413, f"File exceeds maximum size of {_max_mb} MB")
+        raise error_http(413, "documentos_demasiado_grande", detail=f"File exceeds maximum size of {_max_mb} MB", max=_max_mb)
 
     # P0-2: Validate MIME type and magic bytes
     _validate_upload(file.filename or "", file.content_type or "", content)
@@ -433,10 +431,7 @@ def create_and_upload(
         # Fallo upstream del backend de almacenamiento (S3 / FS) — no es un
         # error de la petición del cliente, sino indisponibilidad del servicio.
         logger.exception("File upload to storage failed for user=%s file=%s", current_user.id, file.filename)
-        raise HTTPException(
-            status_code=503,
-            detail="El servicio de almacenamiento no está disponible temporalmente. Inténtalo de nuevo en unos minutos.",
-        )
+        raise error_http(503, "almacenamiento_no_disponible", detail="El servicio de almacenamiento no está disponible temporalmente. Inténtalo de nuevo en unos minutos.")
 
     return doc_svc.create_and_upload_document(
         db, current_user, file, content, title, description, category,
@@ -469,15 +464,15 @@ def serve_local_file(
     """
     token_ok = bool(access and doc_svc.resolve_file_access_token(access, file_key))
     if current_user is None and not token_ok:
-        raise HTTPException(status_code=401, detail="No autenticado")
+        raise error_http(401, "no_autenticado", detail="No autenticado")
     from app.services.s3_service import LocalFileStorage
     if not isinstance(file_storage, LocalFileStorage):
-        raise HTTPException(404, "Direct file serving only available in local-storage mode")
+        raise error_http(404, "documentos_solo_local", detail="Direct file serving only available in local-storage mode")
 
     # Verify the file exists and access constraints.
     version = doc_svc.get_version_by_file_key(db, file_key)
     if not version:
-        raise HTTPException(404, "File not found")
+        raise error_http(404, "no_encontrado", detail="File not found", que="fichero")
     if current_user is not None:
         doc = get_document_or_404(db, version.document_id, current_user)
         check_document_access(doc, current_user)  # raises 403 if no access
@@ -485,9 +480,9 @@ def serve_local_file(
     try:
         content = file_storage.get_file_bytes(file_key)
     except PermissionError:
-        raise HTTPException(403, "Access denied")
+        raise error_http(403, "sin_permiso", detail="Access denied")
     except FileNotFoundError:
-        raise HTTPException(404, "File not found")
+        raise error_http(404, "no_encontrado", detail="File not found", que="fichero")
 
     mime_type, _ = mimetypes.guess_type(file_key)
     mime_type = mime_type or "application/octet-stream"
@@ -515,21 +510,21 @@ def head_local_file(
     """Return metadata headers for a locally stored file without streaming the body."""
     token_ok = bool(access and doc_svc.resolve_file_access_token(access, file_key))
     if current_user is None and not token_ok:
-        raise HTTPException(status_code=401, detail="No autenticado")
+        raise error_http(401, "no_autenticado", detail="No autenticado")
     from app.services.s3_service import LocalFileStorage
     if not isinstance(file_storage, LocalFileStorage):
-        raise HTTPException(404, "Direct file serving only available in local-storage mode")
+        raise error_http(404, "documentos_solo_local", detail="Direct file serving only available in local-storage mode")
 
     version = doc_svc.get_version_by_file_key(db, file_key)
     if not version:
-        raise HTTPException(404, "File not found")
+        raise error_http(404, "no_encontrado", detail="File not found", que="fichero")
     if current_user is not None:
         doc = get_document_or_404(db, version.document_id, current_user)
         check_document_access(doc, current_user)
 
     file_size = file_storage.get_file_size(file_key)
     if file_size is None:
-        raise HTTPException(404, "File not found")
+        raise error_http(404, "no_encontrado", detail="File not found", que="fichero")
 
     mime_type, _ = mimetypes.guess_type(file_key)
     mime_type = mime_type or "application/octet-stream"
@@ -630,9 +625,9 @@ def add_tag(
     check_document_access(doc, current_user, DocumentAccessLevel.editor)
     tag_name = (payload.get("tag") or "").strip().lower()
     if not tag_name:
-        raise HTTPException(400, "tag required")
+        raise error_http(400, "campo_obligatorio", detail="tag required", campo="tag")
     if any(t.tag_name == tag_name for t in doc.tags):
-        raise HTTPException(409, "Tag already exists")
+        raise error_http(409, "etiqueta_ya_existe", detail="Tag already exists")
     doc_svc.add_tag(db, doc_id, tag_name)
     return APIResponse.ok(data={"ok": True})
 
@@ -744,7 +739,7 @@ def ai_summary(
             system=system_prompt,
             module="document_summary",
             user_id=current_user.id,
-            max_tokens=700,
+            max_tokens=settings.AI_MEDIUM_ANSWER_MAX_TOKENS,
         )
     except PresupuestoDeIAAgotado:
         raise  # 429 con su mensaje (manejador de app/main.py)
@@ -752,7 +747,7 @@ def ai_summary(
         # Barrido final 2026-11: el error del proveedor de IA (puede citar parte
         # de la clave) se registra; ya no se devuelve al cliente.
         logger.warning("AI summary failed for doc=%s", doc_id, exc_info=True)
-        raise HTTPException(503, "AI summary unavailable")
+        raise error_http(503, "ia_resumen_no_disponible", detail="AI summary unavailable")
 
     doc_svc.save_ai_summary(db, doc, summary_text)
     return APIResponse.ok(data={"document_id": doc_id, "summary": summary_text})

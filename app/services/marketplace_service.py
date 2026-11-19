@@ -37,10 +37,11 @@ import logging
 from typing import Optional
 
 from sqlalchemy.orm import Session
+from app.core.config import settings
 from app.core.encryption import encrypt_value
 from app.models.marketplace import IntegrationConnector
 from app.models.marketplace import IntegrationInstance
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -57,95 +58,99 @@ CONECTORES_DESTACADOS = [
     "jira", "servicenow", "zendesk", "slack", "teams", "pagerduty",
 ]
 
+#: 19-11-2026: base de los logos configurable (CONNECTOR_LOGO_BASE_URL): una
+#: instalación sin salida a internet o con su propio CDN los sirve desde su host.
+_LOGOS = settings.CONNECTOR_LOGO_BASE_URL.rstrip("/")
+
 CONNECTOR_CATALOG = [
     {"name": "Salesforce CRM", "slug": "salesforce", "category": "crm",
      "description": "Bidirectional sync of opportunities, contacts and accounts.",
      "auth_scheme": "oauth2", "is_certified": True,
-     "logo_url": "https://cdn.contecflow.app/connectors/salesforce.svg"},
+     "logo_url": f"{_LOGOS}/salesforce.svg"},
     {"name": "HubSpot CRM", "slug": "hubspot", "category": "crm",
      "description": "Sync deals, contacts and pipeline stages with HubSpot.",
      "auth_scheme": "oauth2", "is_certified": True,
-     "logo_url": "https://cdn.contecflow.app/connectors/hubspot.svg"},
+     "logo_url": f"{_LOGOS}/hubspot.svg"},
     {"name": "SAP S/4HANA", "slug": "sap_s4", "category": "erp",
      "description": "Financial integration: cost centres, WBS elements, actual costs.",
      "auth_scheme": "api_key", "is_certified": True,
-     "logo_url": "https://cdn.contecflow.app/connectors/sap.svg"},
+     "logo_url": f"{_LOGOS}/sap.svg"},
     {"name": "Oracle NetSuite", "slug": "netsuite", "category": "erp",
      "description": "Sync projects, time entries and invoices with NetSuite.",
      "auth_scheme": "oauth2", "is_certified": True,
-     "logo_url": "https://cdn.contecflow.app/connectors/netsuite.svg"},
+     "logo_url": f"{_LOGOS}/netsuite.svg"},
     {"name": "Workday HCM", "slug": "workday", "category": "hris",
      "description": "Employee roster, org chart, and time-off sync.",
      "auth_scheme": "api_key", "is_certified": True,
-     "logo_url": "https://cdn.contecflow.app/connectors/workday.svg"},
+     "logo_url": f"{_LOGOS}/workday.svg"},
     {"name": "BambooHR", "slug": "bamboohr", "category": "hris",
      "description": "Sync employees, departments and leave balances.",
      "auth_scheme": "api_key", "is_certified": True,
-     "logo_url": "https://cdn.contecflow.app/connectors/bamboohr.svg"},
+     "logo_url": f"{_LOGOS}/bamboohr.svg"},
     {"name": "Greenhouse ATS", "slug": "greenhouse", "category": "hris",
      "description": "Import new hires and open positions for resource planning.",
      "auth_scheme": "api_key", "is_certified": False,
-     "logo_url": "https://cdn.contecflow.app/connectors/greenhouse.svg"},
+     "logo_url": f"{_LOGOS}/greenhouse.svg"},
     {"name": "Jira Software", "slug": "jira", "category": "devops",
      "description": "Bidirectional issue sync, sprint import and webhook events.",
      "auth_scheme": "api_key", "is_certified": True,
-     "logo_url": "https://cdn.contecflow.app/connectors/jira.svg"},
+     "logo_url": f"{_LOGOS}/jira.svg"},
     {"name": "GitHub", "slug": "github", "category": "devops",
      "description": "PR status, commit activity and deployment events.",
      "auth_scheme": "oauth2", "is_certified": True,
-     "logo_url": "https://cdn.contecflow.app/connectors/github.svg"},
+     "logo_url": f"{_LOGOS}/github.svg"},
     {"name": "GitLab", "slug": "gitlab", "category": "devops",
      "description": "CI/CD pipelines, merge requests and issue tracking.",
      "auth_scheme": "oauth2", "is_certified": False,
-     "logo_url": "https://cdn.contecflow.app/connectors/gitlab.svg"},
+     "logo_url": f"{_LOGOS}/gitlab.svg"},
     {"name": "Slack", "slug": "slack", "category": "comms",
      "description": "Task creation, time logging and rich Block Kit notifications.",
      "auth_scheme": "oauth2", "is_certified": True,
-     "logo_url": "https://cdn.contecflow.app/connectors/slack.svg"},
+     "logo_url": f"{_LOGOS}/slack.svg"},
     {"name": "Microsoft Teams", "slug": "teams", "category": "comms",
      "description": "Adaptive card notifications and bot commands.",
      "auth_scheme": "oauth2", "is_certified": True,
-     "logo_url": "https://cdn.contecflow.app/connectors/teams.svg"},
+     "logo_url": f"{_LOGOS}/teams.svg"},
     {"name": "Xero", "slug": "xero", "category": "finance",
      "description": "Invoice sync, expense reimbursements and payment status.",
      "auth_scheme": "oauth2", "is_certified": True,
-     "logo_url": "https://cdn.contecflow.app/connectors/xero.svg"},
+     "logo_url": f"{_LOGOS}/xero.svg"},
     {"name": "QuickBooks Online", "slug": "quickbooks", "category": "finance",
      "description": "Sync invoices, payments and project-level P&L.",
      "auth_scheme": "oauth2", "is_certified": True,
-     "logo_url": "https://cdn.contecflow.app/connectors/quickbooks.svg"},
+     "logo_url": f"{_LOGOS}/quickbooks.svg"},
     {"name": "DocuSign", "slug": "docusign", "category": "legal",
      "description": "Trigger e-signature workflows for contracts and SOWs.",
      "auth_scheme": "oauth2", "is_certified": True,
-     "logo_url": "https://cdn.contecflow.app/connectors/docusign.svg"},
+     "logo_url": f"{_LOGOS}/docusign.svg"},
     {"name": "Stripe", "slug": "stripe", "category": "finance",
      "description": "Payment links, milestone billing and subscription management.",
      "auth_scheme": "api_key", "is_certified": True,
-     "logo_url": "https://cdn.contecflow.app/connectors/stripe.svg"},
+     "logo_url": f"{_LOGOS}/stripe.svg"},
     {"name": "Azure DevOps", "slug": "azure_devops", "category": "devops",
      "description": "Work items, pipelines and board sync with Azure DevOps.",
      "auth_scheme": "api_key", "is_certified": False,
-     "logo_url": "https://cdn.contecflow.app/connectors/azuredevops.svg"},
+     "logo_url": f"{_LOGOS}/azuredevops.svg"},
     {"name": "AWS S3", "slug": "aws_s3", "category": "storage",
      "description": "Store project documents and backups in S3 buckets.",
      "auth_scheme": "api_key", "is_certified": True,
-     "logo_url": "https://cdn.contecflow.app/connectors/awss3.svg"},
+     "logo_url": f"{_LOGOS}/awss3.svg"},
     {"name": "Google Workspace", "slug": "google_workspace", "category": "comms",
      "description": "Calendar sync, Drive documents and Gmail notifications.",
      "auth_scheme": "oauth2", "is_certified": True,
-     "logo_url": "https://cdn.contecflow.app/connectors/google.svg"},
+     "logo_url": f"{_LOGOS}/google.svg"},
     {"name": "Zendesk", "slug": "zendesk", "category": "service_desk",
      "description": "Ticket sync between Contecflow Service Desk and Zendesk.",
      "auth_scheme": "api_key", "is_certified": False,
-     "logo_url": "https://cdn.contecflow.app/connectors/zendesk.svg"},
+     "logo_url": f"{_LOGOS}/zendesk.svg"},
     {"name": "ServiceNow", "slug": "servicenow", "category": "service_desk",
      "description": "ITSM integration: incidents, changes and CMDB items.",
      "auth_scheme": "api_key", "is_certified": False,
-     "logo_url": "https://cdn.contecflow.app/connectors/servicenow.svg"},
+     "logo_url": f"{_LOGOS}/servicenow.svg"},
     {"name": "Okta", "slug": "okta", "category": "iam",
      "description": "SSO, SCIM user provisioning and group sync.",
      "auth_scheme": "api_key", "is_certified": True,
-     "logo_url": "https://cdn.contecflow.app/connectors/okta.svg"},
+     "logo_url": f"{_LOGOS}/okta.svg"},
 ]
 
 
@@ -167,17 +172,11 @@ def validar_parametros_de_sincronizacion(
     un valor inventado.
     """
     if sync_direction not in SENTIDOS_DE_SINCRONIZACION:
-        raise ErrorDeDominio(
-            422,
-            "Invalid sync_direction. Allowed: "
-            f"{sorted(SENTIDOS_DE_SINCRONIZACION)}",
-        )
+        raise error(422, "campo_no_valido_opciones", detail="Invalid sync_direction. Allowed: "
+            f"{sorted(SENTIDOS_DE_SINCRONIZACION)}", campo="sync_direction", opciones=sorted(SENTIDOS_DE_SINCRONIZACION))
     if sync_frequency not in FRECUENCIAS_DE_SINCRONIZACION:
-        raise ErrorDeDominio(
-            422,
-            "Invalid sync_frequency. Allowed: "
-            f"{sorted(FRECUENCIAS_DE_SINCRONIZACION)}",
-        )
+        raise error(422, "campo_no_valido_opciones", detail="Invalid sync_frequency. Allowed: "
+            f"{sorted(FRECUENCIAS_DE_SINCRONIZACION)}", campo="sync_frequency", opciones=sorted(FRECUENCIAS_DE_SINCRONIZACION))
 
 
 def _conectores_visibles(db: Session, organization_id: Optional[str]):
@@ -338,7 +337,7 @@ def instalar_por_id(db: Session, user, datos: dict) -> IntegrationInstance:
     """
     org_id = getattr(user, "organization_id", None)
     if not org_id:
-        raise ErrorDeDominio(400, "organization_id no disponible")
+        raise error(400, "sin_empresa", detail="organization_id no disponible")
 
     sentido = datos.get("sync_direction") or "bidirectional"
     frecuencia = datos.get("sync_frequency") or "hourly"
@@ -351,7 +350,7 @@ def instalar_por_id(db: Session, user, datos: dict) -> IntegrationInstance:
         .first()
     )
     if not connector:
-        raise ErrorDeDominio(404, "Connector not found")
+        raise error(404, "no_encontrado", detail="Connector not found", que="conector")
 
     return crear_instancia(
         db,
@@ -421,9 +420,9 @@ def install_integration_connector(
         .first()
     )
     if not connector:
-        raise ErrorDeDominio(404, f"Connector '{connector_slug}' not found in marketplace")
+        raise error(404, "no_encontrado", detail=f"Connector '{connector_slug}' not found in marketplace", que="conector")
     if not organization_id:
-        raise ErrorDeDominio(400, "User has no associated organization")
+        raise error(400, "sin_empresa", detail="User has no associated organization")
 
     instance = crear_instancia(
         db,
@@ -479,6 +478,6 @@ def uninstall_integration_connector(
         IntegrationInstance.is_enabled == True,
     ).first()
     if not inst:
-        raise ErrorDeDominio(404, "Integration instance not found")
+        raise error(404, "no_encontrado", detail="Integration instance not found", que="integracion")
     inst.is_enabled = False
     db.commit()

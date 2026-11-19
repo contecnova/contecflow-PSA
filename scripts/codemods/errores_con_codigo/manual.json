@@ -1,0 +1,141 @@
+{
+ "codigos": {
+  "contrasena_min_caracteres": {
+   "es": "La contraseña debe tener al menos {n} caracteres",
+   "en": "The password must have at least {n} characters",
+   "zh": "密码至少需要 {n} 个字符"
+  },
+  "contrasena_sin_mayuscula": {
+   "es": "La contraseña debe incluir al menos una letra mayúscula",
+   "en": "The password must include at least one uppercase letter",
+   "zh": "密码必须至少包含一个大写字母"
+  },
+  "contrasena_sin_minuscula": {
+   "es": "La contraseña debe incluir al menos una letra minúscula",
+   "en": "The password must include at least one lowercase letter",
+   "zh": "密码必须至少包含一个小写字母"
+  },
+  "contrasena_sin_numero": {
+   "es": "La contraseña debe incluir al menos un número",
+   "en": "The password must include at least one number",
+   "zh": "密码必须至少包含一个数字"
+  },
+  "contrasena_sin_especial": {
+   "es": "La contraseña debe incluir al menos un carácter especial",
+   "en": "The password must include at least one special character",
+   "zh": "密码必须至少包含一个特殊字符"
+  },
+  "contrasena_no_cumple_politica": {
+   "es": "La contraseña no cumple la política de seguridad",
+   "en": "The password does not meet the security policy",
+   "zh": "密码不符合安全策略"
+  },
+  "campos_solo_admin": {
+   "es": "Solo un administrador puede cambiar estos campos: {campos}",
+   "en": "Only an administrator can change these fields: {campos}",
+   "zh": "只有管理员可以修改这些字段：{campos}"
+  },
+  "ia_no_disponible": {
+   "es": "La IA no está disponible ahora mismo: inténtalo más tarde o avisa a administración",
+   "en": "AI is not available right now: try again later or contact your administrator",
+   "zh": "AI 当前不可用：请稍后重试或联系管理员"
+  },
+  "ia_uso_no_permitido": {
+   "es": "No puedes usar este asistente ahora: está desactivado o has llegado al límite diario",
+   "en": "You cannot use this assistant now: it is disabled or you have reached the daily limit",
+   "zh": "你现在无法使用此助手：它已停用或你已达到每日上限"
+  },
+  "permiso_proyecto_denegado": {
+   "es": "No tienes permiso para hacer esto en este proyecto",
+   "en": "You don't have permission to do this in this project",
+   "zh": "你没有在此项目中执行此操作的权限"
+  },
+  "cupo_lleno": {
+   "es": "No queda plaza en el cupo para esas fechas",
+   "en": "There are no places left in the quota for those dates",
+   "zh": "这些日期的名额已满"
+  },
+  "anomalias_datos_insuficientes": {
+   "es": "Hacen falta al menos 4 datos para detectar anomalías",
+   "en": "At least 4 data points are needed to detect anomalies",
+   "zh": "至少需要 4 个数据点才能检测异常"
+  },
+  "bloqueo_legal_no_suprimible": {
+   "es": "Está bajo bloqueo legal y no se puede suprimir: {casos}",
+   "en": "It is under legal hold and cannot be erased: {casos}",
+   "zh": "处于法律保留状态，无法删除：{casos}"
+  },
+  "evaluadores_no_elegibles_peer": {
+   "es": "{n} par(es) no son del mismo equipo/departamento",
+   "en": "{n} peer(s) are not from the same team/department",
+   "zh": "{n} 名同事不属于同一团队/部门"
+  },
+  "evaluadores_no_elegibles_upward": {
+   "es": "{n} reportes upward no figuran como reportes directos",
+   "en": "{n} upward reviewer(s) are not direct reports",
+   "zh": "{n} 名向上评估人不是直接下属"
+  },
+  "presupuesto_supera_techo": {
+   "es": "Con este presupuesto, los de «{padre}» suman {consumido} y su techo es {techo}",
+   "en": "With this budget, those under “{padre}” add up to {consumido} and its ceiling is {techo}",
+   "zh": "加上此预算，“{padre}”下的预算合计 {consumido}，其上限为 {techo}"
+  },
+  "desviaciones_sin_explicar": {
+   "es": "Explica antes las desviaciones de: {lista}",
+   "en": "First explain the variances of: {lista}",
+   "zh": "请先说明以下偏差：{lista}"
+  },
+  "sin_presupuesto_disponible": {
+   "es": "Sin presupuesto disponible: {detalle}",
+   "en": "No budget available: {detalle}",
+   "zh": "没有可用预算：{detalle}"
+  },
+  "credencial_rechazada": {
+   "es": "La credencial no es válida o no tiene permiso para esta operación",
+   "en": "The credential is not valid or has no permission for this operation",
+   "zh": "凭据无效或无权执行此操作"
+  },
+  "conector_no_configurado": {
+   "es": "La aplicación conectada no está configurada",
+   "en": "The connected application is not configured",
+   "zh": "连接的应用未配置"
+  },
+  "conector_no_alta": {
+   "es": "Tu empresa no está dada de alta en la aplicación conectada",
+   "en": "Your company is not registered in the connected application",
+   "zh": "你的公司未在连接的应用中注册"
+  },
+  "conector_sin_permiso": {
+   "es": "No tienes permiso en la aplicación conectada",
+   "en": "You don't have permission in the connected application",
+   "zh": "你在连接的应用中没有权限"
+  },
+  "conector_no_encontrado": {
+   "es": "La aplicación conectada no encuentra lo que pides",
+   "en": "The connected application cannot find what you asked for",
+   "zh": "连接的应用找不到你请求的内容"
+  },
+  "conector_rechazado": {
+   "es": "La aplicación conectada ha rechazado la petición",
+   "en": "The connected application rejected the request",
+   "zh": "连接的应用拒绝了请求"
+  },
+  "conector_no_responde": {
+   "es": "La aplicación conectada no responde",
+   "en": "The connected application is not responding",
+   "zh": "连接的应用没有响应"
+  },
+  "conector_no_listo": {
+   "es": "La aplicación conectada aún no está lista",
+   "en": "The connected application is not ready yet",
+   "zh": "连接的应用尚未就绪"
+  }
+ },
+ "que": {
+  "valor_de_catalogo": {
+   "es": "Valor del catálogo",
+   "en": "Catalog value",
+   "zh": "目录值"
+  }
+ }
+}

@@ -9,17 +9,17 @@
   background: var(--surface-1); border: 1px solid var(--surface-4); border-radius: 10px;
   padding: 14px; min-width: 0;
 }
-.plan-card__titulo { font-size: 13px; font-weight: 700; color: var(--text-1); margin: 0 0 10px; display: flex; align-items: center; gap: 6px; }
-.plan-muted { color: var(--text-3); font-size: 12px; }
+.plan-card__titulo { font-size: var(--text-base); font-weight: 700; color: var(--text-1); margin: 0 0 10px; display: flex; align-items: center; gap: 6px; }
+.plan-muted { color: var(--text-3); font-size: var(--text-sm); }
 .plan-aviso {
   border: 1px solid var(--warning-border); background: var(--warning-bg); color: var(--warning);
-  border-radius: 8px; padding: 8px 12px; font-size: 12px; display: flex; gap: 8px; align-items: flex-start;
+  border-radius: 8px; padding: 8px 12px; font-size: var(--text-sm); display: flex; gap: 8px; align-items: flex-start;
 }
 .plan-aviso--peligro { border-color: var(--danger-border); background: var(--danger-bg); color: var(--danger); }
 .plan-aviso--ok { border-color: var(--success-border); background: var(--success-bg); color: var(--success); }
 
 .plan-tabla-scroll { overflow-x: auto; max-width: 100%; }
-.plan-tabla { width: 100%; border-collapse: collapse; font-size: 12px; }
+.plan-tabla { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
 .plan-tabla th {
   text-align: left; font-weight: 600; color: var(--text-3); padding: 6px 8px;
   border-bottom: 1px solid var(--surface-4); white-space: nowrap;
@@ -33,7 +33,7 @@
 
 .plan-input, .plan-select {
   background: var(--surface-0); color: var(--text-1); border: 1px solid var(--surface-4);
-  border-radius: 6px; padding: 4px 6px; font-size: 12px; min-width: 0; max-width: 100%;
+  border-radius: 6px; padding: 4px 6px; font-size: var(--text-sm); min-width: 0; max-width: 100%;
 }
 .plan-input:focus, .plan-select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .plan-input--num { width: 72px; }
@@ -58,7 +58,7 @@
 .plan-vbarra__select.ds-input { width: auto; min-width: 160px; max-width: 100%; height: var(--plan-alto-control); padding-block: 0; }
 .plan-columnas { position: relative; }
 .plan-columnas__panel {
-  position: absolute; top: calc(100% + 4px); left: 0; z-index: 30; min-width: 200px;
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: calc(var(--z-content) + 29); min-width: 200px;
   background: var(--surface-2); border: 1px solid var(--surface-4); border-radius: var(--radius-md);
   box-shadow: var(--shadow-md); padding: 6px; display: flex; flex-direction: column; gap: 2px;
 }
@@ -84,17 +84,17 @@
 
 /* Calendario */
 .plan-cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
-.plan-cal__cab { font-size: 11px; color: var(--text-3); text-align: center; padding: 4px 0; }
+.plan-cal__cab { font-size: var(--text-xs); color: var(--text-3); text-align: center; padding: 4px 0; }
 .plan-cal__dia {
   min-height: 84px; background: var(--surface-1); border: 1px solid var(--surface-3); border-radius: 6px;
   padding: 4px; display: flex; flex-direction: column; gap: 2px; min-width: 0;
 }
 .plan-cal__dia--fuera { opacity: 0.45; }
 .plan-cal__dia--hoy { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
-.plan-cal__num { font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.plan-cal__num { font-size: var(--text-xs); color: var(--text-3); font-variant-numeric: tabular-nums; }
 .plan-cal__dia--hoy .plan-cal__num { color: var(--accent); font-weight: 700; }
 .plan-cal__tarea {
-  font-size: 11px; border-radius: 3px; padding: 1px 4px; background: var(--accent-muted); color: var(--accent);
+  font-size: var(--text-xs); border-radius: 3px; padding: 1px 4px; background: var(--accent-muted); color: var(--accent);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
 }
 .plan-cal__tarea--critica { background: var(--danger-bg); color: var(--danger); }
@@ -104,11 +104,11 @@
 .plan-lista li { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
 .plan-chip {
   display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px;
-  border: 1px solid var(--surface-4); background: var(--surface-2); color: var(--text-2); font-size: 11px;
+  border: 1px solid var(--surface-4); background: var(--surface-2); color: var(--text-2); font-size: var(--text-xs);
 }
 .plan-chip--activa { border-color: var(--accent); color: var(--accent); background: var(--accent-muted); }
 .plan-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
-.plan-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-2); }
+.plan-form label { display: flex; flex-direction: column; gap: 4px; font-size: var(--text-sm); color: var(--text-2); }
 .plan-textarea { min-height: 64px; resize: vertical; }
 
 @media (max-width: 640px) {

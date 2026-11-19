@@ -16,7 +16,7 @@ from app.models.cmdb import CMDBChangelog
 from app.models.service_desk import CIStatus, CIType, ConfigurationItem
 from app.services.cmdb.parser import compute_config_hash, string_similarity
 from app.services.cmdb.utils import utcnow, PROVIDER_AGENT
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 #: Lo que el descubrimiento dice del estado, en el estado de la CMDB.
 ESTADO_DESCUBIERTO = {
@@ -645,7 +645,7 @@ def revoke_agent_token(db: Session, agent_id: str, org_id: str | None = None) ->
 
     reg = _agentes(db, org_id).filter(CMDBAgentRegistration.id == agent_id).first()
     if not reg:
-        raise ErrorDeDominio(status_code=404, detail=f"Agent {agent_id} not found")
+        raise error(404, "no_encontrado", detail=f"Agent {agent_id} not found", que="agente")
     reg.is_active = False
     db.flush()
 
@@ -659,7 +659,7 @@ def rotate_agent_token(db: Session, agent_id: str, org_id: str | None = None) ->
 
     reg = _agentes(db, org_id).filter(CMDBAgentRegistration.id == agent_id).first()
     if not reg:
-        raise ErrorDeDominio(status_code=404, detail=f"Agent {agent_id} not found")
+        raise error(404, "no_encontrado", detail=f"Agent {agent_id} not found", que="agente")
 
     raw_token = secrets.token_hex(32)
     reg.token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
@@ -694,7 +694,7 @@ def process_agent_checkin(
 
     reg = resolve_agent_by_token(db, raw_token)
     if not reg:
-        raise ErrorDeDominio(status_code=401, detail="Invalid or revoked agent token")
+        raise error(401, "oauth_token_revocado", detail="Invalid or revoked agent token")
     # Segunda auditoría 2026-11 (#10): organización desactivada → 403.
     from app.db.session import exigir_organizacion_activa
     exigir_organizacion_activa(db, reg.organization_id)

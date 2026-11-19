@@ -23,6 +23,7 @@ from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 import app.services.bi_tokens_service as _bi
+from app.core.codigos_de_error import error_http
 
 router = APIRouter()
 
@@ -90,7 +91,7 @@ def bi_data_projects(
         # NO se envuelve en el envelope canónico (rompería a esos consumidores externos).
         return _bi.bi_data_projects(bi_token, db)
     except ValueError:
-        raise HTTPException(401, "Token BI inválido o caducado")
+        raise error_http(401, "token_no_valido", detail="Token BI inválido o caducado")
 
 
 @router.get("/bi/data/timesheets", summary="Datos de imputaciones para BI")
@@ -114,7 +115,7 @@ def bi_data_timesheets(
         return _bi.bi_data_timesheets(bi_token, date_from, date_to, page, page_size, db,
                                       desde=desde, hasta=hasta, granularidad=granularidad, tz=tz)
     except ValueError:
-        raise HTTPException(401, "Token BI inválido")
+        raise error_http(401, "token_no_valido", detail="Token BI inválido")
 
 
 @router.get("/bi/data/kpis", summary="KPIs globales para BI")
@@ -126,4 +127,4 @@ def bi_data_kpis(
         # Contrato externo BI (PowerBI): sin envelope.
         return _bi.bi_data_kpis(bi_token, db)
     except ValueError:
-        raise HTTPException(401, "Token BI inválido")
+        raise error_http(401, "token_no_valido", detail="Token BI inválido")

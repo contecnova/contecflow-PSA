@@ -23,6 +23,8 @@ class RedisBus(EventBus):
         try:
             import redis.asyncio as aioredis  # noqa: F401
             from app.core.config import settings
+            # 19-11-2026: el respaldo localhost solo sirve en desarrollo; en producción
+            # `comprobacion_de_produccion` no deja arrancar con bus redis sin REDIS_URL.
             self._url = url or settings.REDIS_URL or "redis://localhost:6379/0"
             self._client = None  # lazy
             self._listener_task: asyncio.Task | None = None

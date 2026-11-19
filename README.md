@@ -287,7 +287,7 @@ Rules enforced in `imputation_service.py`:
 
 **Technical notes.**
 - Tables: `imputations`, `timer_sessions`, `timesheets`, `imputation_alerts`.
-- Job `check-missing-imputations` runs Mon–Fri at 18:00.
+- Job `check-missing-imputations` runs at each company's local `NOTIFICATIONS_MISSING_IMPUTATIONS_TIME` (18:00) and only reminds people whose effective schedule has work that day (19-11-2026; was Mon–Fri fixed).
 - Timesheet review is `require_any_manager`.
 
 **Limitations.**
@@ -1283,7 +1283,7 @@ The KPI row shows active objectives, average progress and on-track objectives (�
 6. **Close** the cycle. Status goes `active → closed` and answers freeze.
 7. **Planes de desarrollo**: plan status `draft | active | completed | archived`, with goals `pending | in_progress | done | blocked | cancelled`. A plan can be created by its subject, the subject's direct manager, or admin/hr.
 
-**Configuration.** No settings. Reminders run daily at 09:00: Celery beat entry `perf-reminders-daily`. They can also be triggered from the KPIs tab (`POST /performance/admin/run-reminders`). Window and dedup are code constants: `REMINDER_WINDOW_DAYS=7`, `DEDUP_WINDOW_HOURS=20`.
+**Configuration.** Reminders run daily at each company's local `NOTIFICATIONS_PERF_REMINDERS_TIME` (09:00; runtime group `automations`, 19-11-2026): Celery beat entry `perf-reminders-daily`, every 15 min. They can also be triggered from the KPIs tab (`POST /performance/admin/run-reminders`). Window and dedup are code constants: `REMINDER_WINDOW_DAYS=7`, `DEDUP_WINDOW_HOURS=20`.
 
 **Technical notes.**
 - 34 routes under `/api/v1/performance/*`:
@@ -1373,8 +1373,8 @@ The KPI row shows active objectives, average progress and on-track objectives (�
 The practical impact is limited: new users get `weekly_capacity_hours` from the same static default at creation, and the fallback only applies to users whose capacity is null.
 
 #### Background jobs touching this area
-- **Performance reminders**: daily at 09:00, Celery beat `perf-reminders-daily` (APScheduler `scheduled_perf_reminders` when APScheduler is the active scheduler).
-- **Missing-imputations check**: `check-missing-imputations`, Celery Beat on weekdays at 18:00; uses `weekly_capacity_hours` (`app/worker.py`).
+- **Performance reminders**: daily at each company's local `NOTIFICATIONS_PERF_REMINDERS_TIME` (09:00), Celery beat `perf-reminders-daily` (APScheduler `scheduled_perf_reminders` when APScheduler is the active scheduler).
+- **Missing-imputations check**: `check-missing-imputations`, at each company's local `NOTIFICATIONS_MISSING_IMPUTATIONS_TIME` (18:00); the hours expected today come from the person's effective schedule (`app/services/horario`), not `weekly_capacity_hours`/5 Mon–Fri (19-11-2026).
 - No scheduled job recomputes burnout snapshots, resource alerts or utilisation snapshots. `resource_alerts` and `resource_utilization_snapshots` are only reachable through API-only `/resources/*` endpoints that no screen calls (`/resources/alerts`, `/resources/utilization-history`, `/resources/team-health`, `/resources/load-scoring`, `/resources/availability-matrix`, `/resources/forecast`, `/resources/{project_id}/skill-gaps`, `/resources/available-by-skill/{skill_id}`).
 
 #### Test coverage (file counts, not a coverage measurement)
@@ -3983,9 +3983,9 @@ Header buttons: **Diagnóstico**, **Sync all models**.
 
 | Job | Schedule | Effect |
 |---|---|---|
-| `run_alert_engine` | daily 08:00 | Rules-based alerts, once per organization |
+| `run_alert_engine` | daily, `NOTIFICATIONS_ALERTS_TIME` (08:00) company-local | Rules-based alerts, once per organization |
 | `run_scheduled_reports` | hourly :00 | Scheduled report emails, once per organization (PDF with the chosen metric; the run fails without SMTP, see Reports) |
-| `check_missing_imputations` | weekdays 18:00 | Computes missing hours, sends nothing |
+| `check_missing_imputations` | `NOTIFICATIONS_MISSING_IMPUTATIONS_TIME` (18:00) company-local, on each person's workdays | Computes missing hours, sends nothing |
 | `olap_nightly_etl` | daily 01:00 | Fills the DuckDB OLAP file |
 | `bi_scheduled_delivery_run` | hourly :45 | Separate BI delivery service (not used by these pages) |
 | `bi_kpi_push` | every 5 min | Real-time KPI snapshot for every company (`bi_intelligence_snapshot`) |
@@ -4281,7 +4281,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **30 groups, 345 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **31 groups, 378 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4380,6 +4380,34 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **30 gr
 | proyectos | EXTERNOS_UMBRAL_CONSUMO_PCT | float | 80 | External staff — warn when an assignment consumes this % of contracted hours or PO amount | rt (`externos.horas`) |
 | proyectos | EXTERNOS_AVISO_CADUCIDAD_DIAS | int | 14 | External staff — days ahead to warn that their access expires | rt (`externos.ciclo`) |
 | proyectos | PORTFOLIO_MIN_SCORE_TO_ADVANCE | float | 50.0 | Portfolio — minimum proposal score (0-100) to pass a gate | rt (`cartera_service`) |
+| semaforos | UMBRAL_PRESUPUESTO_AVISO_PCT | float | 70.0 | Budget used — warning above this % | rt (`app/core/umbrales.py`, `useUmbrales()`) |
+| semaforos | UMBRAL_PRESUPUESTO_CRITICO_PCT | float | 90.0 | Budget used — critical above this % | rt (`app/core/umbrales.py`, `useUmbrales()`) |
+| semaforos | UMBRAL_CARGA_AVISO_PCT | float | 85.0 | Resource load — high above this % of capacity | rt (`app/core/umbrales.py`, `useUmbrales()`) |
+| semaforos | UMBRAL_CARGA_CRITICO_PCT | float | 100.0 | Resource load — overloaded above this % of capacity | rt (`app/core/umbrales.py`, `useUmbrales()`) |
+| semaforos | UMBRAL_SOBRECARGA_HORAS_SEMANA | float | 42.0 | Burnout — a week with more hours than this counts as overloaded | rt (`app/core/umbrales.py`, `useUmbrales()`) |
+| semaforos | UMBRAL_SLA_AVISO_PCT | float | 90.0 | SLA compliance — warning below this % | rt (`app/core/umbrales.py`, `useUmbrales()`) |
+| semaforos | UMBRAL_SLA_CRITICO_PCT | float | 75.0 | SLA compliance — critical below this % | rt (`app/core/umbrales.py`, `useUmbrales()`) |
+| semaforos | UMBRAL_OKR_AVISO_PCT | float | 60.0 | OKR progress — warning below this % | rt (`app/core/umbrales.py`, `useUmbrales()`) |
+| semaforos | UMBRAL_OKR_CRITICO_PCT | float | 30.0 | OKR progress — critical below this % | rt (`app/core/umbrales.py`, `useUmbrales()`) |
+| semaforos | UMBRAL_NPS_AVISO | float | 50.0 | NPS — warning below this value (-100..100) | rt (`app/core/umbrales.py`, `useUmbrales()`) |
+| semaforos | UMBRAL_NPS_CRITICO | float | 0.0 | NPS — critical below this value (-100..100) | rt (`app/core/umbrales.py`, `useUmbrales()`) |
+| semaforos | UMBRAL_MARGEN_AVISO_PCT | float | 50.0 | Margin — warning below this % | rt (`app/core/umbrales.py`, `useUmbrales()`) |
+| semaforos | UMBRAL_MARGEN_CRITICO_PCT | float | 30.0 | Margin — critical below this % | rt (`app/core/umbrales.py`, `useUmbrales()`) |
+| semaforos | UMBRAL_SPRINT_COMPLETITUD_AVISO_PCT | float | 80.0 | Sprint completion — warning below this % | rt (`app/core/umbrales.py`, `useUmbrales()`) |
+| semaforos | UMBRAL_SPRINT_COMPLETITUD_CRITICO_PCT | float | 50.0 | Sprint completion — critical below this % | rt (`app/core/umbrales.py`, `useUmbrales()`) |
+| semaforos | UMBRAL_SPRINT_VELOCIDAD_AVISO_PCT | float | 85.0 | Sprint velocity ratio — warning below this % | rt (`app/core/umbrales.py`, `useUmbrales()`) |
+| semaforos | UMBRAL_SPRINT_VELOCIDAD_CRITICO_PCT | float | 50.0 | Sprint velocity ratio — critical below this % | rt (`app/core/umbrales.py`, `useUmbrales()`) |
+| semaforos | UMBRAL_APROBACION_RIESGO_SLA_AVISO_PCT | float | 50.0 | Approvals — step SLA risk warning from this % | rt (`app/core/umbrales.py`, `useUmbrales()`) |
+| semaforos | UMBRAL_APROBACION_RIESGO_SLA_CRITICO_PCT | float | 80.0 | Approvals — step SLA risk critical from this % | rt (`app/core/umbrales.py`, `useUmbrales()`) |
+| semaforos | UMBRAL_APROBACION_RECHAZO_AVISO_PCT | float | 10.0 | Approvals — rejection rate warning from this % | rt (`app/core/umbrales.py`, `useUmbrales()`) |
+| semaforos | UMBRAL_APROBACION_RECHAZO_CRITICO_PCT | float | 25.0 | Approvals — rejection rate critical from this % | rt (`app/core/umbrales.py`, `useUmbrales()`) |
+| semaforos | UMBRAL_APROBACION_PENDIENTES_CRITICO | float | 3.0 | Approvals — a step with this many pending requests is critical | rt (`app/core/umbrales.py`, `useUmbrales()`) |
+| semaforos | UMBRAL_APROBACION_DECISION_HORAS | float | 24.0 | Approvals — a step deciding in this many hours or more is slow | rt (`app/core/umbrales.py`, `useUmbrales()`) |
+| semaforos | UMBRAL_VENCIMIENTO_HORIZONTE_DIAS | int | 90 | Expiries (contracts, licences) — show what expires within these days | rt (`app/core/umbrales.py`, `useUmbrales()`) |
+| semaforos | UMBRAL_VENCIMIENTO_AVISO_DIAS | int | 30 | Expiries — warning when this many days or fewer are left | rt (`app/core/umbrales.py`, `useUmbrales()`) |
+| semaforos | UMBRAL_VENCIMIENTO_CRITICO_DIAS | int | 14 | Expiries — critical when this many days or fewer are left | rt (`app/core/umbrales.py`, `useUmbrales()`) |
+| semaforos | UMBRAL_HITOS_HORIZONTE_DIAS | int | 60 | Client portal — upcoming milestones within these days | rt (`app/core/umbrales.py`, `useUmbrales()`) |
+| semaforos | UMBRAL_HITOS_INMINENTE_DIAS | int | 7 | Client portal — a milestone fewer than this many days away is imminent | rt (`app/core/umbrales.py`, `useUmbrales()`) |
 | semantic | SEM_THRESHOLD_EXPERT_CACHE | float | 0.92 | Semantic classifier: expert-cache hit threshold | rt |
 | semantic | SEM_THRESHOLD_CRITICAL | float | 0.9 | Similarity band, critical | rt (key built as `SEM_THRESHOLD_{x}`) |
 | semantic | SEM_THRESHOLD_HIGH | float | 0.72 | Similarity band, high | rt |
@@ -4400,6 +4428,7 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **30 gr
 | locale | DEFAULT_TIMEZONE | str | `Europe/Madrid` | Default timezone | rt (`/org-defaults`, SLA, SD); many static reads too |
 | locale | DEFAULT_LANGUAGE | str | `es` | Default language | rt (`/org-defaults`, SD mail); static elsewhere |
 | locale | DEFAULT_CURRENCY | str | `EUR` | Default currency | rt in `/org-defaults` plus 1 site; static `settings.DEFAULT_CURRENCY` in ~44 files |
+| locale | DEFAULT_COUNTRY | str | `ES` | Default country for new clients and vendors (ISO 3166-1 alpha-2) | rt; applied on insert by `por_empresa.rellenar_altas_por_empresa` (19-11-2026) |
 | locale | SUPPORTED_CURRENCIES | str | `EUR,USD,GBP,PLN,CHF,SEK,DKK,NOK,JPY,CAD,AUD,MXN,BRL` | Currencies offered in the screens (CSV of ISO 4217 codes) | rt (`/org-defaults` → every currency selector; exchange-rate list) |
 | locale | CURRENCY_SYMBOLS | str | `EUR:€,USD:$,GBP:£` | Currency symbols on documents (CODE:symbol, CSV); a currency without one shows its code | rt (invoice PDF) |
 | locale | DEFAULT_TAX_RATE | float | 21.0 | Default tax rate (%) | rt **only** in `/org-defaults`; invoice/booking column defaults use the value loaded at process start |
@@ -4430,8 +4459,8 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **30 gr
 | ai | STT_PROVIDER | str | `openai` | Primary STT provider (openai, azure, google, whisper_local) | rt (via `stt/__init__._setting`) |
 | ai | STT_FALLBACK_PROVIDERS | str | `''` | CSV of fallback STT providers | rt (same helper) |
 | ai | AZURE_SPEECH_REGION | str | `westeurope` | Azure Speech region | rt |
-| ai | AZURE_STT_LANGUAGE | str | `es-ES` | Azure STT language | rt |
-| ai | GOOGLE_STT_LANGUAGE | str | `es-ES` | Google STT language | rt |
+| ai | AZURE_STT_LANGUAGE | str | `` (vacío) | Azure STT language — vacío = idioma del usuario/empresa; rellenar solo para fijar variante (es-MX) | rt |
+| ai | GOOGLE_STT_LANGUAGE | str | `` (vacío) | Google STT language — vacío = idioma del usuario/empresa | rt |
 | feature_flags | M365_CALENDAR_SYNC_ENABLED | bool | false | "M365 calendar sync" | **display only**: read only by `GET /m365/status`; no endpoint is gated by it |
 | feature_flags | M365_TEAMS_NOTIFICATIONS_ENABLED | bool | false | "M365 Teams notifications" | **display only** (same) |
 | feature_flags | EXCHANGE_RATES_AUTO_UPDATE | bool | false | "Auto-update exchange rates" | rt, platform setting (global row): the beat job `actualizar-tipos-de-cambio` (16:30) downloads ECB rates only when it is on |
@@ -4581,6 +4610,10 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **30 gr
 | automations | BPMN_MAX_VARIABLES_BYTES | int | 65536 | BPM — maximum size of an instance's variables (JSON, bytes) | rt (`bpmn_engine`) |
 | automations | NOTIFICATIONS_DIGEST_HOUR | int | 8 | Daily notice digest — local hour (0-23) from which it is emailed | rt |
 | automations | NOTIFICATIONS_DIGEST_MAX_ITEMS | int | 20 | Daily notice digest — notices listed at most | rt |
+| automations | NOTIFICATIONS_ALERTS_TIME | str | `08:00` | Alert engine — local time (HH:MM, company time zone) it runs each day | rt (`worker`, 19-11-2026) |
+| automations | NOTIFICATIONS_BUDGET_CAMPAIGN_TIME | str | `08:30` | Budget campaign reminder — local time (HH:MM) it is sent each day | rt (`worker`, 19-11-2026) |
+| automations | NOTIFICATIONS_MISSING_IMPUTATIONS_TIME | str | `18:00` | Missing time entries reminder — local time (HH:MM); only people whose schedule has work that day | rt (`worker`, 19-11-2026) |
+| automations | NOTIFICATIONS_PERF_REMINDERS_TIME | str | `09:00` | Performance review reminders — local time (HH:MM) they are sent each day | rt (`worker`, 19-11-2026) |
 | locale | SCENARIO_CAPACITY_ROLES | str | `pm,team_lead,employee,subcontractor` | Scenarios — roles whose capacity counts (comma separated) | rt |
 | risk | RISK_BUDGET_OVER_FACTOR | float | 2.0 | Budget — points per % above 100 % | rt |
 | risk | RISK_BUDGET_WARN_FACTOR | float | 3.0 | Budget — points per % above the warning | rt |
@@ -5605,7 +5638,7 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 475 fields (measured 2026-11-16): 244 in `config.py` and 231 in ten mixins under `app/core/config_groups/` (`ai_config` 41, `sla_config` 20, `health_config` 25, `semantic_config` 10, `service_desk_config` 36, `automations_config` 13, `proceso_config` 74, `escalas_config` 5, `empresa_config` 4, `politicas_config` 3). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; a `JWT_ALGORITHM` other than HS256/HS384/HS512; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
 2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service/`::RUNTIME_FLAG_GROUPS declares **256 keys in 24 groups** (measured 2026-11-16 in `_catalogo.py`): `sla`, `service_desk`, `automations`, `tenants`, `audit`, `risk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `conectores`, `lecciones`, `gastos`, `politicas`, `presupuestos`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Two keys exist only there and have no `Settings` field: `SLACK_TEAM_ID` and `TEAMS_TENANT_ID` (they link a Slack workspace or Teams tenant to one company). Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the keys listed there are editable.
 
-#### 4.2 Settings fields (`Settings`, 566)
+#### 4.2 Settings fields (`Settings`, 615)
 
 Defaults are the code defaults, never values from `.env`. Meanings are taken from the field name, its inline comment and the code that reads it; behaviour described in bold was checked in the code that consumes the variable.
 
@@ -5651,10 +5684,16 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `DOCUSIGN_SECRET_KEY` | `''` | DocuSign secret. |
 | `DOCUSIGN_ACCOUNT_ID` | `''` | DocuSign account. |
 | `DOCUSIGN_BASE_URL` | `''` | DocuSign API base. |
+| `DOCUSIGN_DEMO` | `None` | DocuSign demo environment; unset = demo outside staging/production, real in them (19-11-2026). `true` refuses to boot in production. |
+| `DOCUSIGN_AUTH_BASE_DEMO` | `'https://account-d.docusign.com'` | DocuSign OAuth base (demo). |
+| `DOCUSIGN_AUTH_BASE_PROD` | `'https://account.docusign.com'` | DocuSign OAuth base (production). |
+| `DOCUSIGN_API_BASE_DEMO` | `'https://demo.docusign.net'` | DocuSign API base when demo and no DOCUSIGN_BASE_URL. |
+| `DOCUSIGN_API_BASE_PROD` | `'https://na1.docusign.net'` | DocuSign API base when real and no DOCUSIGN_BASE_URL (EU accounts: https://eu.docusign.net). |
 | `DOCUSIGN_CONNECT_HMAC_KEY` | `''` | DocuSign Connect HMAC. |
 | `ADOBE_SIGN_CLIENT_ID` | `''` | Adobe Sign OAuth client. |
 | `ADOBE_SIGN_CLIENT_SECRET` | `''` | Adobe Sign secret. |
-| `ADOBE_SIGN_BASE_URL` | `'https://api.na1.adobesign.com/api/rest/v6'` | Adobe Sign API base. |
+| `ADOBE_SIGN_BASE_URL` | `''` | Adobe Sign API base of the account's region (19-11-2026: empty = ADOBE_SIGN_DEV_BASE_URL outside production; with Adobe configured and empty, production does not boot). |
+| `ADOBE_SIGN_DEV_BASE_URL` | `'https://api.na1.adobesign.com/api/rest/v6'` | Adobe Sign base used only outside staging/production when ADOBE_SIGN_BASE_URL is empty. |
 | `PROVISIONING_ENABLED` | `False` | Enable Terraform/Ansible runners. |
 | `PROVISIONING_ROOT_DIR` | `''` | Working dir for provisioning runners. |
 | `MICROSOFT_OAUTH_BASE` | `'https://login.microsoftonline.com'` | Microsoft identity endpoint (SSO, Graph client credentials, M365 OAuth). |
@@ -5667,6 +5706,7 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `XERO_API_BASE` | `'https://api.xero.com/api.xro/2.0'` | Xero API base. |
 | `QB_API_BASE` | `'https://quickbooks.api.intuit.com/v3/company'` | QuickBooks API base. |
 | `BASE_URL` | `'http://localhost:8000'` | Public backend URL (links); no localhost in prod. |
+| `CONNECTOR_LOGO_BASE_URL` | `'https://cdn.contecflow.app/connectors'` | Base of the marketplace connector logos (19-11-2026); an isolated install can serve them itself. |
 | `OTEL_ENABLED` | `False` | Enable OpenTelemetry tracing (needs endpoint too). |
 | `OTEL_SERVICE_NAME` | `'contecflow-api'` | OTel service.name. |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `''` | OTLP/HTTP endpoint. |
@@ -5686,13 +5726,14 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `S3_URL_EXPIRATION_HOURS` | `24` | Presigned URL lifetime. |
 | `MAX_FILE_SIZE_MB` | `100` | Upload size cap. |
 | `SLACK_WEBHOOK_URL` | `None` | Slack incoming webhook for notifications. |
-| `NOTIFICATION_EMAIL_FROM` | `'alerts@contecflow.local'` | From address for alert mail. |
+| `NOTIFICATION_EMAIL_FROM` | `'alerts@contecflow.local'` | From address for alert mail. 19-11-2026: in staging/production a `.local`/example sender without SMTP_FROM refuses to boot (`app/core/comprobacion_de_produccion.py`). |
 | `DEFAULT_IMPUTATION_LOCKOUT_DAYS` | `14` | Days after which time entries lock. |
 | `EXTERNOS_UMBRAL_CONSUMO_PCT` | `80.0` | External staff (rev. 178): warn the internal owner and the PM when an assignment consumes this % of its contracted hours or PO amount (and again at 100 %). Hot (`proyectos`). |
 | `EXTERNOS_AVISO_CADUCIDAD_DIAS` | `14` | External staff (rev. 178): days ahead the daily job `externos_caducidad` warns that an external's access expires. Hot (`proyectos`). |
 | `DEFAULT_TIMEZONE` | `'Europe/Madrid'` | Fallback tz; also **Celery beat and APScheduler timezone**. |
 | `DEFAULT_LANGUAGE` | `'es'` | Fallback UI language. |
 | `DEFAULT_CURRENCY` | `'EUR'` | Fallback currency. |
+| `DEFAULT_COUNTRY` | `'ES'` | Default country (ISO 3166-1 alpha-2) of new clients and vendors; per-company runtime key (19-11-2026). |
 | `SUPPORTED_CURRENCIES` | `'EUR,USD,GBP,PLN,CHF,SEK,DKK,NOK,JPY,CAD,AUD,MXN,BRL'` | Currencies offered in the screens. |
 | `CURRENCY_SYMBOLS` | `'EUR:€,USD:$,GBP:£'` | Currency symbols on documents. |
 | `DEFAULT_TAX_RATE` | `21.0` | Fallback VAT %. |
@@ -5760,9 +5801,9 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `STT_FALLBACK_PROVIDERS` | `''` | Comma list of fallbacks. |
 | `AZURE_SPEECH_KEY` | `''` | Azure STT key. |
 | `AZURE_SPEECH_REGION` | `'westeurope'` | Azure STT region. |
-| `AZURE_STT_LANGUAGE` | `'es-ES'` | Azure STT language. |
+| `AZURE_STT_LANGUAGE` | `''` | Azure STT language. Vacío (19-11-2026) = idioma del usuario o de la empresa; un valor fija la variante regional. |
 | `GOOGLE_STT_API_KEY` | `''` | Google STT key. |
-| `GOOGLE_STT_LANGUAGE` | `'es-ES'` | Google STT language. |
+| `GOOGLE_STT_LANGUAGE` | `''` | Google STT language. Vacío (19-11-2026) = idioma del usuario o de la empresa. |
 | `SLACK_API_BASE` | `'https://slack.com/api'` | Slack API base. |
 | `SLACK_SIGNING_SECRET` | `''` | Slack request signature secret. |
 | `TEAMS_BOT_APP_ID` | `''` | Teams bot app id. |
@@ -5944,6 +5985,38 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `AUTOMATIONS_WEBHOOK_TIMEOUT_SECONDS` | `10` | Webhook action — timeout (s) |
 | `NOTIFICATIONS_DIGEST_HOUR` | `8` | Daily notice digest — local hour (0-23) from which it is emailed |
 | `NOTIFICATIONS_DIGEST_MAX_ITEMS` | `20` | Daily notice digest — notices listed at most |
+| `NOTIFICATIONS_ALERTS_TIME` | `08:00` | Alert engine — local time (HH:MM) in each company's time zone (runtime key `automations`, 19-11-2026) |
+| `NOTIFICATIONS_BUDGET_CAMPAIGN_TIME` | `08:30` | Budget campaign reminder — local time (HH:MM) in each company's time zone |
+| `NOTIFICATIONS_MISSING_IMPUTATIONS_TIME` | `18:00` | Missing time entries reminder — local time (HH:MM); only people whose effective schedule has work that day |
+| `NOTIFICATIONS_PERF_REMINDERS_TIME` | `09:00` | Performance review reminders — local time (HH:MM) in each company's time zone (19-11-2026; was 09:00 worker time) |
+| `UMBRAL_PRESUPUESTO_AVISO_PCT` | `70.0` | Budget used — warning above this %. Threshold per metric (19-11-2026, `app/core/umbrales.py`). Hot (`semaforos`). |
+| `UMBRAL_PRESUPUESTO_CRITICO_PCT` | `90.0` | Budget used — critical above this %. Threshold per metric (19-11-2026, `app/core/umbrales.py`). Hot (`semaforos`). |
+| `UMBRAL_CARGA_AVISO_PCT` | `85.0` | Resource load — high above this % of capacity. Threshold per metric (19-11-2026, `app/core/umbrales.py`). Hot (`semaforos`). |
+| `UMBRAL_CARGA_CRITICO_PCT` | `100.0` | Resource load — overloaded above this % of capacity. Threshold per metric (19-11-2026, `app/core/umbrales.py`). Hot (`semaforos`). |
+| `UMBRAL_SOBRECARGA_HORAS_SEMANA` | `42.0` | Burnout — a week with more hours than this counts as an overloaded week. Threshold per metric (19-11-2026, `app/core/umbrales.py`). Hot (`semaforos`). |
+| `UMBRAL_SLA_AVISO_PCT` | `90.0` | SLA compliance — warning below this %. Threshold per metric (19-11-2026, `app/core/umbrales.py`). Hot (`semaforos`). |
+| `UMBRAL_SLA_CRITICO_PCT` | `75.0` | SLA compliance — critical below this %. Threshold per metric (19-11-2026, `app/core/umbrales.py`). Hot (`semaforos`). |
+| `UMBRAL_OKR_AVISO_PCT` | `60.0` | OKR progress — warning below this %. Threshold per metric (19-11-2026, `app/core/umbrales.py`). Hot (`semaforos`). |
+| `UMBRAL_OKR_CRITICO_PCT` | `30.0` | OKR progress — critical below this %. Threshold per metric (19-11-2026, `app/core/umbrales.py`). Hot (`semaforos`). |
+| `UMBRAL_NPS_AVISO` | `50.0` | NPS — warning below this value (-100..100). Threshold per metric (19-11-2026, `app/core/umbrales.py`). Hot (`semaforos`). |
+| `UMBRAL_NPS_CRITICO` | `0.0` | NPS — critical below this value (-100..100). Threshold per metric (19-11-2026, `app/core/umbrales.py`). Hot (`semaforos`). |
+| `UMBRAL_MARGEN_AVISO_PCT` | `50.0` | Margin — warning below this %. Threshold per metric (19-11-2026, `app/core/umbrales.py`). Hot (`semaforos`). |
+| `UMBRAL_MARGEN_CRITICO_PCT` | `30.0` | Margin — critical below this %. Threshold per metric (19-11-2026, `app/core/umbrales.py`). Hot (`semaforos`). |
+| `UMBRAL_SPRINT_COMPLETITUD_AVISO_PCT` | `80.0` | Sprint completion — warning below this %. Threshold per metric (19-11-2026, `app/core/umbrales.py`). Hot (`semaforos`). |
+| `UMBRAL_SPRINT_COMPLETITUD_CRITICO_PCT` | `50.0` | Sprint completion — critical below this %. Threshold per metric (19-11-2026, `app/core/umbrales.py`). Hot (`semaforos`). |
+| `UMBRAL_SPRINT_VELOCIDAD_AVISO_PCT` | `85.0` | Sprint velocity ratio — warning below this %. Threshold per metric (19-11-2026, `app/core/umbrales.py`). Hot (`semaforos`). |
+| `UMBRAL_SPRINT_VELOCIDAD_CRITICO_PCT` | `50.0` | Sprint velocity ratio — critical below this %. Threshold per metric (19-11-2026, `app/core/umbrales.py`). Hot (`semaforos`). |
+| `UMBRAL_APROBACION_RIESGO_SLA_AVISO_PCT` | `50.0` | Approvals — step SLA risk warning from this %. Threshold per metric (19-11-2026, `app/core/umbrales.py`). Hot (`semaforos`). |
+| `UMBRAL_APROBACION_RIESGO_SLA_CRITICO_PCT` | `80.0` | Approvals — step SLA risk critical from this %. Threshold per metric (19-11-2026, `app/core/umbrales.py`). Hot (`semaforos`). |
+| `UMBRAL_APROBACION_RECHAZO_AVISO_PCT` | `10.0` | Approvals — rejection rate warning from this %. Threshold per metric (19-11-2026, `app/core/umbrales.py`). Hot (`semaforos`). |
+| `UMBRAL_APROBACION_RECHAZO_CRITICO_PCT` | `25.0` | Approvals — rejection rate critical from this %. Threshold per metric (19-11-2026, `app/core/umbrales.py`). Hot (`semaforos`). |
+| `UMBRAL_APROBACION_PENDIENTES_CRITICO` | `3.0` | Approvals — a step with this many pending requests is critical. Threshold per metric (19-11-2026, `app/core/umbrales.py`). Hot (`semaforos`). |
+| `UMBRAL_APROBACION_DECISION_HORAS` | `24.0` | Approvals — a step deciding in this many hours or more is slow. Threshold per metric (19-11-2026, `app/core/umbrales.py`). Hot (`semaforos`). |
+| `UMBRAL_VENCIMIENTO_HORIZONTE_DIAS` | `90` | Expiries — show what expires within these days. Threshold per metric (19-11-2026, `app/core/umbrales.py`). Hot (`semaforos`). |
+| `UMBRAL_VENCIMIENTO_AVISO_DIAS` | `30` | Expiries — warning when this many days or fewer are left. Threshold per metric (19-11-2026, `app/core/umbrales.py`). Hot (`semaforos`). |
+| `UMBRAL_VENCIMIENTO_CRITICO_DIAS` | `14` | Expiries — critical when this many days or fewer are left. Threshold per metric (19-11-2026, `app/core/umbrales.py`). Hot (`semaforos`). |
+| `UMBRAL_HITOS_HORIZONTE_DIAS` | `60` | Client portal — upcoming milestones within these days. Threshold per metric (19-11-2026, `app/core/umbrales.py`). Hot (`semaforos`). |
+| `UMBRAL_HITOS_INMINENTE_DIAS` | `7` | Client portal — a milestone fewer than this many days away is imminent. Threshold per metric (19-11-2026, `app/core/umbrales.py`). Hot (`semaforos`). |
 | `BPMN_MAX_AUTOMATIC_STEPS` | `500` | BPM — automatic steps in a row before an instance fails (loop guard) |
 | `BPMN_MAX_XML_BYTES` | `2000000` | BPM — maximum size of a diagram's XML (larger: 413) |
 | `BPMN_MAX_VARIABLES_BYTES` | `65536` | BPM — maximum size of an instance's variables as JSON (larger: 413) |
@@ -5978,6 +6051,12 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `ASK_DATA_EXAMPLE_MIN_SIMILARITY` | `0.3` | Ask the Data — minimum word overlap (0-1) for a validated example to be given |
 | `AI_TEST_MAX_TOKENS` | `256` | Token cap of the provider «Test» call; reasoning models (Gemini 2.5, o-series) spent a 10-token cap on thinking and returned nothing. |
 | `AI_SHORT_ANSWER_MAX_TOKENS` | `256` | Token cap for short-answer AI calls (classify, pick an id); reasoning models need room to think before answering. |
+| `AI_BRIEF_ANSWER_MAX_TOKENS` | `500` | Token cap for brief AI answers (a JSON, a classification with reason) (19-11-2026). |
+| `AI_MEDIUM_ANSWER_MAX_TOKENS` | `800` | Token cap for medium AI answers (summary, narrative). |
+| `AI_LONG_ANSWER_MAX_TOKENS` | `1500` | Token cap for long AI answers (article, assistant answer); default of `call_ai_unified`. |
+| `AI_CHAT_MAX_TOKENS` | `4000` | Token cap for chat turns with tools (NexusAssist, background agent). |
+| `AI_PROVIDER_DEFAULT_MAX_TOKENS` | `2000` | max_tokens of a provider configured only by .env. |
+| `AI_DEFAULT_TEMPERATURE` | `0.7` | Temperature of a provider configured only by .env. |
 | `AI_AGENT_TURN_TIMEOUT_SECONDS` | `90` | NexusAgent — timeout per model turn (s) |
 | `AI_MODELS_LIST_TIMEOUT_SECONDS` | `30` | AI "Sync models" — timeout (s) |
 | `DEVELOPER_TOKEN_TTL_MINUTES` | `60` | Developer-portal app token TTL (minutes) |
@@ -6174,7 +6253,7 @@ Until the second 2026-11 audit (finding 16) these were read with `os.getenv`/`os
 | `CLAMAV_SOCKET` | `None` | clamd UNIX socket (wins over host/port). |
 | `CLAMAV_TIMEOUT` | `30.0` | clamd timeout (s). |
 | `COLLAB_SEARCH_BACKEND` | `'auto'` | auto | simple | pg | opensearch. |
-| `OPENSEARCH_URL` | `'http://localhost:9200'` | OpenSearch URL. |
+| `OPENSEARCH_URL` | `'http://localhost:9200'` | OpenSearch URL. With COLLAB_SEARCH_BACKEND=opensearch, localhost refuses to boot in production (19-11-2026). |
 | `OPENSEARCH_USER` | `None` | OpenSearch user. |
 | `OPENSEARCH_PASSWORD` | `None` | OpenSearch password. |
 | `COLLAB_BUS_BACKEND` | `'memory'` | memory | redis | nats. |
@@ -6186,7 +6265,7 @@ Until the second 2026-11 audit (finding 16) these were read with `os.getenv`/`os
 | `VAPID_CONTACT` | `'mailto:noreply@contecflow.local'` | Web push contact. |
 | `VAPID_PUBLIC_KEY` | `None` | Web push public key. |
 | `VAPID_PRIVATE_KEY` | `None` | Web push private key. |
-| `APP_PUBLIC_URL` | `'http://localhost:3000'` | Link base in the chat email digest. |
+| `APP_PUBLIC_URL` | `''` | Link base in the chat email digest; empty = FRONTEND_URL (19-11-2026, before localhost:3000). localhost refuses to boot in production. |
 | `MS365_TENANT_ID` | `'common'` | Microsoft 365 tenant for collaboration OAuth. |
 | `MS365_CLIENT_ID` | `None` | Collaboration OAuth — Microsoft 365 client id. |
 | `MS365_CLIENT_SECRET` | `None` | Collaboration OAuth — Microsoft 365 secret. |
@@ -6200,6 +6279,9 @@ Until the second 2026-11 audit (finding 16) these were read with `os.getenv`/`os
 | `GITLAB_CLIENT_ID` | `None` | Collaboration OAuth — GitLab client id. |
 | `GITLAB_CLIENT_SECRET` | `None` | Collaboration OAuth — GitLab secret. |
 | `GITLAB_REDIRECT_URI` | `None` | Collaboration OAuth — GitLab redirect. |
+| `GITHUB_WEB_BASE` | `'https://github.com'` | GitHub web/OAuth base; GitHub Enterprise Server: https://github.company.com (19-11-2026). |
+| `GITHUB_API_BASE` | `'https://api.github.com'` | GitHub REST base; GHES: https://github.company.com/api/v3. Per integration: `config.api_base`. |
+| `GITLAB_BASE_URL` | `'https://gitlab.com'` | GitLab base (self-managed). Per integration: `config.base_url`. |
 | `GOOGLE_CLIENT_ID` | `None` | Collaboration OAuth — Google client id. |
 | `GOOGLE_CLIENT_SECRET` | `None` | Collaboration OAuth — Google secret. |
 | `GOOGLE_REDIRECT_URI` | `None` | Collaboration OAuth — Google redirect. |
@@ -6398,10 +6480,10 @@ On top of these: per-endpoint role dependencies (§6.3). `tests/test_guardas_de_
 
 | Entry | Task | Cadence | Purpose |
 |---|---|---|---|
-| perf-reminders-daily | run_perf_reminders | daily 09:00 | Pending performance-review reminders |
-| run-alert-engine-daily | run_alert_engine | daily 08:00 | Alert engine |
-| budget-campaign-reminder | recordar_campana_de_presupuestos | daily 08:30 | Remind budget owners who have not submitted when their campaign closes |
-| check-missing-imputations | check_missing_imputations | Mon–Fri 18:00 | Remind users who did not log today's time |
+| perf-reminders-daily | run_perf_reminders | every 15 min; each company at its local `NOTIFICATIONS_PERF_REMINDERS_TIME` (09:00) | Pending performance-review reminders |
+| run-alert-engine-daily | run_alert_engine | every 15 min; each company at its local `NOTIFICATIONS_ALERTS_TIME` (08:00) | Alert engine |
+| budget-campaign-reminder | recordar_campana_de_presupuestos | every 15 min; each company at its local `NOTIFICATIONS_BUDGET_CAMPAIGN_TIME` (08:30) | Remind budget owners who have not submitted when their campaign closes |
+| check-missing-imputations | check_missing_imputations | every 15 min; each company at its local `NOTIFICATIONS_MISSING_IMPUTATIONS_TIME` (18:00), people whose schedule has work that day | Remind users who did not log today's time |
 | generate-retainer-invoices | generate_retainer_invoices | daily 07:00 | Recurring retainer invoices (by `retainer_day`) |
 | run-scheduled-reports | run_scheduled_reports | hourly :00 | Due scheduled reports |
 | run-key-rotation | run_scheduled_rotation | daily `KEY_ROTATION_RUN_HOUR`:17 | JWT keyring and integration-secret rotation |

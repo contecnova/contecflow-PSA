@@ -22,6 +22,7 @@ from app.core.deps import get_current_user, require_internal_user
 from app.models.user import User
 from app.core.responses import APIListResponse
 import app.services.pdf_export_service as _pdf
+from app.core.codigos_de_error import desde_valor
 from app.schemas.auth_payloads import (
     ExportPdfIn,
 )
@@ -61,7 +62,7 @@ def export_pdf(
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
 
 
 @router.get("/pdf/jobs", summary="Historial de exportaciones PDF")

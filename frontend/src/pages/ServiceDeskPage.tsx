@@ -58,9 +58,9 @@ const PESTANAS_EXTERNO = new Set(['queue', 'all', 'kanban', 'approvals'])
 
 export default function ServiceDeskPage() {
   const t = useAppT()
-  const { hasRole } = useAuth()
-  const esExterno = hasRole('subcontractor')
-  const configura = !esExterno && hasRole('admin', 'pm', 'team_lead', 'hr')
+  const { puede } = useAuth()
+  const esExterno = !puede('sd.completo')
+  const configura = !esExterno && puede('sd.config')
   const navigate = useNavigate()
   // `?ticket=<id>` abre ese ticket: es a donde llevan los avisos (campana y
   // correo). Se abre en «Todos» porque «Mi cola» solo muestra los asignados a

@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { jiraApi } from '../services/api'
 import type { ConfigJira, IssueDeJira, TareaVinculadaAJira } from '../services/api/tipos-plataforma'
-import { apiUrlAbsoluta } from '../services/api/urls'
+import { apiUrlAbsoluta, sinPrefijoDelServidor } from '../services/api/urls'
 import { useAuth } from '../context/AuthContext'
 import { useConfirm } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
@@ -64,19 +64,19 @@ function SectionTitle({ children }: { children?: React.ReactNode }) {
  */
 function SecretoDelWebhook() {
   const { t } = useAppLang()
-  const { hasRole } = useAuth()
+  const { puede } = useAuth()
   const { confirmar } = useConfirm()
   const toast = useToast()
   const [datos, setDatos] = useState<{ secret: string; header: string; url: string } | null>(null)
   const rotar = useMutation({
     mutationFn: () => jiraApi.rotarSecretoWebhook().then(r => r.data),
     onSuccess: (d) => {
-      const ruta = (d.webhook_paths?.[0] || '/api/v1/jira/webhook').replace(/^\/api\/v1/, '')
+      const ruta = d.webhook_paths?.[0] ? sinPrefijoDelServidor(d.webhook_paths[0]) : '/jira/webhook'
       setDatos({ secret: d.secret, header: d.header || 'X-Atlassian-Webhook-Token', url: apiUrlAbsoluta(ruta) })
     },
     onError: (e: unknown) => toast.error(extractErr(e, t('pagina_jira.no_se_pudo_generar_el_secreto'))),
   })
-  if (!hasRole('admin')) return null
+  if (!puede('org.administrar')) return null
   const copiar = (texto: string) => {
     void navigator.clipboard?.writeText(texto).then(() => toast.success(t('pagina_jira.copiado')), () => toast.error(t('pagina_jira.no_se_pudo_copiar')))
   }

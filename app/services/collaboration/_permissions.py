@@ -22,6 +22,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 # (key, expires_at) → bool
 _MEMBERSHIP_CACHE: dict[str, tuple[float, bool]] = {}
@@ -60,7 +61,7 @@ from app.models.collaboration import (
 def _org(user) -> str:
     org = getattr(user, "organization_id", None)
     if not org:
-        raise ErrorDeDominio(403, "Usuario sin organización")
+        raise error(403, "sin_empresa", detail="Usuario sin organización")
     return org
 
 
@@ -147,10 +148,10 @@ def is_client_conversation_participant(db: Session, client_user, conversation_id
 
 def assert_conversation_access(db: Session, user, conversation_id: str) -> None:
     if not is_conversation_participant(db, user, conversation_id):
-        raise ErrorDeDominio(403, "No tienes acceso a esta conversación")
+        raise error(403, "sin_acceso_a_conversacion")
 
 
 def assert_team_access(db: Session, user, team_id: str) -> None:
     if not is_team_member(db, user, team_id):
-        raise ErrorDeDominio(403, "No eres miembro de este equipo")
+        raise error(403, "no_eres_miembro_equipo")
 

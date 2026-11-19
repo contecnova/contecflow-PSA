@@ -18,13 +18,14 @@ from datetime import time as _time
 from sqlalchemy.orm import joinedload
 from app.core import timeutil
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 
 # ── Pipeline Ops ──────────────────────────────────────────────────────────────
 
 def convert_opportunity_to_project_record(opportunity_id: str, payload: dict, current_user, db) -> dict:
     opp = db.query(Opportunity).filter(Opportunity.id == opportunity_id).first()
-    if not opp: raise ErrorDeDominio(404, "Oportunidad no encontrada")
+    if not opp: raise error(404, "no_encontrado", detail="Oportunidad no encontrada", que="oportunidad")
     # `OpportunityStage` no tiene `closed_won`: el valor es `won`. Auditoria
     # 2026-08: la referencia se evaluaba SIEMPRE, asi que convertir una
     # oportunidad en proyecto reventaba con `AttributeError` en la primera

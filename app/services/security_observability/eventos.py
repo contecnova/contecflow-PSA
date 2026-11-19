@@ -16,6 +16,7 @@ from app.models.security_observability import (
 )
 
 from app.services.security_observability._comun import _UTC, _utcnow, logger
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 def _trunc_hour(dt: datetime) -> datetime:
@@ -542,7 +543,7 @@ class SecurityEventService:
             SecurityDetection.org_id == self.org_id,
         ).first()
         if not det:
-            raise ValueError(f"Detection {detection_id} not found")
+            raise ErrorConCodigo("no_encontrado", detail=f"Detection {detection_id} not found", que="deteccion")
 
         det.status      = status
         det.resolved_at = _utcnow()
@@ -620,7 +621,7 @@ class SecurityEventService:
             SecurityIncident.org_id == self.org_id,
         ).first()
         if not inc:
-            raise ValueError(f"Incident {incident_id} not found")
+            raise ErrorConCodigo("no_encontrado", detail=f"Incident {incident_id} not found", que="incidente")
 
         now          = _utcnow()
         inc.status   = IncidentStatus.RESOLVED

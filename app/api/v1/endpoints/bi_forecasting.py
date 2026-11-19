@@ -21,6 +21,7 @@ from app.db.session import get_db
 from app.models.user import User
 from app.services import bi_forecasting_service as svc
 from app.core import timeutil
+from app.core.codigos_de_error import ErrorConCodigo, desde_valor
 
 router = APIRouter()
 
@@ -68,7 +69,7 @@ def run_forecast(
     try:
         return APIResponse.ok(data=_pronosticar(body, db, current_user))
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
+        raise desde_valor(422, exc)
 
 
 def _pronosticar(body: ForecastIn, db: Session, current_user: User) -> dict:
@@ -100,7 +101,7 @@ def _pronosticar(body: ForecastIn, db: Session, current_user: User) -> dict:
         values = _fetch_metric_series(db, metric, org_id)
 
     if len(values) < 2:
-        raise ValueError("At least 2 historical values required")
+        raise ErrorConCodigo("prevision_pocos_datos", detail="At least 2 historical values required")
 
     horizon = body.periods or body.horizon
     timestamps = body.timestamps

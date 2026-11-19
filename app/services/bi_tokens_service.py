@@ -24,6 +24,7 @@ from app.models.mfa import (
     BIToken,
 )
 from sqlalchemy.orm import joinedload as jl
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 def verify_bi_token(token: str, db: Session) -> Optional[BIToken]:
@@ -100,10 +101,10 @@ def _check_bi_token_auth(raw_token: Optional[str], db: Session) -> BIToken:
     Se publica DESPUÉS de verificar el token (esa consulta va sin empresa).
     """
     if not raw_token:
-        raise ValueError("unauthorized")
+        raise ErrorConCodigo("token_no_valido", detail="unauthorized")
     bt = verify_bi_token(raw_token, db)
     if not bt:
-        raise ValueError("unauthorized")
+        raise ErrorConCodigo("token_no_valido", detail="unauthorized")
     db.commit()
     org_id = getattr(bt, "organization_id", None)
     info = getattr(db, "info", None)

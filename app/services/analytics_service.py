@@ -28,6 +28,7 @@ from sqlalchemy import func
 from app.core import timeutil
 from app.core.errores import ErrorDeDominio
 from app.models.user import UserRole
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -294,7 +295,7 @@ def get_advanced_utilization(weeks_ahead: int, project_id, project_type, client_
         project_id=project_id, project_type=project_type, client_id=client_id,
     )
     if project_id and project_ids == []:
-        raise ErrorDeDominio(403, "No tienes acceso a este proyecto")
+        raise error(403, "sin_acceso_proyecto_operador")
 
     ventana = {"week_start": str(period_start), "week_end": str(period_end),
                "weeks_ahead": weeks_ahead}

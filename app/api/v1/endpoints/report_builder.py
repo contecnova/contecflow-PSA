@@ -16,6 +16,7 @@ from app.core.deps import require_admin_or_pm, get_current_user, get_db, require
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
 import app.services.report_builder_service as _svc
+from app.core.codigos_de_error import error_http
 
 router = APIRouter()
 
@@ -78,7 +79,7 @@ def preview_report(
     _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     if q.entity not in _svc.ENTITIES:
-        raise HTTPException(400, f"Entidad '{q.entity}' desconocida")
+        raise error_http(400, "entidad_desconocida", detail=f"Entidad '{q.entity}' desconocida", entidad=q.entity)
     limit = min(q.limit, 500)
     rows = _svc.execute_report(
         q.entity, q.columns, q.filters,
@@ -104,7 +105,7 @@ def export_report(
     _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
     if q.entity not in _svc.ENTITIES:
-        raise HTTPException(400, f"Entidad '{q.entity}' desconocida")
+        raise error_http(400, "entidad_desconocida", detail=f"Entidad '{q.entity}' desconocida", entidad=q.entity)
     orden = (q.sort.column if q.sort else None, q.sort.direction if q.sort else "asc")
     if page is not None:
         result = _svc.execute_report_paginated(q.entity, q.columns, q.filters, *orden, page, page_size, current_user, db)
@@ -133,7 +134,7 @@ def save_template(
     current_user: User = Depends(require_admin_or_pm),
 ):
     if tpl.query.entity not in _svc.ENTITIES:
-        raise HTTPException(400, f"Entidad '{tpl.query.entity}' desconocida")
+        raise error_http(400, "entidad_desconocida", detail=f"Entidad '{tpl.query.entity}' desconocida", entidad=tpl.query.entity)
     templates = _svc.load_user_templates(str(current_user.id), db)
     next_id = max((t["id"] for t in templates), default=0) + 1
     record = {"id": next_id, "name": tpl.name, "query": tpl.query.model_dump()}
@@ -152,6 +153,6 @@ def delete_template(
     templates = _svc.load_user_templates(str(current_user.id), db)
     updated = [t for t in templates if t["id"] != template_id]
     if len(updated) == len(templates):
-        raise HTTPException(404, "Plantilla no encontrada")
+        raise error_http(404, "no_encontrado", detail="Plantilla no encontrada", que="plantilla")
     _svc.save_user_templates(str(current_user.id), updated, db)
     return APIResponse.ok(data={"ok": True})

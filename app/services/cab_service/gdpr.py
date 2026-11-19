@@ -16,6 +16,7 @@ from app.models.user import User as UserModel
 from app.services.audit import audit_log
 from app.core import timeutil
 from app.core.paginacion import Pagina, Paginacion, paginar
+from app.core.codigos_de_error import error
 
 
 # ─── GDPR ─────────────────────────────────────────────────────────────────────
@@ -80,10 +81,9 @@ def create_gdpr_request(payload, current_user, db: Session) -> dict:
     de otra empresa y la empresa de la solicitud dependía del sellado de la
     sesión.
     """
-    from app.core.errores import ErrorDeDominio
     org = current_user.organization_id
     if payload.subject_user_id and _sujeto(db, payload.subject_user_id, org) is None:
-        raise ErrorDeDominio(404, "La persona no existe en esta empresa")
+        raise error(404, "persona_no_existe_en_empresa_rgpd")
     deadline = timeutil.today() + timedelta(days=_plazo(db, org))
     req = GDPRRequest(
         organization_id=org,
@@ -145,33 +145,31 @@ def _gdpr_portability_export(db: Session, user) -> dict:
 
 
 def _de_la_empresa_o_404(db: Session, request_id: str, org):
-    from app.core.errores import ErrorDeDominio
     req = _de_la_empresa(db, org).filter(GDPRRequest.id == request_id).first()
     if not req:
-        raise ErrorDeDominio(404, "Solicitud no encontrada")
+        raise error(404, "no_encontrado", detail="Solicitud no encontrada", que="solicitud")
     return req
 
 
 def process_gdpr_request(request_id: str, current_user, db: Session) -> dict:
-    from app.core.errores import ErrorDeDominio
     org = current_user.organization_id
     req = _de_la_empresa_o_404(db, request_id, org)
     if req.status in (GDPRRequestStatus.completed, GDPRRequestStatus.rejected):
-        raise ErrorDeDominio(409, "Solicitud ya cerrada")
+        raise error(409, "solicitud_ya_cerrada")
 
     tipo = _tipo(req)
     user = _sujeto(db, req.subject_user_id, org)
     # Revisión GRC 16-11-2026: con la persona apuntada pero fuera de la empresa
     # (o borrada a mano), la solicitud se daba por completada sin hacer nada.
     if req.subject_user_id and user is None:
-        raise ErrorDeDominio(404, "La persona de la solicitud ya no existe en esta empresa")
+        raise error(404, "rgpd_persona_ya_no_existe")
     # 18-11-2026: la persona también puede ser contacto de un cliente o usuario
     # de su portal (sin cuenta en la aplicación): se le identifica por su email.
     from app.services import datos_personales_de_contactos as contactos_rgpd
     email = (user.email if user else None) or req.subject_email
     es_contacto = bool(contactos_rgpd.contactos_de(db, email, org) or contactos_rgpd.usuarios_del_portal_de(db, email, org))
     if tipo in _CON_COPIA and user is None and not es_contacto:
-        raise ErrorDeDominio(422, "Sin persona registrada no hay datos que copiar: recházala o tramítala a mano")
+        raise error(422, "rgpd_sin_persona")
     if tipo == GDPRRequestType.erasure:
         # Segunda auditoría 2026-11: bajo bloqueo legal, 409 antes de marcarla en curso.
         if user:
@@ -215,10 +213,9 @@ def process_gdpr_request(request_id: str, current_user, db: Session) -> dict:
 
 def reject_gdpr_request(request_id: str, motivo: str, current_user, db: Session) -> dict:
     """Rechazo motivado (art. 12.4). Revisión GRC 16-11-2026: el estado existía y nada lo ponía."""
-    from app.core.errores import ErrorDeDominio
     req = _de_la_empresa_o_404(db, request_id, current_user.organization_id)
     if req.status in (GDPRRequestStatus.completed, GDPRRequestStatus.rejected):
-        raise ErrorDeDominio(409, "Solicitud ya cerrada")
+        raise error(409, "solicitud_ya_cerrada")
     req.status = GDPRRequestStatus.rejected
     req.processed_by = current_user.id
     req.completed_at = datetime.now(timezone.utc)
@@ -231,10 +228,9 @@ def reject_gdpr_request(request_id: str, motivo: str, current_user, db: Session)
 
 def export_of_gdpr_request(request_id: str, current_user, db: Session) -> dict:
     """La copia generada al procesar una solicitud de acceso o portabilidad."""
-    from app.core.errores import ErrorDeDominio
     req = _de_la_empresa_o_404(db, request_id, current_user.organization_id)
     if _tipo(req) not in _CON_COPIA or req.status != GDPRRequestStatus.completed or not req.export_data:
-        raise ErrorDeDominio(404, "Esta solicitud no tiene copia de datos")
+        raise error(404, "rgpd_sin_copia")
     audit_log(db, current_user, "EXPORT", "gdpr_request", req.id, "gdpr export",
               metadata={"type": _tipo(req).value})
     db.commit()

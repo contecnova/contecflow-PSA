@@ -246,7 +246,7 @@ function Problems() {
   // Mejoras de mercado 16-11-2026: el ciclo completo del problema y las plantillas RCA.
   const [gestionando, setGestionando] = useState<ProblemRecord | null>(null)
   const [verPlantillas, setVerPlantillas] = useState(false)
-  const { user: yo } = useAuth()
+  const { puede } = useAuth()
   const ts = useAppTSimple()
 
   const { data: problems = [], isLoading } = useQuery<ProblemRecord[]>({
@@ -287,7 +287,7 @@ function Problems() {
           {t('itsmknowledge.registro_de_problemas_causas_raiz_de_incidentes')}
         </div>
         <div className="u-actions-8">
-          {yo?.role === 'admin' && <Button variant="secondary" icon={<ListChecks size={14} />} onClick={() => setVerPlantillas(true)}>{ts('sd_mercado.plantillas_rca')}</Button>}
+          {puede('sd.administrar') && <Button variant="secondary" icon={<ListChecks size={14} />} onClick={() => setVerPlantillas(true)}>{ts('sd_mercado.plantillas_rca')}</Button>}
           {nuevo}
         </div>
       </div>
@@ -601,8 +601,8 @@ function CalidadKB() {
   const qc = useQueryClient()
   const toast = useToast()
   const { data, isLoading } = useCalidad()
-  const { hasRole } = useAuth()
-  const esAdmin = hasRole('admin')
+  const { puede } = useAuth()
+  const esAdmin = puede('sd.administrar')
   const [respondiendo, setRespondiendo] = useState<Hueco | null>(null)
   const [respuesta, setRespuesta] = useState('')
   const [publica, setPublica] = useState(true)

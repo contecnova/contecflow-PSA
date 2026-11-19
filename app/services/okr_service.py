@@ -12,6 +12,7 @@ from app.models.project import Project
 from app.models.task import Task, TaskStatus
 from app.models.user import User
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 
 def calc_progress(kr: KeyResult) -> float:
@@ -106,15 +107,11 @@ def sync_kr_from_tasks(
         .first()
     )
     if not kr:
-        raise ErrorDeDominio(404, "KR no encontrado")
+        raise error(404, "no_encontrado", detail="KR no encontrado", que="resultado_clave")
 
     obj = kr.objective
     if not obj or not obj.project_id:
-        raise ErrorDeDominio(
-            400,
-            "El Objetivo vinculado al KR no tiene proyecto asociado. "
-            "Establece project_id en el Objetivo antes de sincronizar.",
-        )
+        raise error(400, "okr_objetivo_sin_proyecto", detail="El Objetivo vinculado al KR no tiene proyecto asociado. Establece project_id en el Objetivo antes de sincronizar.")
 
     progress_pct = task_progress_for_project(db, obj.project_id)
 

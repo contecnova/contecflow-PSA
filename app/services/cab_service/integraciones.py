@@ -19,7 +19,7 @@ from app.models.cab import CalendarEvent as CE
 from app.models.cab import CommitLink as CL
 from app.models.sprints import Sprint
 from app.services.integrations import get_jira_issue
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error, ErrorConCodigo
 
 
 # ─── WebhookTrigger serializer ────────────────────────────────────────────────
@@ -45,7 +45,7 @@ def desactivar_integracion(db, integration_id: str) -> dict:
         .first()
     )
     if not fila:
-        raise ErrorDeDominio(404, "Integración no encontrada")
+        raise error(404, "no_encontrado", detail="Integración no encontrada", que="integracion")
 
     fila.is_active = False
     fila.access_token = None
@@ -89,7 +89,8 @@ def sync_git_commits(db: Session, config, payload: dict):
     if not repo or not token:
         return 0, ["Faltan el repositorio (owner/repo) o el token."]
     try:
-        r = httpx.get(f"https://api.github.com/repos/{repo}/pulls",
+        from app.core.comprobacion_de_produccion import github_api_base
+        r = httpx.get(f"{github_api_base(cfg)}/repos/{repo}/pulls",  # GHES (19-11-2026)
                       params={"state": "all", "per_page": 50},
                       headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"},
                       timeout=_espera(db))
@@ -259,9 +260,9 @@ def create_integration(payload, current_user_id: str, db: Session, organization_
 def run_integration_sync(integration_id: str, payload: dict, db: Session) -> dict:
     config = db.query(IntegrationConfig).filter(IntegrationConfig.id == integration_id).first()
     if not config:
-        raise ValueError("Integración no encontrada")
+        raise ErrorConCodigo("no_encontrado", detail="Integración no encontrada", que="integracion")
     if not config.is_active:
-        raise ValueError("Integración inactiva")
+        raise ErrorConCodigo("integracion_inactiva")
 
     synced = 0
     errors = []
@@ -275,7 +276,7 @@ def run_integration_sync(integration_id: str, payload: dict, db: Session) -> dic
         synced, errors = sync_jira(db, config, payload)
     else:
         # Slack y Teams solo envian avisos: no hay nada que sincronizar.
-        raise ValueError(f"La integración «{config.integration_type}» no tiene sincronización; usa «Probar».")
+        raise ErrorConCodigo("integracion_sin_sincronizacion", nombre=config.integration_type)
 
     config.last_sync_at = datetime.now(timezone.utc)
     config.sync_errors = len(errors)
@@ -283,7 +284,7 @@ def run_integration_sync(integration_id: str, payload: dict, db: Session) -> dic
     db.commit()
     if errors and not synced:
         # Antes respondia «ok» y la pantalla decia «Sincronización completada».
-        raise ValueError(errors[0])
+        raise ErrorConCodigo("sincronizacion_fallida", detail=str(errors[0]))
     return {"ok": True, "synced": synced, "errors": errors[:5]}
 
 

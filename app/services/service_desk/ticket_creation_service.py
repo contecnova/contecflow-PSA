@@ -17,7 +17,6 @@ from app.services.sla_service import (
     norm_enum as _norm_enum,
 )
 import logging
-from app.core.errores import ErrorDeDominio
 from app.core.codigos_de_error import error as error_con_codigo
 
 logger = logging.getLogger(__name__)
@@ -503,7 +502,6 @@ def acotar_alta_del_externo(db: Session, payload: TicketCreateIn, user) -> None:
     from app.services.politica_de_visibilidad import es_externo, ids_de_personas_visibles
     if not es_externo(user):
         return
-    from app.core.errores import ErrorDeDominio
     from app.models.pipeline import Contract
     from app.models.project import Project
     from app.services.project_service import scope_projects_query
@@ -511,15 +509,15 @@ def acotar_alta_del_externo(db: Session, payload: TicketCreateIn, user) -> None:
     if payload.project_id:
         proyecto = scope_projects_query(db.query(Project), db, user).filter(Project.id == payload.project_id).first()
         if proyecto is None:
-            raise ErrorDeDominio(404, "Proyecto no encontrado")
+            raise error_con_codigo(404, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")
     cliente_del_proyecto = getattr(proyecto, "client_id", None)
     if payload.client_id and payload.client_id != cliente_del_proyecto:
-        raise ErrorDeDominio(404, "Cliente no encontrado")
+        raise error_con_codigo(404, "no_encontrado", detail="Cliente no encontrado", que="cliente")
     if payload.contract_id:
         contrato = db.query(Contract).filter(Contract.id == payload.contract_id).first()
         if contrato is None or not cliente_del_proyecto or getattr(contrato, "client_id", None) != cliente_del_proyecto:
-            raise ErrorDeDominio(404, "Contrato no encontrado")
+            raise error_con_codigo(404, "no_encontrado", detail="Contrato no encontrado", que="contrato")
     if payload.ci_id:
-        raise ErrorDeDominio(403, "La CMDB no está disponible para tu rol")
+        raise error_con_codigo(403, "cmdb_no_disponible_rol")
     if payload.assigned_to_user_id and payload.assigned_to_user_id not in ids_de_personas_visibles(db, user):
-        raise ErrorDeDominio(404, "Usuario no encontrado")
+        raise error_con_codigo(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")

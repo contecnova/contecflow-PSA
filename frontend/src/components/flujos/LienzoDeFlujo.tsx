@@ -49,7 +49,7 @@ export function LienzoDeFlujo<N extends Node, E extends Edge>({ nodes, edges, on
         snapToGrid snapGrid={[16, 16]} fitView proOptions={{ hideAttribution: true }}>
         <Background gap={16} color="var(--surface-4)" />
         <Controls showInteractive={false} />
-        <MiniMap<N> pannable zoomable nodeColor={colorDeNodo} maskColor="rgba(0,0,0,0.45)" />
+        <MiniMap<N> pannable zoomable nodeColor={colorDeNodo} maskColor="var(--overlay-scrim)" />
       </ReactFlow>
       {children}
     </div>

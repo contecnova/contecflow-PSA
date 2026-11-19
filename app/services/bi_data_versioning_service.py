@@ -25,7 +25,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 from sqlalchemy.orm import Session
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +116,7 @@ def create_version_snapshot(
 ) -> dict:
     """Capture current dataset state as a new immutable version."""
     if not dataset_key.replace("_", "").replace("-", "").replace(".", "").isalnum():
-        raise ErrorDeDominio(422, "dataset_key solo puede contener letras, números, _ - .")
+        raise error(422, "bi_dataset_clave_no_valida", detail="dataset_key solo puede contener letras, números, _ - .")
 
     version_id = str(uuid.uuid4())[:8]
     now = _utcnow()
@@ -177,7 +177,7 @@ def get_version_data(db: Session, org_id: str, dataset_key: str, version_id: str
     data_k = _data_key(dataset_key, version_id, org_id)
     data = _get_json(db, data_k, default=None)
     if data is None:
-        raise ErrorDeDominio(404, f"Versión {version_id!r} no encontrada para dataset {dataset_key!r}")
+        raise error(404, "no_encontrado", detail=f"Versión {version_id!r} no encontrada para dataset {dataset_key!r}", que="version")
     return data
 
 

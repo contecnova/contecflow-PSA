@@ -24,6 +24,7 @@ from app.core.ratelimit import limiter
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.user import User, UserRole
+from app.core.codigos_de_error import error_http, desde_valor
 
 
 def _es_admin(usuario) -> bool:
@@ -172,7 +173,7 @@ def get_dsr(
     org_id = getattr(current_user, "organization_id", None)
     dsr = svc.get_dsr(db, dsr_id=dsr_id, org_id=org_id)
     if not dsr:
-        raise HTTPException(status_code=404, detail="DSR not found")
+        raise error_http(404, "no_encontrado", detail="DSR not found", que="solicitud_rgpd")
     return APIResponse.ok(data=dsr)
 
 
@@ -213,7 +214,7 @@ def resolve_dsr(
     try:
         return APIResponse.ok(data=svc.resolve_dsr(db, dsr_id=dsr_id, org_id=org_id, resolution_notes=body.resolution_notes))
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise desde_valor(404, exc)
 
 
 @router.patch("/bi/gdpr/dsr/{dsr_id}", summary="Resolver una DSR (compat)")
@@ -230,7 +231,7 @@ def resolve_dsr_compat(
     # the dedicated /erasure-execute endpoint, so it must carry the same admin
     # gate — otherwise any authenticated user could force a physical anonymise.
     if body.status == "completed" and not _es_admin(current_user):
-        raise HTTPException(status_code=403, detail="Admin role required to execute GDPR erasure")
+        raise error_http(403, "solo_admin", detail="Admin role required to execute GDPR erasure")
     org_id = getattr(current_user, "organization_id", None)
     try:
         return APIResponse.ok(data=svc.resolve_dsr(
@@ -241,7 +242,7 @@ def resolve_dsr_compat(
             execute_erasure_pipeline=(body.status == "completed"),
         ))
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
+        raise desde_valor(404, exc)
 
 
 @router.post("/bi/gdpr/dsr/{dsr_id}/erasure-execute", summary="Ejecutar pipeline de borrado/anonimización GDPR real")
@@ -259,15 +260,15 @@ def execute_erasure(
     Requires admin role.
     """
     if not _es_admin(current_user):
-        raise HTTPException(status_code=403, detail="Admin role required for erasure execution")
+        raise error_http(403, "solo_admin", detail="Admin role required for erasure execution")
     org_id = getattr(current_user, "organization_id", None)
     try:
         dsr_list = svc.list_dsrs(db, org_id=org_id)
         dsr = next((d for d in dsr_list if d["id"] == dsr_id), None)
         if not dsr:
-            raise HTTPException(status_code=404, detail="DSR not found")
+            raise error_http(404, "no_encontrado", detail="DSR not found", que="solicitud_rgpd")
         if dsr["request_type"] != "erasure":
-            raise HTTPException(status_code=422, detail="DSR is not an erasure request")
+            raise error_http(422, "rgpd_no_es_borrado", detail="DSR is not an erasure request")
         # Segunda auditoria 2026-11: antes se borraba aqui y luego se resolvia
         # con `execute_erasure_pipeline=False`, rama que *revoca* el
         # consentimiento: volvia a escribir el identificador del interesado en
@@ -284,7 +285,7 @@ def execute_erasure(
         raise
     except Exception:
         logger.exception("GDPR erasure execution failed for dsr=%s", dsr_id)
-        raise HTTPException(status_code=500, detail="Error executing erasure pipeline")
+        raise error_http(500, "rgpd_borrado_error", detail="Error executing erasure pipeline")
 
 
 @router.post("/bi/gdpr/dsr/{dsr_id}/portability-export", summary="Generar export de datos para DSR de portabilidad")
@@ -303,14 +304,14 @@ def portability_export(
     org_id = getattr(current_user, "organization_id", None)
     dsr = svc.get_dsr(db, dsr_id=dsr_id, org_id=org_id)
     if not dsr:
-        raise HTTPException(status_code=404, detail="DSR not found")
+        raise error_http(404, "no_encontrado", detail="DSR not found", que="solicitud_rgpd")
     if dsr["request_type"] != "portability":
-        raise HTTPException(status_code=422, detail="DSR is not a portability request")
+        raise error_http(422, "rgpd_no_es_portabilidad", detail="DSR is not a portability request")
     # Allow admin or the subject themselves
     is_admin = _es_admin(current_user)
     is_subject = str(current_user.id) == dsr["subject_id"]
     if not is_admin and not is_subject:
-        raise HTTPException(status_code=403, detail="Access denied")
+        raise error_http(403, "sin_permiso", detail="Access denied")
     export = svc.execute_portability(db, subject_id=dsr["subject_id"], org_id=org_id)
     # Store export reference in DSR and auto-resolve
     svc.resolve_dsr(

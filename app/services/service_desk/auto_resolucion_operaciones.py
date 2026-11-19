@@ -19,7 +19,6 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
-from app.core.errores import ErrorDeDominio
 from app.db.session import SessionLocal
 from app.models.service_desk import Ticket, TicketStatus
 from app.services.service_desk.ai_auto_resolution_service import (
@@ -34,6 +33,7 @@ from app.services.service_desk.ai_auto_resolution_service import (
     save_auto_resolution_config,
     validate_auto_resolution,
 )
+from app.core.codigos_de_error import error
 
 # El nombre del logger es el que tenia en el endpoint: no cambia donde se lee.
 _logger = logging.getLogger("sd_auto_resolution_endpoint")
@@ -42,7 +42,7 @@ _logger = logging.getLogger("sd_auto_resolution_endpoint")
 def aplicar_auto_resolucion(db: Session, ticket: Ticket, current_user, force: bool) -> dict:
     """Analiza el ticket y, si la confianza llega (o `force`), lo resuelve y confirma."""
     if ticket.status in [TicketStatus.resolved, TicketStatus.closed]:
-        raise ErrorDeDominio(status_code=400, detail="Ticket already resolved/closed")
+        raise error(400, "ticket_ya_resuelto", detail="Ticket already resolved/closed")
 
     # Analyze first
     analysis = analyze_ticket_for_resolution(db, ticket, current_user)
@@ -53,11 +53,8 @@ def aplicar_auto_resolucion(db: Session, ticket: Ticket, current_user, force: bo
     from app.services.settings_service import get_runtime_float
     umbral = get_runtime_float(db, "SD_AUTONOMY_RESOLVE_THRESHOLD", ticket.organization_id) or 0.80
     if analysis["confidence"] < umbral and not force:
-        raise ErrorDeDominio(
-            status_code=400,
-            detail=f"Confidence too low ({analysis['confidence']*100:.1f}%). "
-                   f"Use ?force=true to override.",
-        )
+        raise error(400, "confianza_insuficiente", detail=f"Confidence too low ({analysis['confidence']*100:.1f}%). "
+                   f"Use ?force=true to override.", confianza=analysis['confidence']*100)
 
     # Apply resolution
     ticket.status = TicketStatus.resolved

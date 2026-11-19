@@ -45,8 +45,8 @@ export function refrescarAvisos(qc: ReturnType<typeof useQueryClient>) {
  * claves que `useNotificationBadges` (pestaña de /inbox) y la bandeja.
  */
 export function useContadorDeAvisos(activo: boolean, sondear: boolean) {
-  const { hasRole } = useAuth() as { hasRole: (...r: string[]) => boolean }
-  const veAlertas = hasRole('admin', 'pm', 'hr')
+  const { puede } = useAuth()
+  const veAlertas = puede('alertas.ver')
   const avisos = useQuery<number>({
     queryKey: queryKeys.notifications.badges(),
     queryFn: () => avisosApi.contador().catch(() => 0),

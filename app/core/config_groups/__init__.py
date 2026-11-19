@@ -24,8 +24,10 @@ from app.core.config_groups.proyectos_config import ProyectosSettingsMixin
 from app.core.config_groups.alm_uso_config import ALMUsoSettingsMixin
 from app.core.config_groups.alm_integracion_config import ALMIntegracionSettingsMixin
 from app.core.config_groups.traduccion_config import TraduccionSettingsMixin
+from app.core.config_groups.umbrales_config import UmbralesSettingsMixin
 
 __all__ = [
+    "UmbralesSettingsMixin",
     "TraduccionSettingsMixin",
     "ALMIntegracionSettingsMixin",
     "ALMUsoSettingsMixin",

@@ -22,6 +22,7 @@ from app.core.tenancy import assert_org_id_is_own, org_scoped_or_404
 from app.db.session import get_db
 from app.models.user import User
 from app.models.user import UserRole
+from app.core.codigos_de_error import error_http, desde_valor
 
 router = APIRouter(tags=["Service Desk - Alert Correlation"])
 
@@ -147,7 +148,7 @@ def merge_cluster_to_problem(
     an AI-generated RCA suggestion.
     """
     if current_user.role not in (UserRole.admin,):  # 2026-11: "support" no existe en UserRole
-        raise HTTPException(status_code=403, detail="Only admin/support can merge clusters")
+        raise error_http(403, "solo_admin_o_soporte", detail="Only admin/support can merge clusters")
 
     from app.services.service_desk.alert_correlation_service import merge_cluster_to_problem as _merge
     from app.services.service_desk.ticket_ops_service import commit_or_rollback
@@ -155,7 +156,7 @@ def merge_cluster_to_problem(
     try:
         result = _merge(db, ticket_ids=payload.ticket_ids, current_user=current_user, auto_rca=payload.auto_rca)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise desde_valor(400, exc)
 
     commit_or_rollback(db)
     return APIResponse.ok(data={"ok": True, **result})
@@ -178,7 +179,7 @@ def run_correlation_scan(
     generate Problem records if none already exist.
     """
     if current_user.role != UserRole.admin:
-        raise HTTPException(status_code=403, detail="Admin only")
+        raise error_http(403, "solo_admin", detail="Admin only")
 
     from app.services.service_desk.alert_correlation_service import run_correlation_scan_job
 

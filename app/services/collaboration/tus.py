@@ -43,6 +43,7 @@ from app.core.timeutil import utcnow
 from app.core.uploads import UploadProfile, max_bytes_for, validate_upload
 from app.services.collaboration._permissions import _org, assert_conversation_access
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 _log = logging.getLogger(__name__)
 
@@ -90,7 +91,7 @@ def _validar_uid(uid: str) -> str:
     try:
         uuid.UUID(uid)
     except (ValueError, AttributeError, TypeError):
-        raise ErrorDeDominio(404, "Upload no encontrado") from None
+        raise error(404, "no_encontrado", detail="Upload no encontrado", que="fichero") from None
     return uid
 
 
@@ -165,13 +166,12 @@ def crear_sesion(db: Session, user, *, upload_length: int, upload_metadata: str)
     """
     tope = tope_de_subida()
     if upload_length <= 0 or upload_length > tope:
-        raise ErrorDeDominio(
-            413, f"Tamaño no permitido: el máximo es {tope // (1024 * 1024)} MB")
+        raise error(413, "fichero_demasiado_grande", detail=f"Tamaño no permitido: el máximo es {tope // (1024 * 1024)} MB", max=tope // (1024 * 1024))
 
     meta = parsear_metadata(upload_metadata)
     conversation_id = meta.get("conversationId") or meta.get("conversation_id")
     if not conversation_id:
-        raise ErrorDeDominio(400, "Upload-Metadata debe incluir 'conversationId'")
+        raise error(400, "subida_sin_conversacion", detail="Upload-Metadata debe incluir 'conversationId'")
     assert_conversation_access(db, user, conversation_id)
 
     uid = str(uuid.uuid4())
@@ -200,7 +200,7 @@ def meta_propia(uid: str, user) -> dict:
     _validar_uid(uid)
     meta = _leer_meta(uid)
     if not meta or meta.get("user_id") != user.id:
-        raise ErrorDeDominio(404, "Upload no encontrado")
+        raise error(404, "no_encontrado", detail="Upload no encontrado", que="fichero")
     return meta
 
 
@@ -208,9 +208,9 @@ def escribir_trozo(uid: str, user, *, upload_offset: int, cuerpo: bytes) -> dict
     """Añade un trozo al final del fichero y devuelve la metadata actualizada."""
     meta = meta_propia(uid, user)
     if upload_offset != meta["offset"]:
-        raise ErrorDeDominio(409, "Offset no coincide")
+        raise error(409, "subida_desfasada", detail="Offset no coincide")
     if meta["offset"] + len(cuerpo) > meta["size"]:
-        raise ErrorDeDominio(413, "Excede tamaño declarado")
+        raise error(413, "subida_excede_tamano", detail="Excede tamaño declarado")
 
     with open(_ruta_datos(uid), "ab") as f:
         f.write(cuerpo)

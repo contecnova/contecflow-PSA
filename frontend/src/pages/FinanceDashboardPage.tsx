@@ -11,6 +11,7 @@ import {
 import { useAppLang } from '../i18n/AppLangContext'
 import { useToast } from '../context/ToastContext'
 import { extractErr, fmtDate } from '../utils/helpers'
+import { useTono } from '../hooks/useOrgSettings'
 import { Button, EmptyState, KpiCard, Page, SelectorDePeriodo, TablaSimple } from '../components/ui'
 import {
   COLOR, KpiCardSkeleton, GaugeCard, BarRow, SectionCard,
@@ -48,6 +49,7 @@ const ETAPAS: Record<string, string> = {
 export default function FinanceDashboardPage(): JSX.Element {
   const fmtMoneda = useFormatoMoneda()
   const { t } = useAppLang()
+  const tono = useTono()
   const { lang } = useAppLang()
   const toast = useToast()
   // Periodo libre (16-11-2026): antes 30/90/365 días propios. Rentabilidad por
@@ -111,9 +113,9 @@ export default function FinanceDashboardPage(): JSX.Element {
   })
 
   // Coste/hora real: sólo admin y hr (el endpoint da 403 al resto, que no lo pide).
-  const { hasRole } = useAuth()
-  const veCostes = hasRole('admin', 'hr')
-  const puedeGuardarCambio = hasRole('admin')
+  const { puede } = useAuth()
+  const veCostes = puede('costes.ver')
+  const puedeGuardarCambio = puede('org.administrar')
   const { data: costSummary = null, isError: e6 } = useQuery({
     queryKey: ['fin-dash-cost-summary'],
     enabled: veCostes,
@@ -141,7 +143,8 @@ export default function FinanceDashboardPage(): JSX.Element {
   const costs     = profitSummary?.portfolio?.total_cost ?? 0
   const margin    = revenue - costs
   const marginPct = revenue > 0 ? Math.round((margin / revenue) * 100) : null
-  const marginColor = marginPct == null ? COLOR.accent : marginPct >= 30 ? COLOR.success : marginPct >= 15 ? COLOR.warning : COLOR.danger
+  // 19-11-2026: UMBRAL_MARGEN_* de la empresa (antes 30/15 aquí y 50/30 en tarifas).
+  const marginColor = marginPct == null ? COLOR.accent : COLOR[tono('margen', marginPct) ?? 'danger']
 
   const invoices = Array.isArray(invoicesData) ? invoicesData : []
   const pendingInvoices = invoices.filter(i => i.status === 'sent' || i.status === 'overdue')

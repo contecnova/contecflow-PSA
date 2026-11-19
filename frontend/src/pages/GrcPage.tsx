@@ -16,6 +16,7 @@ import { openConfirmGlobal, pedirTexto, confirmar } from '../context/ConfirmCont
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../context/ToastContext'
 import { grcApi, approvalsApi, usersApi, governanceApi } from '../services/api'
+import { PREFIJO_API_SERVIDOR } from '../services/api/urls'
 import type {
   PermisosGrc, MatrizDePermisos as PermMatrix, ReglaSod as SodRule, ConflictoSod as SodViolation,
   ViolacionSod as ViolationRecord, EventoDeAuditoriaGrc as AuditEvent, CapaDeAcceso, ExplicacionDeAcceso as Explicacion,
@@ -1017,7 +1018,7 @@ function ExplicarAccesoTab() {
   const [usuario, setUsuario] = useState('')
   const [metodo, setMetodo] = useState('GET')
   // No es una URL que pida el cliente: es la ruta del servidor que se quiere explicar (las de `rutas` llevan el mismo prefijo).
-  const [camino, setCamino] = useState('/api/v1/projects')
+  const [camino, setCamino] = useState(`${PREFIJO_API_SERVIDOR}/projects`)
   const [res, setRes] = useState<Explicacion | null>(null)
   const [cargando, setCargando] = useState(false)
   const { data: usuarios = [] } = useQuery<{ id: string; full_name?: string; email?: string; role?: string }[]>({

@@ -31,6 +31,7 @@ from app.services.bi_o365_service import (
     get_adoption_summary,
     _SUPPORTED_REPORTS,
 )
+from app.core.codigos_de_error import error_http, desde_valor
 
 router = APIRouter(prefix="/bi/o365", tags=["BI Office 365"])
 
@@ -72,7 +73,7 @@ def o365_save_config(
     try:
         return APIResponse.ok(data=save_config(db, str(org_id) if org_id else None, body.model_dump(exclude_none=True)))
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise desde_valor(400, exc)
 
 
 @router.post("/sync", summary="Sincronizar datos de uso O365 desde Graph API")
@@ -103,7 +104,7 @@ def o365_report_data(
     current_user: User = Depends(require_admin),
 ):
     if report_name not in _SUPPORTED_REPORTS:
-        raise HTTPException(status_code=404, detail=f"Report '{report_name}' not supported. Available: {_SUPPORTED_REPORTS}")
+        raise error_http(404, "campo_no_valido_opciones", detail=f"Report '{report_name}' not supported. Available: {_SUPPORTED_REPORTS}", campo="report", valor=report_name, opciones=_SUPPORTED_REPORTS)
     org_id = getattr(current_user, "organization_id", None)
     return APIResponse.ok(data=get_report_data(db, str(org_id) if org_id else None, report_name))
 

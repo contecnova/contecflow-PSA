@@ -18,12 +18,13 @@ from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 import app.services.issue_type_service as _svc
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.core.codigos_de_error import error_http, desde_valor
 
 router = APIRouter()
 
 
 def _404(msg: str):
-    raise HTTPException(404, f"{msg} no encontrado")
+    raise error_http(404, "no_encontrado", detail=f"{msg} no encontrado", que="tipo_de_incidencia")
 
 
 # ════════════════════════════════════════════════════════════════
@@ -85,7 +86,7 @@ def init_issue_types(
         msg = str(e)
         if msg.startswith("404:"):
             _404(msg[4:])
-        raise HTTPException(400, msg)
+        raise desde_valor(400, e)
 
 
 @router.post("/issue-types/{project_id}", summary="Crear tipo de issue")
@@ -101,7 +102,7 @@ def create_issue_type(
         msg = str(e)
         if msg.startswith("404:"):
             _404(msg[4:])
-        raise HTTPException(400, msg)
+        raise desde_valor(400, e)
 
 
 @router.patch("/issue-types/{project_id}/{type_id}", summary="Actualizar tipo de issue")
@@ -117,7 +118,7 @@ def update_issue_type(
         msg = str(e)
         if msg.startswith("404:"):
             _404(msg[4:])
-        raise HTTPException(400, msg)
+        raise desde_valor(400, e)
 
 
 @router.delete("/issue-types/{project_id}/{type_id}", summary="Eliminar tipo de issue")
@@ -133,7 +134,7 @@ def delete_issue_type(
         msg = str(e)
         if msg.startswith("404:"):
             _404(msg[4:])
-        raise HTTPException(400, msg)
+        raise desde_valor(400, e)
 
 
 # ════════════════════════════════════════════════════════════════
@@ -171,8 +172,9 @@ def create_epic_dependency(
     except ValueError as e:
         msg = str(e)
         if msg.startswith("404:"):
-            raise HTTPException(404, msg[4:])
-        raise HTTPException(400, msg)
+            raise error_http(404, getattr(e, "codigo", "no_encontrado_generico"), detail=msg[4:],
+                             **(getattr(e, "params", None) or {}))
+        raise desde_valor(400, e)
 
 
 @router.delete("/epic-dependencies/{dep_id}", summary="Eliminar dependencia de épica")
@@ -187,8 +189,9 @@ def delete_epic_dependency(
     except ValueError as e:
         msg = str(e)
         if msg.startswith("404:"):
-            raise HTTPException(404, msg[4:])
-        raise HTTPException(400, msg)
+            raise error_http(404, getattr(e, "codigo", "no_encontrado_generico"), detail=msg[4:],
+                             **(getattr(e, "params", None) or {}))
+        raise desde_valor(400, e)
 
 
 # ════════════════════════════════════════════════════════════════
@@ -226,4 +229,4 @@ def fts_search(
     try:
         return APIResponse.ok(data=_svc.fts_search(q, project_id, entity_types, limit, db, cu))
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)

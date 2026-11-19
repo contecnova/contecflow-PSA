@@ -14,6 +14,8 @@ import { COLOR, GaugeCard, BarRow, typePalette } from '../components/dashboard/D
 import { useAppT } from '../i18n/AppLangContext'
 import { STALE_DEFAULT_MS } from '../constants/timings'
 import { DASHBOARD_LIST_SIZE, SELECTOR_LIST_SIZE } from '../constants/pagination'
+// 19-11-2026: etiqueta del rol con `rol_usuario` (la lista local tenía roles inexistentes: finance, client_user).
+import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
 import './TeamDashboardPage.css'
 
 /*
@@ -44,15 +46,6 @@ const okrCategory = (o: Objetivo) => {
 
 export default function TeamDashboardPage() {
   const t = useAppT()
-  const ROLE_LABELS = {
-    admin: t('team_dashboard.role_admin'),
-    pm: t('team_dashboard.role_pm'),
-    team_lead: t('team_dashboard.role_team_lead'),
-    employee: t('team_dashboard.role_employee'),
-    hr: t('team_dashboard.role_hr'),
-    finance: t('team_dashboard.role_finance'),
-    client_user: t('team_dashboard.role_client_user'),
-  }
 
   const { data: resourcesRaw = [], isLoading: lr } = useQuery({
     queryKey: ['team-dash-resources'],
@@ -156,7 +149,7 @@ export default function TeamDashboardPage() {
   const roleRows: ChartRow[] = Object.entries(roleCounts)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 6)
-    .map(([role, count]) => ({ label: ROLE_LABELS[role as keyof typeof ROLE_LABELS] || role, count }))
+    .map(([role, count]) => ({ label: etiquetaCodigo(t as never, 'rol_usuario', role), count }))
 
   const pendingAbsences = absences.filter(a => a.status === 'pending').length
 

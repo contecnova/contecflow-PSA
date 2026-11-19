@@ -478,7 +478,7 @@ const en: Record<string, string> = {
   pdash_burn_over: 'Overspend expected',
   pdash_burn_warn: 'Early warning',
   pdash_burn_ok: 'Under control',
-  pdash_next60: 'Coming up in the next 60 days',
+  pdash_next60: 'Coming up in the next {{n}} days',
   pdash_overdue_ago: 'overdue by {{n}} d',
   pdash_today: 'today',
   pdash_in_days: 'in {{n}} d',
@@ -1168,6 +1168,8 @@ const en: Record<string, string> = {
   "portal_avisos.tipo_conversacion": "Conversation",
   "err_srv.notificacion_no_encontrada": "Notification not found",
   "err_srv.validacion": "Please check the data",
+  // 19-11-2026: error generico sin detalles internos (codigos_de_error.py)
+  "err_srv.error_interno": "The operation could not be completed. Try again and, if it happens again, contact support.",
   // Errores de validación por campo (17-11-2026)
   "validacion.obligatorio": "Required",
   "validacion.formato": "Invalid format",

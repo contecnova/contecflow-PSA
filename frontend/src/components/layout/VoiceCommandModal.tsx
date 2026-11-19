@@ -313,8 +313,8 @@ export default function VoiceCommandModal({ open, onClose }: VoiceCommandModalPr
 
       <style>{`
         @keyframes voicePulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.5); }
-          50%      { box-shadow: 0 0 0 14px rgba(239,68,68,0); }
+          0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 50%, transparent); }
+          50%      { box-shadow: 0 0 0 14px color-mix(in srgb, var(--danger) 0%, transparent); }
         }
       `}</style>
     </div>

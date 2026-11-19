@@ -41,6 +41,7 @@ from app.services.git_service import (
     verify_gitlab_token as _verify_gitlab_token,
 )
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.core.codigos_de_error import error_http
 
 router = APIRouter()
 _logger = logging.getLogger(__name__)
@@ -60,9 +61,9 @@ def _empresa(db: Session, slug: Optional[str]) -> str:
     from app.services import git_service as gs
     org = gs.empresa_por_slug(db, slug) if slug else gs.unica_empresa(db)
     if not org:
-        raise HTTPException(404 if slug else 409,
-                            "Empresa no encontrada" if slug else
-                            "Hay varias empresas: usa /git/webhooks/{proveedor}/{empresa}")
+        if slug:
+            raise error_http(404, "no_encontrado", detail="Empresa no encontrada", que="empresa")
+        raise error_http(409, "varias_empresas", detail="Hay varias empresas: usa /git/webhooks/{proveedor}/{empresa}")
     return org
 
 
@@ -72,20 +73,20 @@ async def _github(request: Request, evento: str, firma: str, db: Session, slug: 
     org = await run_db(_empresa, db, slug)
     secreto = (await run_db(gs.secreto_de_la_empresa, db, "github", org)) if slug else None
     if slug and not secreto:
-        raise HTTPException(403, "La empresa no tiene secreto de GitHub (Credenciales → Inbound webhooks)")
+        raise error_http(403, "webhook_secreto_no_configurado", detail="La empresa no tiene secreto de GitHub (Credenciales → Inbound webhooks)", servicio="GitHub")
     body = await request.body()
     if not _verify_github_signature(body, firma, secreto):
-        raise HTTPException(403, "Invalid GitHub webhook signature")
+        raise error_http(403, "git_firma_no_valida", detail="Invalid GitHub webhook signature", servicio="GitHub")
     try:
         payload = await request.json()
     except Exception:
         _logger.warning("GitHub webhook rejected: invalid JSON payload event=%s", evento, exc_info=True)
-        raise HTTPException(400, "Invalid JSON payload")
+        raise error_http(400, "json_no_valido", detail="Invalid JSON payload")
     try:
         await run_db(process_github_webhook, db, evento, payload, org)
     except Exception:
         _logger.exception("GitHub webhook processing failed event=%s", evento)
-        raise HTTPException(500, "Error procesando webhook GitHub")  # GitHub reintenta
+        raise error_http(500, "webhook_error_procesando", detail="Error procesando webhook GitHub", servicio="GitHub")  # GitHub reintenta
     return {"status": "ok"}
 
 
@@ -95,19 +96,19 @@ async def _gitlab(request: Request, token: str, db: Session, slug: Optional[str]
     org = await run_db(_empresa, db, slug)
     secreto = (await run_db(gs.secreto_de_la_empresa, db, "gitlab", org)) if slug else None
     if slug and not secreto:
-        raise HTTPException(403, "La empresa no tiene secreto de GitLab (Credenciales → Inbound webhooks)")
+        raise error_http(403, "webhook_secreto_no_configurado", detail="La empresa no tiene secreto de GitLab (Credenciales → Inbound webhooks)", servicio="GitLab")
     if not _verify_gitlab_token(token, secreto):
-        raise HTTPException(403, "Invalid GitLab webhook token")
+        raise error_http(403, "git_firma_no_valida", detail="Invalid GitLab webhook token", servicio="GitLab")
     try:
         payload = await request.json()
     except Exception:
         _logger.warning("GitLab webhook rejected: invalid JSON payload", exc_info=True)
-        raise HTTPException(400, "Invalid JSON payload")
+        raise error_http(400, "json_no_valido", detail="Invalid JSON payload")
     try:
         await run_db(process_gitlab_webhook, db, payload.get("object_kind", ""), payload, org)
     except Exception:
         _logger.exception("GitLab webhook processing failed kind=%s", payload.get("object_kind"))
-        raise HTTPException(500, "Error procesando webhook GitLab")
+        raise error_http(500, "webhook_error_procesando", detail="Error procesando webhook GitLab", servicio="GitLab")
     return {"status": "ok"}
 
 
@@ -206,7 +207,7 @@ def get_pr(
 ):
     pr = get_pull_request(db, pr_id, current_user)
     if not pr:
-        raise HTTPException(404, "Pull request not found")
+        raise error_http(404, "no_encontrado", detail="Pull request not found", que="pull_request")
     return APIResponse.ok(data=pr)
 
 
@@ -234,7 +235,7 @@ def suggest_branch(
 ):
     task = get_task(db, task_id)
     if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise error_http(404, "no_encontrado", detail="Task not found", que="tarea")
     return APIResponse.ok(data=suggest_branch_name(task))
 
 

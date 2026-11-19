@@ -1,0 +1,1153 @@
+{
+ "codigos": {
+  "no_encontrado": {
+   "es": "No se encuentra: {que}",
+   "en": "Not found: {que}",
+   "zh": "未找到：{que}"
+  },
+  "no_encontrado_generico": {
+   "es": "No encontrado",
+   "en": "Not found",
+   "zh": "未找到"
+  },
+  "sin_permiso": {
+   "es": "No tienes permiso para hacer esto",
+   "en": "You don't have permission to do this",
+   "zh": "你没有执行此操作的权限"
+  },
+  "solo_admin": {
+   "es": "Solo administración puede hacer esto",
+   "en": "Only administrators can do this",
+   "zh": "只有管理员可以执行此操作"
+  },
+  "sin_empresa": {
+   "es": "Tu usuario no tiene empresa asignada",
+   "en": "Your user has no company assigned",
+   "zh": "你的用户未分配公司"
+  },
+  "no_autenticado": {
+   "es": "No has iniciado sesión",
+   "en": "You are not signed in",
+   "zh": "你尚未登录"
+  },
+  "error_interno": {
+   "es": "No se ha podido completar la operación. Inténtalo de nuevo y, si se repite, avisa a soporte.",
+   "en": "The operation could not be completed. Try again and, if it happens again, contact support.",
+   "zh": "无法完成操作。请重试；如果问题仍然存在，请联系支持人员。"
+  },
+  "dependencia_no_instalada": {
+   "es": "Falta un componente en el servidor ({paquete}): avisa a administración",
+   "en": "A server component is missing ({paquete}): contact your administrator",
+   "zh": "服务器缺少组件（{paquete}）：请联系管理员"
+  },
+  "fichero_vacio": {
+   "es": "El fichero está vacío",
+   "en": "The file is empty",
+   "zh": "文件为空"
+  },
+  "json_no_valido": {
+   "es": "El contenido no es un JSON válido",
+   "en": "The content is not valid JSON",
+   "zh": "内容不是有效的 JSON"
+  },
+  "fecha_fin_anterior_a_inicio": {
+   "es": "La fecha fin no puede ser anterior al inicio",
+   "en": "The end date cannot be before the start date",
+   "zh": "结束日期不能早于开始日期"
+  },
+  "sod_no_puedes_aprobar_lo_tuyo": {
+   "es": "Segregación de funciones: no puedes aprobar lo que has pedido tú",
+   "en": "Segregation of duties: you cannot approve your own request",
+   "zh": "职责分离：你不能审批自己提交的申请"
+  },
+  "integracion_no_configurada": {
+   "es": "{nombre} no está configurado",
+   "en": "{nombre} is not configured",
+   "zh": "{nombre} 未配置"
+  },
+  "servicio_externo_fallo": {
+   "es": "El servicio externo ({servicio}) ha fallado",
+   "en": "The external service ({servicio}) failed",
+   "zh": "外部服务（{servicio}）失败"
+  },
+  "firma_no_valida": {
+   "es": "La firma de la petición no es válida",
+   "en": "The request signature is not valid",
+   "zh": "请求签名无效"
+  },
+  "operacion_bd_fallida": {
+   "es": "No se ha podido guardar en la base de datos",
+   "en": "Could not save to the database",
+   "zh": "无法保存到数据库"
+  },
+  "motivo_de_rechazo_obligatorio": {
+   "es": "Indica el motivo del rechazo",
+   "en": "Give the reason for the rejection",
+   "zh": "请说明拒绝原因"
+  },
+  "email_ya_registrado": {
+   "es": "Ese email ya está registrado",
+   "en": "That email is already registered",
+   "zh": "该邮箱已注册"
+  },
+  "empresa_desactivada": {
+   "es": "La empresa está desactivada",
+   "en": "The company is deactivated",
+   "zh": "公司已停用"
+  },
+  "sin_acceso_proyecto_operador": {
+   "es": "No tienes acceso a este proyecto",
+   "en": "You don't have access to this project",
+   "zh": "你无权访问此项目"
+  },
+  "tarea_no_en_proyecto": {
+   "es": "Tarea no encontrada o no pertenece al proyecto",
+   "en": "Task not found or not in this project",
+   "zh": "任务不存在或不属于该项目"
+  },
+  "cronometro_sin_activo": {
+   "es": "No hay ningún cronómetro en marcha",
+   "en": "There is no timer running",
+   "zh": "没有正在运行的计时器"
+  },
+  "frontend_url_no_configurada": {
+   "es": "Falta configurar la URL pública de la aplicación: no se puede completar el inicio de sesión externo",
+   "en": "The application's public URL is not configured: external sign-in cannot be completed",
+   "zh": "未配置应用的公共 URL：无法完成外部登录"
+  }
+ },
+ "que": {
+  "proyecto": {
+   "es": "Proyecto",
+   "en": "Project",
+   "zh": "项目"
+  },
+  "usuario": {
+   "es": "Usuario",
+   "en": "User",
+   "zh": "用户"
+  },
+  "cliente": {
+   "es": "Cliente",
+   "en": "Client",
+   "zh": "客户"
+  },
+  "plantilla": {
+   "es": "Plantilla",
+   "en": "Template",
+   "zh": "模板"
+  },
+  "solicitud_de_cambio": {
+   "es": "Solicitud de cambio",
+   "en": "Change request",
+   "zh": "变更请求"
+  },
+  "contrato": {
+   "es": "Contrato",
+   "en": "Contract",
+   "zh": "合同"
+  },
+  "ciclo": {
+   "es": "Ciclo",
+   "en": "Cycle",
+   "zh": "周期"
+  },
+  "mensaje": {
+   "es": "Mensaje",
+   "en": "Message",
+   "zh": "消息"
+  },
+  "tarea": {
+   "es": "Tarea",
+   "en": "Task",
+   "zh": "任务"
+  },
+  "sprint": {
+   "es": "Sprint",
+   "en": "Sprint",
+   "zh": "冲刺"
+  },
+  "pagina": {
+   "es": "Página",
+   "en": "Page",
+   "zh": "页面"
+  },
+  "flujo": {
+   "es": "Flujo",
+   "en": "Workflow",
+   "zh": "流程"
+  },
+  "epica": {
+   "es": "Épica",
+   "en": "Epic",
+   "zh": "史诗"
+  },
+  "ticket": {
+   "es": "Ticket",
+   "en": "Ticket",
+   "zh": "工单"
+  },
+  "ausencia": {
+   "es": "Ausencia",
+   "en": "Absence",
+   "zh": "缺勤"
+  },
+  "proveedor_ia": {
+   "es": "Proveedor de IA",
+   "en": "AI provider",
+   "zh": "AI 提供商"
+  },
+  "comentario": {
+   "es": "Comentario",
+   "en": "Comment",
+   "zh": "评论"
+  },
+  "integracion": {
+   "es": "Integración",
+   "en": "Integration",
+   "zh": "集成"
+  },
+  "campana": {
+   "es": "Campaña",
+   "en": "Campaign",
+   "zh": "活动"
+  },
+  "cartera": {
+   "es": "Cartera",
+   "en": "Portfolio",
+   "zh": "项目组合"
+  },
+  "regla": {
+   "es": "Regla",
+   "en": "Rule",
+   "zh": "规则"
+  },
+  "oportunidad": {
+   "es": "Oportunidad",
+   "en": "Opportunity",
+   "zh": "商机"
+  },
+  "politica": {
+   "es": "Política",
+   "en": "Policy",
+   "zh": "策略"
+  },
+  "factura": {
+   "es": "Factura",
+   "en": "Invoice",
+   "zh": "发票"
+  },
+  "solicitud": {
+   "es": "Solicitud",
+   "en": "Request",
+   "zh": "申请"
+  },
+  "version": {
+   "es": "Versión",
+   "en": "Version",
+   "zh": "版本"
+  },
+  "aplicacion": {
+   "es": "Aplicación",
+   "en": "Application",
+   "zh": "应用"
+  },
+  "fichero": {
+   "es": "Fichero",
+   "en": "File",
+   "zh": "文件"
+  },
+  "objetivo": {
+   "es": "Objetivo",
+   "en": "Objective",
+   "zh": "目标"
+  },
+  "resultado_clave": {
+   "es": "Resultado clave",
+   "en": "Key result",
+   "zh": "关键结果"
+  },
+  "plan": {
+   "es": "Plan",
+   "en": "Plan",
+   "zh": "计划"
+  },
+  "formulario": {
+   "es": "Formulario",
+   "en": "Form",
+   "zh": "表单"
+  },
+  "canal": {
+   "es": "Canal",
+   "en": "Channel",
+   "zh": "渠道"
+  },
+  "espacio": {
+   "es": "Espacio",
+   "en": "Space",
+   "zh": "空间"
+  },
+  "gasto": {
+   "es": "Gasto",
+   "en": "Expense",
+   "zh": "费用"
+  },
+  "solicitud_rgpd": {
+   "es": "Solicitud RGPD",
+   "en": "Data subject request",
+   "zh": "数据主体请求"
+  },
+  "informe": {
+   "es": "Informe",
+   "en": "Report",
+   "zh": "报告"
+  },
+  "proceso": {
+   "es": "Proceso",
+   "en": "Process",
+   "zh": "流程实例"
+  },
+  "persona_evaluada": {
+   "es": "Persona evaluada",
+   "en": "Person being evaluated",
+   "zh": "被评估人员"
+  },
+  "riesgo": {
+   "es": "Riesgo",
+   "en": "Risk",
+   "zh": "风险"
+  },
+  "contacto": {
+   "es": "Contacto",
+   "en": "Contact",
+   "zh": "联系人"
+  },
+  "grupo": {
+   "es": "Grupo",
+   "en": "Group",
+   "zh": "组"
+  },
+  "justificante": {
+   "es": "Justificante",
+   "en": "Receipt",
+   "zh": "凭证"
+  },
+  "entrada": {
+   "es": "Entrada",
+   "en": "Entry",
+   "zh": "条目"
+  },
+  "organizacion": {
+   "es": "Organización",
+   "en": "Organization",
+   "zh": "组织"
+  },
+  "notificacion": {
+   "es": "Notificación",
+   "en": "Notification",
+   "zh": "通知"
+  },
+  "preajuste": {
+   "es": "Preajuste",
+   "en": "Preset",
+   "zh": "预设"
+  },
+  "instantanea": {
+   "es": "Instantánea",
+   "en": "Snapshot",
+   "zh": "快照"
+  },
+  "documento": {
+   "es": "Documento",
+   "en": "Document",
+   "zh": "文档"
+  },
+  "imputacion": {
+   "es": "Imputación",
+   "en": "Time entry",
+   "zh": "工时记录"
+  },
+  "empresa": {
+   "es": "Empresa",
+   "en": "Company",
+   "zh": "公司"
+  },
+  "evaluacion": {
+   "es": "Evaluación",
+   "en": "Evaluation",
+   "zh": "评估"
+  },
+  "hito": {
+   "es": "Hito",
+   "en": "Milestone",
+   "zh": "里程碑"
+  },
+  "deteccion": {
+   "es": "Detección",
+   "en": "Detection",
+   "zh": "检测"
+  },
+  "incidente": {
+   "es": "Incidente",
+   "en": "Incident",
+   "zh": "事件"
+  },
+  "articulo": {
+   "es": "Artículo",
+   "en": "Article",
+   "zh": "文章"
+  },
+  "plantilla_rca": {
+   "es": "Plantilla de análisis de causa raíz",
+   "en": "Root cause analysis template",
+   "zh": "根因分析模板"
+  },
+  "habilidad": {
+   "es": "Habilidad",
+   "en": "Skill",
+   "zh": "技能"
+  },
+  "curso": {
+   "es": "Curso",
+   "en": "Course",
+   "zh": "课程"
+  },
+  "inscripcion": {
+   "es": "Inscripción",
+   "en": "Enrollment",
+   "zh": "报名"
+  },
+  "certificacion": {
+   "es": "Certificación",
+   "en": "Certification",
+   "zh": "认证"
+  },
+  "llave_de_acceso": {
+   "es": "Llave de acceso",
+   "en": "Passkey",
+   "zh": "通行密钥"
+  },
+  "entidad": {
+   "es": "Entidad",
+   "en": "Entity",
+   "zh": "实体"
+  },
+  "activo": {
+   "es": "Activo",
+   "en": "Asset",
+   "zh": "资产"
+  },
+  "licencia": {
+   "es": "Licencia",
+   "en": "License",
+   "zh": "许可证"
+  },
+  "partida": {
+   "es": "Partida",
+   "en": "Line item",
+   "zh": "条目"
+  },
+  "disparador": {
+   "es": "Disparador",
+   "en": "Trigger",
+   "zh": "触发器"
+  },
+  "conversacion": {
+   "es": "Conversación",
+   "en": "Conversation",
+   "zh": "会话"
+  },
+  "miembro": {
+   "es": "Miembro",
+   "en": "Member",
+   "zh": "成员"
+  },
+  "equipo": {
+   "es": "Equipo",
+   "en": "Team",
+   "zh": "团队"
+  },
+  "campo": {
+   "es": "Campo",
+   "en": "Field",
+   "zh": "字段"
+  },
+  "estado": {
+   "es": "Estado",
+   "en": "Status",
+   "zh": "状态"
+  },
+  "permiso": {
+   "es": "Permiso",
+   "en": "Permission",
+   "zh": "权限"
+  },
+  "caso_uat": {
+   "es": "Caso de prueba de aceptación",
+   "en": "User acceptance test case",
+   "zh": "用户验收测试用例"
+  },
+  "obligacion": {
+   "es": "Obligación",
+   "en": "Obligation",
+   "zh": "义务"
+  },
+  "congelacion": {
+   "es": "Congelación",
+   "en": "Freeze",
+   "zh": "冻结"
+  },
+  "dependencia": {
+   "es": "Dependencia",
+   "en": "Dependency",
+   "zh": "依赖"
+  },
+  "respuesta": {
+   "es": "Respuesta",
+   "en": "Answer",
+   "zh": "回答"
+  },
+  "acceso_compartido": {
+   "es": "Acceso compartido",
+   "en": "Shared access",
+   "zh": "共享访问"
+  },
+  "vista": {
+   "es": "Vista",
+   "en": "View",
+   "zh": "视图"
+  },
+  "conector": {
+   "es": "Conector",
+   "en": "Connector",
+   "zh": "连接器"
+  },
+  "clasificacion_de_campo": {
+   "es": "Clasificación de campo",
+   "en": "Field classification",
+   "zh": "字段分类"
+  },
+  "orden_de_trabajo": {
+   "es": "Orden de trabajo",
+   "en": "Work order",
+   "zh": "工单（作业）"
+  },
+  "entregable": {
+   "es": "Entregable",
+   "en": "Deliverable",
+   "zh": "交付物"
+  },
+  "subcontratista": {
+   "es": "Subcontratista",
+   "en": "Subcontractor",
+   "zh": "分包商"
+  },
+  "firmante": {
+   "es": "Firmante",
+   "en": "Signer",
+   "zh": "签署人"
+  },
+  "pull_request": {
+   "es": "Pull request",
+   "en": "Pull request",
+   "zh": "拉取请求"
+  },
+  "anomalia": {
+   "es": "Anomalía",
+   "en": "Anomaly",
+   "zh": "异常"
+  },
+  "sesion": {
+   "es": "Sesión",
+   "en": "Session",
+   "zh": "会话"
+  },
+  "proveedor": {
+   "es": "Proveedor",
+   "en": "Supplier",
+   "zh": "供应商"
+  },
+  "tipo_de_ausencia": {
+   "es": "Tipo de ausencia",
+   "en": "Absence type",
+   "zh": "缺勤类型"
+  },
+  "tipo_de_documento": {
+   "es": "Tipo de documento",
+   "en": "Document type",
+   "zh": "文档类型"
+  },
+  "requisito": {
+   "es": "Requisito",
+   "en": "Requirement",
+   "zh": "需求"
+  },
+  "turno": {
+   "es": "Turno",
+   "en": "Shift",
+   "zh": "班次"
+  },
+  "rotacion": {
+   "es": "Rotación",
+   "en": "Rotation",
+   "zh": "轮换"
+  },
+  "configuracion_sso": {
+   "es": "Configuración SSO",
+   "en": "SSO configuration",
+   "zh": "SSO 配置"
+  },
+  "linea_base": {
+   "es": "Línea base",
+   "en": "Baseline",
+   "zh": "基线"
+  },
+  "paso": {
+   "es": "Paso",
+   "en": "Step",
+   "zh": "步骤"
+  },
+  "instancia": {
+   "es": "Instancia",
+   "en": "Instance",
+   "zh": "实例"
+  },
+  "presupuesto": {
+   "es": "Presupuesto",
+   "en": "Budget",
+   "zh": "预算"
+  },
+  "ventana_de_mantenimiento": {
+   "es": "Ventana de mantenimiento",
+   "en": "Maintenance window",
+   "zh": "维护窗口"
+  },
+  "llamada": {
+   "es": "Llamada",
+   "en": "Call",
+   "zh": "通话"
+  },
+  "bloqueo_legal": {
+   "es": "Bloqueo legal",
+   "en": "Legal hold",
+   "zh": "法律保留"
+  },
+  "adjunto": {
+   "es": "Adjunto",
+   "en": "Attachment",
+   "zh": "附件"
+  },
+  "enlace": {
+   "es": "Enlace",
+   "en": "Link",
+   "zh": "链接"
+  },
+  "perfil": {
+   "es": "Perfil",
+   "en": "Profile",
+   "zh": "档案"
+  },
+  "transicion": {
+   "es": "Transición",
+   "en": "Transition",
+   "zh": "转换"
+  },
+  "estado_destino": {
+   "es": "Estado destino",
+   "en": "Target status",
+   "zh": "目标状态"
+  },
+  "etiqueta": {
+   "es": "Etiqueta",
+   "en": "Tag",
+   "zh": "标签"
+  },
+  "filtro": {
+   "es": "Filtro",
+   "en": "Filter",
+   "zh": "筛选器"
+  },
+  "asignacion": {
+   "es": "Asignación",
+   "en": "Assignment",
+   "zh": "分配"
+  },
+  "alerta": {
+   "es": "Alerta",
+   "en": "Alert",
+   "zh": "警报"
+  },
+  "problema": {
+   "es": "Problema",
+   "en": "Problem",
+   "zh": "问题"
+  },
+  "incidente_grave": {
+   "es": "Incidente grave",
+   "en": "Major incident",
+   "zh": "重大事件"
+  },
+  "incidente_de_seguridad": {
+   "es": "Incidente de seguridad",
+   "en": "Security incident",
+   "zh": "安全事件"
+  },
+  "leccion": {
+   "es": "Lección aprendida",
+   "en": "Lesson learned",
+   "zh": "经验教训"
+  },
+  "accion": {
+   "es": "Acción",
+   "en": "Action",
+   "zh": "操作"
+  },
+  "responsable": {
+   "es": "Responsable",
+   "en": "Owner",
+   "zh": "负责人"
+  },
+  "ciclo_destino": {
+   "es": "Ciclo destino",
+   "en": "Target cycle",
+   "zh": "目标周期"
+  },
+  "ciclo_origen": {
+   "es": "Ciclo origen",
+   "en": "Source cycle",
+   "zh": "源周期"
+  },
+  "pregunta": {
+   "es": "Pregunta",
+   "en": "Question",
+   "zh": "问题（问卷）"
+  },
+  "etapa": {
+   "es": "Etapa",
+   "en": "Stage",
+   "zh": "阶段"
+  },
+  "tabla_de_referencia": {
+   "es": "Tabla de referencia",
+   "en": "Reference table",
+   "zh": "参照表"
+  },
+  "pedido": {
+   "es": "Pedido",
+   "en": "Order",
+   "zh": "订单"
+  },
+  "traspaso": {
+   "es": "Traspaso",
+   "en": "Transfer",
+   "zh": "转移"
+  },
+  "entrada_raci": {
+   "es": "Entrada RACI",
+   "en": "RACI entry",
+   "zh": "RACI 条目"
+  },
+  "contrato_de_reconocimiento": {
+   "es": "Contrato de reconocimiento de ingresos",
+   "en": "Revenue recognition contract",
+   "zh": "收入确认合同"
+  },
+  "ejecucion": {
+   "es": "Ejecución",
+   "en": "Run",
+   "zh": "执行"
+  },
+  "playbook": {
+   "es": "Playbook",
+   "en": "Playbook",
+   "zh": "剧本"
+  },
+  "respuesta_rapida": {
+   "es": "Respuesta rápida",
+   "en": "Canned response",
+   "zh": "快捷回复"
+  },
+  "categoria": {
+   "es": "Categoría",
+   "en": "Category",
+   "zh": "类别"
+  },
+  "ciclo_de_vida": {
+   "es": "Ciclo de vida",
+   "en": "Lifecycle",
+   "zh": "生命周期"
+  },
+  "clase": {
+   "es": "Clase",
+   "en": "Class",
+   "zh": "类"
+  },
+  "relacion": {
+   "es": "Relación",
+   "en": "Relationship",
+   "zh": "关系"
+  },
+  "configuracion_jira": {
+   "es": "Configuración de Jira",
+   "en": "Jira configuration",
+   "zh": "Jira 配置"
+  },
+  "version_kb": {
+   "es": "Versión del artículo",
+   "en": "Article version",
+   "zh": "文章版本"
+  },
+  "cola": {
+   "es": "Cola",
+   "en": "Queue",
+   "zh": "队列"
+  },
+  "politica_sla": {
+   "es": "Política de SLA",
+   "en": "SLA policy",
+   "zh": "SLA 策略"
+  },
+  "pagina_de_estado": {
+   "es": "Página de estado",
+   "en": "Status page",
+   "zh": "状态页"
+  },
+  "blueprint": {
+   "es": "Plantilla de proyecto",
+   "en": "Blueprint",
+   "zh": "蓝图"
+  },
+  "tarea_padre": {
+   "es": "Tarea padre",
+   "en": "Parent task",
+   "zh": "父任务"
+  },
+  "fase": {
+   "es": "Fase",
+   "en": "Phase",
+   "zh": "阶段（项目）"
+  },
+  "responsable_directo": {
+   "es": "Responsable directo",
+   "en": "Manager",
+   "zh": "直属经理"
+  }
+ },
+ "entidades": {
+  "Proyecto": "proyecto",
+  "Project": "proyecto",
+  "Usuario": "usuario",
+  "User": "usuario",
+  "Cliente": "cliente",
+  "Client": "cliente",
+  "Plantilla": "plantilla",
+  "Template": "plantilla",
+  "CR": "solicitud_de_cambio",
+  "Change request": "solicitud_de_cambio",
+  "Contrato": "contrato",
+  "Ciclo": "ciclo",
+  "Mensaje": "mensaje",
+  "Tarea": "tarea",
+  "Task": "tarea",
+  "Sprint": "sprint",
+  "Página": "pagina",
+  "Flujo": "flujo",
+  "Workflow": "flujo",
+  "Épica": "epica",
+  "Ticket": "ticket",
+  "Ausencia": "ausencia",
+  "AI provider": "proveedor_ia",
+  "Comentario": "comentario",
+  "Integración": "integracion",
+  "Integration instance": "integracion",
+  "Campaña": "campana",
+  "Cartera": "cartera",
+  "Regla": "regla",
+  "Oportunidad": "oportunidad",
+  "Opportunity": "oportunidad",
+  "Policy": "politica",
+  "Política": "politica",
+  "Factura": "factura",
+  "Invoice": "factura",
+  "Solicitud": "solicitud",
+  "Versión": "version",
+  "Version": "version",
+  "Aplicación": "aplicacion",
+  "File": "fichero",
+  "Upload": "fichero",
+  "Objetivo": "objetivo",
+  "KR": "resultado_clave",
+  "Plan": "plan",
+  "Formulario": "formulario",
+  "Canal": "canal",
+  "Canal del webhook": "canal",
+  "Espacio": "espacio",
+  "Gasto": "gasto",
+  "DSR": "solicitud_rgpd",
+  "Informe": "informe",
+  "Process": "proceso",
+  "Proceso": "proceso",
+  "Source process": "proceso",
+  "Persona evaluada": "persona_evaluada",
+  "Riesgo": "riesgo",
+  "Contacto": "contacto",
+  "Grupo": "grupo",
+  "Justificante": "justificante",
+  "Entrada": "entrada",
+  "Organización": "organizacion",
+  "Organization": "organizacion",
+  "Notificación": "notificacion",
+  "Preset": "preajuste",
+  "Snapshot": "instantanea",
+  "Documento": "documento",
+  "Document": "documento",
+  "Imputación": "imputacion",
+  "Imputacion": "imputacion",
+  "Timesheet": "imputacion",
+  "Empresa": "empresa",
+  "Evaluación": "evaluacion",
+  "Hito": "hito",
+  "Detection": "deteccion",
+  "Incident": "incidente",
+  "Artículo": "articulo",
+  "RCA template": "plantilla_rca",
+  "Skill": "habilidad",
+  "Curso": "curso",
+  "Inscripción": "inscripcion",
+  "Certificación": "certificacion",
+  "Passkey": "llave_de_acceso",
+  "Entidad": "entidad",
+  "Activo": "activo",
+  "Licencia": "licencia",
+  "Partida": "partida",
+  "Trigger": "disparador",
+  "Webhook trigger": "disparador",
+  "Conversación": "conversacion",
+  "Miembro": "miembro",
+  "Equipo": "equipo",
+  "Campo": "campo",
+  "Estado": "estado",
+  "Permiso": "permiso",
+  "Permission": "permiso",
+  "Caso UAT": "caso_uat",
+  "Obligación": "obligacion",
+  "Congelación": "congelacion",
+  "Dependencia": "dependencia",
+  "Respuesta": "respuesta",
+  "Acceso compartido": "acceso_compartido",
+  "Vista": "vista",
+  "Vista compartida": "vista",
+  "Conector": "conector",
+  "Connector": "conector",
+  "Clasificación de campo": "clasificacion_de_campo",
+  "Orden de trabajo": "orden_de_trabajo",
+  "OT": "orden_de_trabajo",
+  "Entregable": "entregable",
+  "Subcontratista": "subcontratista",
+  "Firmante": "firmante",
+  "Pull request": "pull_request",
+  "Anomaly": "anomalia",
+  "Session": "sesion",
+  "Sesión": "sesion",
+  "Proveedor": "proveedor",
+  "Tipo de ausencia": "tipo_de_ausencia",
+  "Tipo de documento": "tipo_de_documento",
+  "Requisito": "requisito",
+  "Turno": "turno",
+  "Rotación": "rotacion",
+  "SSO": "configuracion_sso",
+  "Baseline": "linea_base",
+  "Paso": "paso",
+  "Workflow step": "paso",
+  "Instancia": "instancia",
+  "Presupuesto": "presupuesto",
+  "Ventana de mantenimiento": "ventana_de_mantenimiento",
+  "Llamada": "llamada",
+  "Hold": "bloqueo_legal",
+  "Adjunto": "adjunto",
+  "Enlace": "enlace",
+  "Profile": "perfil",
+  "Transición": "transicion",
+  "Estado destino": "estado_destino",
+  "Tag": "etiqueta",
+  "Filtro": "filtro",
+  "Asignación": "asignacion",
+  "Alert": "alerta",
+  "Alerta": "alerta",
+  "Problema": "problema",
+  "Incidente grave": "incidente_grave",
+  "Incidente de seguridad": "incidente_de_seguridad",
+  "Lección": "leccion",
+  "Acción": "accion",
+  "Responsable": "responsable",
+  "Ciclo destino": "ciclo_destino",
+  "Ciclo origen": "ciclo_origen",
+  "Pregunta": "pregunta",
+  "Etapa": "etapa",
+  "Tabla de referencia": "tabla_de_referencia",
+  "Pedido": "pedido",
+  "Traspaso": "traspaso",
+  "Entrada RACI": "entrada_raci",
+  "Contrato de reconocimiento": "contrato_de_reconocimiento",
+  "Ejecución": "ejecucion",
+  "Run": "ejecucion",
+  "Playbook": "playbook",
+  "Respuesta rápida": "respuesta_rapida",
+  "Categoria": "categoria",
+  "Ciclo de vida": "ciclo_de_vida",
+  "Clase": "clase",
+  "Relación": "relacion",
+  "Jira config": "configuracion_jira",
+  "Active Jira config": "configuracion_jira",
+  "KB version": "version_kb",
+  "Cola": "cola",
+  "Política SLA": "politica_sla",
+  "Politica SLA": "politica_sla",
+  "Página de estado": "pagina_de_estado",
+  "Blueprint": "blueprint",
+  "blueprint": "blueprint",
+  "Tarea padre": "tarea_padre",
+  "Fase": "fase",
+  "Manager": "responsable_directo"
+ },
+ "textos": {
+  "No encontrado": {
+   "code": "no_encontrado_generico"
+  },
+  "Not found": {
+   "code": "no_encontrado_generico"
+  },
+  "Acceso denegado": {
+   "code": "sin_permiso"
+  },
+  "Access denied": {
+   "code": "sin_permiso"
+  },
+  "Sin permisos": {
+   "code": "sin_permiso"
+  },
+  "Not authorized": {
+   "code": "sin_permiso"
+  },
+  "Forbidden": {
+   "code": "sin_permiso"
+  },
+  "No autorizado": {
+   "code": "sin_permiso"
+  },
+  "Permiso denegado": {
+   "code": "sin_permiso"
+  },
+  "Permission denied": {
+   "code": "sin_permiso"
+  },
+  "Insufficient permissions": {
+   "code": "sin_permiso"
+  },
+  "Admin only": {
+   "code": "solo_admin"
+  },
+  "Solo administradores": {
+   "code": "solo_admin"
+  },
+  "Admin required": {
+   "code": "solo_admin"
+  },
+  "Admin access required": {
+   "code": "solo_admin"
+  },
+  "User organization not set": {
+   "code": "sin_empresa"
+  },
+  "User has no organization": {
+   "code": "sin_empresa"
+  },
+  "Usuario sin organización": {
+   "code": "sin_empresa"
+  },
+  "No autenticado": {
+   "code": "no_autenticado"
+  },
+  "Not authenticated": {
+   "code": "no_autenticado"
+  },
+  "El fichero está vacío": {
+   "code": "fichero_vacio"
+  },
+  "Invalid JSON payload": {
+   "code": "json_no_valido"
+  },
+  "Invalid JSON": {
+   "code": "json_no_valido"
+  },
+  "La fecha fin no puede ser anterior al inicio": {
+   "code": "fecha_fin_anterior_a_inicio"
+  },
+  "SoD: no puedes aprobar lo que has pedido tú (segregación de funciones)": {
+   "code": "sod_no_puedes_aprobar_lo_tuyo"
+  },
+  "Jira no configurado.": {
+   "code": "integracion_no_configurada",
+   "params": {
+    "nombre": "Jira"
+   }
+  },
+  "Invalid Slack signature": {
+   "code": "firma_no_valida"
+  },
+  "Database operation failed": {
+   "code": "operacion_bd_fallida"
+  },
+  "Indica el motivo del rechazo": {
+   "code": "motivo_de_rechazo_obligatorio"
+  },
+  "Email ya registrado": {
+   "code": "email_ya_registrado"
+  },
+  "La organización está desactivada": {
+   "code": "empresa_desactivada"
+  },
+  "No tienes acceso a este proyecto": {
+   "code": "sin_acceso_proyecto_operador"
+  },
+  "Tarea no encontrada o no pertenece al proyecto": {
+   "code": "tarea_no_en_proyecto"
+  },
+  "No active timer found": {
+   "code": "cronometro_sin_activo"
+  },
+  "Graph API request failed": {
+   "code": "servicio_externo_fallo",
+   "params": {
+    "servicio": "Microsoft Graph"
+   }
+  },
+  "pyotp no instalado": {
+   "code": "dependencia_no_instalada",
+   "params": {
+    "paquete": "pyotp"
+   }
+  },
+  "pyotp no instalado — ejecuta: pip install pyotp": {
+   "code": "dependencia_no_instalada",
+   "params": {
+    "paquete": "pyotp"
+   }
+  },
+  "qrcode no instalado — ejecuta: pip install qrcode[pil]": {
+   "code": "dependencia_no_instalada",
+   "params": {
+    "paquete": "qrcode"
+   }
+  },
+  "webauthn no instalado — ejecuta: pip install webauthn": {
+   "code": "dependencia_no_instalada",
+   "params": {
+    "paquete": "webauthn"
+   }
+  },
+  "FRONTEND_URL no configurado: imposible construir redirect_uri OAuth seguro": {
+   "code": "frontend_url_no_configurada"
+  }
+ }
+}

@@ -7,7 +7,7 @@ from app.core.deps import get_current_user, require_admin, require_admin_or_pm
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User, UserRole
-from app.models.project import Project, ProjectStatus, ProjectType
+from app.models.project import Project, ProjectStatus
 from app.schemas import (
     ProjectCreate, ProjectUpdate, ProjectOut, ProjectSummary, ProjectPhaseCreate, ProjectPhaseOut
 )
@@ -36,6 +36,7 @@ from app.services.project_service import (
 )
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
 from app.services import politica_de_visibilidad
+from app.core.codigos_de_error import error_http, desde_valor
 
 router = APIRouter()
 
@@ -43,7 +44,7 @@ router = APIRouter()
 @router.get("", response_model=APIListResponse[ProjectSummary], summary="Listar proyectos")
 def list_projects(
     status: Optional[ProjectStatus] = None,
-    project_type: Optional[ProjectType] = None,
+    project_type: Optional[str] = None,  # clave del catÃ¡logo (19-11-2026)
     pm_id: Optional[str] = None,
     search: Optional[str] = None,
     page: int = Query(1, ge=1),
@@ -156,10 +157,10 @@ def update_project(
 ):
     project = get_project_by_id(db, project_id)
     if not project:
-        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+        raise error_http(404, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")
 
     if current_user.role == UserRole.pm and project.pm_id is not None and project.pm_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Solo puedes editar tus proyectos")
+        raise error_http(403, "sin_permiso", detail="Solo puedes editar tus proyectos")
 
     project = update_and_save_project(db, project, payload.model_dump(exclude_unset=True))
     return APIResponse.ok(data=ProjectOut.model_validate(project))
@@ -175,7 +176,7 @@ def delete_project(
     try:
         result = cancel_project_record(db, project_id)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise desde_valor(400, e)
     return APIResponse.ok(data=result)
 
 
@@ -243,7 +244,7 @@ def get_evm(project_id: str, db: Session = Depends(get_db),
             current_user: User = Depends(get_current_user)):
     result = calculate_evm(project_id, db)
     if result is None:
-        raise HTTPException(404, "Proyecto no encontrado")
+        raise error_http(404, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")
     return APIResponse.ok(data=result)
 
 

@@ -20,6 +20,7 @@ from app.core.responses import APIResponse
 from app.models.user import User
 from app.services.politicas import servicio as svc
 from app.services.politicas import simulador
+from app.core.codigos_de_error import error
 
 router = APIRouter()
 
@@ -146,7 +147,7 @@ def importar(tabla_id: str, file: UploadFile = File(...), db: Session = Depends(
     _abac(db, current_user, "update", tabla_id)
     contenido = file.file.read(_MAX_IMPORTACION + 1)
     if len(contenido) > _MAX_IMPORTACION:
-        raise ErrorDeDominio(413, "El fichero supera 5 MB")
+        raise error(413, "fichero_supera_mb", max=5)
     return APIResponse.ok(data=svc.importar(db, current_user, tabla_id, contenido, file.filename or ""))
 
 

@@ -478,7 +478,7 @@ const de: Record<string, string> = {
   pdash_burn_over: 'Mehrverbrauch erwartet',
   pdash_burn_warn: 'Frühwarnung',
   pdash_burn_ok: 'Unter Kontrolle',
-  pdash_next60: 'In den nächsten 60 Tagen',
+  pdash_next60: 'In den nächsten {{n}} Tagen',
   pdash_overdue_ago: 'seit {{n}} T überfällig',
   pdash_today: 'heute',
   pdash_in_days: 'in {{n}} T',
@@ -1168,6 +1168,8 @@ const de: Record<string, string> = {
   "portal_avisos.tipo_conversacion": "Unterhaltung",
   "err_srv.notificacion_no_encontrada": "Benachrichtigung nicht gefunden",
   "err_srv.validacion": "Bitte prüfen Sie die Angaben",
+  // 19-11-2026: error generico sin detalles internos (codigos_de_error.py)
+  "err_srv.error_interno": "Der Vorgang konnte nicht abgeschlossen werden. Versuchen Sie es erneut und wenden Sie sich an den Support, falls es wieder passiert.",
   // Errores de validación por campo (17-11-2026)
   "validacion.obligatorio": "Pflichtfeld",
   "validacion.formato": "Ungültiges Format",

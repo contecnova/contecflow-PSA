@@ -17,6 +17,7 @@ from app.services.okr_service import (
 from app.schemas.okrs import ObjectiveIn, KeyResultIn, ObjectiveUpdate, KeyResultUpdate, OKRCheckinIn as CheckinIn
 from datetime import datetime
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.core.codigos_de_error import error_http
 
 router = APIRouter(tags=["OKRs"])
 
@@ -58,7 +59,7 @@ def update_objective(obj_id: str, payload: ObjectiveUpdate,
                      db: Session = Depends(get_db), cu: User = Depends(require_any_manager)):
     obj = okr_service.get_objective(db, obj_id)
     if not obj:
-        raise HTTPException(404, "Objetivo no encontrado")
+        raise error_http(404, "no_encontrado", detail="Objetivo no encontrado", que="objetivo")
     obj = okr_service.update_objective(db, obj, payload.model_dump(exclude_unset=True))
     return APIResponse.ok(data={"id": obj.id})
 
@@ -70,10 +71,10 @@ def delete_objective(obj_id: str, db: Session = Depends(get_db),
     enforce_abac(db, cu, "okr", obj_id, action="delete")
     obj = okr_service.get_objective(db, obj_id)
     if not obj:
-        raise HTTPException(404, "Objetivo no encontrado")
+        raise error_http(404, "no_encontrado", detail="Objetivo no encontrado", que="objetivo")
     result = okr_service.delete_objective(db, obj)
     if not result["ok"]:
-        raise HTTPException(400, result["message"])
+        raise error_http(400, "no_se_puede_eliminar", detail=result["message"], motivo=result["message"])
     return APIResponse.ok(data=result)
 
 
@@ -83,7 +84,7 @@ def create_kr(payload: KeyResultIn, db: Session = Depends(get_db),
               cu: User = Depends(require_any_manager)):
     obj = okr_service.get_objective(db, payload.objective_id)
     if not obj:
-        raise HTTPException(404, "Objetivo no encontrado")
+        raise error_http(404, "no_encontrado", detail="Objetivo no encontrado", que="objetivo")
     kr = okr_service.create_kr(db, payload.model_dump())
     return APIResponse.ok(data=_ser_kr(kr))
 
@@ -93,7 +94,7 @@ def update_kr(kr_id: str, payload: KeyResultUpdate,
               db: Session = Depends(get_db), cu: User = Depends(require_any_manager)):
     kr = okr_service.get_key_result(db, kr_id)
     if not kr:
-        raise HTTPException(404, "KR no encontrado")
+        raise error_http(404, "no_encontrado", detail="KR no encontrado", que="resultado_clave")
     kr = okr_service.update_kr(db, kr, payload.model_dump(exclude_unset=True))
     return APIResponse.ok(data=_ser_kr(kr))
 
@@ -105,7 +106,7 @@ def delete_kr(kr_id: str, db: Session = Depends(get_db),
     enforce_abac(db, cu, "kr", kr_id, action="delete")
     kr = okr_service.get_key_result(db, kr_id)
     if not kr:
-        raise HTTPException(404, "KR no encontrado")
+        raise error_http(404, "no_encontrado", detail="KR no encontrado", que="resultado_clave")
     result = okr_service.delete_kr(db, kr)
     return APIResponse.ok(data=result)
 
@@ -117,11 +118,11 @@ def checkin_kr(kr_id: str, payload: CheckinIn,
                db: Session = Depends(get_db), cu: User = Depends(get_current_user)):
     kr = okr_service.get_key_result(db, kr_id)
     if not kr:
-        raise HTTPException(404, "KR no encontrado")
+        raise error_http(404, "no_encontrado", detail="KR no encontrado", que="resultado_clave")
     # Revisión 2026-11: avanza el KR su responsable, el del objetivo o un gestor.
     duenos = {kr.owner_id, getattr(kr.objective, "owner_id", None)}
     if cu.id not in duenos and cu.role not in (UserRole.admin, UserRole.pm, UserRole.team_lead):
-        raise HTTPException(403, "Sólo el responsable del KR o de su objetivo registra su avance")
+        raise error_http(403, "okr_solo_responsable", detail="Sólo el responsable del KR o de su objetivo registra su avance")
     kr = okr_service.checkin_kr(db, kr, payload.value, payload.note, cu.id)
     return APIResponse.ok(data={"progress": kr.progress, "current_value": kr.current_value})
 

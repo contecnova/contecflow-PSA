@@ -22,7 +22,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.models.service_desk import OLATarget, SLAPolicy, SLARule, Ticket
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 PRIORIDADES = ("p1_critical", "p2_high", "p3_medium", "p4_low")
 TIPOS_DE_TICKET = ("incident", "service_request", "change", "problem", "question")
@@ -100,14 +100,14 @@ def serializar_regla(r: SLARule) -> dict:
 
 def _validar(datos: dict) -> dict:
     if datos.get("priority") not in (None, "") and datos["priority"] not in PRIORIDADES:
-        raise ErrorDeDominio(422, "Prioridad no válida")
+        raise error(422, "prioridad_no_valida")
     if datos.get("ticket_type") not in (None, "") and datos["ticket_type"] not in TIPOS_DE_TICKET:
-        raise ErrorDeDominio(422, "Tipo de ticket no válido")
+        raise error(422, "tipo_ticket_no_valido")
     for h in ("response_hours", "resolution_hours"):
         if datos.get(h) is not None and float(datos[h]) <= 0:
-            raise ErrorDeDominio(422, "Las horas tienen que ser mayores que cero")
+            raise error(422, "horas_mayor_que_cero")
     if datos.get("response_hours") is None and datos.get("resolution_hours") is None and "name" in datos:
-        raise ErrorDeDominio(422, "Una regla fija al menos un objetivo")
+        raise error(422, "sla_regla_sin_objetivo")
     return {k: (None if v == "" else v) for k, v in datos.items() if k in _CAMPOS}
 
 
@@ -121,7 +121,7 @@ def guardar_regla(db: Session, org_id, datos: dict, regla_id: Optional[str] = No
     if regla_id:
         regla = db.query(SLARule).filter(SLARule.id == regla_id, SLARule.organization_id == org_id).first()
         if regla is None:
-            raise ErrorDeDominio(404, "Regla no encontrada")
+            raise error(404, "no_encontrado", detail="Regla no encontrada", que="regla")
     else:
         regla = SLARule(organization_id=org_id)
         db.add(regla)
@@ -134,7 +134,7 @@ def guardar_regla(db: Session, org_id, datos: dict, regla_id: Optional[str] = No
 def borrar_regla(db: Session, org_id, regla_id: str) -> None:
     n = db.query(SLARule).filter(SLARule.id == regla_id, SLARule.organization_id == org_id).delete()
     if not n:
-        raise ErrorDeDominio(404, "Regla no encontrada")
+        raise error(404, "no_encontrado", detail="Regla no encontrada", que="regla")
     db.commit()
 
 
@@ -142,7 +142,7 @@ def ola_de_la_cola(db: Session, org_id, group_id: str) -> dict:
     from app.models.service_desk import AgentGroup
     grupo = db.query(AgentGroup).filter(AgentGroup.id == group_id, AgentGroup.organization_id == org_id).first()
     if grupo is None:
-        raise ErrorDeDominio(404, "Cola no encontrada")
+        raise error(404, "no_encontrado", detail="Cola no encontrada", que="cola")
     filas = {f.priority: f.hours for f in db.query(OLATarget).filter(OLATarget.group_id == group_id)}
     return {"group_id": group_id, "default_hours": grupo.ola_hours,
             "targets": {p: filas.get(p) for p in PRIORIDADES}}
@@ -152,14 +152,14 @@ def guardar_ola(db: Session, org_id, group_id: str, objetivos: dict) -> dict:
     ola_de_la_cola(db, org_id, group_id)  # 404 si no es de la empresa
     for prioridad, horas in (objetivos or {}).items():
         if prioridad not in PRIORIDADES:
-            raise ErrorDeDominio(422, "Prioridad no válida")
+            raise error(422, "prioridad_no_valida")
         fila = db.query(OLATarget).filter(OLATarget.group_id == group_id, OLATarget.priority == prioridad).first()
         if horas in (None, ""):
             if fila is not None:
                 db.delete(fila)
             continue
         if float(horas) <= 0:
-            raise ErrorDeDominio(422, "Las horas tienen que ser mayores que cero")
+            raise error(422, "horas_mayor_que_cero")
         if fila is None:
             db.add(OLATarget(organization_id=org_id, group_id=group_id, priority=prioridad, hours=float(horas)))
         else:

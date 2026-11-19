@@ -81,7 +81,9 @@ export interface MeResponse {
   email: string
   full_name: string
   role: string
-  is_superadmin: boolean
+  /** Capacidades efectivas (matriz de permisos, 19-11-2026). El superadmin las tiene todas. */
+  capacidades?: string[]
+  blocked_routes?: string[]
   organization_id: string | null
   language: string | null
   hourly_rate?: number | null
@@ -104,7 +106,17 @@ export interface ChangePasswordPayload {
 
 // ── Typed API surface ────────────────────────────────────────────────────────
 
+/** Rol base real con sus etiquetas (`GET /auth/roles`, 19-11-2026). */
+export interface RolReal {
+  id: string
+  etiquetas: { es: string; en: string; zh: string }
+  interno: boolean
+}
+
 export const authApi = {
+  /** Roles base que existen, para los selectores (sustituye a las listas escritas a mano). */
+  roles: (): Promise<AxiosResponse<{ items: RolReal[] }>> => api.get('/auth/roles'),
+
   login: (credentials: LoginCredentials): Promise<AxiosResponse<LoginResponse>> =>
     api.post('/auth/login', credentials),
 

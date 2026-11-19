@@ -20,7 +20,7 @@ import { AvisoDeError, useT } from './comun'
 
 export default function EjemplosDeAusencias({ puedeCargar, onIr }: { puedeCargar: boolean; onIr: (tab: string) => void }) {
   const { ta } = useT()
-  const esAdmin = useAuth().hasRole('admin')
+  const esAdmin = useAuth().puede('org.administrar')
   const qc = useQueryClient()
   const cargar = useMutation({
     mutationFn: ausenciasApi.cargarEjemplos,

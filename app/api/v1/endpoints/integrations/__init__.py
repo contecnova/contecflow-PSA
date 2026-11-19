@@ -5,6 +5,7 @@ from app.api.deps import get_current_user, get_current_org_id, get_db, require_a
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIResponse, APIListResponse
 from app.services import marketplace_service
+from app.core.codigos_de_error import error_http
 
 router = APIRouter()
 
@@ -34,7 +35,7 @@ def install_connector(
 ):
     slug = payload.get("connector_slug")
     if not slug:
-        raise HTTPException(status_code=400, detail="connector_slug is required")
+        raise error_http(400, "campo_obligatorio", detail="connector_slug is required", campo="connector_slug")
 
     return APIResponse.ok(data=marketplace_service.install_integration_connector(
         connector_slug=slug,

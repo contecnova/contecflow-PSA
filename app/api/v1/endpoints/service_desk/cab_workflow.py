@@ -12,6 +12,7 @@ from app.db.session import get_db
 from app.models.user import User
 from app.services.service_desk import cab_workflow_service as svc
 from app.services.service_desk.ticket_ops_service import commit_or_rollback as _commit_or_rollback
+from app.core.codigos_de_error import desde_valor
 
 router = APIRouter()
 
@@ -54,7 +55,7 @@ def start_workflow(
             quorum=payload.quorum,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise desde_valor(400, exc)
     _commit_or_rollback(db)
     return APIResponse.ok(data={'ok': True, 'workflow': state})
 
@@ -87,7 +88,7 @@ def schedule_meeting(
             agenda=payload.agenda,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise desde_valor(400, exc)
     _commit_or_rollback(db)
     return APIResponse.ok(data={'ok': True, 'workflow': state})
 
@@ -109,7 +110,7 @@ def cast_vote(
             note=payload.note,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise desde_valor(400, exc)
     _commit_or_rollback(db)
     return APIResponse.ok(data={'ok': True, 'workflow': state})
 
@@ -129,7 +130,7 @@ def assign_executor(
             manager=current_user,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise desde_valor(400, exc)
     _commit_or_rollback(db)
     return APIResponse.ok(data={'ok': True, 'workflow': state})
 

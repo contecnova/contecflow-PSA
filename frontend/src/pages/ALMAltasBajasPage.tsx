@@ -32,11 +32,10 @@ const CONDICIONES = ['new', 'good', 'fair', 'poor']
 
 export default function ALMAltasBajasPage() {
   const t = useAppT()
-  const { user } = useAuth()
-  const rol = String(user?.role ?? '')
-  const gestionaPersonas = !!user?.is_superadmin || ['admin', 'hr', 'pm'].includes(rol)
-  const configura = !!user?.is_superadmin || ['admin', 'hr'].includes(rol)
-  const esAdmin = !!user?.is_superadmin || rol === 'admin'
+  const { puede } = useAuth()
+  const gestionaPersonas = puede('alm.personas')
+  const configura = puede('alm.configurar')
+  const esAdmin = puede('org.administrar')
   const [params, setParams] = useSearchParams()
   const pestanas = [
     gestionaPersonas && { id: 'bajas', label: t('almint.tab_bajas'), icon: <UserMinus size={14} /> },

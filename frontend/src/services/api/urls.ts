@@ -10,6 +10,18 @@
 
 const VITE_API_URL = (import.meta as unknown as { env?: { VITE_API_URL?: string; VITE_WS_URL?: string } }).env?.VITE_API_URL
 
+/**
+ * Prefijo de las rutas en el SERVIDOR (FastAPI monta la API en `/api/v1`).
+ * No es la base del cliente (`API_BASE_URL`, que puede ser otro host): sirve
+ * para rutas que devuelve o explica el servidor (`download_url`, `webhook_paths`,
+ * el explicador de accesos). 19-11-2026: antes, `'/api/v1'` escrito en cada página.
+ */
+export const PREFIJO_API_SERVIDOR = '/api/v1'
+
+/** Quita el prefijo del servidor a una ruta que devolvió él (`/api/v1/x` → `/x`). */
+export const sinPrefijoDelServidor = (ruta: string) =>
+  ruta.startsWith(PREFIJO_API_SERVIDOR) ? ruta.slice(PREFIJO_API_SERVIDOR.length) || '/' : ruta
+
 /** Base de la API tal como la usa el cliente axios (relativa o absoluta). */
 export const API_BASE_URL: string = (VITE_API_URL || '/api/v1').replace(/\/+$/, '')
 

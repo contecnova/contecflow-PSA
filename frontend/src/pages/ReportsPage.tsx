@@ -1118,9 +1118,9 @@ function PresetsTab({ presets, supportedMetrics, onOpen }: { presets: readonly P
 export default function ReportsPage() {
   const traducir = useAppT()
   const t = useAppT()
-  const { hasRole } = useAuth()
+  const { puede } = useAuth()
   // Los programados son de responsables (la API solo los sirve a ellos).
-  const veProgramados = hasRole('admin', 'pm', 'team_lead', 'hr')
+  const veProgramados = puede('informes.programar')
   const [mode, setMode] = useState<string>('explorer') // explorer | dashboard | presets
   const [editingReport, setEditingReport] = useState<ReportConfig | null>(null)
   // Revisión 2026-11: los guardados viven en las preferencias del usuario en el

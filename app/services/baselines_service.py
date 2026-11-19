@@ -33,6 +33,7 @@ from app.core.errores import ErrorDeDominio
 from app.models.marketplace import GanttBaseline, GanttBaselineTask
 from app.models.project import Project
 from app.models.task import Task
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +58,7 @@ def proyecto_propio(db: Session, user, project_id: str) -> Project:
         .first()
     )
     if not fila:
-        raise ErrorDeDominio(404, "Project not found")
+        raise error(404, "no_encontrado", detail="Project not found", que="proyecto")
     if hasattr(user, "role"):
         from app.services.politica_de_visibilidad import exigir_proyecto_visible
         exigir_proyecto_visible(db, user, project_id)
@@ -73,7 +74,7 @@ def linea_base_propia(db: Session, user, project_id: str, baseline_id: str) -> G
         .first()
     )
     if not fila:
-        raise ErrorDeDominio(404, "Baseline not found")
+        raise error(404, "no_encontrado", detail="Baseline not found", que="linea_base")
     return fila
 
 

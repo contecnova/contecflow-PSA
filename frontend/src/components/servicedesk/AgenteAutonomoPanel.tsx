@@ -38,8 +38,8 @@ const PRIORIDADES = ['p1_critical', 'p2_high', 'p3_medium', 'p4_low']
 export default function AgenteAutonomoPanel() {
   const t = useAppT()
   const [vista, setVista] = useState('registro')
-  const { user } = useAuth()
-  const esAdmin = user?.role === 'admin'
+  const { puede } = useAuth()
+  const esAdmin = puede('sd.administrar')
   return (
     <Section title={<span className="u-row-center-6"><Bot size={16} aria-hidden="true" />{t('sd_mercado.agente_titulo')}</span>}
       subtitle={t('sd_mercado.agente_desc')}>

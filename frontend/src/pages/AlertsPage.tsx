@@ -53,7 +53,7 @@ export default function AlertsPage(): JSX.Element {
   const unidad = (u?: string | null) => (u === 'days' ? ` ${t('alerts.dias')}` : u || '')
   // Tipos conocidos traducidos; uno nuevo del backend se enseña tal cual.
   const tipoAlerta = (tipo: string) => (tipo in TYPE_ICONS ? t(`alerts.alert_type_${tipo}`) : tipo)
-  const { hasRole } = useAuth()
+  const { puede } = useAuth()
   const qc = useQueryClient()
   const toast = useToast()
   const navigate = useNavigate()
@@ -100,7 +100,7 @@ export default function AlertsPage(): JSX.Element {
           ? t('alerts.subtitle_active_unread', { active: alerts.length, unread })
           : t('alerts.subtitle_smart')}
         actions={
-          tab === 'operational' && hasRole('admin') && (
+          tab === 'operational' && puede('org.administrar') && (
             <Button onClick={() => runEngine()} disabled={running} loading={running} icon={<Zap size={14} />}>
               {running ? t('alerts.running_engine') : t('alerts.run_engine')}
             </Button>
@@ -171,7 +171,7 @@ export default function AlertsPage(): JSX.Element {
                           {t('alerts.mark_as_read')}
                         </Button>
                       )}
-                      {hasRole('admin', 'pm', 'hr') && (
+                      {puede('alertas.ver') && (
                         <Button variant="secondary" size="sm" icon={<Check size={14} />} onClick={() => resolve(alert.id)}>
                           {t('alerts.resolve')}
                         </Button>

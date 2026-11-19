@@ -28,6 +28,7 @@ from app.models.user import User
 from app.services import evm_service, vistas_guardadas
 from app.services.planificador import nivelacion
 from app.services.planificador.servicio import aplicar_plan, calcular_plan, proyecto_visible
+from app.core.codigos_de_error import error
 
 router = APIRouter()
 
@@ -83,7 +84,7 @@ def _exigir_finanzas(db: Session, user) -> None:
     from app.core.errores import ErrorDeDominio
     from app.services.politica_de_visibilidad import ve_modulo_financiero
     if not ve_modulo_financiero(db, user, "budgets"):
-        raise ErrorDeDominio(403, "El valor ganado es información financiera")
+        raise error(403, "valor_ganado_financiero")
 
 
 @router.get("/projects/{project_id}/evm", summary="Valor ganado: PV de la línea base vigente, EV por avance real")

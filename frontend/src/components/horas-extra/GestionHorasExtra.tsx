@@ -21,8 +21,8 @@ import { AvisoDeError, EstadoHeBadge, fecha, fechaHora, franja, horas, useTh } f
 
 export default function GestionHorasExtra({ onAbrir }: { onAbrir: (id: string) => void }) {
   const { th } = useTh()
-  const { hasRole } = useAuth()
-  const nomina = hasRole('admin', 'hr')
+  const { puede } = useAuth()
+  const nomina = puede('horas_extra.config')
   const [vista, setVista] = useState('peticiones')
   return (
     <div className="hext-panel">

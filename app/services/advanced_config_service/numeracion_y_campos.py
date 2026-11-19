@@ -15,6 +15,8 @@ from app.models.advanced_config import CustomFieldValue
 
 from app.services.advanced_config_service._comun import NotFoundError, logger
 from app.services.advanced_config_service.semillas import seed_numbering
+from app.core.codigos_de_error import error
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 # ── Numbering sequences ───────────────────────────────────────────────────────
@@ -101,7 +103,7 @@ def create_custom_field(data: dict, db: Session) -> dict:
         CustomField.entity == data["entity"],
         CustomField.field_key == data["field_key"],
     ).first():
-        raise ValueError("Ya existe un campo con esa clave para esa entidad")
+        raise ErrorConCodigo("campo_clave_ya_existe")
     f = CustomField(**{
         **data,
         "options": json.dumps(data["options"]) if data.get("options") else None,
@@ -224,7 +226,6 @@ _LECTURA_POR_ENTIDAD = {
 
 def exigir_lectura_de_valores(db: Session, viewer, entity_id: str) -> None:
     """404 si `viewer` no puede leer la entidad dueña de esos valores."""
-    from app.core.errores import ErrorDeDominio
     from app.models.user import UserRole
     tipos = {fila[0] for fila in db.query(CustomField.entity).join(
         CustomFieldValue, CustomFieldValue.field_id == CustomField.id,
@@ -234,7 +235,7 @@ def exigir_lectura_de_valores(db: Session, viewer, entity_id: str) -> None:
         resolutor = _LECTURA_POR_ENTIDAD.get(tipo)
         visible = resolutor(db, viewer, entity_id) if resolutor else es_admin
         if not visible:
-            raise ErrorDeDominio(status_code=404, detail="Entidad no encontrada")
+            raise error(404, "no_encontrado", detail="Entidad no encontrada", que="entidad")
 
 
 def get_custom_field_values(entity_id: str, db: Session) -> dict:

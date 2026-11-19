@@ -19,7 +19,8 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
+from app.core.codigos_de_error import error_http
 
 logger = logging.getLogger("contecflow.metrics")
 
@@ -302,11 +303,11 @@ def _install_metrics_route(app: FastAPI, env_auth_token: Optional[str]) -> None:
         if active_token:
             header = request.headers.get("Authorization", "")
             if not header.startswith("Bearer ") or not hmac.compare_digest(header[7:], active_token):
-                raise HTTPException(status_code=401, detail="Unauthorized")
+                raise error_http(401, "token_no_valido", detail="Unauthorized")
         elif _s.ENVIRONMENT not in ("development", "test", "testing"):
             # Auditoria 2026-11: sin token, /metrics quedaba abierto en produccion
             # (rutas, volumen y errores de cada endpoint). Sin token, cerrado.
-            raise HTTPException(status_code=401, detail="METRICS_AUTH_TOKEN no configurado")
+            raise error_http(401, "integracion_no_configurada", detail="METRICS_AUTH_TOKEN no configurado", nombre="Métricas")
 
         if multiproc_dir:
             _limpiar_workers_muertos(multiproc_dir)

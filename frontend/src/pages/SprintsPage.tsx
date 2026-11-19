@@ -12,6 +12,7 @@ import { useState, useEffect, useId } from 'react'
 import type { CSSProperties } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { extractErr, fmtDate } from '../utils/helpers'
+import { useTono } from '../hooks/useOrgSettings'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useInvalidate } from '../hooks/useInvalidate'
@@ -28,6 +29,8 @@ import { useAuth } from '../context/AuthContext'
 import { useAppT } from '../i18n/AppLangContext'
 import './SprintsPage.css'
 import DateInput from '../components/ui/DateInput'
+import { COLUMNAS_DE_TABLERO } from '../constants/catalogos'
+import { useCatalogo } from '../hooks/useCatalogo'
 import { TOOLTIP_SUPERFICIE_3_REDONDO_SM, TOOLTIP_SUPERFICIE_3_REDONDO_XS } from '../constants/estilosGrafico'
 
 // sprint_service.serialize_task / serialize_sprint y raci_service.get_sprint_retrospective.
@@ -40,6 +43,7 @@ const colorVar = (name: '--spr-c' | '--spr-p', color: string) => ({ [name]: colo
 function RetroModal({ sprint, projectId, onClose }: { sprint: Sprint; projectId: string; onClose: () => void }) {
   const idCampo = useId()
   const t = useAppT()
+  const tono = useTono()
   const toast = useToast()
   const [manualNotes, setManualNotes] = useState('')
 
@@ -65,8 +69,8 @@ function RetroModal({ sprint, projectId, onClose }: { sprint: Sprint; projectId:
       {/* Metrics row */}
       {m && (
         <div className="spr-retro-metrics">
-          <KpiCard icon={<CheckCircle2 size={16} />} label={t('sprints.completitud')} value={`${m.completion_rate_pct}%`} warning={m.completion_rate_pct < 80} />
-          <KpiCard icon={<Gauge size={16} />} label={t('sprints.velocity_ratio')} value={`${m.velocity_ratio_pct}%`} warning={m.velocity_ratio_pct < 85} />
+          <KpiCard icon={<CheckCircle2 size={16} />} label={t('sprints.completitud')} value={`${m.completion_rate_pct}%`} warning={tono('sprint_completitud', m.completion_rate_pct) === 'warning'} danger={tono('sprint_completitud', m.completion_rate_pct) === 'danger'} />
+          <KpiCard icon={<Gauge size={16} />} label={t('sprints.velocity_ratio')} value={`${m.velocity_ratio_pct}%`} warning={tono('sprint_velocidad', m.velocity_ratio_pct) === 'warning'} danger={tono('sprint_velocidad', m.velocity_ratio_pct) === 'danger'} />
           <KpiCard icon={<AlertTriangle size={16} />} label={t('sprints.bloqueadas')} value={m.blocked} danger={m.blocked > 0} />
           <KpiCard icon={<ArrowRight size={16} />} label={t('sprints.carryover')} value={m.carryover} warning={m.carryover > 0} />
         </div>
@@ -206,7 +210,11 @@ function TaskCard({ task, onStatusChange, onMoveToBacklog, compact = false }: { 
 // ── Sprint Kanban ──────────────────────────────────────────────────────────────
 function SprintKanban({ sprint, onStatusChange, onMoveToBacklog }: { sprint: Sprint; onStatusChange?: (taskId: string, status: string) => void; onMoveToBacklog?: (taskId: string) => void }) {
   const t = useAppT()
-  const columns = ['todo', 'in_progress', 'in_review', 'done']
+  // 19-11-2026: columnas del catálogo de estados de tarea de la empresa (antes faltaba «bloqueada»).
+  const estadosDeTarea = useCatalogo('task-statuses')
+  const columns = estadosDeTarea.valores.length
+    ? estadosDeTarea.valores.map(v => v.value).filter(v => v !== 'backlog' && v !== 'cancelled')
+    : COLUMNAS_DE_TABLERO
   const tasks = sprint.tasks || []
 
   return (
@@ -216,8 +224,8 @@ function SprintKanban({ sprint, onStatusChange, onMoveToBacklog }: { sprint: Spr
         const cfg = TASK_STATUS_CFG[key]
         return (
           <div key={key}>
-            <div className="spr-col__head" style={colorVar('--spr-c', cfg.color)}>
-              <span className="spr-col__label">{t(cfg.label)}</span>
+            <div className="spr-col__head" style={colorVar('--spr-c', cfg?.color ?? estadosDeTarea.color(key))}>
+              <span className="spr-col__label">{cfg ? t(cfg.label) : estadosDeTarea.etiqueta(key)}</span>
               <span className="spr-col__count">{colTasks.length}</span>
             </div>
             <div className="spr-col__list">

@@ -40,6 +40,7 @@ from app.services.service_desk.change_impact_service import (
 from app.core.deps import require_internal_user
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
 from app.core.tenancy import org_scoped_or_404
+from app.core.codigos_de_error import error_http
 
 
 def _cambio_propio(db: Session, change_id: str, current_user: User) -> None:
@@ -117,7 +118,7 @@ def get_rollback_plan(
     from fastapi import HTTPException
     plan = _get_json_setting(db, f"sd.change.rollback.{change_id}")
     if not plan:
-        raise HTTPException(404, "Rollback plan no encontrado. Ejecuta POST primero.")
+        raise error_http(404, "rollback_plan_no_generado", detail="Rollback plan no encontrado. Ejecuta POST primero.")
     return APIResponse.ok(data=plan)
 
 
@@ -149,7 +150,7 @@ def get_testing_plan(
     from fastapi import HTTPException
     plan = _get_json_setting(db, f"sd.change.testing.{change_id}")
     if not plan:
-        raise HTTPException(404, "Plan de pruebas no encontrado. Ejecuta POST /testing-plan primero.")
+        raise error_http(404, "testing_plan_no_generado", detail="Plan de pruebas no encontrado. Ejecuta POST /testing-plan primero.")
     return APIResponse.ok(data=plan)
 
 
@@ -182,7 +183,7 @@ def get_comms_plan(
     from fastapi import HTTPException
     plan = _get_json_setting(db, f"sd.change.comms.{change_id}")
     if not plan:
-        raise HTTPException(404, "Plan de comunicaciones no encontrado. Ejecuta POST /comms-plan primero.")
+        raise error_http(404, "comms_plan_no_generado", detail="Plan de comunicaciones no encontrado. Ejecuta POST /comms-plan primero.")
     return APIResponse.ok(data=plan)
 
 

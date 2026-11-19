@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.service_desk import Ticket, TicketComment, TicketLink, TicketMerge, TicketStatus
 from app.services.sla_service import log_history, next_ticket_number
 import logging
-from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -13,13 +13,13 @@ logger = logging.getLogger(__name__)
 def get_ticket_or_404(db: Session, ticket_id: str, detail: str) -> Ticket:
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     if not ticket:
-        raise ErrorDeDominio(404, detail)
+        raise error(404, "no_encontrado", detail=detail, que="ticket")
     return ticket
 
 
 def ensure_distinct_tickets(primary: Ticket, duplicate: Ticket) -> None:
     if primary.id == duplicate.id:
-        raise ErrorDeDominio(400, "No se puede fusionar un ticket consigo mismo")
+        raise error(400, "ticket_fusionar_consigo_mismo")
 
 
 def apply_duplicate_closure(primary: Ticket, duplicate: Ticket) -> None:

@@ -30,6 +30,7 @@ from app.models.project import Project
 from app.models.task import Task, TaskStatus
 from app.services.planificador.calendario import Calendario, cargar_calendarios
 from app.services.planificador.cpm import RESTRICCIONES, ResultadoPlan, TareaPlan, Vinculo, calcular
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,7 @@ def proyecto_visible(db: Session, user, project_id: str) -> Project:
     proyecto = project_for_user(db, project_id, user) if user is not None else (
         db.query(Project).filter(Project.id == project_id).first())
     if not proyecto:
-        raise ErrorDeDominio(404, "Proyecto no encontrado")
+        raise error(404, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")
     if user is not None:
         exigir_proyecto_visible(db, user, project_id)
     return proyecto

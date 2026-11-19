@@ -9,6 +9,7 @@ from app.models.user import User
 from app.services.numbering import next_numbered_code
 import logging
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +64,7 @@ def _con_cliente(db: Session, datos: dict) -> dict:
         from app.models.clients import Client
         cliente = db.query(Client).filter(Client.id == datos["client_id"]).first()
         if cliente is None:
-            raise ErrorDeDominio(400, "Cliente no encontrado")
+            raise error(400, "no_encontrado", detail="Cliente no encontrado", que="cliente")
         datos["client_name"] = cliente.name
     return datos
 
@@ -108,7 +109,7 @@ def oportunidad_propia(db: Session, current_user: User, opp_id: str) -> Opportun
         Opportunity.is_active == True,  # noqa: E712
     ).first()
     if not opp:
-        raise ErrorDeDominio(404, "Oportunidad no encontrada")
+        raise error(404, "no_encontrado", detail="Oportunidad no encontrada", que="oportunidad")
     return opp
 
 
@@ -127,14 +128,9 @@ def update_opportunity(
     if new_stage and new_stage != old_stage:
         allowed = _STAGE_VALID_TRANSITIONS.get(old_stage, set())
         if new_stage not in allowed:
-            raise ErrorDeDominio(
-                status_code=400,
-                detail=(
-                    f"Transición de etapa no permitida: "
+            raise error(400, "transicion_no_permitida", detail=f"Transición de etapa no permitida: "
                     f"'{STAGE_LABELS.get(old_stage, old_stage)}' → "
-                    f"'{STAGE_LABELS.get(new_stage, new_stage)}'"
-                ),
-            )
+                    f"'{STAGE_LABELS.get(new_stage, new_stage)}'", desde=STAGE_LABELS.get(old_stage, old_stage), hasta=STAGE_LABELS.get(new_stage, new_stage))
 
     for k, v in _con_cliente(db, data).items():
         setattr(opp, k, v)
@@ -161,7 +157,7 @@ def update_opportunity(
 def delete_opportunity(db: Session, current_user: User, opp_id: str) -> dict:
     opp = oportunidad_propia(db, current_user, opp_id)
     if opp.project_id:
-        raise ErrorDeDominio(400, "No se puede eliminar: la oportunidad esta vinculada a un proyecto")
+        raise error(400, "oportunidad_vinculada", detail="No se puede eliminar: la oportunidad esta vinculada a un proyecto")
     opp.is_active = False
     db.commit()
     return {"ok": True, "message": "Oportunidad eliminada correctamente"}
@@ -195,11 +191,11 @@ def add_activity(
 def convert_opportunity_to_project(db: Session, current_user: User, opp_id: str) -> dict:
     opp = oportunidad_propia(db, current_user, opp_id)
     if opp.project_id:
-        raise ErrorDeDominio(400, f"Esta oportunidad ya está vinculada al proyecto {opp.project_id}")
+        raise error(400, "oportunidad_ya_vinculada", proyecto=opp.project_id)
     # Revisión 2026-11: convertir marca la oportunidad como ganada; una perdida
     # o cancelada no se resucita así.
     if str(getattr(opp.stage, "value", opp.stage)) in ("lost", "cancelled"):
-        raise ErrorDeDominio(400, "Una oportunidad perdida o cancelada no se convierte en proyecto")
+        raise error(400, "oportunidad_no_convertible")
 
     code = next_numbered_code(db, "project", prefix="PRJ", padding=4)
 
@@ -209,7 +205,7 @@ def convert_opportunity_to_project(db: Session, current_user: User, opp_id: str)
         name=opp.name,
         description=opp.description,
         status=ProjectStatus.planning,
-        project_type=ProjectType.consulting,
+        project_type=ProjectType.consulting.value,
         billing_type="time_material",
         client_name=opp.client_name,
         client_id=opp.client_id,
@@ -314,7 +310,7 @@ def create_stage_config(db: Session, payload_dict: dict) -> PipelineStageConfig:
         PipelineStageConfig.stage_key == payload_dict["stage_key"]
     ).first()
     if existing:
-        raise ErrorDeDominio(status_code=409, detail=f"La etapa '{payload_dict['stage_key']}' ya existe")
+        raise error(409, "etapa_ya_existe", detail=f"La etapa '{payload_dict['stage_key']}' ya existe", etapa=payload_dict['stage_key'])
     stage = PipelineStageConfig(**payload_dict)
     db.add(stage)
     db.commit()
@@ -325,7 +321,7 @@ def create_stage_config(db: Session, payload_dict: dict) -> PipelineStageConfig:
 def update_stage_config(db: Session, stage_id: str, data: dict) -> PipelineStageConfig:
     stage = db.query(PipelineStageConfig).filter(PipelineStageConfig.id == stage_id).first()
     if not stage:
-        raise ErrorDeDominio(404, "Etapa no encontrada")
+        raise error(404, "no_encontrado", detail="Etapa no encontrada", que="etapa")
     for k, v in data.items():
         setattr(stage, k, v)
     db.commit()

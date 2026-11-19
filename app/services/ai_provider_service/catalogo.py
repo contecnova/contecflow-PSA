@@ -112,16 +112,9 @@ PROVIDER_CATALOG = {
 }
 
 # ── Modelos retirados por proveedor ───────────────────────────────────────────
-_DEPRECATED_MODELS: dict = {
-    "anthropic": set(),
-    "openai":    set(),
-    "gemini":    {"gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro"},
-    "groq":      {"mixtral-8x7b-32768"},
-    "mistral":   set(),
-    "deepseek":  set(),
-    "ollama":    set(),
-    "azure":     set(),
-}
+# 19-11-2026: salen del mismo catálogo (`_retirados` de app/core/ai_models.json o
+# del de AI_MODELS_CATALOG_PATH): retirar un modelo ya no exige tocar código.
+_DEPRECATED_MODELS: dict = {p: set(v or []) for p, v in (_MODELOS.get("_retirados") or {}).items()}
 
 
 def _validate_model(provider: str, model: str) -> None:

@@ -12,6 +12,7 @@ from app.services.security_observability import SecurityEventService
 from app.core.errores import ErrorDeDominio
 
 from app.services.auth_service._comun import logger
+from app.core.codigos_de_error import error
 
 
 def soc_svc(db, user) -> "SecurityEventService | None":
@@ -101,7 +102,7 @@ def revoke_one_session(db: Session, session_id: str, user_id: str):
         UserSession.user_id == user_id,
     ).first()
     if not session:
-        raise ErrorDeDominio(404, "Sesión no encontrada")
+        raise error(404, "no_encontrado", detail="Sesión no encontrada", que="sesion")
     session.revoked_at = datetime.now(timezone.utc)
     db.commit()
     return {"ok": True, "revoked": session_id}

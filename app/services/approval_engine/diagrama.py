@@ -33,6 +33,7 @@ from sqlalchemy.orm import Session
 
 from app.core.errores import ErrorDeDominio
 from app.models.billing_reports import ApprovalRequest, ApprovalStep, ApprovalWorkflow
+from app.core.codigos_de_error import error
 
 TIPOS = ("start", "end", "approve", "inform", "condition", "split", "join")
 CAMPOS_DE_PASO = ("approver_type", "approver_role", "approver_user_id", "approver_department", "approver_group_id",
@@ -46,7 +47,7 @@ _FALTA = {"user": "approver_user_id", "role": "approver_role", "any_in_departmen
 def _wf(db: Session, workflow_id: str) -> ApprovalWorkflow:
     wf = db.query(ApprovalWorkflow).filter(ApprovalWorkflow.id == workflow_id).first()
     if wf is None:
-        raise ErrorDeDominio(404, "Flujo no encontrado")
+        raise error(404, "no_encontrado", detail="Flujo no encontrado", que="flujo")
     return wf
 
 

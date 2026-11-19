@@ -158,6 +158,7 @@ def metric_budget_consumption(
         projects = projects.filter(Project.id.in_(project_ids))
     projects = projects.limit(top_n).all()
 
+    from app.core.umbrales import SALUD, tono_de
     rows = []
     for p in projects:
         cost = cost_by_project.get(p.id, 0)
@@ -167,7 +168,8 @@ def metric_budget_consumption(
             "value": pct,
             "cost": round(cost, 0),
             "budget": p.budget_amount,
-            "status": "critical" if pct > 100 else "warning" if pct > 85 else "ok"
+            # 19-11-2026: UMBRAL_PRESUPUESTO_* de la empresa (antes 100/85 fijos).
+            "status": SALUD[tono_de("presupuesto", pct, db, registro=p)]
         })
 
     rows.sort(key=lambda x: x["value"], reverse=True)

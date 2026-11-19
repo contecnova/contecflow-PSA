@@ -42,6 +42,7 @@ from app.services.service_desk.cmdb_discovery_service import (
     auto_merge_duplicates,
 )
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.core.codigos_de_error import error_http
 
 router = APIRouter()
 
@@ -537,10 +538,10 @@ def agent_checkin(
     """
     auth_header: str = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Missing or malformed Authorization header")
+        raise error_http(401, "cabecera_authorization_mal_formada", detail="Missing or malformed Authorization header")
     raw_token = auth_header.removeprefix("Bearer ").strip()
     if not raw_token:
-        raise HTTPException(status_code=401, detail="Empty bearer token")
+        raise error_http(401, "bearer_vacio", detail="Empty bearer token")
 
     client_ip = request.client.host if request.client else None
     result = process_agent_checkin(db, raw_token, payload.model_dump(), client_ip=client_ip)
@@ -622,7 +623,7 @@ def snmp_network_scan(
     from fastapi import HTTPException
 
     if not payload.hosts:
-        raise HTTPException(status_code=400, detail="hosts list is required")
+        raise error_http(400, "hosts_obligatorios", detail="hosts list is required")
 
     config = payload.model_dump(exclude_none=True)
     discovered = discover_snmp_network(config)

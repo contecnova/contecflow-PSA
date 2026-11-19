@@ -17,6 +17,7 @@ from app.db.session import get_db
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
 from app.services import bi_platform_service as svc
+from app.core.codigos_de_error import error_http, desde_valor
 
 router = APIRouter()
 
@@ -156,7 +157,7 @@ def phase3_diff_dataset_snapshots(
             to_id=to_id,
         ))
     except ValueError:
-        raise HTTPException(status_code=404, detail="Snapshot no encontrado")
+        raise error_http(404, "no_encontrado", detail="Snapshot no encontrado", que="instantanea")
 
 
 # ── Field-level sensitivity ───────────────────────────────────────────────────
@@ -192,7 +193,7 @@ def phase3_upsert_field_sensitivity(
             current_user=current_user,
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise desde_valor(400, e)
     return APIResponse.ok(data={"ok": True, "field": row})
 
 
@@ -207,7 +208,7 @@ def phase3_delete_field_sensitivity(
     org_id = getattr(current_user, "organization_id", None)
     deleted = svc.delete_field_sensitivity(db, organization_id=org_id, sensitivity_id=sensitivity_id)
     if not deleted:
-        raise HTTPException(status_code=404, detail="Clasificación de campo no encontrada")
+        raise error_http(404, "no_encontrado", detail="Clasificación de campo no encontrada", que="clasificacion_de_campo")
     return APIResponse.ok(data={"ok": True})
 
 

@@ -21,6 +21,7 @@ import json
 import logging
 from app.core import timeutil
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
+from app.core.codigos_de_error import error_http, ErrorConCodigo, desde_valor
 
 logger = logging.getLogger("contecflow.v14")
 
@@ -69,7 +70,7 @@ def cast_cab_vote(
     try:
         return APIResponse.ok(data=_svc.cast_cab_vote(cr_id, payload.vote, payload.comment, current_user, db))
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
 
 
 @router.post("/cab/changes/{cr_id}/close", summary="Cerrar votación CAB — aprobar o rechazar")
@@ -84,7 +85,7 @@ def close_cab_vote(
     try:
         return APIResponse.ok(data=_svc.close_cab_vote(cr_id, payload.get("decision"), payload.get("reason"), current_user, db))
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
 
 
 @router.get("/cab/windows", response_model=APIListResponse[dict], summary="Ventanas de mantenimiento")
@@ -131,11 +132,11 @@ def schedule_cr_in_window(
 ):
     window_id = payload.get("window_id")
     if not window_id:
-        raise HTTPException(422, "window_id es obligatorio")
+        raise error_http(422, "campo_obligatorio", detail="window_id es obligatorio", campo="window_id")
     try:
         return APIResponse.ok(data=_svc.schedule_cr_in_window(cr_id, window_id, payload.get("rollback_plan"), payload.get("test_plan"), db))
     except ValueError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -171,7 +172,7 @@ def create_webhook_trigger(
     try:
         return APIResponse.ok(data=_svc.create_webhook_trigger(payload, current_user.id, db))
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
 
 
 _SENSIBLES = ("authorization", "cookie", "signature", "token", "secret", "api-key", "apikey", "password", "x-auth")
@@ -215,14 +216,14 @@ async def fire_webhook(
     signature_header = request.headers.get("X-Contecflow-Signature")
     if not trigger.secret:
         # Trigger without a secret must not be callable — reject silently to avoid enumeration
-        raise HTTPException(401, "Webhook trigger no autorizado")
+        raise error_http(401, "webhook_no_autorizado", detail="Webhook trigger no autorizado")
     if not signature_header:
-        raise HTTPException(401, "Se requiere cabecera X-Contecflow-Signature")
+        raise error_http(401, "cab_firma_requerida", detail="Se requiere cabecera X-Contecflow-Signature")
     expected = "sha256=" + _hmac.new(
         trigger.secret.encode(), body, _hashlib.sha256
     ).hexdigest()
     if not _hmac.compare_digest(signature_header, expected):
-        raise HTTPException(401, "Firma HMAC inválida")
+        raise error_http(401, "firma_no_valida", detail="Firma HMAC inválida")
 
     # Log the call and update fire stats (DB op → threadpool)
     # Revisión 2026-11: sin credenciales en el log (antes se guardaban todas las
@@ -266,7 +267,7 @@ def rotate_webhook_trigger_slug(
     try:
         datos = _svc.rotate_webhook_trigger_slug(trigger_id, expires_in_days, db)
     except ValueError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
     # Revisión GRC 2026-11b: rotar la URL secreta del webhook no dejaba rastro.
     from app.services.audit import auditar_y_confirmar
     auditar_y_confirmar(db, current_user, "SECRET_ROTATED", "webhook_trigger", trigger_id,
@@ -284,7 +285,7 @@ def delete_webhook_trigger(
     try:
         return APIResponse.ok(data=_svc.delete_webhook_trigger(trigger_id, db))
     except ValueError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -376,7 +377,7 @@ class GDPRRequestCreate(BaseModel):
     @model_validator(mode="after")
     def _alguien(self):
         if not (self.subject_user_id or (self.subject_email or "").strip()):
-            raise ValueError("Indica la persona o su correo")
+            raise ErrorConCodigo("indica_persona_o_correo")
         return self
 
 
@@ -518,7 +519,7 @@ def complete_onboarding_step(
     try:
         return APIResponse.ok(data=_svc.complete_onboarding_step(payload.get("step_id"), current_user, db))
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
 
 
 @router.post("/onboarding/dismiss", summary="Cerrar onboarding wizard")
@@ -584,7 +585,7 @@ def sync_integration(
     try:
         return APIResponse.ok(data=_svc.run_integration_sync(integration_id, payload, db))
     except ValueError as e:
-        raise HTTPException(400, str(e))
+        raise desde_valor(400, e)
 
 
 @router.get("/oauth-integrations/calendar/events", summary="Eventos de calendario sincronizados")
@@ -630,6 +631,6 @@ def get_project_risk_score(
     try:
         return APIResponse.ok(data=_svc.get_project_risk_score(project_id, db))
     except ValueError as e:
-        raise HTTPException(404, str(e))
+        raise desde_valor(404, e)
 
 

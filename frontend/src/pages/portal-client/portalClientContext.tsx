@@ -4,12 +4,12 @@
  */
 import { PRODUCT_FULL_NAME, PRODUCT_NAME } from '../../constants/brand'
 import React, { type CSSProperties, createContext, useContext, useState, useEffect, useId } from 'react'
-import axios, { type AxiosResponse } from 'axios'
+import { type AxiosResponse } from 'axios'
 import { useQuery } from '@tanstack/react-query'
 import { PORTAL_TRANSLATIONS as T, PORTAL_LANGUAGES as LANGUAGES } from '../../i18n/portalTranslations'
 import { STATUS_CFG } from '../../constants/sharedStatus'
 import { useIdleTimeout } from '../../hooks/useIdleTimeout'
-import { API_BASE_URL } from '../../services/api/urls'
+import { crearClienteDeApi } from '../../services/api/clienteBase'
 import StatusBadge from '../../components/ui/StatusBadge'
 import { useDialogo } from '../../components/ui/useDialogo'
 import { TextosDeInterfazProvider, type TraductorDeCodigos } from '../../components/ui/useTextoUi'
@@ -38,7 +38,7 @@ function isApiListBody(body: unknown): body is ApiListBody {
 // ── API client ────────────────────────────────────────────────────────────────
 // Instancia propia: el portal de clientes tiene su propia sesión y su propio
 // manejo de 401 (no debe disparar el refresco de la sesión de empleado).
-export const CLIENT_API = axios.create({ baseURL: API_BASE_URL, withCredentials: true, timeout: 30000 })
+export const CLIENT_API = crearClienteDeApi({ withCredentials: true })  // base y límite comunes (19-11-2026)
 
 // Desenvuelve los dos sobres del servidor, como el cliente de la aplicación
 // (services/api/_core.ts). Auditoría 2026-11: solo desenvolvía las listas, y

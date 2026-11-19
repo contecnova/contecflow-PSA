@@ -756,8 +756,8 @@ def exigir_organizacion_activa(session, organization_id) -> None:
     if org is not None and not org.is_active:
         # Auditoria 2026-11 (item 36): tambien corre fuera de HTTP (Celery,
         # scripts); `main.py` lo traduce al mismo 403.
-        from app.core.errores import ErrorDeDominio
-        raise ErrorDeDominio(status_code=403, detail="La organización está desactivada")
+        from app.core.codigos_de_error import error
+        raise error(403, "empresa_desactivada", detail="La organización está desactivada")
 
 
 def _org_del_registro(session, obj):

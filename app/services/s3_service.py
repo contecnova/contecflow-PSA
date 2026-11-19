@@ -16,6 +16,7 @@ from typing import Optional, Tuple
 from app.core.config import settings
 from app.core.security import create_access_token
 from botocore.exceptions import ClientError
+from app.core.codigos_de_error import ErrorConCodigo
 
 logger = logging.getLogger(__name__)
 
@@ -206,7 +207,7 @@ class S3Service:
         content_type: str = "application/octet-stream",
     ) -> Tuple[str, int]:
         if not self.is_available():
-            raise ValueError("S3 not configured. Check AWS credentials in settings.")
+            raise ErrorConCodigo("integracion_no_configurada", detail="S3 not configured. Check AWS credentials in settings.", nombre="S3")
 
         ext = file_name.rsplit(".", 1)[-1] if "." in file_name else "bin"
         unique_id = str(uuid.uuid4())[:8]
@@ -229,11 +230,11 @@ class S3Service:
             return s3_key, len(file_content)
         except ClientError as e:
             logger.error(f"Failed to upload to S3: {e}")
-            raise ValueError(f"S3 upload failed: {str(e)}")
+            raise ErrorConCodigo("servicio_externo_fallo", detail=f"S3 upload failed: {str(e)}", servicio="S3")
 
     def generate_presigned_url(self, s3_key: str, expiration_hours: Optional[int] = None) -> str:
         if not self.is_available():
-            raise ValueError("S3 not configured")
+            raise ErrorConCodigo("integracion_no_configurada", detail="S3 not configured", nombre="S3")
 
         expiration_seconds = (expiration_hours or self.url_expiration_hours) * 3600
         try:
@@ -243,7 +244,7 @@ class S3Service:
                 ExpiresIn=expiration_seconds,
             )
         except ClientError as e:
-            raise ValueError(f"Failed to generate presigned URL: {str(e)}")
+            raise ErrorConCodigo("servicio_externo_fallo", detail=f"Failed to generate presigned URL: {str(e)}", servicio="S3")
 
     def delete_file(self, s3_key: str) -> bool:
         if not self.is_available():

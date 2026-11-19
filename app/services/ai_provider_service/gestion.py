@@ -15,9 +15,9 @@ from app.models.ai_providers import AIUsageLog
 from app.models.user import User
 from app.core.asignacion import es_asignable
 from sqlalchemy import func as sqlfunc
-from app.core.errores import ErrorDeDominio
 from app.services.ai_provider_service.catalogo import PROVIDER_CATALOG
 from app.services.ai_provider_service.resolucion import proveedor_desde_entorno
+from app.core.codigos_de_error import error as error_con_codigo, ErrorConCodigo
 
 # ── CRUD service functions ────────────────────────────────────────────────────
 
@@ -85,7 +85,7 @@ def update_provider(db: Session, provider, data: dict, *,
                     is_superadmin: bool, organization_id) -> object:
     fuera = set(data) - CAMPOS_EDITABLES_DEL_PROVEEDOR
     if fuera:
-        raise ErrorDeDominio(400, f"No se pueden cambiar: {', '.join(sorted(fuera))}")
+        raise error_con_codigo(400, "campos_no_editables", campos=', '.join(sorted(fuera)))
     if data.get("is_default"):
         _clear_default(db, is_superadmin=is_superadmin, organization_id=organization_id)
 
@@ -173,7 +173,7 @@ def proveedor_sin_guardar(datos: dict):
     from types import SimpleNamespace
     tipo = (datos.get("provider") or "").strip()
     if tipo not in PROVIDER_CATALOG:
-        raise ValueError(f"Proveedor no soportado: {tipo}")
+        raise ErrorConCodigo("proveedor_no_soportado", proveedor=tipo)
     clave = (datos.get("api_key") or "").strip()
     return SimpleNamespace(
         provider=tipo, name=datos.get("name") or tipo, api_key=encrypt_value(clave) if clave else None,
@@ -187,12 +187,12 @@ def importar_proveedor_de_entorno(db: Session, actor) -> "AIProvider":
     """El proveedor del `.env`, como fila editable de la empresa de `actor`."""
     entorno = proveedor_desde_entorno()
     if entorno is None:
-        raise ValueError("No hay proveedor de IA en el .env")
+        raise ErrorConCodigo("ia_sin_proveedor", detail="No hay proveedor de IA en el .env")
     org = None if getattr(actor, "is_superadmin", False) else actor.organization_id
     ya = db.query(AIProvider).filter(AIProvider.provider == entorno.provider, AIProvider.is_active == True,  # noqa: E712
                                      AIProvider.organization_id == org).first()
     if ya is not None:
-        raise ValueError(f"Ya hay un proveedor {entorno.provider} en la aplicación: «{ya.name}»")
+        raise ErrorConCodigo("ia_proveedor_ya_existe", tipo=entorno.provider, nombre=ya.name)
     hay_por_defecto = db.query(AIProvider.id).filter(AIProvider.is_default == True,  # noqa: E712
                                                      AIProvider.is_active == True).first()
     p = AIProvider(

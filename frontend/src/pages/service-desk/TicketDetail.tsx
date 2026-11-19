@@ -816,6 +816,8 @@ function AprobacionDelTicket({ ticket, yo, rechazando, motivo, setRechazando, se
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()
+  // 19-11-2026: decidir en lugar del aprobador es de quien administra el service desk (matriz de permisos).
+  const administraSd = useAuth().puede('sd.administrar')
   const a = ticket.approval
   const decidir = useMutation({
     mutationFn: (d: { decision: string; comment?: string }) => sdApprovalsApi.decide(ticket.id, d),
@@ -828,7 +830,7 @@ function AprobacionDelTicket({ ticket, yo, rechazando, motivo, setRechazando, se
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
   if (!a) return null
-  const puedeDecidir = a.status === 'pending' && (a.approver_user_id === yo?.id || yo?.role === 'admin')
+  const puedeDecidir = a.status === 'pending' && (a.approver_user_id === yo?.id || administraSd)
   const color = a.status === 'approved' ? COLOR.success : a.status === 'rejected' ? COLOR.danger : COLOR.warning
   const texto = a.status === 'pending' ? t('sd_cfg.apr_pending', { name: a.approver_name ?? '—' })
     : t(a.status === 'approved' ? 'sd_cfg.apr_approved' : 'sd_cfg.apr_rejected', { name: a.decided_by_name ?? '—' })

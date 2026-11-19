@@ -4,6 +4,7 @@ from app.models.service_desk import AgentGroup, AgentGroupMember
 from app.models.user import User
 import logging
 from app.core.errores import ErrorDeDominio
+from app.core.codigos_de_error import error
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,7 @@ def create_group_record(db, payload) -> AgentGroup:
 def get_group_or_404(db: Session, group_id: str) -> AgentGroup:
     group = db.query(AgentGroup).filter(AgentGroup.id == group_id).first()
     if not group:
-        raise ErrorDeDominio(404, "Grupo no encontrado")
+        raise error(404, "no_encontrado", detail="Grupo no encontrado", que="grupo")
     return group
 
 
@@ -67,14 +68,14 @@ def add_group_member_record(db: Session, group_id: str, user_id: str, is_lead: b
 
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise ErrorDeDominio(404, "Usuario no encontrado")
+        raise error(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
 
     existing = db.query(AgentGroupMember).filter(
         AgentGroupMember.group_id == group_id,
         AgentGroupMember.user_id == user_id,
     ).first()
     if existing:
-        raise ErrorDeDominio(400, "Ya es miembro")
+        raise error(400, "ya_es_miembro")
 
     db.add(AgentGroupMember(group_id=group_id, user_id=user_id, is_lead=is_lead))
 

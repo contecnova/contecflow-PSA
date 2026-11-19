@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.paginacion import Pagina, Paginacion, paginar
 from app.models.public_forms import PublicForm, PublicFormSubmission
 from app.models.service_desk import Ticket, TicketStatus, TicketType, TicketPriority
+from app.core.codigos_de_error import ErrorConCodigo
 
 log = logging.getLogger(__name__)
 
@@ -129,9 +130,9 @@ def _next_ticket_number(ticket_type: str, db: Session, org_id: Optional[str] = N
 def validar_destino(form_type: str, target_project_id: Optional[str]) -> None:
     """Un formulario de tareas necesita proyecto: una tarea no existe sin él."""
     if form_type not in ("ticket", "task"):
-        raise ValueError("form_type: ticket o task")
+        raise ErrorConCodigo("valor_no_valido", detail="form_type: ticket o task", valor=form_type)
     if form_type == "task" and not target_project_id:
-        raise ValueError("Un formulario de tareas necesita un proyecto destino")
+        raise ErrorConCodigo("formulario_sin_proyecto")
 
 
 def submit_form(

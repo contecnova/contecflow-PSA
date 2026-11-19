@@ -26,6 +26,7 @@ from datetime import date
 from typing import Any, Optional
 
 from app.services.politicas.catalogo import DOS_VALORES, LISTA, SIN_VALOR, Dominio
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 class Indeterminado(Exception):
@@ -264,7 +265,7 @@ def comparar(ev: Evaluador, tipo: str, op: str, real: Any, valor: Any, valor2: A
         solapa = desde <= b and hasta >= a
         if op in ("overlaps", "not_overlaps"):
             return solapa if op == "overlaps" else not solapa
-        raise ValueError(f"operador {op} no vale para un periodo")
+        raise ErrorConCodigo("operador_no_admitido", detail=f"operador {op} no vale para un periodo", tipo="periodo", operador=op)
     if tipo == "booleano":
         return bool(real) == bool(valor)
     if tipo == "hora":
@@ -285,7 +286,7 @@ def comparar(ev: Evaluador, tipo: str, op: str, real: Any, valor: Any, valor2: A
         if op in ("contains", "not_contains"):
             r = any(_norm_texto(valor) in x for x in reales)
             return r if op == "contains" else not r
-        raise ValueError(f"operador {op} no vale para una lista")
+        raise ErrorConCodigo("operador_no_admitido", detail=f"operador {op} no vale para una lista", tipo="lista", operador=op)
     # texto, enum, entidad, pais, ciudad: comparación sin mayúsculas ni espacios.
     v = _norm_texto(real)
     if op in LISTA:
@@ -298,7 +299,7 @@ def comparar(ev: Evaluador, tipo: str, op: str, real: Any, valor: Any, valor2: A
         return v == _norm_texto(valor)
     if op == "ne":
         return v != _norm_texto(valor)
-    raise ValueError(f"operador {op} no vale para {tipo}")
+    raise ErrorConCodigo("operador_no_admitido", detail=f"operador {op} no vale para {tipo}", operador=op, tipo=tipo)
 
 
 def validar_arbol(dominio: Dominio, nodo: Optional[dict], ruta: str, errores: list, prof: int = 0) -> None:

@@ -53,6 +53,7 @@ from app.services.auth_service import (
 )
 from app.api.cookies_de_sesion import current_refresh_jti as _current_refresh_jti, set_auth_cookies as _set_auth_cookies
 from app.core.network import extract_client_ip as _client_ip
+from app.core.codigos_de_error import error_http
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -144,12 +145,12 @@ def _rechazar_credenciales(bucket, *, cuenta=None, db=None, user=None, request=N
     if user is not None:
         _auditar_en_soc(db, user, request, exito=False)
     if lock_for > 0:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=_mensaje_de_bloqueo(lock_for),
+        raise error_http(
+            status.HTTP_429_TOO_MANY_REQUESTS, "login_bloqueado",
+            detail=_mensaje_de_bloqueo(lock_for), segundos=lock_for,
         )
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED, detail=_MENSAJE_CREDENCIALES
+    raise error_http(
+        status.HTTP_401_UNAUTHORIZED, "login_credenciales_incorrectas", detail=_MENSAJE_CREDENCIALES
     )
 
 
@@ -207,13 +208,7 @@ def _exigir_mfa_de_la_organizacion(db: Session, user, tiene_factor: bool, org=No
     if tiene_factor or not (org or user.organization_id):
         return
     if _svc.organizacion_exige_mfa(db, user, org):
-        raise HTTPException(
-            status_code=403,
-            detail=(
-                "Tu organización requiere MFA. Configura un autenticador "
-                "(TOTP o passkey) antes de poder iniciar sesión."
-            ),
-        )
+        raise error_http(403, "mfa_obligatorio_org", detail="Tu organización requiere MFA. Configura un autenticador (TOTP o passkey) antes de poder iniciar sesión.")
 
 
 def _reto_de_segundo_factor(db: Session, user, has_totp: bool, has_passkeys: bool, org=None):
@@ -252,9 +247,7 @@ def _abrir_sesion(db: Session, user, request: Request, response: Response, org=N
     except Exception:
         logger.exception("commit_db failed during login finalization for user=%s", user.id)
         db.rollback()
-        raise HTTPException(
-            status_code=500, detail="Error al iniciar sesión. Inténtalo de nuevo."
-        )
+        raise error_http(500, "login_error", detail="Error al iniciar sesión. Inténtalo de nuevo.")
 
     _set_auth_cookies(response, access_token, refresh_token)
     from app.core.modulos import con_rutas_cerradas
@@ -268,9 +261,9 @@ def login(request: Request, response: Response, payload: LoginRequest, db: Sessi
     cuenta = _svc.login_account_bucket(payload.username)
     lock_ttl = max(_login_lock_ttl(bucket), _login_lock_ttl(cuenta))
     if lock_ttl > 0:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=_mensaje_de_bloqueo(lock_ttl),
+        raise error_http(
+            status.HTTP_429_TOO_MANY_REQUESTS, "login_bloqueado",
+            detail=_mensaje_de_bloqueo(lock_ttl), segundos=lock_ttl,
         )
 
     user = _svc.lookup_user_by_credentials(db, payload.username)
@@ -346,7 +339,7 @@ def select_organization(request: Request, response: Response, payload: EleccionI
     from app.services import entrada_service as _entrada
     user = _svc.lookup_user_by_id_active(db, _entrada.leer_token_de_eleccion(payload.selection_token))
     if not user:
-        raise HTTPException(401, "Usuario no encontrado o desactivado")
+        raise error_http(401, "usuario_no_encontrado_o_inactivo")
     org = _entrada.decidir(db, user, request, elegida=payload.organization_id)
     return _segundo_factor_o_sesion(db, user, request, response, org)
 
@@ -370,7 +363,7 @@ def switch_organization(request: Request, response: Response, payload: CambioIn,
                         db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     from app.services import entrada_service as _entrada
     if _entrada.modo() != "email_selector":
-        raise HTTPException(409, "En este despliegue la empresa la fija el acceso, no se cambia en la sesión")
+        raise error_http(409, "empresa_fijada_por_acceso", detail="En este despliegue la empresa la fija el acceso, no se cambia en la sesión")
     org = _entrada.decidir(db, current_user, request, elegida=payload.organization_id)
     jti = _current_refresh_jti(request)
     if jti:
@@ -402,24 +395,24 @@ def refresh_token(request: Request, response: Response, db: Session = Depends(ge
     if not raw_refresh and payload:
         raw_refresh = payload.refresh_token
     if not raw_refresh:
-        raise HTTPException(status_code=401, detail="Refresh token requerido")
+        raise error_http(401, "refresh_token_requerido", detail="Refresh token requerido")
 
     token_data = decode_token(raw_refresh)
     if not token_data or token_data.get("type") != "refresh":
-        raise HTTPException(status_code=401, detail="Refresh token inválido")
+        raise error_http(401, "refresh_token_no_valido", detail="Refresh token inválido")
 
     user = _svc.lookup_user_by_id_active(db, token_data["sub"])
     if not user:
-        raise HTTPException(status_code=401, detail="Usuario no encontrado")
+        raise error_http(401, "no_encontrado", detail="Usuario no encontrado", que="usuario")
 
     # Rotation validation: strict per-session JTI.
     token_jti = token_data.get("jti")
     if not token_jti:
-        raise HTTPException(status_code=401, detail="Refresh token inválido")
+        raise error_http(401, "refresh_token_no_valido", detail="Refresh token inválido")
 
     active_session = _svc.lookup_active_refresh_session(db, user.id, token_jti)
     if active_session is None:
-        raise HTTPException(status_code=401, detail="Refresh token ya fue utilizado o es inválido. Por seguridad, debes iniciar sesión de nuevo.")
+        raise error_http(401, "refresh_token_reutilizado", detail="Refresh token ya fue utilizado o es inválido. Por seguridad, debes iniciar sesión de nuevo.")
 
     # Issue new token pair and rotate JTI. La empresa activa se conserva, y se
     # vuelve a validar: pertenencia vigente y empresa activa.
@@ -427,7 +420,7 @@ def refresh_token(request: Request, response: Response, db: Session = Depends(ge
     org = token_data.get("org")
     if org and not user.is_superadmin:
         if not _entrada.pertenece(db, user, org):
-            raise HTTPException(status_code=401, detail="Ya no perteneces a esa organización: vuelve a entrar")
+            raise error_http(401, "ya_no_perteneces_org")
         from app.db.session import exigir_organizacion_activa
         exigir_organizacion_activa(db, org)
     access_token, new_refresh_token, new_jti = _entrada.emitir_tokens(user, org)
@@ -477,10 +470,7 @@ def password_forgot(request: Request, payload: PasswordForgotRequest, db: Sessio
     if identifier:
         ttl = _register_password_reset_request(_password_reset_bucket(identifier, request.client.host if request.client else None))
         if ttl > 0:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Demasiadas solicitudes de recuperación. Intenta de nuevo en {ttl}s.",
-            )
+            raise error_http(status.HTTP_429_TOO_MANY_REQUESTS, "recuperacion_demasiadas_solicitudes", detail=f"Demasiadas solicitudes de recuperación. Intenta de nuevo en {ttl}s.", segundos=ttl)
 
     if identifier:
         user = _svc.lookup_user_by_identifier(db, identifier)
@@ -514,15 +504,17 @@ def password_reset(request: Request, payload: PasswordResetRequest, db: Session 
     token_data = _read_ephemeral_token(payload.token, "password_reset")
     user_id = token_data.get("sub")
     if not user_id:
-        raise HTTPException(401, "Token de restablecimiento inválido o expirado")
+        raise error_http(401, "reset_token_no_valido", detail="Token de restablecimiento inválido o expirado")
 
     user = _svc.lookup_user_by_id_active(db, user_id)
     if not user:
-        raise HTTPException(401, "Token de restablecimiento inválido o expirado")
+        raise error_http(401, "reset_token_no_valido", detail="Token de restablecimiento inválido o expirado")
 
     ok, reason = validate_password_policy(payload.new_password, db=db, org_id=getattr(user, "organization_id", None))
     if not ok:
-        raise HTTPException(400, reason or "La contraseña no cumple la política de seguridad")
+        from app.core.security import codigo_de_politica_de_contrasena
+        _cod, _par = codigo_de_politica_de_contrasena(reason)
+        raise error_http(400, _cod, detail=reason or "La contraseña no cumple la política de seguridad", **_par)
 
     audit_log(db, user, "PASSWORD_RESET_COMPLETE", "users", user.id, user.full_name)
     _consume_password_reset_token(user.id, token_data.get("jti"))
@@ -539,6 +531,33 @@ def get_me(request: Request, current_user: User = Depends(get_current_user), db:
     if actor:
         usuario.impersonated_by = _svc.correo_de_usuario(db, actor)
     return usuario
+
+
+@router.get("/capacidades", summary="Mis capacidades y el catálogo de la matriz de permisos")
+def get_capacidades(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Capacidades efectivas del usuario actual y, de cada una, quién la tiene por defecto.
+
+    19-11-2026 (matriz de permisos, `app.core.capacidades`): las propias son
+    las mismas que llegan en `/auth/me`; el catálogo sirve para explicar el
+    permiso en la pantalla de roles.
+    """
+    from app.core.capacidades import CAPACIDADES, capacidades_de
+    return {
+        "capacidades": capacidades_de(db, current_user),
+        "catalogo": [{"id": n, "roles": list(c.roles), "descripcion": c.descripcion, "modulo": c.modulo}
+                     for n, c in sorted(CAPACIDADES.items())],
+    }
+
+
+@router.get("/roles", summary="Roles reales con sus etiquetas (es/en/zh)")
+def get_roles_reales(_: User = Depends(get_current_user)):
+    """Los roles base que existen (`UserRole`), para los selectores de la pantalla.
+
+    19-11-2026: sustituye las listas escritas a mano en el frontend (algunas
+    con roles que no existen: designer, finance, developer).
+    """
+    from app.core.capacidades import roles_publicos
+    return {"items": roles_publicos()}
 
 
 @router.post("/change-password", summary="Cambiar contraseña propia")
@@ -559,25 +578,27 @@ def change_password(
     # Si el usuario tiene MFA activo, requerimos challenge reciente
     if current_user.mfa_enabled:
         if not mfa_token:
-            raise HTTPException(401, "Debes completar un challenge MFA para cambiar la contraseña")
+            raise error_http(401, "mfa_requerido_cambio_contrasena", detail="Debes completar un challenge MFA para cambiar la contraseña")
         try:
             challenge_data, challenge_row = read_mfa_challenge(db, mfa_token)
         except Exception as e:
             logger.info("MFA challenge read failed during change-password for user=%s", current_user.id, exc_info=True)
-            raise HTTPException(401, f"MFA inválido: {str(e)}")
+            raise error_http(401, "mfa_no_valido", detail=f"MFA inválido: {str(e)}")
 
     if not current_pw or not new_pw:
-        raise HTTPException(400, "current_password y new_password son obligatorios")
+        raise error_http(400, "contrasenas_obligatorias", detail="current_password y new_password son obligatorios")
 
     ok, err = validate_password_policy(new_pw, db=db, org_id=getattr(current_user, "organization_id", None))
     if not ok:
-        raise HTTPException(400, err)
+        from app.core.security import codigo_de_politica_de_contrasena
+        _cod, _par = codigo_de_politica_de_contrasena(err)
+        raise error_http(400, _cod, detail=err, **_par)
 
     if not current_user.hashed_password:
-        raise HTTPException(400, "Tu cuenta usa SSO — la contraseña se gestiona externamente")
+        raise error_http(400, "cuenta_sso_sin_contrasena", detail="Tu cuenta usa SSO — la contraseña se gestiona externamente")
 
     if not verify_password(current_pw, current_user.hashed_password):
-        raise HTTPException(403, "Contraseña actual incorrecta")
+        raise error_http(403, "contrasena_actual_no_coincide", detail="Contraseña actual incorrecta")
 
     current_user.hashed_password = get_password_hash(new_pw)
     # Auditoria 2026-11 (#22): las demas sesiones se cierran; la actual sigue.

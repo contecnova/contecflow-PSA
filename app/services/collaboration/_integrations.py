@@ -69,16 +69,18 @@ PROVIDERS: dict[str, OAuthProvider] = {
         kind="github",
         client_id_env="GITHUB_CLIENT_ID", client_secret_env="GITHUB_CLIENT_SECRET",  # noqa: S106
         redirect_env="GITHUB_REDIRECT_URI",
-        auth_url="https://github.com/login/oauth/authorize",
-        token_url="https://github.com/login/oauth/access_token",  # noqa: S106
+        # 19-11-2026: GitHub Enterprise Server con GITHUB_WEB_BASE.
+        auth_url=f"{settings.GITHUB_WEB_BASE.rstrip('/')}/login/oauth/authorize",
+        token_url=f"{settings.GITHUB_WEB_BASE.rstrip('/')}/login/oauth/access_token",  # noqa: S106
         scopes=["repo", "read:user", "read:org"],
     ),
     "gitlab": OAuthProvider(
         kind="gitlab",
         client_id_env="GITLAB_CLIENT_ID", client_secret_env="GITLAB_CLIENT_SECRET",  # noqa: S106
         redirect_env="GITLAB_REDIRECT_URI",
-        auth_url="https://gitlab.com/oauth/authorize",
-        token_url="https://gitlab.com/oauth/token",  # noqa: S106
+        # 19-11-2026: GitLab propio con GITLAB_BASE_URL.
+        auth_url=f"{settings.GITLAB_BASE_URL.rstrip('/')}/oauth/authorize",
+        token_url=f"{settings.GITLAB_BASE_URL.rstrip('/')}/oauth/token",  # noqa: S106
         scopes=["api", "read_user", "read_repository"],
     ),
     "google_calendar": OAuthProvider(

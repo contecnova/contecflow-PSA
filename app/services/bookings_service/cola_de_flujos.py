@@ -21,6 +21,7 @@ from app.services.bookings_service.aprovisionamiento import (
 )
 from app.services.bookings_service._comun import logger
 from app.services.settings_service import outbound_http_timeout
+from app.core.codigos_de_error import error
 
 
 def paso_de_workflow_propio(db, current_user, wf_id: str, step_id: str):
@@ -53,7 +54,7 @@ def paso_de_workflow_propio(db, current_user, wf_id: str, step_id: str):
 
     paso = consulta.first()
     if not paso:
-        raise ErrorDeDominio(404, "Workflow step not found")
+        raise error(404, "no_encontrado", detail="Workflow step not found", que="paso")
     return paso
 
 
@@ -63,11 +64,11 @@ def configurar_reintentos_de_paso(db, current_user, wf_id: str, step_id: str, pa
     delay_seconds = int(payload.get("delay_seconds", 0))
     backoff = str(payload.get("backoff", "none") or "none").lower()
     if max_retries < 0 or max_retries > 10:
-        raise ErrorDeDominio(400, "max_retries must be between 0 and 10")
+        raise error(400, "reintentos_fuera_de_rango", detail="max_retries must be between 0 and 10")
     if delay_seconds < 0 or delay_seconds > 120:
-        raise ErrorDeDominio(400, "delay_seconds must be between 0 and 120")
+        raise error(400, "espera_fuera_de_rango", detail="delay_seconds must be between 0 and 120")
     if backoff not in {"none", "linear", "exponential"}:
-        raise ErrorDeDominio(400, "backoff must be one of: none, linear, exponential")
+        raise error(400, "backoff_no_valido", detail="backoff must be one of: none, linear, exponential")
 
     step = paso_de_workflow_propio(db, current_user, wf_id, step_id)
 
@@ -123,7 +124,7 @@ def _retry_sleep_seconds(policy: dict, retry_index: int) -> int:
 def enqueue_workflow_record(payload: dict, user_id, db) -> dict:
     workflow_id = payload.get("workflow_id")
     wf = db.query(AutomationWorkflow).filter(AutomationWorkflow.id == workflow_id).first()
-    if not wf: raise ErrorDeDominio(404, "Workflow no encontrado")
+    if not wf: raise error(404, "no_encontrado", detail="Workflow no encontrado", que="flujo")
     execute_at = datetime.now(timezone.utc)
     if payload.get("delay_minutes"):
         execute_at += timedelta(minutes=int(payload["delay_minutes"]))

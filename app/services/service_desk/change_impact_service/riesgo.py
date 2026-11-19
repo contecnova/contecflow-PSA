@@ -25,6 +25,7 @@ from app.models.service_desk import (
 # ══════════════════════════════════════════════════════════════════════════════
 
 import math
+from app.core.codigos_de_error import ErrorConCodigo
 
 
 logger = logging.getLogger("app.services.service_desk.change_impact_service")
@@ -370,7 +371,7 @@ def get_risk_matrix_for_change(db: Session, change_id: str) -> list[dict]:
     """Calculate per-CI risk matrix for all CIs affected by the change."""
     change = db.query(ITSMChangeRequest).filter(ITSMChangeRequest.id == change_id).first()
     if not change:
-        raise ValueError(f"Change {change_id} not found")
+        raise ErrorConCodigo("no_encontrado", detail=f"Change {change_id} not found", que="cambio")
 
     risk_data = score_change_risk(db, change)
     ci_ids = risk_data.get("ci_ids_expanded", [])
