@@ -240,7 +240,7 @@ cd /d "%SCRIPT_DIR%"
 ::
 :: `upgrade head` es idempotente y barato cuando no hay revisiones pendientes,
 :: asi que se ejecuta siempre y no se intenta adivinar si hace falta.
-.venv\Scripts\python -m alembic upgrade head
+.venv\Scripts\python scripts\migrar.py
 if errorlevel 1 (
     echo [ERROR] Las migraciones han fallado.
     echo [ERROR] NO se arranca con un esquema a medias: revisa el error de arriba.
@@ -539,7 +539,7 @@ if defined DB_FILE if exist "!DB_FILE!" (
 
 if "!DB_STATUS!"=="ok" (
     echo [INFO] Base de datos OK - datos existentes conservados
-    .venv\Scripts\python -m alembic upgrade head
+    .venv\Scripts\python scripts\migrar.py
     if errorlevel 1 (
         echo [ERROR] Fallo al aplicar migraciones.
         echo [ERROR] Revisa tu archivo .env ^(especialmente SECRET_KEY^) y vuelve a ejecutar setup.bat

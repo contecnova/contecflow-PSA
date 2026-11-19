@@ -925,7 +925,7 @@ PY
   # barato cuando no hay revisiones pendientes, y saltárselo era justo lo que
   # dejaba bases sin migrar tras un `git pull`.
   log "Aplicando migraciones con Alembic..."
-  if ! "$PY_BIN" -m alembic upgrade head; then
+  if ! "$PY_BIN" scripts/migrar.py; then
     error "Las migraciones han fallado. La aplicación NO se arranca con un esquema a medias."
     error "Revisa el error de arriba; si la base está corrupta, restaura una copia antes de reintentar."
     exit 1
@@ -957,7 +957,7 @@ except:
       # cero con Alembic (antes se usaba app.db.migrate, el camino que ocultaba
       # el hueco de esquema).
       rm -f contecflow.db
-      "$PY_BIN" -m alembic upgrade head
+      "$PY_BIN" scripts/migrar.py
     fi
   else
     log "Base de datos OK"
@@ -1150,7 +1150,7 @@ start_services() {
   # nuevas, el código leía columnas que la base aún no tenía (users.custom_role_id,
   # migración 120) y nadie podía entrar. `upgrade head` es idempotente.
   log "Aplicando migraciones pendientes..."
-  if ! "$PY_BIN" -m alembic upgrade head; then
+  if ! "$PY_BIN" scripts/migrar.py; then
     error "Las migraciones han fallado. La aplicación NO se arranca con un esquema a medias."
     exit 1
   fi
