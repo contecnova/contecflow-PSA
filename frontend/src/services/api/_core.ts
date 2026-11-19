@@ -82,9 +82,51 @@ function refrescarSesion(): Promise<unknown> {
   if (!_refreshPromise) {
     _refreshPromise = axios
       .post(`${BASE_URL}/auth/refresh`, null, { withCredentials: true })
+      .then((r) => { programarRenovacionDeSesion(); return r })
       .finally(() => { _refreshPromise = null })
   }
   return _refreshPromise
+}
+
+// ── Renovación anticipada de la sesión (19-11-2026) ─────────────────────────
+// El backend deja en la cookie legible `session_expires_at` (segundos epoch)
+// cuándo caduca la de acceso. Se renueva MARGEN_DE_RENOVACION_S antes, así la
+// petición siguiente no recibe un 401 (que el navegador anota en la consola
+// aunque el refresco silencioso lo arregle). Si algo falla, sigue valiendo el
+// refresco al recibir un 401 de más abajo.
+const MARGEN_DE_RENOVACION_S = 60
+const MINIMO_DE_ESPERA_S = 5
+let _temporizadorDeSesion: ReturnType<typeof setTimeout> | null = null
+
+function finDeSesion(): number | null {
+  const v = Number(_readCookie('session_expires_at'))
+  return Number.isFinite(v) && v > 0 ? v : null
+}
+
+/** Programa la renovación según la cookie; sin cookie (sin sesión) no hace nada. */
+export function programarRenovacionDeSesion(): void {
+  if (_temporizadorDeSesion) clearTimeout(_temporizadorDeSesion)
+  _temporizadorDeSesion = null
+  const fin = finDeSesion()
+  if (fin === null) return
+  const espera = Math.max(MINIMO_DE_ESPERA_S, fin - Date.now() / 1000 - MARGEN_DE_RENOVACION_S)
+  _temporizadorDeSesion = setTimeout(() => {
+    refrescarSesion().then(programarRenovacionDeSesion, () => { /* el 401 de una petición lo resolverá */ })
+  }, espera * 1000)
+}
+
+if (typeof window !== 'undefined') {
+  programarRenovacionDeSesion()
+  // Una pestaña en segundo plano puede dormir el temporizador: al volver, se revisa.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return
+    const fin = finDeSesion()
+    if (fin !== null && fin - Date.now() / 1000 < MARGEN_DE_RENOVACION_S) {
+      refrescarSesion().then(programarRenovacionDeSesion, () => {})
+    } else {
+      programarRenovacionDeSesion()
+    }
+  })
 }
 
 // APIListResponse compatibility — audit #67 migrated many list endpoints to
@@ -119,6 +161,8 @@ api.interceptors.response.use((res) => {
   // 18-11-2026: tras crear/editar/borrar con éxito se refrescan las pantallas
   // (ver refrescoTrasEscritura.ts); antes cada pantalla lo hacía a mano y fallaba.
   trasEscritura(res?.config?.method, res?.config?.url)
+  // Tras entrar, cambiar de empresa o renovar, la cookie de fin de sesión es nueva.
+  if (/\/auth\/|\/organizations\/.*(switch|entrar|impersonate)/.test(res?.config?.url || '')) programarRenovacionDeSesion()
   return res
 })
 

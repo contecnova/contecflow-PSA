@@ -8,6 +8,7 @@ cambios de comportamiento.
 """
 from __future__ import annotations
 
+import time
 from typing import Optional
 
 from fastapi import Request, Response
@@ -20,6 +21,22 @@ from app.services.auth_service.tokens_y_cookies import (
     REFRESH_COOKIE_PATH,
     REFRESH_COOKIE_PATH_ANTIGUA,
 )
+
+
+#: 19-11-2026: cookie LEGIBLE (no httpOnly) con el instante (segundos epoch) en
+#: que caduca la cookie de acceso. No lleva nada secreto: solo sirve para que la
+#: pantalla renueve la sesión un poco antes de que caduque, en vez de esperar a
+#: un 401 (que el navegador registra en la consola aunque se recupere solo).
+COOKIE_FIN_DE_SESION = "session_expires_at"
+
+
+def poner_fin_de_sesion(response: Response, segundos: int) -> None:
+    response.set_cookie(COOKIE_FIN_DE_SESION, str(int(time.time()) + int(segundos)), max_age=int(segundos),
+                        httponly=False, samesite="lax", secure=COOKIE_OPTS.get("secure", False), path="/")
+
+
+def quitar_fin_de_sesion(response: Response) -> None:
+    response.delete_cookie(COOKIE_FIN_DE_SESION, path="/")
 
 
 def set_auth_cookies(response: Response, access_token: str, refresh_token: str, db: Optional[Session] = None, org_id: Optional[str] = None) -> None:
@@ -36,6 +53,10 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str, 
         max_age=access_minutes * 60,
         **COOKIE_OPTS,
     )
+    # El token caduca con la duración efectiva (ACCESS_TOKEN_EXPIRE con el tope
+    # ACCESS_TOKEN_MAX), que puede ser menor que la vida de la cookie.
+    from app.core.security import _token_ttl_minutes
+    poner_fin_de_sesion(response, min(access_minutes, _token_ttl_minutes(db, org_id)) * 60)
     # Audit (Sprint 3-4): refresh cookie is only ever sent to the dedicated
     # refresh endpoint via same-origin XHR, so SameSite=Strict is safe here and
     # blocks it from riding along on any cross-site navigation.

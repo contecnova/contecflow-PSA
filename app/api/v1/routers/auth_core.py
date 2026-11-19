@@ -458,6 +458,8 @@ def logout(
     )
     _svc.commit_db(db)
     response.delete_cookie("access_token", **_COOKIE_OPTS)
+    from app.api.cookies_de_sesion import quitar_fin_de_sesion
+    quitar_fin_de_sesion(response)
     response.delete_cookie("refresh_token", path=_svc.REFRESH_COOKIE_PATH, **_COOKIE_OPTS)
     response.delete_cookie("refresh_token", path=_svc.REFRESH_COOKIE_PATH_ANTIGUA, **_COOKIE_OPTS)
     return {"detail": "Sesión cerrada correctamente"}

@@ -222,4 +222,12 @@ def impersonate(org_id: str, payload: EntrarComoIn, response: Response, db: Sess
     # `{"data": ...}`, sin el `meta` del sobre. La cookie va
     # en la `Response` que FastAPI inyecta y el cuerpo es un `APIResponse`.
     response.set_cookie("access_token", token, **COOKIE_OPTS)
+    # 19-11-2026: el fin de ESTA sesión (la de entrar como), para que la pantalla
+    # no la renueve antes de tiempo con el refresco del superadmin.
+    import time as _time
+    from app.api.cookies_de_sesion import poner_fin_de_sesion
+    from app.core.security import decode_token
+    _exp = (decode_token(token) or {}).get("exp")
+    if _exp:
+        poner_fin_de_sesion(response, max(1, int(_exp) - int(_time.time())))
     return APIResponse.ok(data={"ok": True, "user": usuario.email})

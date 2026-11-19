@@ -2550,3 +2550,17 @@ Al guardar (`set_runtime_value`) cada umbral se valida: rango de su métrica (NP
 **GRC.** Los cambios de umbral pasan por `set_runtime_value`: quedan en el registro de cambios de ajustes (actor, IP, valor anterior y nuevo) y sólo los escribe `require_admin`, por empresa. Los umbrales no son datos personales ni sensibles, por eso salen a cualquier sesión (`Audiencia.SESION`) y al portal; no cambian retenciones ni privilegios.
 
 Tests: `tests/test_umbrales_por_metrica_2026_11_19.py` (regla, defectos, por empresa, validación, aprobaciones, CPI, burnout, `/settings/org-defaults`, y que `utils/umbrales.ts` tiene las mismas métricas y defectos) y `frontend/src/utils/umbrales.test.ts`.
+
+## Renovación anticipada de la sesión (19-11-2026)
+
+El backend deja, junto a la cookie de acceso (httpOnly), una cookie **legible** `session_expires_at`
+con el instante (segundos epoch) en que caduca la sesión de acceso (`app/api/cookies_de_sesion.py`,
+`poner_fin_de_sesion`; también al «entrar como» de un superadmin, con el fin de ESA sesión). No
+lleva nada secreto. El cliente HTTP (`frontend/src/services/api/_core.ts`,
+`programarRenovacionDeSesion`) renueva la sesión 60 s antes y vuelve a programarse tras cada
+login, refresco o cambio de empresa; al volver a una pestaña dormida, revisa si ya toca. Así la
+siguiente petición no recibe un 401 (que el navegador anotaba en la consola aunque el refresco
+silencioso lo resolviera). Si algo falla, sigue el refresco al recibir un 401. Al cerrar sesión la
+cookie se borra. GRC: no cambia la duración de las sesiones (siguen `ACCESS_TOKEN_EXPIRE_MINUTES`
+con el tope `ACCESS_TOKEN_MAX_MINUTES`, y el refresco rota el token como antes); la cookie nueva
+no identifica a nadie. Tests: `tests/test_fin_de_sesion_legible.py`.
