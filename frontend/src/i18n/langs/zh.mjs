@@ -1896,6 +1896,9 @@ const zh = {
     voice_desc: "语音指令处理",
   },
   git_integration: {
+    conectar_repositorios: "连接代码仓库",
+    sin_conectar_desc: "尚未收到来自 GitHub 或 GitLab 的任何数据。在代码仓库中添加 webhook 后，这里将显示其拉取请求和部署。",
+    sin_conectar_pide: "尚未收到来自 GitHub 或 GitLab 的任何数据。请联系管理员或项目经理连接代码仓库。",
     secreto_label: "签名密钥",
     secreto_puesto: "已为你的公司保存（凭据 → Inbound webhooks → {clave}）。在 webhook 中使用相同的密钥。",
     secreto_falta: "缺少：请在 凭据 → Inbound webhooks → {clave} 中保存。没有它，事件会被拒绝。",

@@ -1760,6 +1760,9 @@ const en = {
                     voice_desc: 'Voice command processing',
                   },
                 git_integration: {
+    conectar_repositorios: "Connect repositories",
+    sin_conectar_desc: "Nothing has arrived from GitHub or GitLab yet. Add the webhook to your repositories and their pull requests and deployments will show up here.",
+    sin_conectar_pide: "Nothing has arrived from GitHub or GitLab yet. Ask an administrator or a PM to connect the repositories.",
     secreto_label: "Signing secret",
     secreto_puesto: "Saved for your company (Credentials → Inbound webhooks → {clave}). Use the same one in the webhook.",
     secreto_falta: "Missing: save it in Credentials → Inbound webhooks → {clave}. Without it, events are rejected.",

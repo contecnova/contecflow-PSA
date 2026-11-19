@@ -2218,6 +2218,9 @@ const es = {
     voice_desc: 'Procesamiento de comandos por voz',
   },
   git_integration: {
+    conectar_repositorios: "Conectar repositorios",
+    sin_conectar_desc: "Aún no ha llegado nada de GitHub ni de GitLab. Da de alta el webhook en tus repositorios y aquí verás sus pull requests y despliegues.",
+    sin_conectar_pide: "Aún no ha llegado nada de GitHub ni de GitLab. Pide a un administrador o a un PM que conecte los repositorios.",
     secreto_label: "Secreto de la firma",
     secreto_puesto: "Guardado para tu empresa (Credenciales → Inbound webhooks → {clave}). Pon el mismo en el webhook.",
     secreto_falta: "Falta: guárdalo en Credenciales → Inbound webhooks → {clave}. Sin él, los eventos se rechazan.",

@@ -7,8 +7,10 @@
  *
  * 19-11-2026: la pestaña «Configuración» (webhooks de GitHub/GitLab, secreto,
  * eventos y pasos) vive en Configuración → Integraciones → Git
- * (`/settings/git`, components/git/ConfigGit.tsx). Aquí queda el botón
- * «Configurar» para quien tiene `proyectos.gobierno` y `?tab=config` redirige.
+ * (`/settings/git`, components/git/ConfigGit.tsx) y `?tab=config` redirige.
+ * 19-11-2026: sin botón «Configurar» en la cabecera (conectar repositorios se
+ * hace una vez, no en el día a día); si aún no ha llegado nada por webhook, el
+ * estado vacío lo explica y, a quien puede (`proyectos.gobierno`), le lleva a configurarlo.
  */
 
 import { useState } from 'react'
@@ -78,6 +80,12 @@ export default function GitPage(): JSX.Element {
   const okDeploys = deploys.filter(d => d.status === 'success').length
   const failDeps  = deploys.filter(d => d.status === 'failure').length
 
+  // Nada recibido todavía por webhook: lo normal es que falte conectar los repositorios.
+  const sinNada = !loadPR && !loadDep && prs.length === 0 && deploys.length === 0
+  const conectar = sinNada && configura
+    ? <Button variant="secondary" icon={<Settings2 size={14} />} onClick={() => navigate('/settings/git')}>{t('git_integration.conectar_repositorios')}</Button>
+    : undefined
+
   const pestanas = [
     { id: 'prs', label: t('git_integration.tab_prs', { count: prs.length }), icon: <GitPullRequest size={14} /> },
     { id: 'deps', label: t('git_integration.tab_deploys', { count: deploys.length }), icon: <Rocket size={14} /> },
@@ -90,9 +98,6 @@ export default function GitPage(): JSX.Element {
       icon={<GitBranch size={18} />}
       title={t('nav.git')}
       subtitle={t('git_integration.subtitle')}
-      actions={configura ? (
-        <Button variant="secondary" icon={<Settings2 size={14} />} onClick={() => navigate('/settings/git')}>{t('ajustes.configurar')}</Button>
-      ) : undefined}
     >
       <div className="ds-grid-stats">
         <KpiCard icon={<GitPullRequest size={14} />} label={t('git_integration.kpi_prs_open')} value={openPRs} />
@@ -106,7 +111,9 @@ export default function GitPage(): JSX.Element {
       {/* PR table */}
       {tab === 'prs' && (
         loadPR ? <Spinner /> : prs.length === 0 ? (
-          <EmptyState icon={<GitPullRequest size={28} />} title={t('git_integration.empty_prs_title')} description={t('git_integration.empty_prs_desc')} />
+          <EmptyState icon={<GitPullRequest size={28} />} title={t('git_integration.empty_prs_title')}
+            description={sinNada ? t(configura ? 'git_integration.sin_conectar_desc' : 'git_integration.sin_conectar_pide') : t('git_integration.empty_prs_desc')}
+            action={conectar} />
         ) : (
           <div className="gitp-card-2">
             <Table
@@ -146,7 +153,9 @@ export default function GitPage(): JSX.Element {
       {/* Deployments table */}
       {tab === 'deps' && (
         loadDep ? <Spinner /> : deploys.length === 0 ? (
-          <EmptyState icon={<Rocket size={28} />} title={t('git_integration.empty_deploys_title')} description={t('git_integration.empty_deploys_desc')} />
+          <EmptyState icon={<Rocket size={28} />} title={t('git_integration.empty_deploys_title')}
+            description={sinNada ? t(configura ? 'git_integration.sin_conectar_desc' : 'git_integration.sin_conectar_pide') : t('git_integration.empty_deploys_desc')}
+            action={conectar} />
         ) : (
           <div className="gitp-card-2">
             <Table

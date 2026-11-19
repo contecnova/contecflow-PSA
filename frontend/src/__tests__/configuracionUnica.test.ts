@@ -116,7 +116,8 @@ describe('configuración que salió de los módulos (19-11-2026)', () => {
       const src = leer(modulo)
       expect(src, modulo).not.toMatch(/id: '(config|overview)'/)
       expect(src, modulo).toContain(`'/settings/${id}'`)
-      expect(src, modulo).toMatch(/\b(t|traducir)\('ajustes\.configurar'\)/)
+      // Git (19-11-2026): sin botón en la cabecera; «Conectar repositorios» en el estado vacío.
+      expect(src, modulo).toMatch(/\b(t|traducir)\('(ajustes\.configurar|git_integration\.conectar_repositorios)'\)/)
       expect(src, modulo).toContain(`puede('${capacidad}')`)
       // El formulario ya no vive en el módulo.
       expect(leer(seccion).length).toBeGreaterThan(0)
