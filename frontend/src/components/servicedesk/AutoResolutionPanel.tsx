@@ -13,14 +13,22 @@
  * los títulos y botones (⚙️ 📊 🩺 📋 ⚡ 💬 ▶ 🔒 👍 👎), textos fijos en
  * castellano (estado del proceso, «de todos los tickets», «Excelente»...) y
  * jerga («bucket», «job», «feedback»). Las fechas usan el formateador del idioma.
+ *
+ * 19-11-2026: la tarjeta «Configuración» (umbrales, cierre automático,
+ * ventana de validación, lote) vive en Configuración → Service desk →
+ * Autorresolución (`/settings/sd-autorresolucion`, ConfigAutoResolucion.tsx).
+ * Aquí queda el botón «Configurar» para quien tiene `sd.administrar`; el lote
+ * de «Ejecutar» se sigue leyendo de la configuración guardada.
  */
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { CSSProperties, ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, History, Lock, MessageSquareText, Play, Settings2, ShieldCheck, ThumbsDown, ThumbsUp, Activity, Layers, Gauge } from 'lucide-react'
 import { autoResolutionApi, ticketsApi } from '../../services/api'
 import type { ConfigDeAutoResolucion, EstadisticasDeAutoResolucion } from '../../services/api/tipos-analitica'
 import { Card, Button, Pulsable, Spinner, Modal, KpiCard, Input, Section, EmptyState } from '../ui'
+import { useAuth } from '../../context/AuthContext'
 import StatusBadge from '../ui/StatusBadge'
 import type { StatusBadgeKind } from '../ui/StatusBadge'
 import { useToast } from '../../context/ToastContext'
@@ -103,16 +111,16 @@ export default function AutoResolutionPanel() {
   const qc = useQueryClient()
   const [feedbackTicketId, setFeedbackTicketId] = useState<string | null>(null)
   const [buscado, setBuscado] = useState('')
-  const [cfgDraft, setCfgDraft] = useState<AutoResolutionConfig | null>(null)
+  const navigate = useNavigate()
+  const configura = useAuth().puede('sd.administrar')
 
-  const { data: config, isLoading: configLoading } = useQuery<AutoResolutionConfig>({
+  // Solo para el lote de «Ejecutar»; la configuración se edita en Configuración.
+  // El GET es solo admin: sin la capacidad no se pide (antes daba 403).
+  const { data: config } = useQuery<AutoResolutionConfig>({
     queryKey: ['sd-auto-resolution-config'],
     queryFn: () => autoResolutionApi.getConfig().then(r => r.data),
+    enabled: configura,
   })
-
-  useEffect(() => {
-    if (config) setCfgDraft(config)
-  }, [config])
 
   const { data: stats, isLoading: statsLoading } = useQuery<AutoResolutionStats>({
     queryKey: ['sd-auto-resolution-stats'],
@@ -121,7 +129,7 @@ export default function AutoResolutionPanel() {
   })
 
   const { mutate: runJob, isPending: runningJob } = useMutation({
-    mutationFn: () => autoResolutionApi.runJob({ run_async: true, limit: cfgDraft?.default_job_limit ?? 25 }),
+    mutationFn: () => autoResolutionApi.runJob({ run_async: true, limit: config?.default_job_limit ?? 25 }),
     onSuccess: (res) => {
       const r = res.data
       if (r.status === 'queued') {
@@ -146,21 +154,6 @@ export default function AutoResolutionPanel() {
     onError: (e) => toast.error(errMsg(e, t('autoresolution.error_cierre'))),
   })
 
-  const { mutate: saveConfig, isPending: savingConfig } = useMutation({
-    mutationFn: () => autoResolutionApi.patchConfig({
-      threshold_auto: Number(cfgDraft?.threshold_auto ?? 0.85),
-      threshold_suggest: Number(cfgDraft?.threshold_suggest ?? 0.65),
-      auto_close_hours_after_resolution: Number(cfgDraft?.auto_close_hours_after_resolution ?? 72),
-      validation_window_hours: Number(cfgDraft?.validation_window_hours ?? 48),
-      default_job_limit: Number(cfgDraft?.default_job_limit ?? 25),
-    }),
-    onSuccess: () => {
-      toast.success(t('autoresolution.configuracion_de_auto_resolucion_guardada'))
-      qc.invalidateQueries({ queryKey: ['sd-auto-resolution-config'] })
-    },
-    onError: (e) => toast.error(errMsg(e, t('autoresolution.error_guardar'))),
-  })
-
   const successRate = stats?.overall_success_rate
   const buckets = stats?.per_bucket ?? []
   const topBuckets = buckets.slice(0, 6)
@@ -179,11 +172,13 @@ export default function AutoResolutionPanel() {
     return prio ? `${categoria} · ${etiquetaCodigo(t, 'estado', prio)}` : categoria
   }
 
-  const setNum = (k: keyof ConfigDeAutoResolucion) => (e: { target: { value: string } }) =>
-    setCfgDraft(prev => ({ ...prev, [k]: Number(e.target.value) }))
-
   return (
     <div className="u-stack-16">
+      {configura && (
+        <div className="u-row-end">
+          <Button variant="secondary" icon={<Settings2 size={14} />} onClick={() => navigate('/settings/sd-autorresolucion')}>{t('ajustes.configurar')}</Button>
+        </div>
+      )}
       {/* Resultados */}
       {statsLoading ? <div className="arp-cargando"><Spinner /></div> : (
         <div className="ds-grid-stats">
@@ -290,44 +285,6 @@ export default function AutoResolutionPanel() {
               {t('autoresolution.dar_feedback')}
             </Button>
           </div>
-        </Section>
-      </Card>
-
-      {/* Configuración */}
-      <Card>
-        <Section title={<Titulo icon={<Settings2 size={16} aria-hidden />}>{t('autoresolution.titulo_config')}</Titulo>}
-          subtitle={t('autoresolution.desc_config')}>
-          {configLoading || !cfgDraft ? <Spinner /> : (
-            <div className="u-stack-16">
-              <div className="arp-config">
-                <div className="ui-field">
-                  <label className="campo-etiqueta" htmlFor="arp-umbral-auto">{t('autoresolution.umbral_auto_resolver')}</label>
-                  <div className="arp-rango">
-                    <input id="arp-umbral-auto" type="range" min="0" max="1" step="0.01" className="arp-rango__input"
-                      value={cfgDraft.threshold_auto ?? 0.85} onChange={setNum('threshold_auto')} />
-                    <span className="arp-rango__valor">{Math.round((cfgDraft.threshold_auto ?? 0.85) * 100)} %</span>
-                  </div>
-                </div>
-                <div className="ui-field">
-                  <label className="campo-etiqueta" htmlFor="arp-umbral-sug">{t('autoresolution.umbral_sugerencia')}</label>
-                  <div className="arp-rango">
-                    <input id="arp-umbral-sug" type="range" min="0" max="1" step="0.01" className="arp-rango__input"
-                      value={cfgDraft.threshold_suggest ?? 0.65} onChange={setNum('threshold_suggest')} />
-                    <span className="arp-rango__valor">{Math.round((cfgDraft.threshold_suggest ?? 0.65) * 100)} %</span>
-                  </div>
-                </div>
-                <Input label={t('autoresolution.horas_para_auto_cierre')} type="number"
-                  value={cfgDraft.auto_close_hours_after_resolution ?? 72} onChange={setNum('auto_close_hours_after_resolution')} />
-                <Input label={t('autoresolution.ventana_validacion_horas')} type="number"
-                  value={cfgDraft.validation_window_hours ?? 48} onChange={setNum('validation_window_hours')} />
-                <Input label={t('autoresolution.lote_por_ejecucion_manual')} type="number"
-                  value={cfgDraft.default_job_limit ?? 25} onChange={setNum('default_job_limit')} />
-              </div>
-              <div className="u-actions-8">
-                <Button onClick={() => saveConfig()} loading={savingConfig}>{t('autoresolution.guardar_configuracion')}</Button>
-              </div>
-            </div>
-          )}
         </Section>
       </Card>
 

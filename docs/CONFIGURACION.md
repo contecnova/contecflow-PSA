@@ -65,9 +65,13 @@ Reorganizada el 18-11-2026. El estado de antes, medido, está en
 | | `project-workflows` Flujos de estado | admin, pm | `/settings/project-workflows` |
 | | `custom-fields` Campos personalizados (por proyecto / globales) | admin, pm (globales: admin) | `/custom-fields` + pestaña «Campos extra» |
 | | `project-permissions` Permisos de proyecto | admin, pm | `/project-permissions` |
+| | `cartera` Entrada a la cartera: criterios de puntuación y fases (stage-gate) | admin, pm (`cartera.gestionar`) | Entrada a la cartera → pestaña Configuración (19-11-2026) |
 | Service desk | `sd` Service desk (17 subapartados) | admin; pm, team_lead y hr solo respuestas rápidas | Service desk → pestaña Configuración |
 | | `sla-calendars` Calendarios de SLA | admin, pm | `/sla-calendars` |
 | | `sd-workflows` Diseñador de flujos (abre `/sd/workflow-designer`) | admin, pm | entrada del menú Soporte |
+| | `sd-agente` Agente autónomo: encendido, modo, umbrales, playbooks de serie | admin (`sd.administrar`) | Herramientas → Agente → pestaña Configuración (19-11-2026; antes la veía el equipo en solo lectura) |
+| | `sd-autorresolucion` Autorresolución: umbrales, cierre automático, validación, lote | admin (`sd.administrar`) | Herramientas → Autorresolución → tarjeta Configuración (19-11-2026) |
+| | `sd-voz` Agente de voz: saludo, idioma, silencio, teclas, palabras clave | admin (`sd.administrar`) | Herramientas → Voz → pestaña Configuración (19-11-2026) |
 | Finanzas | `rates` Tarifas | admin, pm | `/rate-cards` + pestaña «Tarifas» |
 | | `user-costs` Estructura de coste | admin, hr | `/user-costs` |
 | Aprobaciones y políticas | `approval-workflows` Flujos de aprobación | admin | `/settings/approval-workflows` (pm y team_lead lo veían; las escrituras son de admin) |
@@ -76,9 +80,12 @@ Reorganizada el 18-11-2026. El estado de antes, medido, está en
 | | `ai-governance` Gobierno de IA por módulo | admin | `/governance` |
 | | `idiomas` Idiomas | admin | pestaña |
 | | `traduccion` Traducción | admin | pestaña |
+| | `ia-asignacion` Asignación por IA: modo del motor, embeddings, umbrales, auto-asignación | admin, hr (`ia.asignacion_config`) | `/semantic-engine` → pestaña Configuración (19-11-2026; pm la veía y le daba 403 al guardar) |
 | Integraciones | `integrations` Credenciales | admin | pestaña |
 | | `esign` Firma electrónica | admin | pestaña |
 | | `m365` Microsoft 365 | admin | `/m365` |
+| | `m365-informes` Informes de Microsoft 365: credenciales de Graph para uso y adopción | admin | Plataforma de datos → panel Office 365 → pestaña Configuración (19-11-2026) |
+| | `git` Git: webhooks de GitHub y GitLab, secreto, eventos, pasos (solo lectura) | admin, pm (`proyectos.gobierno`) | `/git` → pestaña Configuración (19-11-2026) |
 | | `jira` Jira | admin | `/jira-integration` (pm daba 403 al cargar) |
 | | `enterprise` SSO, webhooks y OAuth | admin | `/enterprise` |
 | | `webhook-log` Registro de webhooks | admin | `/webhook-log` |
@@ -93,14 +100,40 @@ Reorganizada el 18-11-2026. El estado de antes, medido, está en
 | Alertas y métricas | `alert-config` Alertas · `metrics` Métricas | admin | pestañas |
 | Sistema | `runtime-flags` Config. dinámica · `log-level` · `system-state` | admin | pestañas |
 
-Son 12 grupos y 47 secciones.
+Son 12 grupos y 67 secciones (19-11-2026, contadas en el catálogo; la tabla
+muestra las de la reorganización y las movidas después).
 
 **Se quedan en su módulo, porque son trabajo del día a día y no ajustes:**
 
 - El cuadrante de turnos y el mapa de cobertura pasan de Configuración de
   ausencias a pestañas de Ausencias, para admin y RRHH.
 - Las herramientas del service desk (asignación, autorresolución, correlación,
-  agente).
+  agente, voz) en su parte operativa: cifras, ejecutar, valorar, registro y
+  propuestas del agente, playbooks y sesiones de llamada. Su configuración salió
+  el 19-11-2026 (`sd-agente`, `sd-autorresolucion`, `sd-voz`).
+- Asignación IA: perfiles, prueba y estadísticas, y «Reconstruir embeddings» y
+  «Auto-generar perfiles» (son acciones, no ajustes).
+- Git: pull requests y despliegues. Entrada a la cartera: las propuestas.
+  Plataforma de datos: informes y adopción de Office 365 y «Sincronizar».
+
+**Configuración que no es global y por eso no se mueve:**
+
+- **Portal de cada cliente** (`pages/clients/ClientsPageTabs.tsx`, ficha del
+  cliente → Portal → subpestaña Configuración): es un dato de ese cliente (qué
+  ve su portal), no un ajuste de la empresa. Vive con el cliente, como sus
+  contactos o contratos.
+- **Microsoft 365** (`pages/M365Page.tsx`, pestaña Configuración): la página
+  entera ya está montada dentro de Configuración (`/settings/m365`); su pestaña
+  es una guía y el estado de las variables de entorno de la instalación, no un
+  formulario. No se unifica con `m365-informes`: aquella son variables de
+  entorno (calendario, hitos, Teams) y esta credenciales de Graph por empresa
+  guardadas cifradas (`bi_o365_service`) para los informes de uso. Son dos
+  almacenes distintos y pueden ser dos aplicaciones de Entra distintas. Por
+  eso son dos secciones seguidas en Integraciones.
+- **Conectores y fuentes con su propio «Configurar»** (Plataforma de datos →
+  ETL `BiEtlPanel`, ALM → Uso → Fuentes `FuentesPanel`): cada uno configura esa
+  conexión concreta (un objeto que se da de alta y de baja), igual que una
+  integración OAuth. Se quedan junto a su lista.
 - La bandeja de aprobaciones (`/approvals`).
 - Los informes del AI Hub siguen dentro de su sección, porque son de la misma
   pantalla.
@@ -135,6 +168,25 @@ Son 12 grupos y 47 secciones.
 - `/absences?tab=config` lleva a `/settings/ausencias`.
 - `/overtime?tab=config` lleva a `/settings/horas-extra`.
 - `/service-desk?tab=config[&sub=x]` lleva a `/settings/sd[?sub=x]`.
+- `/git?tab=config` lleva a `/settings/git` (19-11-2026).
+- `/portfolio/intake?tab=config` lleva a `/settings/cartera` (19-11-2026).
+- `/semantic-engine?tab=config` (o `?tab=overview`, el id que tenía) lleva a
+  `/settings/ia-asignacion` (19-11-2026).
+- Las pestañas de los paneles (Office 365 en Plataforma de datos; Agente, Voz y
+  Autorresolución en Service desk → Herramientas) no tenían URL propia: no hay
+  nada que redirigir. Cada panel enseña «Configurar» a quien tiene la capacidad.
+
+**GRC de lo movido el 19-11-2026.** Cada sección pide la capacidad que coincide
+con la guarda del backend (mínimo privilegio): quien no puede guardar ya no ve
+el formulario (antes el equipo veía la configuración del agente en solo lectura
+y pm la de Asignación IA, con 403 al guardar). Auditoría: Entrada a la cartera
+(`portfolio_criterion`, `portfolio_gate`) y Agente autónomo
+(`sd_autonomous_agent`) ya se auditaban. **No se auditaban** Voz, Autorresolución
+e informes de Microsoft 365; desde ahora sí: `sd_voice_config`,
+`sd_auto_resolution_config` y `bi_o365_config` con antes y después (el secreto de
+Graph nunca: `get_config` solo da `secret_puesto`, y `metadata.secreto_cambiado`
+dice si se cambió). Git es solo lectura (el secreto se pone en Credenciales).
+Test: `tests/test_configuracion_movida_auditada.py`.
 
 **Enlaces del backend.** Los de `app/services/puesta_en_marcha.py` apuntan ya a
 las secciones nuevas.

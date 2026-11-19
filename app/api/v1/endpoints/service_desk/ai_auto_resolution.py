@@ -315,7 +315,16 @@ def update_auto_resolution_config_endpoint(
         raise error_http(403, "solo_admin", detail="Admin only")
 
     payload = body.model_dump(exclude_unset=True)
-    cfg = guardar_configuracion(db, payload, _organizacion_de(current_user))
+    org = _organizacion_de(current_user)
+    # 19-11-2026 (la configuración pasa a Configuración → Service desk →
+    # Autorresolución): el cambio queda en la auditoría con antes y después;
+    # antes no dejaba rastro.
+    import copy
+    from app.services.audit import auditar_y_confirmar
+    antes = copy.deepcopy(get_auto_resolution_config(db, org))
+    cfg = guardar_configuracion(db, payload, org)
+    auditar_y_confirmar(db, current_user, "UPDATE", "sd_auto_resolution_config", org,
+                        old_values=antes, new_values=cfg)
     return APIResponse.ok(data=cfg)
 
 

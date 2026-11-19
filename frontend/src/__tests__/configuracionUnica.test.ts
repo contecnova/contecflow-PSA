@@ -86,3 +86,62 @@ describe('catálogo de Configuración', () => {
     }
   })
 })
+
+// 19-11-2026: pestañas de configuración que quedaban en módulos, movidas a Configuración.
+describe('configuración que salió de los módulos (19-11-2026)', () => {
+  const leer = (f: string) => readFileSync(resolve(raiz, f), 'utf8')
+  // [sección, grupo, capacidad, fichero del módulo, componente de la sección]
+  const MOVIDAS: Array<[string, string, Capacidad, string, string]> = [
+    ['git', 'integraciones', 'proyectos.gobierno', 'pages/GitPage.tsx', 'components/git/ConfigGit.tsx'],
+    ['cartera', 'proyectos', 'cartera.gestionar', 'pages/CarteraIntakePage.tsx', 'components/cartera/ConfigCartera.tsx'],
+    ['m365-informes', 'integraciones', 'org.administrar', 'components/bi/BiO365Panel.tsx', 'components/bi/ConfigBiO365.tsx'],
+    ['sd-agente', 'servicedesk', 'sd.administrar', 'components/servicedesk/AgenteAutonomoPanel.tsx', 'components/servicedesk/ConfigAgenteAutonomo.tsx'],
+    ['sd-voz', 'servicedesk', 'sd.administrar', 'components/servicedesk/VoiceAgentPanel.tsx', 'components/servicedesk/ConfigAgenteDeVoz.tsx'],
+    ['sd-autorresolucion', 'servicedesk', 'sd.administrar', 'components/servicedesk/AutoResolutionPanel.tsx', 'components/servicedesk/ConfigAutoResolucion.tsx'],
+    ['ia-asignacion', 'ia', 'ia.asignacion_config', 'pages/SemanticEnginePage.tsx', 'components/asignacion-ia/ConfigMotorSemantico.tsx'],
+  ]
+
+  it('cada una es una sección de su grupo, con su capacidad', () => {
+    for (const [id, grupo, capacidad] of MOVIDAS) {
+      const s = SECCIONES_DE_AJUSTES.find(x => x.id === id)
+      expect(s, id).toBeTruthy()
+      expect(s!.grupo, id).toBe(grupo)
+      expect(s!.capacidad, id).toBe(capacidad)
+      expect(s!.componente, id).toBeTruthy()
+    }
+  })
+
+  it('el módulo ya no tiene la pestaña: solo el botón «Configurar» hacia su sección', () => {
+    for (const [id, , capacidad, modulo, seccion] of MOVIDAS) {
+      const src = leer(modulo)
+      expect(src, modulo).not.toMatch(/id: '(config|overview)'/)
+      expect(src, modulo).toContain(`'/settings/${id}'`)
+      expect(src, modulo).toMatch(/\b(t|traducir)\('ajustes\.configurar'\)/)
+      expect(src, modulo).toContain(`puede('${capacidad}')`)
+      // El formulario ya no vive en el módulo.
+      expect(leer(seccion).length).toBeGreaterThan(0)
+    }
+  })
+
+  it('los enlaces con ?tab=config de las páginas redirigen a la sección', () => {
+    for (const [id, f] of [['git', 'pages/GitPage.tsx'], ['cartera', 'pages/CarteraIntakePage.tsx'], ['ia-asignacion', 'pages/SemanticEnginePage.tsx']]) {
+      expect(leer(f), f).toMatch(new RegExp(`<Navigate to="/settings/${id}" replace />`))
+    }
+  })
+
+  it('cada rol ve solo las que el backend le deja guardar', () => {
+    const pm = visiblesPara('pm')
+    expect(pm).toEqual(expect.arrayContaining(['git', 'cartera']))
+    for (const id of ['m365-informes', 'sd-agente', 'sd-voz', 'sd-autorresolucion', 'ia-asignacion']) expect(pm).not.toContain(id)
+    const rrhh = visiblesPara('hr')
+    expect(rrhh).toContain('ia-asignacion')
+    for (const id of ['git', 'cartera', 'm365-informes', 'sd-agente', 'sd-voz', 'sd-autorresolucion']) expect(rrhh).not.toContain(id)
+    expect(visiblesPara('team_lead')).not.toContain('git')
+    expect(visiblesPara('admin')).toEqual(expect.arrayContaining(MOVIDAS.map(m => m[0])))
+  })
+
+  it('no se movieron: el portal de cada cliente (dato del cliente) ni Microsoft 365 (ya montado en Configuración)', () => {
+    expect(leer('pages/clients/ClientsPageTabs.tsx')).toContain("{ id: 'config'")
+    expect(SECCIONES_DE_AJUSTES.find(s => s.id === 'm365')?.rutaAntigua).toBe('/m365')
+  })
+})

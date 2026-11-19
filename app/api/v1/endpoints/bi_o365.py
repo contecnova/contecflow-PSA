@@ -70,10 +70,22 @@ def o365_save_config(
     _rol: User = Depends(require_admin),  # auditoria 2026-09: sensible: credenciales de Microsoft 365
 ):
     org_id = getattr(current_user, "organization_id", None)
+    org = str(org_id) if org_id else None
+    datos = body.model_dump(exclude_none=True)
+    # 19-11-2026 (la configuración pasa a Configuración → Integraciones →
+    # Informes de Microsoft 365): el cambio de credenciales queda en la
+    # auditoría; antes no dejaba rastro. `get_config` nunca devuelve el secreto
+    # (solo `secret_puesto`), y del secreto nuevo solo se anota que cambió.
+    from app.services.audit import auditar_y_confirmar
+    antes = get_config(db, org)
     try:
-        return APIResponse.ok(data=save_config(db, str(org_id) if org_id else None, body.model_dump(exclude_none=True)))
+        despues = save_config(db, org, datos)
     except ValueError as exc:
         raise desde_valor(400, exc)
+    auditar_y_confirmar(db, current_user, "UPDATE", "bi_o365_config", org,
+                        old_values=antes, new_values=despues,
+                        metadata={"secreto_cambiado": bool((datos.get("client_secret") or "").strip())})
+    return APIResponse.ok(data=despues)
 
 
 @router.post("/sync", summary="Sincronizar datos de uso O365 desde Graph API")

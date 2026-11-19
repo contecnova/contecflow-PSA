@@ -83,8 +83,18 @@ def update_ivr_config(
     _rol: User = Depends(require_admin),  # auditoria 2026-09: configuracion: la forma de la ruta manda sobre el fichero
 ):
     org_id = getattr(current_user, "organization_id", None)
+    org = str(org_id) if org_id else None
     updates = body.model_dump(exclude_none=True)
-    return APIResponse.ok(data=update_config(db, str(org_id) if org_id else None, updates))
+    # 19-11-2026 (la configuración pasa a Configuración → Service desk → Agente
+    # de voz): el cambio queda en la auditoría con antes y después; antes no
+    # dejaba rastro. La config no lleva secretos.
+    import copy
+    from app.services.audit import auditar_y_confirmar
+    antes = copy.deepcopy(get_config(db, org))
+    despues = update_config(db, org, updates)
+    auditar_y_confirmar(db, current_user, "UPDATE", "sd_voice_config", org,
+                        old_values=antes, new_values=despues)
+    return APIResponse.ok(data=despues)
 
 
 @router.post("/sessions", summary="Crear nueva sesión de llamada de voz", status_code=201)

@@ -9,23 +9,29 @@
  *
  * 16-11-2026 (pasada de diseño): pestañas normales (eran subrayadas), vacío
  * con icono y el tipo de guía con su nombre (salía el código).
+ *
+ * 19-11-2026: la pestaña «Configuración» vive en Configuración → Service desk →
+ * Agente autónomo (`/settings/sd-agente`, ConfigAgenteAutonomo.tsx). Aquí
+ * quedan el registro y los playbooks, y el botón «Configurar» para quien
+ * tiene `sd.administrar`.
  */
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bot, Check, Play, Plus, Trash2, X } from 'lucide-react'
+import { Bot, Check, Plus, Settings2, Trash2, X } from 'lucide-react'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import { confirmar } from '../../context/ConfirmContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { Button, Checkbox, EmptyState, GrupoDeOpciones, KpiCard, Modal, Section, Select, Spinner, StatusBadge, Switch, Tabs, useErroresDeCampo } from '../ui'
+import { Button, Checkbox, EmptyState, KpiCard, Modal, Section, Select, Spinner, StatusBadge, Tabs, useErroresDeCampo } from '../ui'
 import type { StatusBadgeKind } from '../ui/StatusBadge'
 import Pagination from '../ui/Pagination'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { fmtDate } from '../../utils/helpers'
 import { agenteAutonomoApi } from '../../services/api/serviceDeskMercado'
-import type { ConfigDelAgente, PasoDePlaybook, Playbook } from '../../services/api/serviceDeskMercado'
+import type { PasoDePlaybook, Playbook } from '../../services/api/serviceDeskMercado'
 import './sdMercado.css'
 
 const TAMANO = 25
@@ -40,17 +46,19 @@ export default function AgenteAutonomoPanel() {
   const [vista, setVista] = useState('registro')
   const { puede } = useAuth()
   const esAdmin = puede('sd.administrar')
+  const navigate = useNavigate()
   return (
     <Section title={<span className="u-row-center-6"><Bot size={16} aria-hidden="true" />{t('sd_mercado.agente_titulo')}</span>}
-      subtitle={t('sd_mercado.agente_desc')}>
+      subtitle={t('sd_mercado.agente_desc')}
+      actions={esAdmin ? (
+        <Button size="sm" variant="secondary" icon={<Settings2 size={14} />} onClick={() => navigate('/settings/sd-agente')}>{t('ajustes.configurar')}</Button>
+      ) : undefined}>
       <Tabs active={vista} onChange={setVista} ariaLabel={t('sd_mercado.agente_titulo')} items={[
         { id: 'registro', label: t('sd_mercado.agente_registro') },
         { id: 'playbooks', label: t('sd_mercado.agente_playbooks') },
-        { id: 'config', label: t('sd_mercado.agente_config') },
       ]} />
       {vista === 'registro' && <Registro />}
       {vista === 'playbooks' && <Playbooks esAdmin={esAdmin} />}
-      {vista === 'config' && <Configuracion esAdmin={esAdmin} />}
     </Section>
   )
 }
@@ -131,61 +139,6 @@ function Registro() {
         </ul>
       )}
       <Pagination page={page} totalPages={Math.max(1, Math.ceil(total / TAMANO))} onChange={setPage} total={total} pageSize={TAMANO} />
-    </div>
-  )
-}
-
-function Configuracion({ esAdmin }: { esAdmin: boolean }) {
-  const t = useAppT()
-  const toast = useToast()
-  const qc = useQueryClient()
-  const { data, isLoading } = useQuery({ queryKey: ['sdm-agente-config'], queryFn: agenteAutonomoApi.config })
-  const [form, setForm] = useState<ConfigDelAgente | null>(null)
-  useEffect(() => { if (data) setForm(data) }, [data])
-  const guardar = useMutation({
-    mutationFn: (f: ConfigDelAgente) => agenteAutonomoApi.guardarConfig({
-      enabled: f.enabled, mode: f.mode, resolve_threshold: f.resolve_threshold, suggest_threshold: f.suggest_threshold,
-      disabled_playbooks: f.disabled_playbooks,
-    }),
-    onSuccess: d => { setForm(d); qc.invalidateQueries({ queryKey: ['sdm-agente-config'] }); qc.invalidateQueries({ queryKey: ['sdm-agente-playbooks'] }); toast.success(t('sd_mercado.guardado')) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
-  })
-  const pasar = useMutation({
-    mutationFn: agenteAutonomoApi.pasarAhora,
-    onSuccess: r => { toast.success(t('sd_mercado.pasada_hecha', { n: r.evaluated ?? 0 })); qc.invalidateQueries({ queryKey: ['sdm-agente-log'] }) },
-    onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
-  })
-  if (isLoading || !form) return <Spinner />
-  const set = (p: Partial<ConfigDelAgente>) => setForm({ ...form, ...p })
-  return (
-    <div className="u-stack-12">
-      {!esAdmin && <div className="u-text3-xs">{t('sd_mercado.solo_admin')}</div>}
-      {/* 16-11-2026: casillas y radios como tarjetas del kit (ds-opcion), no
-          fieldsets con el borde del navegador. */}
-      <div className="ds-opciones">
-        <Switch checked={!!form.enabled} disabled={!esAdmin} onChange={v => set({ enabled: v })} label={t('sd_mercado.agente_encendido')} />
-      </div>
-      <GrupoDeOpciones name="sdm-modo" leyenda={t('sd_mercado.modo_titulo')} disabled={!esAdmin} valor={form.mode}
-        onChange={m => set({ mode: m as typeof form.mode })}
-        opciones={form.modes.map(m => ({ valor: m, titulo: etiquetaCodigo(t, 'sd_mercado.modo', m), ayuda: t(`sd_mercado.modo_desc_${m}`) }))} />
-      <div className="sdm-form">
-        <label className="sdm-field"><span>{t('sd_mercado.umbral_resolver')}</span>
-          <input className="ds-input" type="number" min={0} max={1} step={0.05} disabled={!esAdmin} value={form.resolve_threshold ?? ''}
-            onChange={e => set({ resolve_threshold: e.target.value === '' ? null : Number(e.target.value) })} /></label>
-        <label className="sdm-field"><span>{t('sd_mercado.umbral_sugerir')}</span>
-          <input className="ds-input" type="number" min={0} max={1} step={0.05} disabled={!esAdmin} value={form.suggest_threshold ?? ''}
-            onChange={e => set({ suggest_threshold: e.target.value === '' ? null : Number(e.target.value) })} /></label>
-      </div>
-      <GrupoDeOpciones tipo="checkbox" leyenda={t('sd_mercado.de_serie_titulo')} disabled={!esAdmin}
-        valor={form.builtin_playbooks.filter(id => !form.disabled_playbooks.includes(id))}
-        onChange={activos => set({ disabled_playbooks: [...form.disabled_playbooks.filter(x => !form.builtin_playbooks.includes(x)), ...form.builtin_playbooks.filter(id => !activos.includes(id))] })}
-        opciones={form.builtin_playbooks.map(id => ({ valor: id, titulo: etiquetaCodigo(t, 'sd_mercado.pb', id) }))} />
-      {esAdmin && (
-        <div className="u-actions-8">
-          <Button variant="secondary" icon={<Play size={14} />} onClick={() => pasar.mutate()} loading={pasar.isPending} disabled={!data?.enabled}>{t('sd_mercado.pasar_ahora')}</Button>
-          <Button onClick={() => guardar.mutate(form)} loading={guardar.isPending}>{t('common.save')}</Button>
-        </div>
-      )}
     </div>
   )
 }

@@ -3,7 +3,9 @@
  *
  * Antes la configuración estaba repartida en 23 pestañas de `/settings`, 20
  * pantallas sueltas del menú «Configuración» y pestañas «Configuración» dentro
- * de los módulos (Ausencias, Horas extra, Service desk). Ver
+ * de los módulos (Ausencias, Horas extra, Service desk; el 19-11-2026 también
+ * Git, Entrada a la cartera, Asignación IA, informes de Microsoft 365 y las
+ * herramientas Agente, Autorresolución y Voz del service desk). Ver
  * docs/CONFIGURACION.md (estructura nueva) y docs/CONFIGURACION_INVENTARIO.md
  * (estado medido antes de reorganizar).
  *
@@ -106,11 +108,17 @@ export const SECCIONES_DE_AJUSTES: SeccionDeAjustes[] = [
   { id: 'project-workflows', grupo: 'proyectos', capacidad: 'proyectos.config', componente: pagina(() => import('../WorkflowsPage')) },
   { id: 'custom-fields', grupo: 'proyectos', capacidad: 'proyectos.config', rutaAntigua: '/custom-fields', componente: pagina(() => import('./CamposPersonalizados')) },
   { id: 'project-permissions', grupo: 'proyectos', capacidad: 'proyectos.config', rutaAntigua: '/project-permissions', componente: pagina(() => import('../ProjectPermissionsPage')) },
+  // 19-11-2026: antes pestaña «Configuración» de /portfolio/intake (escritura require_admin_or_pm).
+  { id: 'cartera', grupo: 'proyectos', capacidad: 'cartera.gestionar', envolver: true, componente: pagina(() => import('../../components/cartera/ConfigCartera')) },
 
   // Service desk (las escrituras son require_admin salvo las respuestas rápidas, require_any_manager)
   { id: 'sd', grupo: 'servicedesk', capacidad: 'sd.config', envolver: true, componente: pagina(() => import('../service-desk/ConfigTab')) },
   { id: 'sla-calendars', grupo: 'servicedesk', capacidad: 'sd.disenar_flujos', rutaAntigua: '/sla-calendars', componente: pagina(() => import('../SLACalendarsPage')) },
   { id: 'sd-workflows', grupo: 'servicedesk', capacidad: 'sd.disenar_flujos', enlace: '/sd/workflow-designer' },
+  // 19-11-2026: antes pestañas/tarjetas «Configuración» de Service desk → Herramientas (escritura require_admin).
+  { id: 'sd-agente', grupo: 'servicedesk', capacidad: 'sd.administrar', envolver: true, componente: pagina(() => import('../../components/servicedesk/ConfigAgenteAutonomo')) },
+  { id: 'sd-autorresolucion', grupo: 'servicedesk', capacidad: 'sd.administrar', envolver: true, componente: pagina(() => import('../../components/servicedesk/ConfigAutoResolucion')) },
+  { id: 'sd-voz', grupo: 'servicedesk', capacidad: 'sd.administrar', envolver: true, componente: pagina(() => import('../../components/servicedesk/ConfigAgenteDeVoz')) },
 
   // Finanzas
   { id: 'rates', grupo: 'finanzas', capacidad: 'tarifas.config', rutaAntigua: '/rate-cards', componente: pagina(() => import('../RateCardsPage')) },
@@ -125,11 +133,19 @@ export const SECCIONES_DE_AJUSTES: SeccionDeAjustes[] = [
   { id: 'ai-governance', grupo: 'ia', capacidad: ADMIN, rutaAntigua: '/governance', componente: pagina(() => import('../GovernancePage')) },
   { id: 'idiomas', grupo: 'ia', capacidad: ADMIN, componente: seccionDe('IdiomasSection') },
   { id: 'traduccion', grupo: 'ia', capacidad: ADMIN, componente: pagina(() => import('../settings-sections/TraduccionSection')) },
+  // 19-11-2026: antes pestaña «Configuración» de /semantic-engine (escritura admin y RRHH).
+  { id: 'ia-asignacion', grupo: 'ia', capacidad: 'ia.asignacion_config', envolver: true, componente: pagina(() => import('../../components/asignacion-ia/ConfigMotorSemantico')) },
 
   // Integraciones
   { id: 'integrations', grupo: 'integraciones', capacidad: ADMIN, componente: seccionDe('IntegrationCredentialsSection') },
   { id: 'esign', grupo: 'integraciones', capacidad: ADMIN, componente: seccionDe('ESignSettingsSection') },
   { id: 'm365', grupo: 'integraciones', capacidad: ADMIN, rutaAntigua: '/m365', componente: pagina(() => import('../M365Page')) },
+  // 19-11-2026: antes pestaña «Configuración» del panel Office 365 de la Plataforma de datos.
+  // No se unifica con `m365`: aquella usa variables de entorno de la instalación (calendario, Teams);
+  // esta guarda credenciales de Graph por empresa para los informes de uso (bi_o365_service).
+  { id: 'm365-informes', grupo: 'integraciones', capacidad: ADMIN, envolver: true, componente: pagina(() => import('../../components/bi/ConfigBiO365')) },
+  // 19-11-2026: antes pestaña «Configuración» de /git (solo lectura; GET /git/webhooks es require_admin_or_pm).
+  { id: 'git', grupo: 'integraciones', capacidad: 'proyectos.gobierno', envolver: true, componente: pagina(() => import('../../components/git/ConfigGit')) },
   { id: 'jira', grupo: 'integraciones', capacidad: ADMIN, rutaAntigua: '/jira-integration', componente: pagina(() => import('../JiraIntegrationPage')) },
   { id: 'enterprise', grupo: 'integraciones', capacidad: ADMIN, rutaAntigua: '/enterprise', componente: pagina(() => import('../EnterprisePage')) },
   { id: 'webhook-log', grupo: 'integraciones', capacidad: ADMIN, rutaAntigua: '/webhook-log', componente: pagina(() => import('../WebhookLogPage')) },

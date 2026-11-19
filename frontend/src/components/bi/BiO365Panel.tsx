@@ -5,51 +5,42 @@
  * Revisión 2026-11: el secreto se guarda (cifrado) en vez de teclearlo en cada
  * sincronización; «Sincronizar» enseña lo que pasó con cada informe; la lista
  * de informes viene del servidor; y la adopción ya no pinta «[object Object]».
+ *
+ * 19-11-2026: la pestaña «Configuración» (tenant, client id, secreto, activar)
+ * vive en Configuración → Integraciones → Informes de Microsoft 365
+ * (`/settings/m365-informes`, ConfigBiO365.tsx). Aquí queda el botón
+ * «Configurar» para quien tiene `org.administrar`.
  */
-import React, { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { tooltipDelTema } from '../../constants/estilosGrafico'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biO365Api } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useChartTheme } from '../../charts/useChartTheme'
-import { BarChart3, Cloud, RefreshCw, Settings, Users } from 'lucide-react'
-import { Button, EmptyState, Tabs, Checkbox } from '../ui'
+import { BarChart3, Cloud, RefreshCw, Settings2, Users } from 'lucide-react'
+import { Button, EmptyState, Tabs } from '../ui'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { extractErr, fmtDateTime, localeActivo } from '../../utils/helpers'
+import { extractErr, localeActivo } from '../../utils/helpers'
 import { useToast } from '../../context/ToastContext'
+import { useAuth } from '../../context/AuthContext'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import './BiO365Panel.css'
 
-interface O365ConfigForm {
-  tenant_id: string
-  client_id: string
-  client_secret: string
-  enabled: boolean
-}
-
-
 export default function BiO365Panel() {
-  const idCampo = React.useId()
   const t             = useAppT()
+  const navigate      = useNavigate()
+  const configura     = useAuth().puede('org.administrar')
   const toast         = useToast()
   const { tokens }    = useChartTheme()
   const qc            = useQueryClient()
   const [tab,          setTab]          = useState<string>('reports')
   const [selectedReport, setSelectedReport] = useState<string>('teams_activity')
-  const [configForm,   setConfigForm]   = useState<O365ConfigForm>({ tenant_id: '', client_id: '', client_secret: '', enabled: true })
-  const [configLoaded, setConfigLoaded] = useState<boolean>(false)
 
   const { data: config } = useQuery({
     queryKey: ['bi-o365-config'],
     queryFn:  () => biO365Api.getConfig().then(r => r.data),
   })
-
-  useEffect(() => {
-    if (config && !configLoaded) {
-      setConfigForm({ tenant_id: config.tenant_id, client_id: config.client_id, client_secret: '', enabled: config.enabled })
-      setConfigLoaded(true)
-    }
-  }, [config, configLoaded])
 
   const { data: reportData } = useQuery({
     queryKey: ['bi-o365-report', selectedReport],
@@ -61,16 +52,6 @@ export default function BiO365Panel() {
     queryKey: ['bi-o365-adoption'],
     queryFn:  () => biO365Api.getAdoption().then(r => r.data),
     enabled:  tab === 'adoption',
-  })
-
-  const saveConfigMutation = useMutation({
-    mutationFn: (data: O365ConfigForm) => biO365Api.saveConfig(data).then(r => r.data),
-    onSuccess:  () => {
-      setConfigForm(f => ({ ...f, client_secret: '' }))
-      toast.success(t('bio365.guardado'))
-      qc.invalidateQueries({ queryKey: ['bi-o365-config'] })
-    },
-    onError: (e) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
 
   const syncMutation = useMutation({
@@ -92,7 +73,6 @@ export default function BiO365Panel() {
   const TAB_NAV = [
     { id: 'reports',  label: t('bio365.tab_informes'), icon: <BarChart3 size={14} /> },
     { id: 'adoption', label: t('bio365.tab_adopcion'), icon: <Users size={14} /> },
-    { id: 'config',   label: t('bio365.tab_configuracion'), icon: <Settings size={14} /> },
   ]
 
   return (
@@ -110,6 +90,12 @@ export default function BiO365Panel() {
             <p className="bio3pa-box-2">{t('bio365.productividad_y_adopcion_de_microsoft_365')}</p>
           </div>
         </div>
+        <div className="u-row-center-8">
+        {configura && (
+          <Button size="sm" variant="secondary" icon={<Settings2 size={14} />} onClick={() => navigate('/settings/m365-informes')}>
+            {t('ajustes.configurar')}
+          </Button>
+        )}
         <Button size="sm" variant="secondary" icon={<RefreshCw size={14} />}
           onClick={() => syncMutation.mutate()}
           disabled={syncMutation.isPending || !puedeSincronizar}
@@ -118,6 +104,7 @@ export default function BiO365Panel() {
         >
           {t('bio365.sincronizar')}
         </Button>
+        </div>
       </div>
 
       {/* Tab navigation */}
@@ -182,51 +169,6 @@ export default function BiO365Panel() {
         )
       )}
 
-      {/* Configuración tab */}
-      {tab === 'config' && (
-        <div className="u-stack-14">
-          <div className="u-row-center-8">
-            <Settings size={14} className="bio365pa-sx2" />
-            <span className="u-text1-base-600">
-              {t('bio365.config_graph')}
-            </span>
-          </div>
-          <div className="bio3pa-grid-3">
-            <div>
-              <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="bi-o365-panel-e13">{t('bio365.tenant_id')}</label>
-              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="text" value={configForm.tenant_id} onChange={e => setConfigForm(f => ({ ...f, tenant_id: e.target.value }))} className="bi-o365-panel-e14" />
-            </div>
-            <div>
-              <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="bi-o365-panel-e13">{t('bio365.client_id')}</label>
-              <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="text" value={configForm.client_id} onChange={e => setConfigForm(f => ({ ...f, client_id: e.target.value }))} className="bi-o365-panel-e14" />
-            </div>
-            <div className="u-col-full">
-              <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="bi-o365-panel-e13">
-                {t('bio365.client_secret')}{' '}
-                <span className="bio3pa-txt-3">
-                  {t('bio365.secreto_ayuda')}
-                </span>
-              </label>
-              <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="password" value={configForm.client_secret} onChange={e => setConfigForm(f => ({ ...f, client_secret: e.target.value }))} placeholder={config?.secret_puesto ? t('bio365.secreto_puesto') : ''} autoComplete="off" className="bi-o365-panel-e14" />
-            </div>
-          </div>
-          <div className="bio3pa-row-5">
-            <Checkbox className="bio3pa-row-6" label={t('bio365.sincronizacion_habilitada')} checked={configForm.enabled} onChange={m => setConfigForm(f => ({ ...f, enabled: m }))} />
-            <Button
-              onClick={() => saveConfigMutation.mutate(configForm)}
-              disabled={saveConfigMutation.isPending}
-              loading={saveConfigMutation.isPending}
-            >
-              {saveConfigMutation.isPending ? t('bio365.guardando') : t('common.save')}
-            </Button>
-          </div>
-          {config?.last_sync_at && (
-            <div className="u-text3-xs">
-              {t('bio365.ultimo_sync')} {fmtDateTime(config.last_sync_at)}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   )
 }
