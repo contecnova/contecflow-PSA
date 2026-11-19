@@ -181,7 +181,7 @@ export default function ServiceDeskPage() {
           <div className="sdp-col">
             {tab === 'queue'    && <div id="sd-panel-queue" role="tabpanel" aria-label={etiquetaDePanel('queue')}><TicketList queueOnly={true}  onSelect={tk => setSelId(String(tk.id))} /></div>}
             {tab === 'all'      && <div id="sd-panel-all" role="tabpanel" aria-label={etiquetaDePanel('all')}><TicketList queueOnly={false} onSelect={tk => setSelId(String(tk.id))} /></div>}
-            {tab === 'mypanel'  && <div id="sd-panel-mypanel" role="tabpanel" aria-label={etiquetaDePanel('mypanel')}><MiPanel onAbrir={id => setSelId(id)} /></div>}
+            {tab === 'mypanel'  && <div id="sd-panel-mypanel" role="tabpanel" aria-label={etiquetaDePanel('mypanel')}><MiPanel onAbrir={id => setSelId(id)} onIrA={setTab} /></div>}
             {tab === 'inbox'    && <div id="sd-panel-inbox" role="tabpanel" aria-label={etiquetaDePanel('inbox')}><BandejaDeCanales onAbrirTicket={id => setSelId(id)} /></div>}
             {tab === 'kanban'   && <div id="sd-panel-kanban" role="tabpanel" aria-label={etiquetaDePanel('kanban')}><KanbanTicketsTab onSelect={tk => setSelId(String(tk.id))} /></div>}
             {tab === 'approvals' && (

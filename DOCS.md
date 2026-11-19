@@ -1938,6 +1938,28 @@ Revisión de base de datos **174** (`alembic/versions/174_service_desk_mercado.p
 - **Asistente del portal que actúa** (`/sd/portal-assistant/*`, `asistente_del_portal.py`): estado de tickets, petición del catálogo y restablecer contraseña con confirmación; herramientas en `POLITICAS_DEL_PORTAL` de `ai_chat/tool_execution/politica.py`. Textos en los 8 idiomas del portal.
 - **Pruebas**: `tests/test_sd_mercado_2026_11.py`, `tests/test_sd_mercado_canales_2026_11.py` (Slack y WhatsApp con dobles de `httpx`), `frontend/src/i18n/__tests__/sdMercado.test.ts`. Sin ejecutar.
 
+### Mi panel como informe (19-11-2026)
+
+Queja: «Mi panel» no se parecía a los informes del sistema. Cada widget se pintaba con `VistaDeDatos` (volcado genérico): claves técnicas en inglés («Sla at risk count», «Analyzed tickets», «Recortado»), el UUID del incidente mayor en una columna de 30 px, «—» en *Mis aprobaciones* y cajas iguales sin jerarquía.
+
+- **Un render por widget** (`frontend/src/components/servicedesk/WidgetsDelPanel.tsx`), con el lenguaje de `MetricsDashboardTab`/`DashKit` y los campos reales de cada endpoint:
+  - *Mi cola por riesgo* (`/sd/tickets/my-queue/prioritized`): tabla ticket (número + título + cliente), estado y prioridad traducidos (`estado.*`), vencimiento del SLA relativo con tono por `sla_resolution_status`, urgencia 0-100 (`priority_score`) con barra y tono `riesgo`; clic abre el ticket; enlace a la cola completa.
+  - *Riesgo de SLA* (`/sd/predictive/stats`): KPIs en riesgo (tono `riesgo` sobre `sla_at_risk_pct`) y abiertos, reparto por severidad prevista (BarRow), aviso traducido si se analizó solo una parte (`truncated`) o hubo fallos.
+  - *Incidentes mayores* (`/sd/major-incidents`): activos primero, número + título + impacto, severidad P1/P2, estado traducido, fecha y responsable; clic lleva a la pestaña de incidentes mayores. Nunca el id.
+  - *Métricas ITIL* (`/sd/metrics/itil`): 6 KPIs, GaugeCard de SLA (tono `sla` de la empresa) y FCR, por prioridad (con incumplidos) y por tipo; **tendencia** frente a los 30 días anteriores (segunda petición con `date_from`/`date_to`).
+  - *Rendimiento por agente* (`/sd/metrics/agent-performance`): solo quien tiene tickets; gráfico Recharts resueltos/abiertos (top 8, `useChartTheme`) y tabla agente, tickets, resolución, MTTR, CSAT, incumplimientos.
+  - *Agente autónomo* (`/sd/autonomous/stats`): tasa de éxito, propuestas por decidir, reparto por resultado y por playbook.
+  - *Cambios en el CAB* (`/sd/changes/cab-dashboard`): número + título, tipo y estado del cambio traducidos, riesgo automático con tono `riesgo`, inicio previsto y responsable; total y sin puntuar; clic lleva a Cambios.
+  - *Mis aprobaciones* (`/sd/approvals/mine`): petición (número + título + servicio), solicitante y tiempo esperando (tono con `UMBRAL_APROBACION_DECISION_HORAS`); clic abre el ticket. Vacío con mensaje, no «—».
+  - Cada widget vacío o con error muestra `EmptyState` con texto útil.
+- **Rejilla de 12 columnas** (`.sdp-rejilla` en `sdMercado.css`, `TAMANO_DE_WIDGET`): KPIs 4, tablas 8, métricas ITIL 12; `dense` rellena huecos; a ≤1100 px 4→6 y 8→12, a ≤720 px todo a 12. Título con icono y recuento (incidentes activos, aprobaciones, cambios).
+- **Vistas de serie** (`app/services/service_desk/dashboard_layout_service.py`, `_DEFAULT_LAYOUTS`): operación = cola, riesgo de SLA, incidentes, aprobaciones; responsable = agentes, SLA, métricas ITIL, CAB, aprobaciones; dirección = métricas ITIL (con tendencia), incidentes, agente autónomo, CAB, riesgo de SLA. Los paneles guardados por persona o empresa no cambian. Subtítulo con lo que cubre cada vista.
+- `MiPanel` recibe `onIrA` (cambia de pestaña del service desk: `queue`, `mi`, `changes`), que pasa `ServiceDeskPage`.
+- **`VistaDeDatos`** sigue en CMDB (`CmdbMercado`) y análisis del cambio (`AnalisisDelCambio`): ahora quita ids internos (`id`, `*_id`, `*_ids`, `uuid` y valores con forma de UUID), formatea fechas ISO, traduce códigos (`sd_mercado.valor.*` y, si no, `estado.*`) y abre los JSON que llegan como texto (`summary_json`). `sd_mercado.campo` gana 123 claves que faltaban (jobs de descubrimiento, reconciliación, deriva, retirada, análisis de impacto, planes, ¿y si…?, CAB).
+- **i18n**: `sd_mercado.panel.*` (textos, `desc_vista`, `resultado`, `tipo_cambio`, `estado_cambio`, `playbook`) y `sd_mercado.valor.*` en es/en/zh.
+- **GRC**: sin datos nuevos ni permisos nuevos; los endpoints son los de antes con su alcance por empresa. Se dejan de mostrar ids internos. Sin cambios de retención ni de auditoría.
+- **Prueba**: `frontend/src/__tests__/MiPanelWidgets.test.tsx` (sin UUID a la vista, etiquetas traducidas, columnas de cada tabla, vacíos con mensaje, clic que abre el ticket, `limpiarDatos`). Sin ejecutar.
+
 ## Traducción en tiempo real (16-11-2026)
 
 Revisión de base de datos **175** (`alembic/versions/175_traduccion_en_tiempo_real.py`, sobre la 174, con downgrade). Uso en `docs/SERVICE_DESK.md` (misma sección); despliegue en `docs/DESPLIEGUE.md` (B.1 y B.2).

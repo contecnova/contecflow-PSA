@@ -37,10 +37,16 @@ WIDGETS = {
 #: Como mucho cuantos widgets en un panel.
 MAX_WIDGETS = len(WIDGETS)
 
+# 19-11-2026 (Mi panel como informe): el orden cuadra con la rejilla de 12
+# columnas del frontend (tablas 8 + KPIs 4, métricas ITIL 12):
+# - operación: mi trabajo de hoy (cola, riesgo de SLA, incidentes, aprobaciones);
+# - responsable: el equipo (agentes, SLA, métricas, CAB, aprobaciones);
+# - dirección: tendencias (métricas ITIL con periodo anterior), incidentes,
+#   agente autónomo, CAB y riesgo de SLA.
 _DEFAULT_LAYOUTS = {
     "operation": {"widgets": ["my_queue_prioritized", "sla_risk", "major_incidents", "my_approvals"]},
-    "manager": {"widgets": ["itil_metrics", "agent_performance", "sla_risk", "cab_pending"]},
-    "executive": {"widgets": ["itil_metrics", "major_incidents", "autonomous_agent", "cab_pending"]},
+    "manager": {"widgets": ["agent_performance", "sla_risk", "itil_metrics", "cab_pending", "my_approvals"]},
+    "executive": {"widgets": ["itil_metrics", "major_incidents", "autonomous_agent", "cab_pending", "sla_risk"]},
 }
 
 
