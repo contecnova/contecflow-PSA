@@ -24,10 +24,10 @@ import type { SdAprobacionPendiente } from '../services/api/tipos-sd'
 import { useAppT } from '../i18n/AppLangContext'
 import { useAuth } from '../context/AuthContext'
 import {
-  AlertOctagon, ArrowLeft, BookOpen, Bug, ClipboardCheck, Columns3, GitPullRequestArrow, Inbox, LayoutDashboard,
+  AlertOctagon, ArrowLeft, BookOpen, Bug, ClipboardCheck, GitPullRequestArrow, Inbox, LayoutDashboard,
   List, ListTodo, MessageSquare, MessagesSquare, PanelRight, Plus, Settings2, TriangleAlert, Wrench,
 } from 'lucide-react'
-import { Button, EmptyState, Spinner, Tabs, Pulsable } from '../components/ui'
+import { Button, EmptyState, Spinner, Tabs, Pulsable, ViewToggle } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { TicketList, MajorIncidents } from './service-desk/QueueAndRoutingSections'
@@ -54,7 +54,14 @@ const Loading = () => <div className="sdp-loading"><Spinner /></div>
 const IC = 14
 /** Pestañas del externo (subcontractor): solo trabajo con sus tickets; nada de
  *  gestión ITSM (cambios, problemas, incidentes mayores, herramientas, configuración). */
-const PESTANAS_EXTERNO = new Set(['queue', 'all', 'kanban', 'approvals'])
+const PESTANAS_EXTERNO = new Set(['queue', 'all', 'approvals'])
+/** Vista de «Todos» (19-11-2026): lista o tablero en la misma pestaña, como en el
+ *  resto de la aplicación; antes «Kanban» era otra pestaña con los mismos tickets. */
+type VistaDeTodos = 'list' | 'kanban'
+const CLAVE_VISTA_TODOS = 'sd.vista_todos'
+function vistaGuardada(): VistaDeTodos {
+  try { return localStorage.getItem(CLAVE_VISTA_TODOS) === 'kanban' ? 'kanban' : 'list' } catch { return 'list' }
+}
 
 export default function ServiceDeskPage() {
   const t = useAppT()
@@ -69,7 +76,15 @@ export default function ServiceDeskPage() {
   const ticketEnlazado = searchParams.get('ticket')
   // `?tab=<id>` abre esa pestaña (p. ej. los avisos y las citas de la base de
   // conocimiento llevan a `?tab=kb`).
-  const pestanaPedida = searchParams.get('tab') || 'queue'
+  // `?tab=kanban` (enlaces antiguos) abre «Todos» en vista tablero.
+  const pestanaCruda = searchParams.get('tab') || 'queue'
+  const pestanaPedida = pestanaCruda === 'kanban' ? 'all' : pestanaCruda
+  const [vistaTodos, setVistaTodos] = useState<VistaDeTodos>(() => (pestanaCruda === 'kanban' ? 'kanban' : vistaGuardada()))
+  const cambiarVistaTodos = (v: string) => {
+    const vista: VistaDeTodos = v === 'kanban' ? 'kanban' : 'list'
+    setVistaTodos(vista)
+    try { localStorage.setItem(CLAVE_VISTA_TODOS, vista) } catch { /* sin almacenamiento: solo esta sesión */ }
+  }
   const [tab, setTab] = useState(ticketEnlazado ? 'all' : (esExterno && !PESTANAS_EXTERNO.has(pestanaPedida) ? 'queue' : pestanaPedida))
   const [herramienta, setHerramienta] = useState('assign')
   // `TicketDetail` pide `string | null`: los ids de ticket son cadenas en
@@ -81,7 +96,7 @@ export default function ServiceDeskPage() {
   const [mobileView, setMobileView] = useState('list') // 'list' | 'detail'
   const windowWidth = useWindowWidth()
   const isMobile = windowWidth < 768
-  const splitMode = selId && (tab === 'queue' || tab === 'all' || tab === 'kanban' || tab === 'approvals' || (tab === 'tools' && herramienta === 'riskqueue') || tab === 'mypanel' || tab === 'inbox')
+  const splitMode = selId && (tab === 'queue' || tab === 'all' || tab === 'approvals' || (tab === 'tools' && herramienta === 'riskqueue') || tab === 'mypanel' || tab === 'inbox')
   const { data: porAprobar = [] } = useQuery({
     queryKey: ['sd-approvals-mine'],
     queryFn: () => sdApprovalsApi.mine().then(r => r.data),
@@ -106,7 +121,6 @@ export default function ServiceDeskPage() {
   const TODAS = [
     { id: 'queue',    label: t('service_desk.tab_queue'),    icon: <ListTodo size={IC} /> },
     { id: 'all',      label: t('service_desk.tab_all'),      icon: <List size={IC} /> },
-    { id: 'kanban',   label: t('service_desk.tab_kanban'),   icon: <Columns3 size={IC} /> },
     { id: 'mypanel',  label: t('sd_mercado.tab_mi_panel'),   icon: <LayoutDashboard size={IC} /> },
     { id: 'inbox',    label: t('sd_mercado.tab_conversaciones'), icon: <MessagesSquare size={IC} /> },
     // Solo si hay algo que aprobar: para el resto seria una pestaña siempre vacia.
@@ -180,10 +194,16 @@ export default function ServiceDeskPage() {
         {(!isMobile || !splitMode || mobileView === 'list') && (
           <div className="sdp-col">
             {tab === 'queue'    && <div id="sd-panel-queue" role="tabpanel" aria-label={etiquetaDePanel('queue')}><TicketList queueOnly={true}  onSelect={tk => setSelId(String(tk.id))} /></div>}
-            {tab === 'all'      && <div id="sd-panel-all" role="tabpanel" aria-label={etiquetaDePanel('all')}><TicketList queueOnly={false} onSelect={tk => setSelId(String(tk.id))} /></div>}
+            {tab === 'all'      && (
+              <div id="sd-panel-all" role="tabpanel" aria-label={etiquetaDePanel('all')} className="u-stack-10">
+                <div className="u-row-end"><ViewToggle view={vistaTodos} onChange={cambiarVistaTodos} views={['list', 'kanban']} /></div>
+                {vistaTodos === 'kanban'
+                  ? <KanbanTicketsTab onSelect={tk => setSelId(String(tk.id))} />
+                  : <TicketList queueOnly={false} onSelect={tk => setSelId(String(tk.id))} />}
+              </div>
+            )}
             {tab === 'mypanel'  && <div id="sd-panel-mypanel" role="tabpanel" aria-label={etiquetaDePanel('mypanel')}><MiPanel onAbrir={id => setSelId(id)} onIrA={setTab} /></div>}
             {tab === 'inbox'    && <div id="sd-panel-inbox" role="tabpanel" aria-label={etiquetaDePanel('inbox')}><BandejaDeCanales onAbrirTicket={id => setSelId(id)} /></div>}
-            {tab === 'kanban'   && <div id="sd-panel-kanban" role="tabpanel" aria-label={etiquetaDePanel('kanban')}><KanbanTicketsTab onSelect={tk => setSelId(String(tk.id))} /></div>}
             {tab === 'approvals' && (
               <div id="sd-panel-approvals" role="tabpanel" aria-label={etiquetaDePanel('approvals')}>
                 <ListaPorAprobar items={porAprobar} seleccionado={selId} onSelect={setSelId} />
