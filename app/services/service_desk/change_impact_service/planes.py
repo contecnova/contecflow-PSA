@@ -44,17 +44,19 @@ def plan_guardado(db: Session, tipo: str, change_id: str, idioma: Optional[str] 
     aun no se ha generado (19-11-2026).
 
     Un plan guardado antes de las claves (sin `_textos`) se traduce con el
-    servicio de traduccion de la empresa `org_id` si esta activo, y lleva
+    servicio de traduccion de la empresa `org_id` si esta activo (si no, con su
+    IA si la tiene y la deja usar: 20-11-2026), y lleva
     `textos_anteriores` para que la pantalla ofrezca regenerarlo
     (`textos.traducir_anterior`)."""
-    datos = _get_json_setting(db, f"{CLAVES_DE_PLAN[tipo]}.{change_id}")
+    clave = f"{CLAVES_DE_PLAN[tipo]}.{change_id}"
+    datos = _get_json_setting(db, clave)
     if not datos:
         return None
     if not tiene_textos(datos):
         if org_id is None:
             change = db.query(ITSMChangeRequest.organization_id).filter(ITSMChangeRequest.id == change_id).first()
             org_id = change[0] if change else None
-        return traducir_anterior(db, datos, idioma, org_id, user_id)
+        return traducir_anterior(db, datos, idioma, org_id, user_id, clave_del_plan=clave)
     return pintar_datos(datos, idioma)
 
 

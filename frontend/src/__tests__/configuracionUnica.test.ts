@@ -101,6 +101,9 @@ describe('configuración que salió de los módulos (19-11-2026)', () => {
     ['ia-asignacion', 'ia', 'ia.asignacion_config', 'pages/SemanticEnginePage.tsx', 'components/asignacion-ia/ConfigMotorSemantico.tsx'],
     // 19-11-2026: asistente de reuniones (nace en Configuración; la pantalla no tiene botón «Configurar»).
     ['reuniones', 'ia', 'reuniones.config', 'pages/MeetingsAIPage.tsx', 'components/reuniones/ConfigReuniones.tsx'],
+    // 20-11-2026: proveedores y CMDB de software también nacen en Configuración (sin botón «Configurar» en el módulo).
+    ['proveedores', 'finanzas', 'proveedores.config', 'pages/SubcontractorsPage.tsx', 'pages/proveedores/ConfigProveedores.tsx'],
+    ['cmdb-software', 'servicedesk', 'software.config', 'pages/CMDBPage.tsx', 'components/cmdb/software/ConfigSoftware.tsx'],
   ]
 
   it('cada una es una sección de su grupo, con su capacidad', () => {

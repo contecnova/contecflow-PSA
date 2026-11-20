@@ -154,10 +154,15 @@ def test_plan_anterior_con_la_traduccion_desactivada(db, monkeypatch):
     from app.services.traduccion import servicio
     monkeypatch.setattr(servicio, "traducir", lambda db_, org, textos, destino, **k: [
         servicio.Resultado(servicio.DESACTIVADA, destino, motivo="disabled") for _ in textos])
+    # 20-11-2026: sin traducción se prueba la IA de la empresa; aquí no hay
+    # proveedor (el del `.env` no debe colarse en el test). La IA con proveedor:
+    # tests/test_planes_anteriores_con_ia_2026_11_20.py.
+    monkeypatch.setattr(mod, "_hay_proveedor", lambda db_, org: False)
     plan = mod.traducir_anterior(db, json.loads(json.dumps(PLAN_ANTIGUO)), "en", "1")
     assert plan["rollback_steps"][0]["action"] == "Detener el despliegue si está en curso"
     assert plan["textos_anteriores"]["status"] == "disabled"
     assert plan["textos_anteriores"]["reason"] == "disabled"
+    assert plan["textos_anteriores"]["ai_reason"] == "provider_not_configured"
 
 
 def test_plan_anterior_si_el_servicio_falla_sale_tal_cual(db, monkeypatch):
