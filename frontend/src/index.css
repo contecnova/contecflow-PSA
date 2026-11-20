@@ -1941,15 +1941,19 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 }
 
 /* Surface-input — base styling for text inputs / textareas / selects */
+/* 20-11-2026: idéntico al Input y al Select del kit (relleno, letra, alto 38 px):
+   un buscador hecho con `ds-input` junto a un Select del kit quedaba más bajo y
+   con otra letra, y desalineaba las etiquetas de la fila de filtros. */
 .ds-input {
   background: var(--surface-3);
   border: 1px solid var(--surface-4);
   border-radius: var(--radius-md);
-  padding: 8px 10px;
+  padding: 9px 13px;
+  min-height: 38px;
   color: var(--text-1);
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
   outline: none;
-  font-family: inherit;
+  font-family: var(--font-sans);
   transition: border-color 0.15s var(--easing), box-shadow 0.15s var(--easing);
   width: 100%;
   box-sizing: border-box;
@@ -1963,6 +1967,7 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
    mismo que el Select del kit, Input y Button md (38 px). Especificidad baja
    (`:where`) para que una celda densa lo baje con su propia clase. */
 select.ds-input:where(:not([multiple]):not([size])) { height: 38px; padding-block: 0; cursor: pointer; }
+textarea.ds-input { min-height: 76px; }
 
 /* Tab-style toggle: pill-shaped segmented control */
 .ds-segmented {
@@ -2217,3 +2222,8 @@ select.ds-input:where(:not([multiple]):not([size])) { height: 38px; padding-bloc
   border-color: var(--border) !important;
   color: var(--text-1);
 }
+
+/* 20-11-2026: etiquetas de campo hechas a mano (`.sdm-field > span`,
+   `.campo-etiqueta`) con el mismo tamaño, peso, color y separación que la
+   etiqueta del kit (`.uiinde-estiloetiqueta` dentro de `.ui-field`). */
+.campo-etiqueta { font-size: var(--text-xs); font-weight: 600; color: var(--text-2); }
