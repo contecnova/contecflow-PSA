@@ -71,6 +71,76 @@ def test_los_nombres_son_area_punto_accion():
         assert area and accion and nombre == nombre.lower(), nombre
 
 
+# ── Guardas por capacidad en la API (19-11-2026) ────────────────────────────
+
+#: Rutas con `requiere_capacidad` cuya capacidad tiene un `modulo` que NO cubre
+#: la ruta. Ahí la guarda cierra más que `app.core.modulos.comprobar` (un rol
+#: personalizado que cierra el módulo pierde la ruta aunque no esté bajo sus
+#: prefijos). Vacío a propósito: entra solo con la decisión escrita.
+MODULO_QUE_NO_CUBRE_LA_RUTA: dict[tuple[str, str], str] = {}
+
+
+def _guardas_por_capacidad():
+    from app.core.deps import RequiereCapacidad
+    from app.main import app
+
+    def _recorrer(dep):
+        for d in dep.dependencies:
+            if isinstance(d.call, RequiereCapacidad):
+                yield d.call
+            yield from _recorrer(d)
+
+    for route in app.routes:
+        dependant = getattr(route, "dependant", None)
+        if dependant is None:
+            continue
+        for metodo in sorted((getattr(route, "methods", None) or set()) - {"HEAD", "OPTIONS"}) or ["WS"]:
+            for guarda in _recorrer(dependant):
+                yield metodo, route.path, guarda.capacidad
+
+
+def test_las_rutas_con_requiere_capacidad_usan_capacidades_conocidas():
+    """Por código fuente: literal y del catálogo (los barridos leen el literal)."""
+    import pathlib
+    import re
+
+    raiz = pathlib.Path(__file__).resolve().parents[1] / "app"
+    llamada = re.compile(r"\brequiere_capacidad\(([^)]*)\)")
+    literal = re.compile(r"""^\s*["']([\w.]+)["']\s*$""")
+    malas = []
+    for fichero in raiz.rglob("*.py"):
+        if fichero.name == "deps.py" and fichero.parent.name == "core":
+            continue  # la definición
+        for arg in llamada.findall(fichero.read_text(encoding="utf-8")):
+            m = literal.match(arg)
+            if not m or m.group(1) not in CAPACIDADES:
+                malas.append(f"{fichero.relative_to(raiz)}: requiere_capacidad({arg})")
+    assert not malas, ("requiere_capacidad necesita una capacidad literal del catálogo "
+                       "(app/core/capacidades.py):\n  " + "\n  ".join(malas))
+
+
+def test_el_modulo_de_la_capacidad_cubre_su_ruta():
+    """Una capacidad con `modulo` solo guarda rutas que ese módulo ya cierra.
+
+    Así migrar una guarda de rol a `requiere_capacidad` no cambia quién puede:
+    lo que la capacidad quita por módulo, `modulos.comprobar` ya lo cerraba.
+    """
+    vistas = list(_guardas_por_capacidad())
+    assert vistas, "ninguna ruta usa requiere_capacidad"
+    fuera = []
+    for metodo, ruta, capacidad in vistas:
+        assert capacidad in CAPACIDADES, (metodo, ruta, capacidad)
+        modulo = CAPACIDADES[capacidad].modulo
+        if modulo is None or (metodo, ruta) in MODULO_QUE_NO_CUBRE_LA_RUTA:
+            continue
+        if set(CAPACIDADES[capacidad].roles) <= {"admin"}:
+            continue  # a un admin no se le cierra ningún módulo (`modulos.vetados`)
+        if not any(ruta == p or ruta.startswith(p + "/") for p in MODULOS[modulo][0]):
+            fuera.append(f"{metodo} {ruta}: {capacidad} (módulo {modulo})")
+    assert not fuera, ("Capacidad con módulo en una ruta que el módulo no cubre (cerraría más que "
+                       "app.core.modulos.comprobar):\n  " + "\n  ".join(fuera))
+
+
 # ── Coinciden con las guardas ────────────────────────────────────────────────
 
 @pytest.mark.parametrize("rol", ROLES)

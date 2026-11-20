@@ -37,7 +37,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin, require_internal_user
+from app.core.deps import get_current_user, require_internal_user, requiere_capacidad
 from app.core.responses import APIResponse
 from app.core.tenancy import org_scoped_or_404
 from app.models.user import User
@@ -174,7 +174,7 @@ def run_auto_resolution_job(
     run_async: bool = Query(True, description="Run in background and return immediately"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: dominio: automatismos que resuelven solos
+    _rol: User = Depends(requiere_capacidad("sd.administrar")),  # auditoria 2026-09: dominio: automatismos que resuelven solos
 ):
     """
     Run the daily auto-resolution job.
@@ -309,7 +309,7 @@ def update_auto_resolution_config_endpoint(
     body: AutoResolutionConfigPatch,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: configuracion: la forma de la ruta manda sobre el fichero
+    _rol: User = Depends(requiere_capacidad("sd.administrar")),  # auditoria 2026-09: configuracion: la forma de la ruta manda sobre el fichero
 ):
     if current_user.role != UserRole.admin:
         raise error_http(403, "solo_admin", detail="Admin only")
@@ -339,7 +339,7 @@ def update_auto_resolution_config_endpoint(
 def run_auto_close_job_endpoint(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-    _rol: User = Depends(require_admin),  # auditoria 2026-09: dominio: automatismos que resuelven solos
+    _rol: User = Depends(requiere_capacidad("sd.administrar")),  # auditoria 2026-09: dominio: automatismos que resuelven solos
 ):
     """
     Close tickets that have been in *resolved* status for more than

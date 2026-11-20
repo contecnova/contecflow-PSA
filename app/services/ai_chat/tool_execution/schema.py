@@ -480,6 +480,44 @@ AGENT_TOOLS = [
             }
         }
     },
+    # ── Meetings (asistente de reuniones, 19-11-2026) ────────────────────────
+    {
+        "name": "search_meetings",
+        "description": "Search the meetings the user can see (title, summary and what was said) or, with meeting_id, get one meeting's summary, decisions, risks, open questions, action items and a transcript excerpt with speakers and timestamps. Use it to answer questions about meetings.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Words to look for; empty lists the latest meetings"},
+                "meeting_id": {"type": "string", "description": "A meeting id from a previous search"},
+                "limit": {"type": "integer", "default": 10},
+            }
+        }
+    },
+    # ── CMDB de software y vulnerabilidades (19-11-2026) ─────────────────────
+    {
+        "name": "search_software_inventory",
+        "description": "Query the company's software inventory (CMDB): where a product is used and in which "
+                       "versions and machines (mode where_used, query like 'nginx' or 'php < 8.2' or a purl), "
+                       "open vulnerability findings (mode findings, optional machine/severity/kev), software out "
+                       "of support (mode eol), what runs on a machine with its configuration (mode machine, query "
+                       "= machine name, hostname or IP), the impact of a CVE on software, machines, services and "
+                       "clients (mode impact, query = CVE id) or the dashboard (mode summary).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "mode": {"type": "string", "enum": ["where_used", "findings", "eol", "machine", "impact", "summary"],
+                         "default": "where_used"},
+                "query": {"type": "string", "description": "Product (optionally with version operator), machine or CVE"},
+                "machine": {"type": "string", "description": "Machine name, hostname or IP (findings mode)"},
+                "severity": {"type": "string", "description": "critical,high,medium,low (comma separated)"},
+                "kev": {"type": "boolean", "description": "Only actively exploited (CISA KEV)"},
+                "out_of_sla": {"type": "boolean"},
+                "prod_only": {"type": "boolean"},
+                "days": {"type": "integer", "description": "EOL horizon in days"},
+                "limit": {"type": "integer", "default": 25},
+            }
+        }
+    },
     # ── Git activity ──────────────────────────────────────────────────────────
     {
         "name": "get_git_activity",

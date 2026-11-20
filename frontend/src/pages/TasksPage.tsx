@@ -26,7 +26,7 @@ import VirtualList from '../components/ui/VirtualList'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import {
-  Ban, Brain, CalendarClock, CalendarDays, CalendarRange, CheckCircle2, CheckSquare, Clock, GanttChartSquare, LayoutGrid, List, Loader2, Pencil, Plus, Save, Search, Sparkles, Table2, Trash2, Users, X,
+  Ban, Brain, Building2, CalendarClock, CalendarDays, CalendarRange, CheckCircle2, CheckSquare, Clock, GanttChartSquare, LayoutGrid, List, Loader2, Pencil, Plus, Save, Search, Sparkles, Table2, Trash2, Users, X,
 } from 'lucide-react'
 import SmartScheduleModal from '../components/SmartScheduleModal'
 import { fmtDate, fmtNumber, extractErr} from '../utils/helpers'
@@ -37,6 +37,8 @@ import { useAuth } from '../context/AuthContext'
 import DocumentsPanel from '../components/DocumentsPanel'
 import AIInlineEditor from '../components/AIInlineEditor'
 import { useAppT } from '../i18n/AppLangContext'
+import ExternalizarTarea from '../components/proveedores/ExternalizarTarea'
+import { asignacionExclusiva } from './proveedores/logica'
 import DateInput from '../components/ui/DateInput'
 import { STALE_DEFAULT_MS, STALE_REFERENCE_DATA_MS } from '../constants/timings'
 import './TasksPage.css'
@@ -69,6 +71,10 @@ type Task = {
   comments?: TaskComment[]
   created_at?: string
   completed_at?: string | null
+  /** 19-11-2026: externalizada a un proveedor de outsourcing (excluyente con `assignee_id`). */
+  supplier_id?: string | null
+  supplier_work_package_id?: string | null
+  supplier_name?: string | null
 }
 /** Formulario de edición del panel de detalle. */
 type TaskForm = {
@@ -77,6 +83,8 @@ type TaskForm = {
   status: string
   priority: string
   assignee_id: string
+  supplier_id: string
+  supplier_work_package_id: string
   estimated_hours: string | number
   start_date: string
   due_date: string
@@ -95,6 +103,8 @@ type NewTaskForm = {
   due_date: string
   description: string
   assignee_id: string
+  supplier_id: string
+  supplier_work_package_id: string
 }
 // Respuestas del backend: services/api/tipos-rendimiento.ts.
 type CustomField = CampoPersonalizado
@@ -118,7 +128,7 @@ type DragStartHandler = (e: React.MouseEvent, task: Task, onStarted: () => void)
 // null (así se puede borrar el valor).
 type TaskBody = Partial<Omit<TaskForm, 'issue_type'>> & { issue_type?: string | null; project_id?: string; move_reason?: string }
 /** Campos opcionales en los que '' significa «sin valor». */
-const CAMPOS_VACIABLES = ['estimated_hours', 'start_date', 'due_date', 'assignee_id'] as const
+const CAMPOS_VACIABLES = ['estimated_hours', 'start_date', 'due_date', 'assignee_id', 'supplier_id', 'supplier_work_package_id'] as const
 function limpiarVacios(body: TaskBody, modo: 'omitir' | 'anular'): Record<string, unknown> {
   const limpio: Record<string, unknown> = { ...body }
   for (const campo of CAMPOS_VACIABLES) {
@@ -224,6 +234,10 @@ function TaskKanbanCard({ task, onTaskClick, onTaskDragStart }: { task: Task; on
             <Avatar name={task.assignee.full_name} size={22} />
             <span className="u-text2-xs">{task.assignee.full_name.split(' ')[0]}</span>
           </div>
+        ) : task.supplier_name ? (
+          <span className="u-row-center-6 u-text2-xs" title={t('proveedores.externalizada_a', { nombre: task.supplier_name })}>
+            <Building2 size={12} aria-hidden />{task.supplier_name}
+          </span>
         ) : <span />}
         {!!task.estimated_hours && (
           <span className={`tsk-card-hours${(task.real_hours ?? 0) > (task.estimated_hours ?? 0) ? ' tsk-card-hours--over' : ''}`}>
@@ -379,6 +393,8 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
         status:          task.status          || 'todo',
         priority:        task.priority        || 'medium',
         assignee_id:     task.assignee_id     || task.assignee?.id || '',
+        supplier_id:     task.supplier_id     || '',
+        supplier_work_package_id: task.supplier_work_package_id || '',
         estimated_hours: task.estimated_hours ?? '',
         start_date:      task.start_date      ? task.start_date.split('T')[0] : '',
         due_date:        task.due_date        ? task.due_date.split('T')[0] : '',
@@ -462,7 +478,7 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
 
   const acceptSuggestion = () => {
     if (semSuggestion?.suggested_user_id) {
-      setForm(f => ({ ...f, assignee_id: semSuggestion.suggested_user_id }))
+      setForm(f => f && asignacionExclusiva(f, 'assignee_id', semSuggestion.suggested_user_id || ''))
       // Persist SemAssignment so the feedback loop has a base row for this task
       semanticApi.recordAssignment({
         item_type: 'task',
@@ -490,6 +506,8 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
       status:          task.status          || 'todo',
       priority:        task.priority        || 'medium',
       assignee_id:     task.assignee_id     || task.assignee?.id || '',
+      supplier_id:     task.supplier_id     || '',
+      supplier_work_package_id: task.supplier_work_package_id || '',
       estimated_hours: task.estimated_hours ?? '',
       start_date:      task.start_date      ? task.start_date.split('T')[0] : '',
       due_date:        task.due_date        ? task.due_date.split('T')[0] : '',
@@ -502,6 +520,11 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
   }
 
   const set = (k: keyof TaskForm) => (e: { target: { value: string } }) => { campos.limpiar(k); setForm(f => ({ ...f, [k]: e.target.value })) }
+  // 19-11-2026: persona o proveedor, excluyentes (422 `proveedor_asignacion_exclusiva` si van los dos).
+  const asignar = (k: 'assignee_id' | 'supplier_id' | 'supplier_work_package_id', v: string) => {
+    campos.limpiar(k)
+    setForm(f => f && asignacionExclusiva(f, k, v))
+  }
   if (!open || !task || !form) return null
 
   return (
@@ -556,6 +579,10 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
                   <Avatar name={task.assignee.full_name} size={22} />
                   <span className="u-base-600">{task.assignee.full_name}</span>
                 </div>
+              ) : task.supplier_name ? (
+                <span className="u-row-center-8 u-base-600" title={t('proveedores.externalizada_a', { nombre: task.supplier_name })}>
+                  <Building2 size={14} aria-hidden />{t('proveedores.externalizada_a', { nombre: task.supplier_name })}
+                </span>
               ) : <span className="tsk-base tsk-base--muted">{t('tasks.no_assignee')}</span>}
             </div>
             <div className="tsk-info">
@@ -681,7 +708,7 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
                 {t('tasks.ai_suggest')}
               </Button>
             </div>
-            <Select suelto placeholder={false} id={`${idCampo}-asignado`} value={form.assignee_id} onChange={set('assignee_id')} className="tsk-input">
+            <Select suelto placeholder={false} id={`${idCampo}-asignado`} value={form.assignee_id} onChange={e => asignar('assignee_id', e.target.value)} className="tsk-input">
               <option value="">{t('tasks.no_assignee')}</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
             </Select>
@@ -712,6 +739,10 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
               </div>
             )}
           </div>
+
+          {/* Externalizar a un proveedor de outsourcing (excluyente con el asignado) */}
+          <ExternalizarTarea projectId={task.project_id} supplierId={form.supplier_id} paqueteId={form.supplier_work_package_id}
+            nombreActual={task.supplier_name} onChange={asignar} idBase={idCampo} claseEtiqueta="tsk-label" claseControl="tsk-input" error={msg} />
 
           <div>
             <label className="tsk-label" htmlFor={`${idCampo}-tipo`}>{t('tasks.issue_type')}</label>
@@ -1458,7 +1489,7 @@ export default function TasksPage() {
                   <div className="tsk-mcard-meta">
                     <span>{task.code}</span>
                     <span>{proj ? proj.code : t('tasks.no_project')}</span>
-                    <span>{task.assignee?.full_name || t('tasks.no_assignee')}</span>
+                    <span>{task.assignee?.full_name || (task.supplier_name ? t('proveedores.externalizada_a', { nombre: task.supplier_name }) : t('tasks.no_assignee'))}</span>
                     <span>{task.estimated_hours ? t('tasks.horas_est', { h: fmtNumber(task.estimated_hours, 1) }) : t('tasks.no_estimate')}</span>
                     <span>{t('tasks.horas_real', { h: fmtNumber(task.real_hours ?? 0, 1) })}</span>
                   </div>
@@ -1537,7 +1568,7 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
   })
   const [form, setForm] = useState<NewTaskForm>({
     title: '', project_id: '', status: 'todo', priority: 'medium',
-    estimated_hours: '', start_date: '', due_date: '', description: '', assignee_id: '',
+    estimated_hours: '', start_date: '', due_date: '', description: '', assignee_id: '', supplier_id: '', supplier_work_package_id: '',
   })
   const campos = useErroresDeCampo()
   const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
@@ -1588,13 +1619,18 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
       qc.invalidateQueries({ queryKey: ['cal-tasks'] })
       qc.invalidateQueries({ queryKey: ['kanban-board'] })
       onClose()
-      setForm({ title: '', project_id: '', status: 'todo', priority: 'medium', estimated_hours: '', start_date: '', due_date: '', description: '', assignee_id: '' })
+      setForm({ title: '', project_id: '', status: 'todo', priority: 'medium', estimated_hours: '', start_date: '', due_date: '', description: '', assignee_id: '', supplier_id: '', supplier_work_package_id: '' })
       setCustomValues({})
       setSemSuggestion(null); setSemEffort(null); setPendingSuggestion(null)
     },
     onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
   })
   const set = (k: keyof NewTaskForm) => (e: { target: { value: string } }) => { campos.limpiar(k); setForm(f => ({ ...f, [k]: e.target.value })) }
+  // 19-11-2026: persona o proveedor, excluyentes; cambiar de proyecto vacía el proveedor (sus paquetes son del proyecto).
+  const asignar = (k: 'assignee_id' | 'supplier_id' | 'supplier_work_package_id', v: string) => {
+    campos.limpiar(k)
+    setForm(f => asignacionExclusiva(f, k, v))
+  }
 
   const analyzeWithAI = async () => {
     if (!form.title) return
@@ -1613,7 +1649,7 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
 
   const acceptSuggestion = () => {
     if (semSuggestion?.suggested_user_id) {
-      setForm(f => ({ ...f, assignee_id: semSuggestion.suggested_user_id }))
+      setForm(f => asignacionExclusiva(f, 'assignee_id', semSuggestion.suggested_user_id || ''))
       // Store suggestion so we can persist SemAssignment once the task is created (task.id is known)
       setPendingSuggestion({ ...semSuggestion })
     }
@@ -1632,7 +1668,7 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
         </div>
         <div className="u-col-full">
           <label id={`${idCampo}-2-et`} htmlFor={`${idCampo}-2`} className="tsk-label tsk-label--lg">{t('tasks.project_required')}</label>
-          <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.project_id} onChange={set('project_id')} className="tsk-input tsk-input--lg">
+          <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.project_id} onChange={e => { campos.limpiar('project_id'); setForm(f => ({ ...f, project_id: e.target.value, supplier_id: '', supplier_work_package_id: '' })) }} className="tsk-input tsk-input--lg">
             <option value="">{t('tasks.select_project_option')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
           </Select>
@@ -1665,12 +1701,15 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
               {t('tasks.ai_analyze')}
             </Button>
           </div>
-          <Select suelto placeholder={false} id={`${idCampo}-asignado`} value={form.assignee_id} onChange={set('assignee_id')} className="tsk-input tsk-input--lg">
+          <Select suelto placeholder={false} id={`${idCampo}-asignado`} value={form.assignee_id} onChange={e => asignar('assignee_id', e.target.value)} className="tsk-input tsk-input--lg">
             <option value="">{t('tasks.no_assignee')}</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
           </Select>
           {msg('assignee_id')}
         </div>
+        {/* Externalizar a un proveedor de outsourcing (excluyente con el asignado) */}
+        <ExternalizarTarea projectId={form.project_id} supplierId={form.supplier_id} paqueteId={form.supplier_work_package_id}
+          onChange={asignar} idBase={idCampo} claseEtiqueta="tsk-label tsk-label--lg" claseControl="tsk-input tsk-input--lg" error={msg} />
         {/* Banner de sugerencia IA */}
         {(semSuggestion || semEffort) && !semSuggestion?.error && (
           <div className="tsk-ai tsk-ai--modal" role="status">

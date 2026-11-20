@@ -49,7 +49,20 @@ def _registrar_uso(db: Session, p, result: dict, *, user_id, module,
 
 
 class PresupuestoDeIAAgotado(RuntimeError):
-    """La empresa ha llegado a su tope diario de gasto en IA (`AI_DAILY_BUDGET_USD`)."""
+    """La empresa ha llegado a su tope diario de gasto en IA (`AI_DAILY_BUDGET_USD`).
+
+    19-11-2026: lleva su código traducible (`ia_presupuesto_diario_agotado`) y el
+    tope, para que el 429 diga la causa en el idioma de quien lo lee.
+    """
+    codigo = "ia_presupuesto_diario_agotado"
+
+    def __init__(self, mensaje: str = "", tope: float = 0.0):
+        super().__init__(mensaje)
+        self.tope = tope
+
+    @property
+    def params(self) -> dict:
+        return {"tope": f"{self.tope:.2f}"}
 
 
 def _inicio_de_hoy() -> datetime:
@@ -82,7 +95,8 @@ def _exigir_presupuesto(db: Session, organization_id) -> None:
     if tope > 0 and gasto_de_hoy(db, organization_id) >= tope:
         raise PresupuestoDeIAAgotado(
             f"La empresa ha alcanzado su límite diario de gasto en IA ({tope:.2f} USD). "
-            "Se restablece a las 00:00 UTC o lo puede subir un administrador (AI_DAILY_BUDGET_USD).")
+            "Se restablece a las 00:00 UTC o lo puede subir un administrador (AI_DAILY_BUDGET_USD).",
+            tope=tope)
 
 
 def coste_estimado(proveedor: str, modelo, tokens_in: int, tokens_out: int) -> float:

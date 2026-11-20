@@ -4281,7 +4281,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **31 groups, 378 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **31 groups, 391 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4323,6 +4323,10 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **31 gr
 | service_desk | SD_CAB_GROUP_ID | str | `''` | Queue (group id) acting as CAB | rt |
 | service_desk | SD_CAB_APPROVAL_RULE | str | `majority` | CAB rule: majority, all, any | rt |
 | service_desk | SD_CHANGE_AUTO_APPROVE_MAX_RISK | int | 30 | Standard changes up to this risk score self-approve | rt |
+| service_desk | CHANGE_CANARY_RAMP_PCT | str | `1,5,25,50,100` | Changes — canary rollout: % of users per phase (CSV, increasing, ends in 100; 2-10 phases, 1-100) | rt (`/org-defaults` → `propuestas` → ChangeRolloutPanel; `valores_de_negocio`, 19-11-2026) |
+| service_desk | CHANGE_CANARY_FIRST_MINUTES | int | 30 | Changes — canary rollout: minutes of the first phase (5-1440) | rt (`/org-defaults` → ChangeRolloutPanel) |
+| service_desk | CHANGE_CANARY_STEP_MINUTES | int | 45 | Changes — canary rollout: minutes of each middle phase (5-1440) | rt (`/org-defaults` → ChangeRolloutPanel) |
+| service_desk | CHANGE_CANARY_LAST_MINUTES | int | 60 | Changes — canary rollout: minutes of the last phase (5-1440) | rt (`/org-defaults` → ChangeRolloutPanel) |
 | service_desk | SD_EVENT_SEVERITY_MAP | str (JSON) | `{"critical":"p1_critical","high":"p2_high","error":"p2_high","warning":"p3_medium","info":"p4_low"}` | Monitoring alert severity → ticket priority | rt |
 | service_desk | SD_EVENT_AUTO_RESOLVE | bool | true | Resolve the incident when the alert recovers, if untouched | rt |
 | service_desk | SD_ONCALL_PRIORITIES | str | `p1_critical,p2_high` | Priorities that page the on-call agent | rt |
@@ -4380,6 +4384,9 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **31 gr
 | proyectos | EXTERNOS_UMBRAL_CONSUMO_PCT | float | 80 | External staff — warn when an assignment consumes this % of contracted hours or PO amount | rt (`externos.horas`) |
 | proyectos | EXTERNOS_AVISO_CADUCIDAD_DIAS | int | 14 | External staff — days ahead to warn that their access expires | rt (`externos.ciclo`) |
 | proyectos | PORTFOLIO_MIN_SCORE_TO_ADVANCE | float | 50.0 | Portfolio — minimum proposal score (0-100) to pass a gate | rt (`cartera_service`) |
+| proyectos | PROVEEDORES_TOLERANCIA_CONCILIACION_PCT | float | 2.0 | Suppliers — accepted difference (%) between the supplier invoice and the period forecast | rt (`proveedores.facturacion`) |
+| proyectos | PROVEEDORES_AVISO_DOCUMENTO_DIAS | int | 30 | Suppliers — days ahead to warn that a document or certification expires | rt (`proveedores.grc`) |
+| proyectos | PROVEEDORES_REVISION_RIESGO_MESES | int | 12 | Suppliers — months to the next risk review (half for high or critical risk) | rt (`proveedores.grc`) |
 | semaforos | UMBRAL_PRESUPUESTO_AVISO_PCT | float | 70.0 | Budget used — warning above this % | rt (`app/core/umbrales.py`, `useUmbrales()`) |
 | semaforos | UMBRAL_PRESUPUESTO_CRITICO_PCT | float | 90.0 | Budget used — critical above this % | rt (`app/core/umbrales.py`, `useUmbrales()`) |
 | semaforos | UMBRAL_CARGA_AVISO_PCT | float | 85.0 | Resource load — high above this % of capacity | rt (`app/core/umbrales.py`, `useUmbrales()`) |
@@ -4442,6 +4449,7 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **31 gr
 | locale | ABSENCE_BALANCE_CARRY_PERIODS | int | 2 | Absences — previous balance periods looked at to carry over leftovers | rt (`ausencias.saldos`) |
 | locale | HOUR_BANK_RECALC_DAYS | int | 35 | Absences — days back the daily pass recomputes the hour bank | rt (`ausencias.bolsa`) |
 | locale | DEFAULT_VACATION_DAYS_PER_YEAR | int | 23 | Vacation days per year | rt only in `/org-defaults`; policy/balance column defaults are static |
+| locale | VACATION_MAX_DAYS_ENTITLED | int | 60 | Vacation — maximum days assigned to a person for a year (1-366, ≥ `DEFAULT_VACATION_DAYS_PER_YEAR`) | rt (person's company: `PATCH /advanced-config/vacation-balances` rejects above it; Settings › Vacations, 19-11-2026) |
 | locale | DEFAULT_IMPUTATION_LOCKOUT_DAYS | int | 14 | Days before time entries lock | rt (`imputation_service/_comun._dias_de_bloqueo`, per company) |
 | locale | DEFAULT_PROJECT_TYPE | str | `consulting` | Default project type | rt |
 | locale | DEFAULT_BILLING_TYPE | str | `time_material` | Default billing type | rt |
@@ -4597,6 +4605,7 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **31 gr
 | licencias_integracion | ALM_KIT_FALLBACK_ROLES | str | admin,hr | Onboarding — roles that confirm a kit when the new person has no manager (CSV) | rt (`alm_integracion`) |
 | licencias_integracion | ALM_CONTRACT_END_OFFBOARDING | bool | True | Offboarding — open the offboarding when a subcontractor's contract ends | rt (`alm_integracion`) |
 | audit | RETENTION_MIN_DAYS | int | 30 | Retention — no policy may keep a record type for fewer days than this | rt |
+| audit | CHAT_RETENTION_PROPOSED_MONTHS | int | 24 | Chat — retention (months) proposed for a new policy (1-120, ≥ `RETENTION_MIN_DAYS` in 30-day months, ≤ the company chat maximum) | rt (`collaboration.compliance.create_policy` when no months are sent; Settings › Chat, 19-11-2026) |
 | automations | APPROVAL_EMAIL_LINK_HOURS | int | 72 | Approvals — hours the approve/reject link of the email is valid | rt |
 | automations | AUTOMATIONS_DEADLINE_DAYS | int | 2 | "Task due soon": days before the due date | rt |
 | automations | AUTOMATIONS_ENABLED | bool | true | Rules run on events and on the periodic scan (off: only the simulation) | rt |
@@ -4614,6 +4623,10 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **31 gr
 | automations | NOTIFICATIONS_BUDGET_CAMPAIGN_TIME | str | `08:30` | Budget campaign reminder — local time (HH:MM) it is sent each day | rt (`worker`, 19-11-2026) |
 | automations | NOTIFICATIONS_MISSING_IMPUTATIONS_TIME | str | `18:00` | Missing time entries reminder — local time (HH:MM); only people whose schedule has work that day | rt (`worker`, 19-11-2026) |
 | automations | NOTIFICATIONS_PERF_REMINDERS_TIME | str | `09:00` | Performance review reminders — local time (HH:MM) they are sent each day | rt (`worker`, 19-11-2026) |
+| automations | PERF_REMINDER_WINDOW_DAYS | int | 7 | Performance review reminders — remind when the cycle closes within N days (1-90) | rt (cycle's company, `perf_reminder_service`, 19-11-2026) |
+| automations | PERF_REMINDER_UNDATED_CYCLE_DAYS | int | 30 | Performance review reminders — a cycle without end date is reminded after N days active (1-365) | rt (cycle's company) |
+| automations | PERF_STALLED_CYCLE_DAYS | int | 45 | Performance reviews — a cycle active more than N days with low completion is stalled (1-365) | rt (cycle's company, `org_perf_kpis`) |
+| automations | PERF_STALLED_COMPLETION_PCT | float | 50.0 | Performance reviews — stalled below this completion % when overdue or old (0-100) | rt (cycle's company, `org_perf_kpis`) |
 | locale | SCENARIO_CAPACITY_ROLES | str | `pm,team_lead,employee,subcontractor` | Scenarios — roles whose capacity counts (comma separated) | rt |
 | risk | RISK_BUDGET_OVER_FACTOR | float | 2.0 | Budget — points per % above 100 % | rt |
 | risk | RISK_BUDGET_WARN_FACTOR | float | 3.0 | Budget — points per % above the warning | rt |
@@ -5638,7 +5651,7 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 475 fields (measured 2026-11-16): 244 in `config.py` and 231 in ten mixins under `app/core/config_groups/` (`ai_config` 41, `sla_config` 20, `health_config` 25, `semantic_config` 10, `service_desk_config` 36, `automations_config` 13, `proceso_config` 74, `escalas_config` 5, `empresa_config` 4, `politicas_config` 3). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; a `JWT_ALGORITHM` other than HS256/HS384/HS512; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
 2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service/`::RUNTIME_FLAG_GROUPS declares **256 keys in 24 groups** (measured 2026-11-16 in `_catalogo.py`): `sla`, `service_desk`, `automations`, `tenants`, `audit`, `risk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `conectores`, `lecciones`, `gastos`, `politicas`, `presupuestos`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Two keys exist only there and have no `Settings` field: `SLACK_TEAM_ID` and `TEAMS_TENANT_ID` (they link a Slack workspace or Teams tenant to one company). Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the keys listed there are editable.
 
-#### 4.2 Settings fields (`Settings`, 615)
+#### 4.2 Settings fields (`Settings`, 628)
 
 Defaults are the code defaults, never values from `.env`. Meanings are taken from the field name, its inline comment and the code that reads it; behaviour described in bold was checked in the code that consumes the variable.
 
@@ -5730,6 +5743,9 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `DEFAULT_IMPUTATION_LOCKOUT_DAYS` | `14` | Days after which time entries lock. |
 | `EXTERNOS_UMBRAL_CONSUMO_PCT` | `80.0` | External staff (rev. 178): warn the internal owner and the PM when an assignment consumes this % of its contracted hours or PO amount (and again at 100 %). Hot (`proyectos`). |
 | `EXTERNOS_AVISO_CADUCIDAD_DIAS` | `14` | External staff (rev. 178): days ahead the daily job `externos_caducidad` warns that an external's access expires. Hot (`proyectos`). |
+| `PROVEEDORES_TOLERANCIA_CONCILIACION_PCT` | `2.0` | Suppliers (rev. 189): accepted difference (%) between the supplier invoice and the period forecast; inside it the statement is `reconciled`, outside `disputed`. Hot (`proyectos`). |
+| `PROVEEDORES_AVISO_DOCUMENTO_DIAS` | `30` | Suppliers (rev. 189): days ahead the daily job warns the internal owner that a supplier document or certification expires. Hot (`proyectos`). |
+| `PROVEEDORES_REVISION_RIESGO_MESES` | `12` | Suppliers (rev. 189): months to the next risk review after an assessment (half for high or critical risk). Hot (`proyectos`). |
 | `DEFAULT_TIMEZONE` | `'Europe/Madrid'` | Fallback tz; also **Celery beat and APScheduler timezone**. |
 | `DEFAULT_LANGUAGE` | `'es'` | Fallback UI language. |
 | `DEFAULT_CURRENCY` | `'EUR'` | Fallback currency. |
@@ -6071,6 +6087,16 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `COMPLIANCE_MFA_MIN_COVERAGE_PCT` | `100.0` | Compliance report — minimum % of active users with a second factor |
 | `COMPLIANCE_MIN_PASSWORD_LENGTH` | `12` | Compliance report — minimum password length the policy must require |
 | `RETENTION_MIN_DAYS` | `30` | Retention — no policy may keep a record type for fewer days than this |
+| `CHANGE_CANARY_RAMP_PCT` | `1,5,25,50,100` | Canary rollout — % of users per phase (CSV, increasing, ends in 100). Hot (`service_desk`, 19-11-2026). |
+| `CHANGE_CANARY_FIRST_MINUTES` | `30` | Canary rollout — minutes of the first phase. Hot (`service_desk`). |
+| `CHANGE_CANARY_STEP_MINUTES` | `45` | Canary rollout — minutes of each middle phase. Hot (`service_desk`). |
+| `CHANGE_CANARY_LAST_MINUTES` | `60` | Canary rollout — minutes of the last phase. Hot (`service_desk`). |
+| `CHAT_RETENTION_PROPOSED_MONTHS` | `24` | Chat — retention months proposed for a new policy. Hot (`audit`, 19-11-2026). |
+| `VACATION_MAX_DAYS_ENTITLED` | `60` | Vacation — maximum days assigned to a person for a year. Hot (`locale`, 19-11-2026). |
+| `PERF_REMINDER_WINDOW_DAYS` | `7` | Performance reviews — remind when the cycle closes within N days. Hot (`automations`, 19-11-2026). |
+| `PERF_REMINDER_UNDATED_CYCLE_DAYS` | `30` | Performance reviews — undated cycle reminded after N days active. Hot (`automations`). |
+| `PERF_STALLED_CYCLE_DAYS` | `45` | Performance reviews — stalled after N days active with low completion. Hot (`automations`). |
+| `PERF_STALLED_COMPLETION_PCT` | `50.0` | Performance reviews — stalled below this completion %. Hot (`automations`). |
 | `APPROVAL_EMAIL_LINK_HOURS` | `72` | Approvals — hours the approve/reject link of the email is valid |
 | `IMPERSONATION_ENABLED` | `True` | Platform support may sign in as a company user (with a reason, audited) |
 | `IMPERSONATION_MAX_MINUTES` | `30` | Sign in as — maximum session length (minutes) |

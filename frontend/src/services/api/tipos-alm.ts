@@ -4,6 +4,7 @@
  * cada uno. Las listas llegan ya desenvueltas por el interceptor de _core.ts.
  * Columnas con valor por defecto en el modelo se tipan sin `null`.
  */
+import type { ClasificacionDeProveedor } from './tipos-proveedores'
 
 /** `{"ok": True, "message": ...}` de los borrados y desvinculados. */
 export interface ConfirmacionOk { ok: boolean; message?: string }
@@ -288,6 +289,27 @@ export interface Subcontratista {
   rates: SubTarifa[]
   assignment_count: number
   worker_count: number
+  // Proveedores y externalización (19-11-2026, migración 189): `serializar.clasificacion`.
+  // Opcionales: respuestas anteriores a la migración (y pruebas) no los traen; sin `kind` es empresa.
+  kind?: ClasificacionDeProveedor['kind']
+  engagement_modes?: ClasificacionDeProveedor['engagement_modes']
+  lifecycle_status?: ClasificacionDeProveedor['lifecycle_status']
+  freelancer_worker_id?: string | null
+  alm_vendor_id?: string | null
+  internal_owner_id?: string | null
+  legal_name?: string | null
+  website?: string | null
+  address?: string | null
+  training_enabled?: boolean
+  data_access?: boolean
+  data_categories?: string | null
+  systems_access?: string | null
+  risk_level?: ClasificacionDeProveedor['risk_level']
+  risk_score?: number | null
+  next_review_date?: string | null
+  suspended_at?: string | null
+  offboarded_at?: string | null
+  offboarding_reason?: string | null
 }
 
 /** serialize_worker → `skills[]`. */
@@ -327,6 +349,8 @@ export interface SubTrabajador {
   has_access: boolean
   /** Fin del acceso (YYYY-MM-DD); por defecto, `available_until`. */
   access_until: string | null
+  /** Migración 191: contacto del portal de su proveedor. */
+  supplier_portal?: boolean
   /** Responsable interno (obligatorio en el alta). */
   internal_owner_id: string | null
   internal_owner_name: string | null

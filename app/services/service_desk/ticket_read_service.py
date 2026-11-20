@@ -24,6 +24,24 @@ from app.core.codigos_de_error import error as error_con_codigo
 logger = logging.getLogger(__name__)
 
 
+def pintar_historial(payload: dict, idioma: Optional[str]) -> dict:
+    """El historial con los textos del sistema en `idioma` (migracion 192).
+
+    Las entradas con `new_value_key` (posible duplicado, resuelto con la KB,
+    aprovisionado, avisos del agente autonomo...) se pintan en el idioma de
+    quien mira; las demas, y las de antes de la migracion, salen con el texto
+    guardado. Las columnas internas (`new_value_key`, `new_value_params`) no
+    salen.
+    """
+    from app.services.textos_guardados import pintar
+    for h in payload.get("history") or []:
+        clave = h.pop("new_value_key", None)
+        datos = h.pop("new_value_params", None)
+        if clave:
+            h["new_value"] = pintar(clave, datos, h.get("new_value"), idioma)
+    return payload
+
+
 def list_tickets_payload(
     db: Session,
     current_user: User,
@@ -205,10 +223,11 @@ def client_ticket_detail_payload(db: Session, client_id: str, ticket_id: str, ti
     if not ticket:
         raise error_con_codigo(404, "ticket_no_encontrado")
 
-    return {
+    from app.services.formato_regional import idioma_de_salida
+    return pintar_historial({
         **ticket_out(ticket, include_comments=True),
         "dynamic_fields": get_ticket_dynamic_fields(db, ticket.id),
-    }
+    }, idioma_de_salida(db, org_id=ticket.organization_id, preferido=getattr(ticket, "language", None)))
 
 
 def ticket_detail_payload(db: Session, current_user: User, ticket_id: str, ticket_out) -> dict:
@@ -288,6 +307,8 @@ def ticket_detail_payload(db: Session, current_user: User, ticket_id: str, ticke
     from app.services.traduccion.mensajes import idioma_de_usuario
     from app.services.traduccion.textos_del_sistema import comentarios_en_idioma
     comentarios_en_idioma(payload, ticket, idioma_de_usuario(db, current_user))
+    # Migracion 192: los textos del sistema del historial, tambien en su idioma.
+    pintar_historial(payload, idioma_de_usuario(db, current_user))
     return payload
 
 

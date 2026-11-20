@@ -29,8 +29,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
 from sqlalchemy.orm import Session
 
-from app.core.deps import (get_current_user, require_admin, require_admin_or_hr, require_any_manager,
-                           require_internal_user, require_worker)
+from app.core.deps import (get_current_user, require_admin, require_any_manager,
+                           require_internal_user, require_worker, requiere_capacidad)
 from app.core.errores import ErrorDeDominio
 from app.core.codigos_de_error import error as error_con_codigo
 from app.core.responses import APIResponse
@@ -62,18 +62,18 @@ def listar_tipos(incluir_inactivos: bool = False, db: Session = Depends(get_db),
 
 @router.post("/types", summary="Crear tipo de ausencia")
 def crear_tipo(payload: TipoDeAusenciaIn, db: Session = Depends(get_db),
-               current_user: User = Depends(require_admin_or_hr)):
+               current_user: User = Depends(requiere_capacidad("ausencias.config"))):
     return APIResponse.ok(data=catalogo.guardar_tipo(db, current_user, payload.model_dump()))
 
 
 @router.put("/types/{tipo_id}", summary="Editar tipo de ausencia")
 def editar_tipo(tipo_id: str, payload: TipoDeAusenciaIn, db: Session = Depends(get_db),
-                current_user: User = Depends(require_admin_or_hr)):
+                current_user: User = Depends(requiere_capacidad("ausencias.config"))):
     return APIResponse.ok(data=catalogo.guardar_tipo(db, current_user, payload.model_dump(exclude_unset=False), tipo_id))
 
 
 @router.delete("/types/{tipo_id}", summary="Borrar (o desactivar si está en uso) un tipo de ausencia")
-def borrar_tipo(tipo_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_hr)):
+def borrar_tipo(tipo_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("ausencias.config"))):
     return APIResponse.ok(data=catalogo.borrar_tipo(db, current_user, tipo_id))
 
 
@@ -86,23 +86,23 @@ def listar_documentos(incluir_inactivos: bool = False, db: Session = Depends(get
 
 @router.post("/document-types", summary="Crear tipo de documento")
 def crear_documento(payload: TipoDeDocumentoIn, db: Session = Depends(get_db),
-                    current_user: User = Depends(require_admin_or_hr)):
+                    current_user: User = Depends(requiere_capacidad("ausencias.config"))):
     return APIResponse.ok(data=catalogo.guardar_documento(db, current_user, payload.model_dump()))
 
 
 @router.put("/document-types/{doc_id}", summary="Editar tipo de documento")
 def editar_documento(doc_id: str, payload: TipoDeDocumentoIn, db: Session = Depends(get_db),
-                     current_user: User = Depends(require_admin_or_hr)):
+                     current_user: User = Depends(requiere_capacidad("ausencias.config"))):
     return APIResponse.ok(data=catalogo.guardar_documento(db, current_user, payload.model_dump(), doc_id))
 
 
 @router.delete("/document-types/{doc_id}", summary="Borrar (o desactivar) un tipo de documento")
-def borrar_documento(doc_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_hr)):
+def borrar_documento(doc_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("ausencias.config"))):
     return APIResponse.ok(data=catalogo.borrar_documento(db, current_user, doc_id))
 
 
 @router.get("/special-access", summary="Quién ve documentos de categoría especial (además de la persona y RRHH)")
-def listar_accesos(db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_hr)):
+def listar_accesos(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("ausencias.config"))):
     return APIResponse.ok(data=catalogo.accesos(db))
 
 
@@ -125,18 +125,18 @@ def listar_turnos(incluir_inactivos: bool = False, db: Session = Depends(get_db)
 
 
 @router.post("/shifts", summary="Crear turno")
-def crear_turno(payload: TurnoIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_hr)):
+def crear_turno(payload: TurnoIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("ausencias.config"))):
     return APIResponse.ok(data=turnos.guardar_turno(db, current_user, payload.model_dump()))
 
 
 @router.put("/shifts/{turno_id}", summary="Editar turno")
 def editar_turno(turno_id: str, payload: TurnoIn, db: Session = Depends(get_db),
-                 current_user: User = Depends(require_admin_or_hr)):
+                 current_user: User = Depends(requiere_capacidad("ausencias.config"))):
     return APIResponse.ok(data=turnos.guardar_turno(db, current_user, payload.model_dump(), turno_id))
 
 
 @router.delete("/shifts/{turno_id}", summary="Borrar (o desactivar si está en uso) un turno")
-def borrar_turno(turno_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_hr)):
+def borrar_turno(turno_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("ausencias.config"))):
     return APIResponse.ok(data=turnos.borrar_turno(db, current_user, turno_id))
 
 
@@ -231,48 +231,48 @@ def listar_jornadas(incluir_inactivas: bool = False, db: Session = Depends(get_d
 
 
 @router.post("/work-schedules", summary="Crear jornada laboral")
-def crear_jornada(payload: JornadaIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_hr)):
+def crear_jornada(payload: JornadaIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("ausencias.config"))):
     return APIResponse.ok(data=jornadas.guardar_jornada(db, current_user, payload.model_dump()))
 
 
 @router.put("/work-schedules/{jornada_id}", summary="Editar jornada laboral")
 def editar_jornada(jornada_id: str, payload: JornadaIn, db: Session = Depends(get_db),
-                   current_user: User = Depends(require_admin_or_hr)):
+                   current_user: User = Depends(requiere_capacidad("ausencias.config"))):
     return APIResponse.ok(data=jornadas.guardar_jornada(db, current_user, payload.model_dump(), jornada_id))
 
 
 @router.delete("/work-schedules/{jornada_id}", summary="Borrar (o desactivar si está asignada) una jornada")
-def borrar_jornada(jornada_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_hr)):
+def borrar_jornada(jornada_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("ausencias.config"))):
     return APIResponse.ok(data=jornadas.borrar_jornada(db, current_user, jornada_id))
 
 
 @router.post("/work-schedule-assignments", summary="Aplicar una jornada (empresa, sede, departamento, equipo, grupo o persona)")
 def crear_asignacion(payload: AsignacionDeJornadaIn, db: Session = Depends(get_db),
-                     current_user: User = Depends(require_admin_or_hr)):
+                     current_user: User = Depends(requiere_capacidad("ausencias.config"))):
     return APIResponse.ok(data=jornadas.guardar_asignacion(db, current_user, payload.model_dump()))
 
 
 @router.put("/work-schedule-assignments/{asignacion_id}", summary="Editar a quién y cuándo se aplica una jornada")
 def editar_asignacion(asignacion_id: str, payload: AsignacionDeJornadaIn, db: Session = Depends(get_db),
-                      current_user: User = Depends(require_admin_or_hr)):
+                      current_user: User = Depends(requiere_capacidad("ausencias.config"))):
     return APIResponse.ok(data=jornadas.guardar_asignacion(db, current_user, payload.model_dump(), asignacion_id))
 
 
 @router.delete("/work-schedule-assignments/{asignacion_id}", summary="Quitar una asignación de jornada")
 def borrar_asignacion(asignacion_id: str, db: Session = Depends(get_db),
-                      current_user: User = Depends(require_admin_or_hr)):
+                      current_user: User = Depends(requiere_capacidad("ausencias.config"))):
     jornadas.borrar_asignacion(db, current_user, asignacion_id)
     return APIResponse.ok(data={"ok": True})
 
 
 @router.get("/work-profiles", summary="Ficha laboral de cada persona (sede, fecha de alta, tipo de contrato)")
-def listar_fichas(db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_hr)):
+def listar_fichas(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("ausencias.config"))):
     return APIResponse.ok(data=jornadas.fichas(db))
 
 
 @router.put("/work-profiles/{user_id}", summary="Editar la ficha laboral de una persona")
 def editar_ficha(user_id: str, payload: FichaLaboralIn, db: Session = Depends(get_db),
-                 current_user: User = Depends(require_admin_or_hr)):
+                 current_user: User = Depends(requiere_capacidad("ausencias.config"))):
     return APIResponse.ok(data=jornadas.guardar_ficha(db, current_user, user_id, payload.model_dump(exclude_unset=True)))
 
 
@@ -296,19 +296,19 @@ def movimientos_de_saldo(user_id: str, saldo_clave: Optional[str] = None, db: Se
 
 @router.post("/balance-adjustments", summary="Ajustar un saldo (sumar o restar, con motivo y caducidad)")
 def ajustar_saldo(payload: MovimientoDeSaldoIn, db: Session = Depends(get_db),
-                  current_user: User = Depends(require_admin_or_hr)):
+                  current_user: User = Depends(requiere_capacidad("ausencias.config"))):
     return APIResponse.ok(data=movimientos.crear(db, current_user, payload.model_dump()))
 
 
 @router.delete("/balance-adjustments/{movimiento_id}", summary="Quitar un ajuste de saldo")
-def quitar_ajuste(movimiento_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_hr)):
+def quitar_ajuste(movimiento_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("ausencias.config"))):
     movimientos.borrar(db, current_user, movimiento_id)
     return APIResponse.ok(data={"ok": True})
 
 
 @router.post("/hour-bank/recalculate", summary="Recalcular la bolsa de horas desde las imputaciones")
 def recalcular_bolsa(payload: RecalcularBolsaIn, db: Session = Depends(get_db),
-                     current_user: User = Depends(require_admin_or_hr)):
+                     current_user: User = Depends(requiere_capacidad("ausencias.config"))):
     if payload.hasta < payload.desde or (payload.hasta - payload.desde).days > 400:
         raise error_con_codigo(422, "rango_de_1_a_400_dias")
     return APIResponse.ok(data=bolsa.recalcular_y_auditar(db, current_user, payload.desde, payload.hasta,
@@ -374,7 +374,7 @@ def ampliar(absence_id: str, payload: AmpliarIn, db: Session = Depends(get_db),
 
 
 @router.post("/{absence_id}/promote", summary="Dar plaza a mano a una petición en lista de espera")
-def dar_plaza(absence_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+def dar_plaza(absence_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("ausencias.gestionar"))):
     a = consultas.visible(db, current_user, absence_id)
     documentos.exigir_gestion(db, current_user, a)
     if a.user_id == current_user.id:

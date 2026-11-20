@@ -95,6 +95,7 @@ from app.services.ai_provider_service.gobernanza import (  # noqa: F401
     _aplicar_guardrail_de_salida,
     guardrail_de_instruccion,
     guardrail_de_respuesta,
+    es_bloqueo_de_entrada,
 )
 
 from app.services.ai_provider_service.gasto import (  # noqa: F401

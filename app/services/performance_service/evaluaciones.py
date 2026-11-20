@@ -98,6 +98,9 @@ def _organizacion_del_ciclo(db: Session, cycle_id: str) -> "str | None":
 
 def create_review(db: Session, cycle_id: str, reviewee_id: str, reviewer_id: str,
                   review_type: str = "peer", *, validate_eligibility: bool = True) -> PerformanceReview:
+    # Migracion 189: un externo solo se evalua si su proveedor lo activa (training_enabled).
+    from app.services.proveedores.asignabilidad import exigir_desarrollo_permitido
+    exigir_desarrollo_permitido(db, reviewee_id, como_valor=True)
     if validate_eligibility:
         reviewee = db.query(User).filter(User.id == reviewee_id).first()
         if not reviewee:

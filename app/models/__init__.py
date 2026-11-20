@@ -6,7 +6,7 @@ from app.models.task import Task, TaskComment, TaskStatus, TaskPriority  # noqa:
 from app.models.task_movement_log import TaskMovementLog  # noqa: F401
 from app.models.imputation import Imputation, TimerSession, ImputationAlert, ImputationSnapshot  # noqa: F401
 from app.models.alert import Alert  # noqa: F401
-from app.models.settings import AppSetting, Area, CustomClientIndustry, CustomExpenseCategory, CustomProjectType, CustomProjectStatus, CustomTaskStatus, Department, Holiday  # noqa: F401
+from app.models.settings import AppSetting, Area, CustomClientIndustry, CustomExpenseCategory, CustomProjectType, CustomProjectStatus, CustomSupplierBillingUnit, CustomSupplierServiceType, CustomTaskStatus, Department, Holiday  # noqa: F401
 from app.models.financial import Timesheet, CapacityPlan, ProjectMilestone, TimesheetStatus  # noqa: F401
 from app.models.sprints import Sprint, SprintTask, SprintStatus  # noqa: F401
 from app.models.pipeline import Opportunity, OpportunityActivity, OpportunityStage, Contract, WorkOrder, ContractType, ContractStatus, Risk, RiskProbability, RiskImpact, RiskStatus, PipelineStageConfig  # noqa: F401
@@ -223,4 +223,21 @@ from app.models.planificacion import EvmSnapshot  # noqa: F401,E402
 from app.models.traduccion import (  # noqa: F401,E402
     TranslationCacheEntry, MessageTranslation, TranslationGlossaryTerm, KBArticleTranslation,
     PortalContentTranslation,  # rev. 181: avisos y catalogo
+)
+# Proveedores y externalizacion (rev. 187)
+from app.models.proveedores import (  # noqa: F401,E402
+    SupplierContract, SupplierPricingLine, SupplierService, SupplierWorkPackage, SupplierReport,
+    SupplierUsageRecord, SupplierStatement, SupplierDocument, SupplierRiskAssessment, SupplierAccessGrant,
+)
+# Asistente de reuniones (rev. 188, 19-11-2026)
+from app.models.reuniones import (  # noqa: F401,E402
+    AIMeetingParticipant, AIMeetingSegment, AIMeetingTranslation, AIMeetingAudio, AIMeetingEvent,
+    AIMeetingUserPrefs,
+)
+# CMDB de software, composición y vulnerabilidades (rev. 190, 19-11-2026)
+from app.models.cmdb_software import (  # noqa: F401,E402
+    SoftwareProduct, SoftwareVersion, SoftwareComponent, SoftwareSbomImport, SoftwareProductLicense,
+    SoftwareInstance, SoftwareInstanceRelation, SoftwareConfigSnapshot, SoftwareBaseline,
+    Vulnerability, VulnerabilityAffect, VulnerabilityFinding, VulnerabilityException, SoftwareConfig,
+    VulnerabilitySyncRun,
 )

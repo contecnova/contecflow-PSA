@@ -12,13 +12,14 @@
  *
  * 19-11-2026: la pestaña «Configuración» vive en Configuración → Service desk →
  * Agente autónomo (`/settings/sd-agente`, ConfigAgenteAutonomo.tsx). Aquí
- * quedan el registro y los playbooks, y el botón «Configurar» para quien
- * tiene `sd.administrar`.
+ * quedan el registro y los playbooks; sin botón «Configurar»: solo un aviso
+ * con enlace «Ir a Configuración» si el agente está apagado y se tiene
+ * `sd.administrar`.
  */
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bot, Check, Plus, Settings2, Trash2, X } from 'lucide-react'
+import { Bot, Check, Plus, Trash2, X } from 'lucide-react'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
@@ -46,13 +47,18 @@ export default function AgenteAutonomoPanel() {
   const [vista, setVista] = useState('registro')
   const { puede } = useAuth()
   const esAdmin = puede('sd.administrar')
-  const navigate = useNavigate()
+  // El GET de la configuración solo se pide a quien puede configurar: es quien recibe el enlace.
+  const config = useQuery({ queryKey: ['sdm-agente-config'], queryFn: agenteAutonomoApi.config, enabled: esAdmin })
+  const apagado = esAdmin && config.data?.enabled === false
   return (
     <Section title={<span className="u-row-center-6"><Bot size={16} aria-hidden="true" />{t('sd_mercado.agente_titulo')}</span>}
-      subtitle={t('sd_mercado.agente_desc')}
-      actions={esAdmin ? (
-        <Button size="sm" variant="secondary" icon={<Settings2 size={14} />} onClick={() => navigate('/settings/sd-agente')}>{t('ajustes.configurar')}</Button>
-      ) : undefined}>
+      subtitle={t('sd_mercado.agente_desc')}>
+      {apagado && (
+        <p className="u-text2-xs" role="status">
+          {t('sd_mercado.agente_apagado')}{' '}
+          <Link to="/settings/sd-agente">{t('sd_mercado.ir_a_configuracion')}</Link>
+        </p>
+      )}
       <Tabs active={vista} onChange={setVista} ariaLabel={t('sd_mercado.agente_titulo')} items={[
         { id: 'registro', label: t('sd_mercado.agente_registro') },
         { id: 'playbooks', label: t('sd_mercado.agente_playbooks') },

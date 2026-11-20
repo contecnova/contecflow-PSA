@@ -11,14 +11,14 @@
  * - Resumen (responsables): GET /overtime/summary frente a límites y
  *   presupuestos, y GET /overtime/unauthorized.
  * - Configuración (admin/RRHH): ya no es una pestaña; vive en Configuración
- *   (`/settings/horas-extra`, ConfigHorasExtra). Aquí queda el botón
+ *   (`/settings/horas-extra`, ConfigHorasExtra). Aquí no hay botón
  *   «Configurar» y `?tab=config` redirige allí (18-11-2026).
  * Las respuestas van envueltas en `{ok, data}`; `_core` las desenvuelve.
  */
 import { useState } from 'react'
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
-import { AlarmClockPlus, BarChart3, Inbox, ListChecks, Settings2, UserRound } from 'lucide-react'
-import { Button, Page, Tabs } from '../components/ui'
+import { Navigate, useSearchParams } from 'react-router-dom'
+import { AlarmClockPlus, BarChart3, Inbox, ListChecks, UserRound } from 'lucide-react'
+import { Page, Tabs } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import { useTh } from '../components/horas-extra/comun'
 import MisHorasExtra from '../components/horas-extra/MisHorasExtra'
@@ -28,13 +28,11 @@ import ResumenHorasExtra from '../components/horas-extra/ResumenHorasExtra'
 import CicloHorasExtra from '../components/horas-extra/CicloHorasExtra'
 
 export default function HorasExtraPage(): JSX.Element {
-  const { th, t } = useTh()
+  const { th } = useTh()
   const { puede } = useAuth()
-  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const pedida = searchParams.get('tab')
   const gestiona = puede('horas_extra.gestionar')
-  const administra = puede('horas_extra.config')
   const validas = ['mias', 'aprobar', ...(gestiona ? ['gestion', 'resumen'] : [])]
   const [tab, setTab] = useState(pedida && validas.includes(pedida) ? pedida : 'mias')
   const [abierta, setAbierta] = useState<string | null>(null)
@@ -50,9 +48,7 @@ export default function HorasExtraPage(): JSX.Element {
   if (pedida === 'config') return <Navigate to="/settings/horas-extra" replace />
   return (
     <Page title={th('titulo')} subtitle={th('subtitulo')} icon={<AlarmClockPlus size={18} />}
-      actions={administra ? (
-        <Button variant="secondary" icon={<Settings2 size={14} />} onClick={() => navigate('/settings/horas-extra')}>{t('ajustes.configurar')}</Button>
-      ) : undefined}>
+>
       <Tabs items={items} active={tab} onChange={setTab} ariaLabel={th('secciones')} />
       <div role="tabpanel">
         {tab === 'mias' && <MisHorasExtra />}

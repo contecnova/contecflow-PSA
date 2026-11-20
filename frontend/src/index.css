@@ -1242,7 +1242,7 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 /* ── Nav hover preview popover ────────────────────────────────── */
 .nav-hover-preview {
   position: fixed;
-  z-index: var(--z-dropdown);
+  z-index: var(--z-popover);
   background: var(--surface-2);
   border: 1px solid var(--surface-4);
   border-radius: var(--radius-md);

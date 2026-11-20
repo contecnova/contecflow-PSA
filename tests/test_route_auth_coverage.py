@@ -102,6 +102,11 @@ PUBLIC_ROUTES: dict[tuple[str, str], str] = {
     # Slug secreto con expiración (slug_expires_at) + HMAC X-Contecflow-Signature
     # + rate-limit 20/min. Ver app/api/v1/endpoints/cab.py:180.
     ("POST", "/api/v1/webhooks/fire/{slug}"): "slug secreto caducable + HMAC + rate-limit",
+    # Asistente de reuniones (19-11-2026): firmados con el secreto de esa empresa
+    # (app/services/reuniones/webhooks.py, 403 sin secreto o con firma mala).
+    ("POST", "/api/v1/webhooks/meetings/recall/{org_id}"): "firma Svix (webhook-signature) del proveedor de bots",
+    ("POST", "/api/v1/webhooks/meetings/zoom/{org_id}"): "firma x-zm-signature de Zoom (HMAC, ventana de 5 min)",
+    ("POST", "/api/v1/webhooks/meetings/teams/{org_id}"): "clientState de Microsoft Graph (compare_digest)",
     # ── Enlaces de capacidad: el token de la URL ES la credencial ────────────
     ("GET", "/api/v1/forms/public/{token}"): "formulario público por token",
     ("POST", "/api/v1/forms/public/{token}/submit"): "envío de formulario público por token",

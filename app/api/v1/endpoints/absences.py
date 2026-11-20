@@ -4,7 +4,7 @@ from typing import Optional
 from datetime import date, timedelta
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User, UserRole
@@ -127,7 +127,7 @@ def get_team_absences(
     user_id: Optional[str] = None,
     status: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("ausencias.gestionar")),
 ):
     absences = absence_service.get_team_absences(db, month=month, user_id=user_id, status=status)
     items = [_absence_out(a, current_user, db) for a in absences]
@@ -139,7 +139,7 @@ def get_pending_absences(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=MAX_TAMANO_DE_PAGINA),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("ausencias.gestionar")),
 ):
     absences = absence_service.get_pending_absences(db)
     items = [_absence_out(a, current_user, db) for a in absences]
@@ -151,7 +151,7 @@ def review_absence(
     absence_id: str,
     payload: AbsenceReview,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("ausencias.gestionar")),
 ):
     a = absence_service.get_absence_by_id(db, absence_id)
     if not a:

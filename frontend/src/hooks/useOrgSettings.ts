@@ -25,7 +25,29 @@ export interface OrgSettings {
   currencies: string[]
   /** Umbrales de semáforo por métrica (19-11-2026, `app/core/umbrales.py`). */
   umbrales?: Partial<Umbrales>
+  /** Valores de formulario de la empresa (19-11-2026, `valores_de_negocio.py`); no llega al externo. */
+  propuestas?: Partial<Propuestas>
   [extra: string]: unknown
+}
+
+/** Valores que proponen los formularios; antes fijos en cada pantalla (ver `usePropuestas`). */
+export interface Propuestas {
+  /** `CHANGE_CANARY_RAMP_PCT`: % por fase de un despliegue canario (creciente, acaba en 100). */
+  change_canary_ramp_pct: number[]
+  /** `CHANGE_CANARY_*_MINUTES`: minutos de la primera fase, de cada intermedia y de la última. */
+  change_canary_minutes: { first: number; step: number; last: number }
+  /** `CHAT_RETENTION_PROPOSED_MONTHS`, ya dentro del mínimo y del tope de la empresa. */
+  chat_retention_proposed_months: number
+  /** `VACATION_MAX_DAYS_ENTITLED`. */
+  vacation_max_days_entitled: number
+}
+
+/** Los valores por defecto del servidor: los que había escritos antes en cada pantalla. */
+export const PROPUESTAS_POR_DEFECTO: Propuestas = {
+  change_canary_ramp_pct: [1, 5, 25, 50, 100],
+  change_canary_minutes: { first: 30, step: 45, last: 60 },
+  chat_retention_proposed_months: 24,
+  vacation_max_days_entitled: 60,
 }
 
 const FALLBACK: OrgSettings = {
@@ -48,6 +70,15 @@ export function useOrgSettings(): OrgSettings {
     retry: 1,
   })
   return { ...FALLBACK, ...(data ?? {}) }
+}
+
+/**
+ * Valores de formulario de la empresa (19-11-2026): rampa canaria, retención
+ * propuesta del chat, máximo de vacaciones. Se editan en Configuración; mientras
+ * no responde el servidor, los de por defecto.
+ */
+export function usePropuestas(): Propuestas {
+  return { ...PROPUESTAS_POR_DEFECTO, ...(useOrgSettings().propuestas ?? {}) }
 }
 
 /**

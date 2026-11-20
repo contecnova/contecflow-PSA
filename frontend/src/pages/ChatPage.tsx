@@ -7,7 +7,7 @@
  */
 import type { CSSProperties, ReactNode, Dispatch, SetStateAction, DragEvent as ReactDragEvent, ClipboardEvent as ReactClipboardEvent } from 'react'
 import { useEffect, useReducer, useRef, useState, useId } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Hash, MessageSquare, Users, Pin, Bookmark, Search,
@@ -60,6 +60,8 @@ interface BotMeta {
   card?: string; task_id?: string; ticket?: { number?: string | number | null; id?: string; assignee?: string }
   hours?: number; project_id?: string; title?: string; text?: string; room?: string; actions?: unknown[]
   source?: string; question?: string; options?: PollOption[]
+  // Acta del asistente de reuniones (card `meeting_minutes`, 19-11-2026)
+  meeting_id?: string; document_id?: string | null; link?: string; status?: string
 }
 /** `_serialize_message` (app/services/collaboration/messages.py). */
 interface Msg {
@@ -1484,6 +1486,7 @@ function BotCard({ meta }: { meta: BotMeta }) {
   if (meta.card === 'poll') return <PollCard meta={meta} />
   if (meta.card === 'call') return <Card icon={Video} accent="var(--accent)" title={traducir('chat.card_call_started')} body={traducir('chat.card_room', { room: meta.room?.slice(-8) || '' })} />
   if (meta.card === 'call_summary') return <Card icon={Sparkles} accent="var(--accent)" title={traducir('chat.resumen_de_reunion')} body={traducir('chat.card_actions_detected', { count: meta.actions?.length || 0 })} />
+  if (meta.card === 'meeting_minutes') return <TarjetaDeActa meta={meta} />
   if (meta.card === 'answer') return <Card icon={Sparkles} accent="var(--accent)" title="Nexus IA" body={meta.source} />
   if (meta.card === 'webhook') return <Card icon={Megaphone} accent="var(--purple)" title={meta.source || traducir('chat.card_incoming_webhook')} body="" />
   return null
@@ -1498,6 +1501,27 @@ function Card({ icon: Icon, accent, title, body }: {
       <div className="u-min0">
         <div className="chat-card__title">{title}</div>
         {body && <div className="u-text2-sm">{body}</div>}
+      </div>
+    </div>
+  )
+}
+
+/** Acta del asistente de reuniones al colgar una llamada (19-11-2026): botón «Ver acta». */
+function TarjetaDeActa({ meta }: { meta: BotMeta }) {
+  const { t: traducir } = useAppLang()
+  const navigate = useNavigate()
+  const destino = meta.link || (meta.meeting_id ? `/meetings-ai?meeting=${meta.meeting_id}` : '')
+  return (
+    <div className="chat-card chat-card--acta">
+      <div className="chat-card__icon" aria-hidden="true"><FileText size={15} /></div>
+      <div className="u-min0">
+        <div className="chat-card__title">{traducir('chat.card_acta_de_reunion')}</div>
+        <div className="u-text2-sm">{traducir('chat.card_actions_detected', { count: meta.actions?.length || 0 })}</div>
+        {destino && (
+          <Button size="xs" variant="secondary" icon={<FileText size={12} />} onClick={() => navigate(destino)}>
+            {traducir('chat.card_ver_acta')}
+          </Button>
+        )}
       </div>
     </div>
   )

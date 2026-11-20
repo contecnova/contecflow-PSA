@@ -73,6 +73,8 @@ ABAC_COVERED_PREFIXES: dict[str, tuple[str, str]] = {
     "/api/v1/performance":           ("performance_review", "read"),
     "/api/v1/onboarding":            ("onboarding",       "read"),
     "/api/v1/user-costs":            ("user_cost",        "read"),
+    "/api/v1/suppliers":             ("supplier",         "read"),   # proveedores (rev. 189)
+    "/api/v1/supplier-portal":       ("supplier_portal",  "read"),   # portal del proveedor (rev. 191)
 
     # ── Tiempo y dinero ────────────────────────────────────────────────────────
     "/api/v1/timesheets":            ("timesheet",        "read"),
@@ -193,6 +195,12 @@ ABAC_EXEMPT_PREFIXES: dict[str, str] = {
     # organizacion del usuario y completar un paso exige el rol de su calle
     # (`bpmn_engine.puede_completar`); no hay recurso ABAC por instancia.
     "/api/v1/bpmn-instances": "Acotado por organización y por el rol de la calle del paso (bpmn_engine)",
+    # 19-11-2026: asistente de reuniones (docs/ASISTENTE_DE_REUNIONES.md). Cada
+    # ruta exige `requiere_capacidad("reuniones.*")` y la visibilidad es por
+    # reunión (asistente, responsable de una acción, gestor o `reuniones.ver_todas`,
+    # en `reuniones/consultas.py`), con 404 si no es visible. Sus avisos firmados
+    # cuelgan de `/api/v1/webhooks/meetings`, ya exento arriba.
+    "/api/v1/meeting-assistant": "Capacidades reuniones.* y visibilidad por reunión (asistentes, responsables, gestor); 404 si no es visible",
     # Revisión 2026-11: servidor MCP. Cada herramienta se ejecuta como el dueño
     # de la credencial con sus permisos (execute_tool), bajo la gobernanza del
     # módulo «mcp» (encendido, límite diario, auditoría) y MCP_WRITE_MODE.

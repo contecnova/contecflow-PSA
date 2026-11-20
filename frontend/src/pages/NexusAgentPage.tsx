@@ -82,7 +82,8 @@ type EventoDeAgente =
   | { type: 'token'; text: string }
   | { type: 'step'; step?: number; tool?: string; output?: string }
   | { type: 'done'; result?: string; steps?: PasoDeAgente[] }
-  | { type: 'error'; message?: string }
+  // 19-11-2026: `code`/`params` cuando el corte tiene causa (tope de gasto de IA de la empresa).
+  | { type: 'error'; message?: string; code?: string; params?: Record<string, string | number> }
 
 function StepBadge({ step }: { step: PasoDeAgente }) {
   const t = useAppT()
@@ -244,7 +245,7 @@ export default function ContecflowAgentPage() {
               setResult({ status: 'done', result: evt.result, steps: evt.steps || [] })
               refetch()
             } else if (evt.type === 'error') {
-              toast.error(evt.message || t('nexusagent.error_agente'))
+              toast.error(evt.code ? t(`err_srv.${evt.code}`, evt.params) : (evt.message || t('nexusagent.error_agente')))
             }
           } catch { /* ignore parse errors */ }
         }

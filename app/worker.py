@@ -291,6 +291,22 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.guardar_puntos_de_curva_s",
         "schedule": crontab(hour=2, minute=25),
     },
+    # Asistente de reuniones (19-11-2026): Teams/Meet de quien lo activó, bots de
+    # calendario y suscripción de Graph; y la retención corta de audio y transcripción.
+    "reuniones-sondeo": {
+        "task": "app.worker.reuniones_sondeo",
+        "schedule": crontab(minute="*/15"),
+    },
+    "reuniones-retencion": {
+        "task": "app.worker.reuniones_retencion",
+        "schedule": crontab(hour=3, minute=40),
+    },
+    # CMDB de software (19-11-2026): avisos (si auto_sync), reevaluación, SLA,
+    # caducidad de excepciones y ticket automático, por empresa.
+    "cmdb-software-diario": {
+        "task": "app.worker.cmdb_software_diario",
+        "schedule": crontab(hour=4, minute=20),
+    },
 }
 
 celery_app.conf.timezone = settings.DEFAULT_TIMEZONE
@@ -305,6 +321,7 @@ import app.services.automation_events  # noqa: F401,E402
 import app.services.preferencias_de_aviso  # noqa: F401,E402
 import app.services.traduccion.deteccion  # noqa: F401,E402  (idioma de los mensajes al guardar)
 import app.services.externos.horas  # noqa: F401,E402  (hours_logged de externos al imputar)
+import app.services.proveedores.asignabilidad  # noqa: F401,E402  (quien recibe trabajo: rev. 189)
 
 
 # ── Reglas de las tareas (segunda auditoria 2026-11, #33 y #37) ──────────────
@@ -824,3 +841,24 @@ def purgar_cache_de_traducciones():
     _worker_logger.info("traduccion: %s entradas de cache borradas",
                         sum((resultado.get("por_organizacion") or {}).values()))
     return resultado
+
+
+@celery_app.task(name="app.worker.reuniones_sondeo")
+def reuniones_sondeo():
+    """Asistente de reuniones: recoge Teams/Meet terminadas, manda bots de calendario, renueva Graph."""
+    from app.services.reuniones.trabajos import sondeo
+    return _por_organizacion("reuniones_sondeo", sondeo)
+
+
+@celery_app.task(name="app.worker.reuniones_retencion")
+def reuniones_retencion():
+    """Asistente de reuniones: borra audio y transcripciones caducados (respeta el bloqueo legal)."""
+    from app.services.reuniones.trabajos import retencion
+    return _por_organizacion("reuniones_retencion", retencion)
+
+
+@celery_app.task(name="app.worker.cmdb_software_diario")
+def cmdb_software_diario():
+    """CMDB de software: sincroniza avisos (auto_sync), reevalúa hallazgos y SLA, caduca excepciones."""
+    from app.services.cmdb_software.trabajos import diario
+    return _por_organizacion("cmdb_software_diario", diario)

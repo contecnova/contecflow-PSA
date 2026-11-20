@@ -51,6 +51,11 @@ class Task(Base):
 
     # Assignment
     assignee_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    # Migracion 189: tarea externalizada a una empresa (outsourcing), excluyente
+    # con `assignee_id`. Reglas: `app/services/proveedores/asignabilidad.py`.
+    supplier_id = Column(String(36), ForeignKey("subcontractors.id", ondelete="SET NULL"), nullable=True, index=True)
+    supplier_work_package_id = Column(String(36), ForeignKey("supplier_work_packages.id", ondelete="SET NULL"),
+                                      nullable=True, index=True)
     reporter_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Status and priority
@@ -113,6 +118,8 @@ class Task(Base):
     assignee = relationship("User", back_populates="task_assignments", foreign_keys=[assignee_id])
     reporter = relationship("User", foreign_keys=[reporter_id])
     creator = relationship("User", foreign_keys=[created_by])
+    # Migracion 189: empresa a la que se externaliza (selectin: TaskOut lee `supplier_name`).
+    supplier = relationship("Subcontractor", foreign_keys=[supplier_id], lazy="selectin")
     subtasks = relationship("Task", backref="parent", remote_side=[id])
     # audit #56-57: selectin eager-loading evita N+1 cuando TaskOut serializa real_hours
     # (que itera self.imputations) en list_tasks. Un único IN-load reemplaza N queries.
@@ -135,6 +142,10 @@ class Task(Base):
     @property
     def real_hours(self):
         return sum(i.hours for i in self.imputations)
+
+    @property
+    def supplier_name(self):
+        return self.supplier.name if self.supplier is not None else None
 
     @property
     def efficiency_ratio(self):

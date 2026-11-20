@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from app.schemas.semantic_engine import SemConfigPatch
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin_or_hr, require_internal_user
+from app.core.deps import get_current_user, require_admin_or_hr, require_internal_user, requiere_capacidad
 from app.core.responses import APIListResponse, APIResponse
 import app.services.semantic_engine_service as _svc
 from app.core.config import settings
@@ -34,7 +34,7 @@ def get_config(db: Session = Depends(get_db), _=Depends(get_current_user)):
 @router.patch("/config")
 def update_config(data: SemConfigPatch = Body(...),
                   db: Session = Depends(get_db),
-                  _=Depends(require_admin_or_hr)):
+                  _=Depends(requiere_capacidad("ia.asignacion_config"))):
     cfg = _svc.get_or_create_config(db)
     allowed = {"engine_mode", "threshold_ticket", "threshold_task",
                "threshold_expert_cache", "load_balance_weight",
@@ -175,7 +175,7 @@ def list_profiles(db: Session = Depends(get_db), _=Depends(get_current_user)):
 @router.post("/profiles")
 def create_or_update_profile(data: dict = Body(...),
                               db: Session = Depends(get_db),
-    _rol = Depends(require_admin_or_hr),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
+    _rol = Depends(requiere_capacidad("ia.asignacion_config")),  # auditoria 2026-09: sus hermanas del fichero usan esa guarda
                               cu=Depends(get_current_user)):
     user_id      = data.get("user_id")
     profile_text = data.get("profile_text", "")
@@ -196,7 +196,7 @@ def create_or_update_profile(data: dict = Body(...),
 
 @router.post("/profiles/auto-generate")
 def auto_generate_profiles(db: Session = Depends(get_db),
-                            cu=Depends(require_admin_or_hr)):
+                            cu=Depends(requiere_capacidad("ia.asignacion_config"))):
     return APIResponse.ok(data=_svc.auto_generate_profiles(
         db,
         organization_id=getattr(cu, "organization_id", None),
@@ -206,7 +206,7 @@ def auto_generate_profiles(db: Session = Depends(get_db),
 
 @router.post("/profiles/rebuild-embeddings")
 def rebuild_embeddings(db: Session = Depends(get_db),
-                       _=Depends(require_admin_or_hr)):
+                       _=Depends(requiere_capacidad("ia.asignacion_config"))):
     assigner = _svc.get_assigner(db)
     n = assigner.rebuild_profiles()
     return APIResponse.ok(data={"rebuilt": n})

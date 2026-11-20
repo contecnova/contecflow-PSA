@@ -225,15 +225,51 @@ class AIMeeting(Base):
     summary      = Column(Text, nullable=True)                 # AI-generated executive summary
     decisions    = Column(Text, nullable=True)                 # JSON: list of decisions made
     risks_mentioned = Column(Text, nullable=True)              # JSON: risks mentioned
-    status       = Column(String(20), default="processing")    # processing | done | failed
+    # 19-11-2026 (asistente de reuniones, migración 188): programada | bot_unido |
+    # grabando | procesando | esperando_consentimiento | lista | error
+    # (antes processing | done | failed; la migración traduce los antiguos).
+    status       = Column(String(30), default="procesando")
     pdf_path     = Column(String(500), nullable=True)          # generated PDF minutes
     created_by   = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at   = Column(DateTime(timezone=True), nullable=True, onupdate=func.now())
+    # ── Asistente de reuniones (19-11-2026, docs/ASISTENTE_DE_REUNIONES.md) ──
+    origin       = Column(String(20), nullable=True, index=True)   # transcript|upload|recording|bot|teams|zoom|meet
+    external_id  = Column(String(255), nullable=True, index=True)  # id en la plataforma (no importar dos veces)
+    join_url     = Column(String(1000), nullable=True)
+    client_id    = Column(String(36), ForeignKey("clients.id", ondelete="SET NULL"), nullable=True, index=True)
+    calendar_event_id = Column(String(36), ForeignKey("calendar_events.id", ondelete="SET NULL"), nullable=True, index=True)
+    ends_at      = Column(DateTime(timezone=True), nullable=True)
+    original_language = Column(String(10), nullable=True)
+    open_questions = Column(Text, nullable=True)               # JSON
+    error_code   = Column(String(80), nullable=True)
+    notice_confirmed_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    notice_confirmed_at = Column(DateTime(timezone=True), nullable=True)
+    consent_required = Column(Boolean, nullable=False, default=False, server_default="0")
+    bot_provider = Column(String(30), nullable=True)
+    bot_id       = Column(String(255), nullable=True, index=True)
+    bot_status   = Column(String(40), nullable=True)
+    audio_expires_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    transcript_expires_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    transcript_purged_at = Column(DateTime(timezone=True), nullable=True)
+    minutes_document_id = Column(String(36), ForeignKey("documents.id", ondelete="SET NULL"), nullable=True, index=True)
+    # Cuarta vía (19-11-2026): llamada del chat interno (origin = chat_call).
+    call_id      = Column(String(36), ForeignKey("collaboration_calls.id", ondelete="SET NULL"), nullable=True, index=True)
+    conversation_id = Column(String(36), ForeignKey("collaboration_conversations.id", ondelete="SET NULL"),
+                             nullable=True, index=True)
 
     actions  = relationship("AIMeetingAction", back_populates="meeting",
                             cascade="all, delete-orphan")
     project  = relationship("Project")
     creator  = relationship("User", foreign_keys=[created_by])
+    participantes = relationship("AIMeetingParticipant", back_populates="meeting", cascade="all, delete-orphan")
+    segmentos = relationship("AIMeetingSegment", back_populates="meeting", cascade="all, delete-orphan",
+                             order_by="AIMeetingSegment.orden")
+    traducciones = relationship("AIMeetingTranslation", back_populates="meeting", cascade="all, delete-orphan")
+    audios = relationship("AIMeetingAudio", back_populates="meeting", cascade="all, delete-orphan",
+                          order_by="AIMeetingAudio.seq")
+    eventos = relationship("AIMeetingEvent", back_populates="meeting", cascade="all, delete-orphan",
+                           order_by="AIMeetingEvent.created_at")
 
 
 class AIMeetingAction(Base):
@@ -251,6 +287,7 @@ class AIMeetingAction(Base):
     due_date     = Column(DateTime(timezone=True), nullable=True)
     task_id      = Column(String(36), ForeignKey("tasks.id"), nullable=True, index=True)  # if created in Contecflow
     is_created   = Column(Boolean, default=False)              # True if task created in Contecflow
+    ticket_id    = Column(String(36), ForeignKey("sd_tickets.id", ondelete="SET NULL"), nullable=True, index=True)  # 19-11-2026
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
 
     meeting  = relationship("AIMeeting", back_populates="actions")

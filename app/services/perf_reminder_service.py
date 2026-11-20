@@ -1,7 +1,7 @@
 """Recordatorios automáticos a evaluadores con reviews pendientes.
 
 Estrategia: una notificación in-app diaria por reviewer y ciclo cuando el
-ciclo se acerca al cierre (`end_date - today <= REMINDER_WINDOW_DAYS`) o
+ciclo se acerca al cierre (`end_date - today <= PERF_REMINDER_WINDOW_DAYS`) o
 cuando el ciclo lleva mucho tiempo activo sin enviar respuesta.
 
 Idempotencia: antes de crear, comprobamos si ya existe una notificación
@@ -22,8 +22,18 @@ from app.core import timeutil
 
 logger = logging.getLogger(__name__)
 
-REMINDER_WINDOW_DAYS = 7      # avisamos cuando el ciclo cierra en N días o menos
+#: 19-11-2026: los plazos de negocio son ajustes por empresa (grupo `automations`,
+#: `valores_de_negocio.plazos_de_evaluaciones`): `PERF_REMINDER_WINDOW_DAYS` (7),
+#: `PERF_REMINDER_UNDATED_CYCLE_DAYS` (30), `PERF_STALLED_CYCLE_DAYS` (45) y
+#: `PERF_STALLED_COMPLETION_PCT` (50). Antes eran constantes de este módulo.
+#: `DEDUP_WINDOW_HOURS` se queda fijo: es la guarda técnica para que un trabajo
+#: diario relanzado no repita el aviso, no una regla de negocio.
 DEDUP_WINDOW_HOURS   = 20     # no reenviamos al mismo (user, cycle) en N horas
+
+
+def _plazos(db: Session, ciclo=None) -> dict:
+    from app.services.settings_service.valores_de_negocio import plazos_de_evaluaciones
+    return plazos_de_evaluaciones(db, registro=ciclo)
 
 
 def _has_recent_reminder(db: Session, *, user_id: str, cycle_id: str) -> bool:
@@ -45,18 +55,12 @@ def send_pending_review_reminders(db: Session, *, today: date | None = None) -> 
     """Envía recordatorios a reviewers con reviews pendientes en ciclos próximos
     al cierre. Devuelve estadísticas de la ejecución."""
     today = today or timeutil.today()
-    horizon = today + timedelta(days=REMINDER_WINDOW_DAYS)
 
+    # 19-11-2026: la ventana es de la empresa de cada ciclo, así que se filtra
+    # aquí y no en la consulta (los ciclos activos son pocos).
     cycles = (
         db.query(ReviewCycle)
-        .filter(
-            ReviewCycle.status == ReviewCycleStatus.active,
-            # Ciclos con end_date dentro de la ventana O sin end_date pero antiguos
-            (
-                (ReviewCycle.end_date.isnot(None) & (ReviewCycle.end_date <= horizon))
-                | (ReviewCycle.end_date.is_(None))
-            ),
-        )
+        .filter(ReviewCycle.status == ReviewCycleStatus.active)
         .all()
     )
 
@@ -65,14 +69,17 @@ def send_pending_review_reminders(db: Session, *, today: date | None = None) -> 
     cycles_processed = 0
 
     for c in cycles:
+        plazos = _plazos(db, c)
+        if c.end_date is not None and c.end_date > today + timedelta(days=plazos["ventana_dias"]):
+            continue
         cycles_processed += 1
-        # Si end_date es None, solo enviamos si el ciclo lleva activo > 30 días
+        # Sin end_date, sólo si el ciclo lleva activo PERF_REMINDER_UNDATED_CYCLE_DAYS (30) o más
         if c.end_date is None:
             created = c.created_at
             if created is None:
                 continue
             created_d = created.date() if hasattr(created, "date") else created
-            if (today - created_d).days < 30:
+            if (today - created_d).days < plazos["sin_cierre_dias"]:
                 continue
             days_left_label = "sin fecha de cierre"
         else:
@@ -209,22 +216,24 @@ def org_perf_kpis(db: Session) -> dict:
     )
     pending_active = total_active - submitted_active
 
-    # Ciclos atascados: activos con completion <50% y end_date pasada o
-    # creados hace más de 45 días sin mucho avance
+    # Ciclos atascados: activos con completion < PERF_STALLED_COMPLETION_PCT (50)
+    # y end_date pasada o creados hace más de PERF_STALLED_CYCLE_DAYS (45) días
+    # (19-11-2026: ajustes de la empresa de cada ciclo; antes fijos).
     today = timeutil.today()
     stalled = []
     for c in active:
         total = len(c.reviews or [])
         if total == 0:
             continue
+        plazos = _plazos(db, c)
         sub = sum(1 for r in c.reviews if r.status == ReviewStatus.submitted)
         rate = sub / total * 100
         is_overdue = c.end_date is not None and c.end_date < today
         is_old = (
             c.created_at is not None and
-            (today - (c.created_at.date() if hasattr(c.created_at, "date") else c.created_at)).days > 45
+            (today - (c.created_at.date() if hasattr(c.created_at, "date") else c.created_at)).days > plazos["atascado_dias"]
         )
-        if rate < 50 and (is_overdue or is_old):
+        if rate < plazos["atascado_pct"] and (is_overdue or is_old):
             stalled.append({
                 "cycle_id": c.id, "cycle_name": c.name,
                 "completion_rate": round(rate, 1),

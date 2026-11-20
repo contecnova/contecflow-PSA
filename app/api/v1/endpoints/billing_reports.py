@@ -11,7 +11,7 @@ from app.core.periodo import CON_HORA, Periodo, periodo
 from app.core.uploads import UploadProfile, read_and_validate_upload_sync
 from app.db.session import get_db
 from app.core.config import settings
-from app.core.deps import get_current_user, require_any_manager, require_internal_user
+from app.core.deps import get_current_user, require_any_manager, require_internal_user, requiere_capacidad
 from app.models.user import User
 from app.services.billing_reports.history_service import (
     get_import_jobs,
@@ -199,7 +199,7 @@ def delete_report(
 @router.get("/import/template/{entity_type}", response_model=APIResponse[ImportTemplateOut], summary="Plantilla CSV para importación")
 def get_import_template(
     entity_type: str,
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("integraciones.importar")),
 ):
     if entity_type not in IMPORT_TEMPLATES:
         raise error_http(400, "campo_no_valido_opciones", detail=f"Tipo no válido. Opciones: {list(IMPORT_TEMPLATES.keys())}", campo="tipo", opciones=list(IMPORT_TEMPLATES.keys()))
@@ -217,7 +217,7 @@ def validate_import(
     entity_type: str,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("integraciones.importar")),
 ):
     # Auditoría 2026-08 (P1-8): tope y validación de tipo centralizados. Antes
     # se leía el fichero completo sin límite y el corte de 5 MB llegaba dentro
@@ -239,7 +239,7 @@ def execute_import(
     entity_type: str,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("integraciones.importar")),
 ):
     # Auditoría 2026-08 (P1-8): tope y validación de tipo centralizados. Antes
     # se leía el fichero completo sin límite y el corte de 5 MB llegaba dentro
@@ -262,7 +262,7 @@ def import_jobs(
     page_size: int = Query(20, ge=1, le=MAX_TAMANO_DE_PAGINA),
     response: Response = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("integraciones.importar")),
 ):
     items = get_import_jobs(db, page, page_size, response)
     return APIListResponse.ok(items=items, total=len(items), page=page, page_size=page_size)

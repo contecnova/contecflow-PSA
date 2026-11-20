@@ -1,36 +1,74 @@
-/* MeetingsAIPage: solo lo propio de la pantalla; tarjetas, KPIs, vacíos,
-   badges y campos son del kit. Solo tokens de index.css.
-   16-11-2026: fuera las cajas propias, emojis y campos con estilo propio. */
+/* MeetingsAIPage (asistente de reuniones, rehecha el 19-11-2026): solo lo
+   propio de la pantalla (cabecera, filtros, búsqueda, lista y maqueta). Las
+   piezas del detalle están en components/reuniones/Reuniones.css. Solo
+   tokens de index.css. */
 
-/* Modal */
-.meet-form {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
-  gap: 14px;
-}
-.meet-form__transcripcion { position: relative; }
-.meet-form__demo {
-  position: absolute;
-  top: -6px;
-  right: 0;
-}
-.meet-form__textarea {
-  resize: vertical;
-  line-height: 1.5;
-  min-height: 180px;
-}
-.meet-acciones {
+.meet-cabecera {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
   gap: 8px;
-  margin-top: 20px;
+  justify-content: flex-end;
 }
+
+.meet-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.meet-filtros__buscar {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+/* Resultados de la búsqueda */
+.meet-busqueda {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.meet-busqueda__cab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  color: var(--text-2);
+}
+.meet-busqueda__lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.meet-resultado {
+  width: 100%;
+  text-align: left;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 12px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  color: var(--text-1);
+}
+.meet-resultado:hover { background: var(--surface-2); }
+.meet-resultado__titulo { font-weight: 600; font-size: var(--text-sm); }
+.meet-resultado__fecha { font-size: var(--text-xs); color: var(--text-3); }
+.meet-resultado__texto {
+  grid-column: 1 / -1;
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+
+@keyframes meet-girar { to { transform: rotate(360deg); } }
+.meet-girando { animation: meet-girar 1s linear infinite; }
 
 /* Lista + detalle */
 .meet-layout {
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
+  grid-template-columns: 320px minmax(0, 1fr);
   gap: 16px;
   align-items: start;
 }
@@ -48,16 +86,14 @@
 .meet-item {
   width: 100%;
   text-align: left;
-  font-family: inherit;
   color: var(--text-1);
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 12px 14px;
-  cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   transition: border-color 0.15s var(--easing), background 0.15s var(--easing);
 }
 .meet-item:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
@@ -65,18 +101,6 @@
   border-color: var(--accent);
   background: var(--accent-muted);
 }
-.meet-item__cab {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-}
-.meet-item__icono {
-  display: inline-flex;
-  color: var(--text-3);
-  margin-top: 2px;
-  flex-shrink: 0;
-}
-.meet-item--activa .meet-item__icono { color: var(--accent); }
 .meet-item__titulo {
   font-size: var(--text-sm);
   font-weight: 600;
@@ -87,98 +111,15 @@
 .meet-item__fecha {
   font-size: var(--text-xs);
   color: var(--text-3);
-  margin-top: 2px;
 }
 .meet-item__pie {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 10px;
+  gap: 6px 8px;
 }
 .meet-item__dato {
   font-size: var(--text-xs);
   color: var(--text-2);
 }
-.meet-item__dato--ok { color: var(--success); }
-
-/* Detalle */
-.meet-detalle__titulo {
-  font-size: var(--text-lg);
-  font-weight: 700;
-  color: var(--text-1);
-  margin-bottom: 8px;
-  overflow-wrap: anywhere;
-}
-.meet-detalle__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 16px;
-}
-.meet-meta {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--text-sm);
-  color: var(--text-2);
-}
-.meet-meta svg { color: var(--text-3); flex-shrink: 0; }
-
-.meet-seccion {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.meet-seccion svg { color: var(--accent); flex-shrink: 0; }
-
-.meet-resumen {
-  margin: 0;
-  font-size: var(--text-base);
-  line-height: 1.7;
-  color: var(--text-2);
-  white-space: pre-wrap;
-}
-
-.meet-decisiones,
-.meet-acciones-lista {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.meet-decision {
-  display: flex;
-  gap: 10px;
-  padding: 8px 0;
-  font-size: var(--text-base);
-  line-height: 1.5;
-  color: var(--text-1);
-  border-bottom: 1px solid var(--border);
-}
-.meet-decision:last-child { border-bottom: none; }
-.meet-decision__icono {
-  color: var(--success);
-  flex-shrink: 0;
-  margin-top: 4px;
-}
-
-.meet-accion {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border);
-}
-.meet-accion:last-child { border-bottom: none; }
-.meet-accion__texto {
-  font-size: var(--text-base);
-  font-weight: 600;
-  color: var(--text-1);
-  margin-bottom: 4px;
-  overflow-wrap: anywhere;
-}
-.meet-accion__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 14px;
-}
-.meet-accion__meta .meet-meta { font-size: var(--text-xs); }
+.meet-item__dato--aviso { color: var(--warning); }

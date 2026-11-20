@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 import io
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin_or_hr, require_any_manager
+from app.core.deps import get_current_user, require_any_manager, requiere_capacidad
 from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
@@ -100,7 +100,7 @@ def list_cycles(
 
 @router.post("/cycles", summary="Crear ciclo", status_code=201)
 def create_cycle(payload: CycleIn, db: Session = Depends(get_db),
-                 cu: User = Depends(require_admin_or_hr)):
+                 cu: User = Depends(requiere_capacidad("evaluaciones.gestionar"))):
     c = performance_service.create_cycle(
         db, created_by=cu.id, organization_id=cu.organization_id,
         **payload.model_dump())
@@ -109,7 +109,7 @@ def create_cycle(payload: CycleIn, db: Session = Depends(get_db),
 
 @router.post("/cycles/{cycle_id}/activate", summary="Activar ciclo")
 def activate_cycle(cycle_id: str, db: Session = Depends(get_db),
-                   cu: User = Depends(require_admin_or_hr)):
+                   cu: User = Depends(requiere_capacidad("evaluaciones.gestionar"))):
     c = performance_service.get_cycle(db, cycle_id)
     if not c:
         raise error_http(404, "no_encontrado", detail="Ciclo no encontrado", que="ciclo")
@@ -121,7 +121,7 @@ def activate_cycle(cycle_id: str, db: Session = Depends(get_db),
 
 @router.post("/cycles/{cycle_id}/close", summary="Cerrar ciclo")
 def close_cycle(cycle_id: str, db: Session = Depends(get_db),
-                cu: User = Depends(require_admin_or_hr)):
+                cu: User = Depends(requiere_capacidad("evaluaciones.gestionar"))):
     c = performance_service.get_cycle(db, cycle_id)
     if not c:
         raise error_http(404, "no_encontrado", detail="Ciclo no encontrado", que="ciclo")
@@ -145,7 +145,7 @@ def list_cycle_questions(cycle_id: str, db: Session = Depends(get_db),
 @router.post("/cycles/{cycle_id}/questions", summary="Añadir pregunta al ciclo", status_code=201)
 def add_cycle_question(cycle_id: str, payload: ReviewQuestionIn,
                        db: Session = Depends(get_db),
-                       cu: User = Depends(require_admin_or_hr)):
+                       cu: User = Depends(requiere_capacidad("evaluaciones.gestionar"))):
     q = performance_service.anadir_pregunta(db, cycle_id, payload.model_dump(exclude_unset=True))
     return APIResponse.ok(data=_ser_question(q))
 
@@ -153,14 +153,14 @@ def add_cycle_question(cycle_id: str, payload: ReviewQuestionIn,
 @router.patch("/questions/{question_id}", summary="Actualizar pregunta")
 def update_cycle_question(question_id: str, payload: ReviewQuestionUpdate,
                           db: Session = Depends(get_db),
-                          cu: User = Depends(require_admin_or_hr)):
+                          cu: User = Depends(requiere_capacidad("evaluaciones.gestionar"))):
     q = performance_service.actualizar_pregunta(db, cu, question_id, payload.model_dump(exclude_unset=True))
     return APIResponse.ok(data=_ser_question(q))
 
 
 @router.delete("/questions/{question_id}", summary="Eliminar pregunta", status_code=204)
 def delete_cycle_question(question_id: str, db: Session = Depends(get_db),
-                          cu: User = Depends(require_admin_or_hr)):
+                          cu: User = Depends(requiere_capacidad("evaluaciones.gestionar"))):
     enforce_abac(db, cu, "performance_question", question_id, action="delete")
     performance_service.borrar_pregunta(db, cu, question_id)
     return None
@@ -169,7 +169,7 @@ def delete_cycle_question(question_id: str, db: Session = Depends(get_db),
 @router.post("/cycles/{cycle_id}/questions/seed-default",
              summary="Sembrar preguntas por defecto en el ciclo")
 def seed_default_questions(cycle_id: str, db: Session = Depends(get_db),
-                           cu: User = Depends(require_admin_or_hr)):
+                           cu: User = Depends(requiere_capacidad("evaluaciones.gestionar"))):
     performance_service.sembrar_preguntas_por_defecto(db, cycle_id)
     return APIListResponse.ok(items=[_ser_question(q) for q in performance_service.list_questions(db, cycle_id)])
 
@@ -178,7 +178,7 @@ def seed_default_questions(cycle_id: str, db: Session = Depends(get_db),
              summary="Clonar preguntas desde otro ciclo")
 def clone_cycle_questions(cycle_id: str, source_cycle_id: str,
                           db: Session = Depends(get_db),
-                          cu: User = Depends(require_admin_or_hr)):
+                          cu: User = Depends(requiere_capacidad("evaluaciones.gestionar"))):
     n = performance_service.clonar_preguntas(db, cycle_id, source_cycle_id)
     return APIResponse.ok(data={"cloned": n})
 
@@ -191,7 +191,7 @@ def clone_cycle_questions(cycle_id: str, source_cycle_id: str,
 )
 def list_eligible_reviewers(cycle_id: str, reviewee_id: str, review_type: str,
                             db: Session = Depends(get_db),
-                            cu: User = Depends(require_admin_or_hr)):
+                            cu: User = Depends(requiere_capacidad("evaluaciones.gestionar"))):
     if review_type not in ("self", "manager", "peer", "upward"):
         raise error_http(422, "campo_no_valido_opciones", detail="review_type debe ser self|manager|peer|upward", campo="review_type", opciones="self, manager, peer, upward")
     reviewee = performance_service.usuario_propio(db, cu, reviewee_id)
@@ -250,7 +250,7 @@ def my_reviews(db: Session = Depends(get_db), cu: User = Depends(get_current_use
 
 @router.post("/cycles/{cycle_id}/reviews", summary="Crear evaluación", status_code=201)
 def create_review(cycle_id: str, payload: dict,
-                  db: Session = Depends(get_db), cu: User = Depends(require_admin_or_hr)):
+                  db: Session = Depends(get_db), cu: User = Depends(requiere_capacidad("evaluaciones.gestionar"))):
     if not payload.get("reviewee_id") or not payload.get("reviewer_id"):
         raise error_http(422, "campos_obligatorios", detail="reviewee_id y reviewer_id son obligatorios", campos="reviewee_id, reviewer_id")
     try:
@@ -362,7 +362,7 @@ def create_campaign(cycle_id: str, payload: Campaign360In,
 
 @router.post("/campaigns/{campaign_id}/close", summary="Cerrar campaña 360°")
 def close_campaign(campaign_id: str, db: Session = Depends(get_db),
-                   cu: User = Depends(require_admin_or_hr)):
+                   cu: User = Depends(requiere_capacidad("evaluaciones.gestionar"))):
     camp = performance_service.get_campaign(db, campaign_id)
     if not camp:
         raise error_http(404, "no_encontrado", detail="Campaña no encontrada", que="campana")
@@ -385,7 +385,7 @@ def campaign_dashboard(campaign_id: str, db: Session = Depends(get_db),
 @router.get("/campaigns/{campaign_id}/dashboard.pdf",
             summary="Exportar dashboard 360° a PDF")
 def campaign_dashboard_pdf(campaign_id: str, db: Session = Depends(get_db),
-                           cu: User = Depends(require_admin_or_hr)):
+                           cu: User = Depends(requiere_capacidad("evaluaciones.gestionar"))):
     camp = performance_service.get_campaign(db, campaign_id)
     if not camp:
         raise error_http(404, "no_encontrado", detail="Campaña no encontrada", que="campana")
@@ -413,7 +413,7 @@ def campaign_dashboard_pdf(campaign_id: str, db: Session = Depends(get_db),
 @router.get("/campaigns/{campaign_id}/reviews",
             summary="Listar evaluaciones individuales de una campaña")
 def campaign_reviews(campaign_id: str, db: Session = Depends(get_db),
-                     cu: User = Depends(require_admin_or_hr)):
+                     cu: User = Depends(requiere_capacidad("evaluaciones.gestionar"))):
     camp = performance_service.get_campaign(db, campaign_id)
     if not camp:
         raise error_http(404, "no_encontrado", detail="Campaña no encontrada", que="campana")
@@ -436,7 +436,7 @@ def user_360_history(user_id: str, db: Session = Depends(get_db),
 
 @router.get("/kpis", summary="KPIs agregados de evaluaciones de la organización")
 def org_kpis(db: Session = Depends(get_db),
-             cu: User = Depends(require_admin_or_hr)):
+             cu: User = Depends(requiere_capacidad("evaluaciones.gestionar"))):
     from app.services import perf_reminder_service
     return APIResponse.ok(data=perf_reminder_service.org_perf_kpis(db))
 
@@ -454,7 +454,7 @@ def cycle_kpis(cycle_id: str, db: Session = Depends(get_db),
 @router.post("/admin/run-reminders",
              summary="Disparar recordatorios manualmente (admin)")
 def admin_run_reminders(db: Session = Depends(get_db),
-                        cu: User = Depends(require_admin_or_hr)):
+                        cu: User = Depends(requiere_capacidad("evaluaciones.gestionar"))):
     from app.services import perf_reminder_service
     return APIResponse.ok(data=perf_reminder_service.send_pending_review_reminders(db))
 

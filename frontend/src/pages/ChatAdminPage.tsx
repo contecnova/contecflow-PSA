@@ -3,7 +3,7 @@
  *
  * Tabs: Retención · Legal Hold · Moderación · Integraciones · Auditoría · Webhooks · eDiscovery
  */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -19,6 +19,8 @@ import DateInput from '../components/ui/DateInput'
 import { POLL_FREQUENT_MS } from '../constants/timings'
 import { CHAT_AUDIT_LIMIT } from '../constants/pagination'
 import { fmtDate, fmtDateTime } from '../utils/helpers'
+import { usePropuestas } from '../hooks/useOrgSettings'
+import { RuntimeGroupEditor, CLAVE_RETENCION_PROPUESTA_CHAT } from './settings-sections/SettingsAdvancedSections'
 import './ChatAdminPage.css'
 
 type TabId = 'retention' | 'legal_hold' | 'integrations' | 'webhooks' | 'audit' | 'ediscovery'
@@ -200,14 +202,22 @@ function RetentionTab() {
   const qc = useQueryClient()
   const toast = useToast()
   const { data = [] } = useQuery<RetentionPolicy[]>({ queryKey: ['retention'], queryFn: () => collabApi.listRetention() as Promise<RetentionPolicy[]> })
-  const [form, setForm] = useState<RetentionFormState>({ name: '', scope: 'workspace', retention_months: 24, apply_to: 'all' })
+  // 19-11-2026: los meses propuestos son el ajuste de la empresa (CHAT_RETENTION_PROPOSED_MONTHS,
+  // antes 24 fijos), que el servidor ya deja dentro del mínimo de retención y del tope del chat.
+  const propuestos = usePropuestas().chat_retention_proposed_months
+  const vacio = (): RetentionFormState => ({ name: '', scope: 'workspace', retention_months: propuestos, apply_to: 'all' })
+  const [form, setForm] = useState<RetentionFormState>(vacio)
+  const [tocado, setTocado] = useState(false)
+  // El ajuste llega después del primer pintado: se aplica mientras no se haya tocado el campo.
+  useEffect(() => { if (!tocado) setForm(f => ({ ...f, retention_months: propuestos })) }, [propuestos, tocado])
 
   const create = useMutation({
     mutationFn: () => collabApi.createRetention(form),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['retention'] })
       toast.success(t('chat_admin.policy_created'))
-      setForm({ name: '', scope: 'workspace', retention_months: 24, apply_to: 'all' })
+      setForm(vacio())
+      setTocado(false)
     },
   })
   const run = useMutation({
@@ -254,9 +264,10 @@ function RetentionTab() {
               <option value="calls">{t('chat_admin.apply_calls')}</option>
             </Select>
           </Field>
-          <Field label={t('chat_admin.retention_months_label')}><input aria-label={t('chat_admin.retention_months_label')} type="number" min={1} max={120} className={INPUT} value={form.retention_months} onChange={(e) => setForm({ ...form, retention_months: parseInt(e.target.value, 10) || 24 })} /></Field>
+          <Field label={t('chat_admin.retention_months_label')}><input aria-label={t('chat_admin.retention_months_label')} type="number" min={1} max={120} className={INPUT} value={form.retention_months} onChange={(e) => { setTocado(true); setForm({ ...form, retention_months: parseInt(e.target.value, 10) || propuestos }) }} /></Field>
           <Btn icon={Plus} onClick={() => create.mutate()} disabled={!form.name}>{t('chat_admin.create_policy')}</Btn>
         </div>
+        <RuntimeGroupEditor groupId="audit" solo={[CLAVE_RETENCION_PROPUESTA_CHAT]} />
       </Card>
     </div>
   )

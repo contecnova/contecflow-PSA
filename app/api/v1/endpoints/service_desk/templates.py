@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager, require_admin
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIResponse, APIListResponse
 from app.models.user import User
@@ -33,21 +33,21 @@ def list_ticket_templates(ticket_type: Optional[str] = Query(None), db: Session 
 
 
 @router.post("/ticket-templates", summary="Crear plantilla de ticket")
-def create_ticket_template(payload: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def create_ticket_template(payload: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     tmpl = create_ticket_template_record(db, payload)
     _commit_or_rollback(db); db.refresh(tmpl)
     return APIResponse.ok(data={"id": tmpl.id, "name": tmpl.name})
 
 
 @router.patch("/ticket-templates/{template_id}", summary="Actualizar plantilla")
-def update_ticket_template(template_id: str, payload: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def update_ticket_template(template_id: str, payload: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     update_ticket_template_record(db, template_id, payload)
     _commit_or_rollback(db)
     return APIResponse.ok(data={"ok": True})
 
 
 @router.delete("/ticket-templates/{template_id}", summary="Eliminar plantilla")
-def delete_ticket_template(template_id: str, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def delete_ticket_template(template_id: str, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("sd.administrar"))):
     enforce_abac(db, _, "ticket_template", template_id, action="delete")
     delete_ticket_template_svc(db, template_id)
     _commit_or_rollback(db)
@@ -65,21 +65,21 @@ def list_canned_responses(category: Optional[str] = None, search: Optional[str] 
 
 
 @router.post("/canned-responses", summary="Crear respuesta rápida", status_code=201)
-def create_canned_response(payload: CannedResponseIn, db: Session = Depends(get_db), cu: User = Depends(require_any_manager)):
+def create_canned_response(payload: CannedResponseIn, db: Session = Depends(get_db), cu: User = Depends(requiere_capacidad("sd.config"))):
     c = create_canned_response_record(db, payload, cu.id)
     _commit_or_rollback(db); db.refresh(c)
     return APIResponse.ok(data=serialize_canned_response_compact(c))
 
 
 @router.patch("/canned-responses/{canned_id}", summary="Editar respuesta rápida")
-def update_canned_response(canned_id: str, payload: CannedResponseIn, db: Session = Depends(get_db), cu: User = Depends(require_any_manager)):
+def update_canned_response(canned_id: str, payload: CannedResponseIn, db: Session = Depends(get_db), cu: User = Depends(requiere_capacidad("sd.config"))):
     c = update_canned_response_record(db, canned_id, payload)
     _commit_or_rollback(db); db.refresh(c)
     return APIResponse.ok(data=serialize_canned_response_compact(c))
 
 
 @router.delete("/canned-responses/{canned_id}", summary="Eliminar respuesta rápida")
-def delete_canned_response(canned_id: str, db: Session = Depends(get_db), cu: User = Depends(require_any_manager)):
+def delete_canned_response(canned_id: str, db: Session = Depends(get_db), cu: User = Depends(requiere_capacidad("sd.config"))):
     enforce_abac(db, cu, "canned_response", canned_id, action="delete")
     delete_canned_response_svc(db, canned_id)
     _commit_or_rollback(db)

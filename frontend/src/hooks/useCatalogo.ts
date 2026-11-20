@@ -19,6 +19,9 @@ export const CLAVE_I18N_DE_CATALOGO: Record<NombreDeCatalogo, string> = {
   'expense-categories': 'expenses.cat_',
   'project-statuses': 'estado.',
   'task-statuses': 'estado.',
+  // 19-11-2026: catálogos de proveedores (claves del sistema en el módulo `proveedores`).
+  'supplier-service-types': 'proveedores.tipo_servicio_',
+  'supplier-billing-units': 'proveedores.unidad_',
 }
 
 export const claveDeConsultaDeCatalogo = (c: NombreDeCatalogo) => ['catalogo', c] as const

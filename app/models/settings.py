@@ -100,6 +100,45 @@ class CustomExpenseCategory(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class CustomSupplierServiceType(Base):
+    """Tipo de servicio gestionado de un proveedor (SOC, service desk, nominas...).
+
+    Catalogo editable por empresa (migracion 189), misma semantica que
+    `CustomExpenseCategory`. `supplier_services.service_type` guarda la clave.
+    """
+    _tenant_filter_include_global = True
+
+    __tablename__ = "custom_supplier_service_types"
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    value = Column(String(50), nullable=False)
+    label = Column(String(100), nullable=False)
+    color = Column(String(20), default="#7a8aaa")
+    is_active = Column(Boolean, default=True)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class CustomSupplierBillingUnit(Base):
+    """Unidad de cobro de un proveedor (hora, dia, ticket, dispositivo/mes...).
+
+    Catalogo editable por empresa (migracion 189). Las claves del sistema
+    tienen medicion automatica (`app/services/proveedores/consumo.py`); las
+    propias de cada empresa se miden con consumo registrado.
+    """
+    _tenant_filter_include_global = True
+
+    __tablename__ = "custom_supplier_billing_units"
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
+    value = Column(String(50), nullable=False)
+    label = Column(String(100), nullable=False)
+    color = Column(String(20), default="#7a8aaa")
+    is_active = Column(Boolean, default=True)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class CustomProjectStatus(Base):
     # Auditoria 2026-08. Catalogo GLOBAL con personalizacion por organizacion:
     # las filas con `organization_id = NULL` son los valores que trae el

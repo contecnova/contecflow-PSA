@@ -20,6 +20,8 @@ submodulos por responsabilidad, sin cambiar el codigo:
 - `planes`: Analisis completo guardado, plan de marcha atras y plan de pruebas.
 - `comunicacion`: Plan de comunicacion del cambio: audiencias, canales y avisos.
 - `simulacion`: Simulacion «que pasaria si» de un cambio y de su ventana propuesta.
+- `textos` (19-11-2026): los textos de los planes por clave, pintados en el
+  idioma de quien los lee (`plan_guardado`, `pintar_datos`).
 """
 
 from app.services.service_desk.change_impact_service.riesgo import (  # noqa: F401
@@ -53,6 +55,8 @@ from app.services.service_desk.change_impact_service.cab import (  # noqa: F401
 from app.services.service_desk.change_impact_service.planes import (  # noqa: F401
     _get_json_setting,
     _set_json_setting,
+    CLAVES_DE_PLAN,
+    plan_guardado,
     analyze_change_impact_full,
     get_cached_impact_analysis,
     generate_rollback_plan,

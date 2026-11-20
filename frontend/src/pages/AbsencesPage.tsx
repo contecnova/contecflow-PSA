@@ -12,15 +12,15 @@
  *
  * 18-11-2026: la configuración (tipos, documentos, turnos, jornadas,
  * festivos, personas, horario, acceso especial y ejemplos) sale del módulo y
- * vive en Configuración (`/settings/ausencias`, AdminDeAusencias). Aquí queda
- * el botón «Configurar» para admin y RRHH, y `?tab=config` redirige allí.
+ * vive en Configuración (`/settings/ausencias`, AdminDeAusencias). Aquí no hay
+ * botón «Configurar», y `?tab=config` redirige allí.
  * `?tab=mias|equipo|aprobar|cuadrante|cobertura` abre esa pestaña si el rol
  * la ve.
  */
 import { useState } from 'react'
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import { Navigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarDays, Grid3x3, Inbox, ListOrdered, Pencil, Plus, Settings2, Umbrella, X } from 'lucide-react'
+import { CalendarDays, Grid3x3, Inbox, ListOrdered, Pencil, Plus, Umbrella, X } from 'lucide-react'
 import { ausenciasApi } from '../services/api/ausencias'
 import type { AusenciaServida } from '../services/api/tipos-ausencias'
 import { Button, EmptyState, Page, Spinner, Tabs, Pulsable, TablaSimple } from '../components/ui'
@@ -39,7 +39,6 @@ import TarjetasDeSaldo from '../components/ausencias/Saldos'
 export default function AbsencesPage(): JSX.Element {
   const { t, ta } = useTa()
   const { puede } = useAuth()
-  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const pedida = searchParams.get('tab')
   const gestiona = puede('ausencias.gestionar')
@@ -62,12 +61,7 @@ export default function AbsencesPage(): JSX.Element {
   if (pedida === 'config') return <Navigate to="/settings/ausencias" replace />
   return (
     <Page title={ta('titulo')} subtitle={ta('subtitulo')} icon={<Umbrella size={18} />}
-      actions={<>
-        {planifica && (
-          <Button variant="secondary" icon={<Settings2 size={14} />} onClick={() => navigate('/settings/ausencias')}>{t('ajustes.configurar')}</Button>
-        )}
-        <Button icon={<Plus size={14} />} onClick={() => setPidiendo(true)}>{ta('pedir_ausencia')}</Button>
-      </>}>
+      actions={<Button icon={<Plus size={14} />} onClick={() => setPidiendo(true)}>{ta('pedir_ausencia')}</Button>}>
       <Tabs items={items} active={tab} onChange={setTab} ariaLabel={ta('secciones')} />
       <div className="aus-panel" role="tabpanel">
         {tab === 'mias' && <MisAusencias onAbrir={setAbierta} onEditar={setEditando} onPedir={() => setPidiendo(true)} />}

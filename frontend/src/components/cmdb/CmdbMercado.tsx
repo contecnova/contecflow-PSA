@@ -3,6 +3,9 @@
  * proveedores de descubrimiento (AWS, Azure, GCP, Kubernetes, vSphere, SNMP),
  * reconciliación de duplicados, deriva de configuración, radio de impacto y
  * retirada de un CI, y clases de CI propias de la empresa.
+ *
+ * 19-11-2026: cada resultado tiene su informe propio (`InformesDeCmdb.tsx`) en
+ * vez del volcado genérico `VistaDeDatos`, que se ha retirado.
  */
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -19,7 +22,10 @@ import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { cmdbApi } from '../../services/api'
 import { cmdbMercadoApi } from '../../services/api/serviceDeskMercado'
 import type { ClaseDeCi, ProveedorDeDescubrimiento } from '../../services/api/serviceDeskMercado'
-import VistaDeDatos from '../servicedesk/VistaDeDatos'
+import {
+  InformeCandidatos, InformeDeriva, InformeEjecuciones, InformeRadioDeImpacto, InformeRetirada, InformeSaludReconciliacion,
+} from './InformesDeCmdb'
+import type { CandidatoADuplicado, ImpactoDeRetirada, InformeDeDeriva, RadioDeImpacto, SaludDeReconciliacion } from './InformesDeCmdb'
 import '../servicedesk/sdMercado.css'
 
 const TIPOS_DE_PROVEEDOR = ['aws', 'azure', 'gcp', 'kubernetes', 'vsphere', 'snmp']
@@ -83,7 +89,14 @@ export function DescubrimientoTab() {
             ))}
           </ul>
         )}
-        {verJobs && (jobs.isLoading ? <Spinner size={16} /> : <VistaDeDatos datos={jobs.data ?? []} />)}
+        {verJobs && (
+          <div className="u-stack-8">
+            <div className="ds-eyebrow">{t('sd_informes.ejecuciones_de', { n: (proveedores.data ?? []).find(p => p.id === verJobs)?.name ?? '' })}</div>
+            {jobs.isLoading ? <Spinner size={16} />
+              : jobs.isError ? <div className="u-text2-xs">{t('sd_mercado.error_carga')}</div>
+              : <InformeEjecuciones datos={jobs.data ?? []} />}
+          </div>
+        )}
       </Section>
       <Reconciliacion />
       <Deriva />
@@ -153,12 +166,12 @@ function Reconciliacion() {
         onClick={async () => { if (await confirmar({ message: t('sd_mercado.fusionar_ci_confirmar', { n: candidatos.data?.count ?? 0 }), danger: true })) fusionar.mutate() }}>
         {t('sd_mercado.fusionar_duplicados')}</Button>}>
       <div className="u-stack-12">
-        {salud.data && <VistaDeDatos datos={salud.data} />}
+        {salud.data && <InformeSaludReconciliacion datos={salud.data as unknown as SaludDeReconciliacion} />}
         <label className="sdm-field"><span>{t('sd_mercado.confianza_minima')}</span>
           <input className="ds-input" type="number" min={0.5} max={1} step={0.05} value={minimo} onChange={e => setMinimo(Math.min(1, Math.max(0.5, Number(e.target.value) || 0.9)))} /></label>
         {candidatos.isLoading ? <Spinner size={16} /> : (candidatos.data?.items ?? []).length === 0
           ? <div className="u-text3-xs">{t('sd_mercado.sin_duplicados_ci')}</div>
-          : <VistaDeDatos datos={candidatos.data?.items ?? []} />}
+          : <InformeCandidatos datos={(candidatos.data?.items ?? []) as unknown as CandidatoADuplicado[]} />}
       </div>
     </Section>
   )
@@ -181,7 +194,8 @@ function Deriva() {
         <SelectorDePeriodo {...periodo.selector} sinGranularidad />
         {isLoading ? <Spinner size={16} />
           : errorDePeriodo ? <EmptyState title={t(`periodo_err.${errorDePeriodo.motivo}`, errorDePeriodo.params)} />
-          : <VistaDeDatos datos={data ?? {}} />}
+          : data ? <InformeDeriva datos={data as unknown as InformeDeDeriva} />
+          : <EmptyState title={t('sd_mercado.error_carga')} />}
       </div>
     </Section>
   )
@@ -202,11 +216,15 @@ export function ImpactoTab() {
           <Button key={c.id} size="sm" variant={ci === c.id ? 'primary' : 'secondary'} onClick={() => setCi(c.id)}><span className="u-mono">{c.code}</span> {c.name}</Button>
         ))}</div>
         {ci && (
-          <div className="sdm-grid">
+          <div className="u-stack-12">
             <div className="ds-card sdm-card"><div className="sdm-card__head">{t('sd_mercado.radio_impacto')}</div>
-              {radio.isLoading ? <Spinner size={16} /> : <VistaDeDatos datos={radio.data ?? {}} />}</div>
+              {radio.isLoading ? <Spinner size={16} />
+                : radio.data ? <InformeRadioDeImpacto datos={radio.data as unknown as RadioDeImpacto} />
+                : <div className="u-text2-xs">{t('sd_mercado.error_carga')}</div>}</div>
             <div className="ds-card sdm-card"><div className="sdm-card__head">{t('sd_mercado.si_se_retira')}</div>
-              {retirada.isLoading ? <Spinner size={16} /> : <VistaDeDatos datos={retirada.data ?? {}} />}</div>
+              {retirada.isLoading ? <Spinner size={16} />
+                : retirada.data ? <InformeRetirada datos={retirada.data as unknown as ImpactoDeRetirada} />
+                : <div className="u-text2-xs">{t('sd_mercado.error_carga')}</div>}</div>
           </div>
         )}
       </div>

@@ -181,3 +181,7 @@ twilio==9.10.7  # 9.10.6 retirada en PyPI ("Knowledge API has bug")
 # Enables create_iceberg_snapshot() in bi_data_versioning_service.py
 #   pip install "pyiceberg>=0.7.0"
 # pyiceberg>=0.7.0
+
+# CMDB de software (19-11-2026): conexiones de escaneo SSH (Linux) y WinRM (Windows). Se importan al usarlas.
+paramiko==3.5.0
+pywinrm==0.5.0

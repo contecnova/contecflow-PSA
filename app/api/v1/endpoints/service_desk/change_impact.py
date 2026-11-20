@@ -34,13 +34,17 @@ from app.services.service_desk.change_impact_service import (
     generate_comms_plan,
     simulate_change_whatif,
 )
-from app.services.service_desk.change_impact_service import (
-    _get_json_setting,
-)
+from app.services.service_desk.change_impact_service import plan_guardado
 from app.core.deps import require_internal_user
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
 from app.core.tenancy import org_scoped_or_404
 from app.core.codigos_de_error import error_http
+
+
+def _idioma(db: Session, current_user: User) -> str:
+    """El idioma de quien llama: los planes salen en el (19-11-2026, `textos.py`)."""
+    from app.services.formato_regional import idioma_de_salida
+    return idioma_de_salida(db, user_id=str(current_user.id))
 
 
 def _cambio_propio(db: Session, change_id: str, current_user: User) -> None:
@@ -74,7 +78,8 @@ def run_impact_analysis(
     _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: operacion diaria del service desk
 ):
     _cambio_propio(db, change_id, current_user)
-    return APIResponse.ok(data=analyze_change_impact_full(db, change_id, current_user_id=str(current_user.id)))
+    return APIResponse.ok(data=analyze_change_impact_full(db, change_id, current_user_id=str(current_user.id),
+                                                           idioma=_idioma(db, current_user)))
 
 
 @router.get("/{change_id}/impact-analysis", summary="Get cached change impact analysis")
@@ -87,7 +92,7 @@ def get_impact_analysis(
     # 19-11-2026: «aún no se ha generado» no es un error: 200 con data=null.
     # El 404 queda para un cambio que no existe (`_cambio_propio`); antes el
     # navegador anotaba un 404 en la consola cada vez que se abría el cambio.
-    return APIResponse.ok(data=get_cached_impact_analysis(db, change_id))
+    return APIResponse.ok(data=get_cached_impact_analysis(db, change_id, _idioma(db, current_user)))
 
 
 @router.get("/{change_id}/risk-matrix", summary="Per-CI risk matrix for change")
@@ -108,7 +113,8 @@ def generate_rollback(
     _rol: User = Depends(require_internal_user),  # auditoria 2026-09: dominio: operacion diaria del service desk
 ):
     _cambio_propio(db, change_id, current_user)
-    return APIResponse.ok(data=generate_rollback_plan(db, change_id, current_user_id=str(current_user.id)))
+    return APIResponse.ok(data=generate_rollback_plan(db, change_id, current_user_id=str(current_user.id),
+                                                       idioma=_idioma(db, current_user)))
 
 
 @router.get("/{change_id}/rollback-plan", summary="Get cached rollback plan")
@@ -122,7 +128,9 @@ def get_rollback_plan(
     # 19-11-2026: «aún no se ha generado» no es un error: 200 con data=null.
     # El 404 queda para un cambio que no existe (`_cambio_propio`); antes el
     # navegador anotaba un 404 en la consola cada vez que se abría el cambio.
-    return APIResponse.ok(data=_get_json_setting(db, f"sd.change.rollback.{change_id}") or None)
+    return APIResponse.ok(data=plan_guardado(db, "vuelta", change_id, _idioma(db, current_user),
+                                                  org_id=current_user.organization_id,
+                                                  user_id=str(current_user.id)))
 
 
 # ── Testing Plan ──────────────────────────────────────────────────────────────
@@ -140,7 +148,8 @@ def generate_testing_plan_endpoint(
     in AppSetting and the change's test_plan text field is also updated if empty.
     """
     _cambio_propio(db, change_id, current_user)
-    return APIResponse.ok(data=generate_testing_plan(db, change_id, current_user_id=str(current_user.id)))
+    return APIResponse.ok(data=generate_testing_plan(db, change_id, current_user_id=str(current_user.id),
+                                                      idioma=_idioma(db, current_user)))
 
 
 @router.get("/{change_id}/testing-plan", summary="Obtener plan de pruebas en caché (ITSM-P10)")
@@ -154,7 +163,9 @@ def get_testing_plan(
     # 19-11-2026: «aún no se ha generado» no es un error: 200 con data=null.
     # El 404 queda para un cambio que no existe (`_cambio_propio`); antes el
     # navegador anotaba un 404 en la consola cada vez que se abría el cambio.
-    return APIResponse.ok(data=_get_json_setting(db, f"sd.change.testing.{change_id}") or None)
+    return APIResponse.ok(data=plan_guardado(db, "pruebas", change_id, _idioma(db, current_user),
+                                                  org_id=current_user.organization_id,
+                                                  user_id=str(current_user.id)))
 
 
 # ── Communications Plan ───────────────────────────────────────────────────────
@@ -173,7 +184,8 @@ def generate_comms_plan_endpoint(
     and message templates including rollback notification templates.
     """
     _cambio_propio(db, change_id, current_user)
-    return APIResponse.ok(data=generate_comms_plan(db, change_id, current_user_id=str(current_user.id)))
+    return APIResponse.ok(data=generate_comms_plan(db, change_id, current_user_id=str(current_user.id),
+                                                    idioma=_idioma(db, current_user)))
 
 
 @router.get("/{change_id}/comms-plan", summary="Obtener plan de comunicaciones en caché (ITSM-P10)")
@@ -187,7 +199,9 @@ def get_comms_plan(
     # 19-11-2026: «aún no se ha generado» no es un error: 200 con data=null.
     # El 404 queda para un cambio que no existe (`_cambio_propio`); antes el
     # navegador anotaba un 404 en la consola cada vez que se abría el cambio.
-    return APIResponse.ok(data=_get_json_setting(db, f"sd.change.comms.{change_id}") or None)
+    return APIResponse.ok(data=plan_guardado(db, "comunicaciones", change_id, _idioma(db, current_user),
+                                                  org_id=current_user.organization_id,
+                                                  user_id=str(current_user.id)))
 
 
 # ── What-If Simulation ────────────────────────────────────────────────────────

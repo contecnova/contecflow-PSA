@@ -8,9 +8,16 @@
  * vacíos con EmptyState e iconos lucide (antes 🤝👤📋🕐🧾); emojis de las
  * tarjetas y botones (📧👥✏🗑🏆🎉) cambiados por iconos lucide; estados con
  * StatusBadge y botones del kit.
+ *
+ * 19-11-2026 (proveedores y externalización, migración 189): alta con tipo
+ * (persona freelance en un paso o empresa con modos), insignias de tipo, modos,
+ * ciclo de vida y riesgo, KPIs del panorama y ficha con pestañas por tipo:
+ * Resumen, Personas/Asignaciones/Horas (solo si tiene personas), Contratos y
+ * precios, Servicios, Paquetes de trabajo, Consumo y facturación, Rendimiento y
+ * Cumplimiento. Las pestañas nuevas viven en `pages/proveedores/`.
  */
 import { useState, useId, useEffect } from 'react'
-import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent } from 'react'
+import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
 import { extractErr, fmtDate, fmtHours, fmtNumber } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
@@ -23,7 +30,7 @@ import type { ProjectListItem } from '../services/api/projects'
 import type { SkillDelCatalogo, SubAsignacion, SubConciliacion, SubFactura, SubParteDeHoras, SubTrabajador, Subcontratista } from '../services/api/tipos-alm'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { AlertTriangle, ArrowLeft, Award, Briefcase, Clock, Coins, Handshake, HardHat, Mail, Pencil, Plus, Receipt, Scale, Square, Trash2, UserRound, Users, X } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Award, Briefcase, Building2, CalendarClock, Clock, Coins, FileText, Gauge, Handshake, HardHat, Layers, LayoutDashboard, Mail, Pencil, Plus, Receipt, Scale, ShieldCheck, Square, Trash2, UserRound, Users, X } from 'lucide-react'
 import { Button, Card, EmptyState, IconButton, KpiCard, Modal, Spinner, useSort, SortableTH, ViewToggle, Tabs, Table, Select, TablaSimple, Checkbox, useErroresDeCampo } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
@@ -33,6 +40,18 @@ import { redondear2 } from '../utils/redondeo'
 import { STALE_5_MIN_MS } from '../constants/timings'
 import DateInput from '../components/ui/DateInput'
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
+import { proveedoresApi } from '../services/api/proveedores'
+import { pestanasDeLaFicha, esFreelance } from './proveedores/logica'
+import type { PestanaDeFicha } from './proveedores/logica'
+import { InsigniasDeProveedor, usePermisosDeProveedores } from './proveedores/comunes'
+import AltaDeProveedor from './proveedores/AltaDeProveedor'
+import PestanaResumen from './proveedores/PestanaResumen'
+import PestanaContratos from './proveedores/PestanaContratos'
+import PestanaServicios from './proveedores/PestanaServicios'
+import PestanaPaquetes from './proveedores/PestanaPaquetes'
+import PestanaConsumo from './proveedores/PestanaConsumo'
+import PestanaRendimiento from './proveedores/PestanaRendimiento'
+import PestanaCumplimiento from './proveedores/PestanaCumplimiento'
 import './SubcontractorsPage.css'
 /** Estados de factura de subcontratista y niveles de skill: su color sale de la clase. */
 const ESTADOS_FACTURA = ['received', 'approved', 'paid', 'rejected']
@@ -202,7 +221,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
 }
 
 // ── Workers Panel ─────────────────────────────────────────────────────────────
-function WorkersPanel({ subId }: { subId: string }) {
+function WorkersPanel({ subId, permitirAlta = true }: { subId: string; permitirAlta?: boolean }) {
   const toast = useToast()
   const qc = useQueryClient()
   const t = useAppT()
@@ -231,9 +250,11 @@ function WorkersPanel({ subId }: { subId: string }) {
 
   return (
     <div>
-      <div className="sub-toolbar-end">
-        <Button size="sm" icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('subcontractors.add_person')}</Button>
-      </div>
+      {permitirAlta && (
+        <div className="sub-toolbar-end">
+          <Button size="sm" icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('subcontractors.add_person')}</Button>
+        </div>
+      )}
 
       {workers.length === 0 ? (
         <EmptyState icon={<UserRound size={28} />} title={t('subcontractors.empty_people_title')} description={t('subcontractors.empty_people_desc')} />
@@ -320,14 +341,18 @@ function WorkersPanel({ subId }: { subId: string }) {
     </div>
   )
 }
-function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
+function SubDetail({ sub, onBack, onCambio }: { sub: Sub; onBack: () => void; onCambio?: (s: Sub) => void }) {
   const fmtMoneda = useFormatoMoneda()
   const { tax_rate: ivaEmpresa } = useOrgSettings()
   const idCampo = useId()
   const toast = useToast()
   const qc = useQueryClient()
   const t = useAppT()
-  const [tab, setTab] = useState('workers')
+  const { gestionar } = usePermisosDeProveedores()
+  const pestanas = pestanasDeLaFicha(sub)
+  const [tabElegida, setTab] = useState<string>('summary')
+  // Si la clasificación cambia y la pestaña deja de existir (p. ej. ya no tiene personas), a Resumen.
+  const tab: string = pestanas.includes(tabElegida as PestanaDeFicha) ? tabElegida : 'summary'
   const [showTimelog, setShowTimelog] = useState(false)
   const [showInvoice, setShowInvoice] = useState(false)
   const [showAssign, setShowAssign] = useState(false)
@@ -360,7 +385,7 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
   const { data: conciliacion = [], isLoading: cargandoConciliacion } = useQuery<SubConciliacion[]>({
     queryKey: ['sub-reconciliation', sub.id],
     queryFn: () => enterpriseSubsApi.reconciliation(sub.id).then(r => r.data),
-    enabled: tab === 'invoices',
+    enabled: tab === 'billing',
   })
   const { data: projects = [] } = useQuery<ProjectListItem[]>({
     queryKey: ['projects'],
@@ -439,9 +464,12 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
         title={sub.name}
         subtitle={subtitulo || undefined}
         breadcrumb={[{ label: t('subcontractors.title'), onClick: onBack }, { label: sub.name || '' }]}
-        actions={<Button variant="secondary" icon={<ArrowLeft size={14} />} onClick={onBack}>{t('subcontractors.volver')}</Button>}
+        actions={<>
+          <Button variant="secondary" icon={<ArrowLeft size={14} />} onClick={onBack}>{t('subcontractors.volver')}</Button>
+        </>}
         showListExport={false}
       />
+      <InsigniasDeProveedor sub={sub} />
 
       <div className="u-stack-16">
       {/* KPIs */}
@@ -454,26 +482,43 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
       </div>
 
       <Tabs
-        items={[
+        items={([
+          { id: 'summary',     label: t('proveedores.tab_resumen'), icon: <LayoutDashboard size={14} /> },
           { id: 'workers',     label: t('subcontractors.kpi_personas'), icon: <Users size={14} /> },
           { id: 'assignments', label: t('subcontractors.kpi_asignaciones'), icon: <Briefcase size={14} />, count: assignments.length || undefined },
           { id: 'timelogs',    label: t('subcontractors.tab_horas'), icon: <Clock size={14} />, count: timelogs.length || undefined },
-          { id: 'invoices',    label: t('subcontractors.tab_facturas'), icon: <Receipt size={14} />, count: invoices.length || undefined },
-        ]}
+          { id: 'contracts',   label: t('proveedores.tab_contratos'), icon: <FileText size={14} /> },
+          { id: 'services',    label: t('proveedores.tab_servicios'), icon: <Layers size={14} /> },
+          { id: 'packages',    label: t('proveedores.tab_paquetes'), icon: <Building2 size={14} /> },
+          { id: 'billing',     label: t('proveedores.tab_consumo'), icon: <Receipt size={14} />, count: invoices.length || undefined },
+          { id: 'performance', label: t('proveedores.tab_rendimiento'), icon: <Gauge size={14} /> },
+          { id: 'compliance',  label: t('proveedores.tab_cumplimiento'), icon: <ShieldCheck size={14} /> },
+        ] as { id: PestanaDeFicha; label: string; icon: ReactNode; count?: number }[]).filter(p => pestanas.includes(p.id))}
         active={tab}
         onChange={setTab}
         ariaLabel={t('subcontractors.secciones_del_subcontratista')}
       />
 
-      {/* Personas (Workers) */}
-      {tab === 'workers' && <WorkersPanel subId={sub.id} />}
+      {tab === 'summary' && <PestanaResumen sub={sub} />}
+
+      {/* Personas (Workers): el freelance es su única persona (se crea en el alta) */}
+      {tab === 'workers' && <WorkersPanel subId={sub.id} permitirAlta={gestionar && !esFreelance(sub)} />}
+
+      {tab === 'contracts' && <PestanaContratos sub={sub} />}
+      {tab === 'services' && <PestanaServicios sub={sub} />}
+      {tab === 'packages' && <PestanaPaquetes sub={sub} />}
+      {tab === 'performance' && <PestanaRendimiento sub={sub} />}
+      {tab === 'compliance' && <PestanaCumplimiento sub={sub} onCambio={onCambio} />}
 
       {/* Asignaciones */}
       {tab === 'assignments' && (
         <div>
-          <div className="sub-toolbar-end">
-            <Button size="sm" icon={<Plus size={14} />} onClick={() => setShowAssign(true)}>{t('subcontractors.nueva_asignacion')}</Button>
-          </div>
+          {gestionar && (
+            <div className="sub-toolbar-end">
+              <Button size="sm" icon={<Plus size={14} />} onClick={() => setShowAssign(true)} disabled={trabajadoresActivos.length === 0}
+                title={trabajadoresActivos.length === 0 ? t('proveedores.asignacion_exige_persona') : undefined}>{t('subcontractors.nueva_asignacion')}</Button>
+            </div>
+          )}
           {assignments.length === 0 ? (
             <EmptyState icon={<Briefcase size={28} />} title={t('subcontractors.empty_assignments_title')} description={t('subcontractors.empty_assignments_desc')} />
           ) : <div className="u-stack-8">{assignments.map(a => {
@@ -567,9 +612,11 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
         </div>
       )}
 
-      {/* Facturas */}
-      {tab === 'invoices' && (
-        <div>
+      {/* Consumo y facturación: consumo, previsión y estados de cuenta; debajo, facturas y conciliación por horas */}
+      {tab === 'billing' && (
+        <div className="u-stack-16">
+          <PestanaConsumo sub={sub} facturas={invoices} />
+          <div>
           <div className="sub-toolbar-end">
             <Button size="sm" icon={<Plus size={14} />} onClick={() => setShowInvoice(true)}>{t('subcontractors.registrar_factura')}</Button>
           </div>
@@ -658,6 +705,7 @@ function SubDetail({ sub, onBack }: { sub: Sub; onBack: () => void }) {
                 </TablaSimple>
               </div>
             )}
+          </div>
           </div>
         </div>
       )}
@@ -814,9 +862,10 @@ export default function SubcontractorsPage() {
   const toast = useToast()
   const qc = useQueryClient()
   const { currency, currencies: monedasDeLaEmpresa } = useOrgSettings()
-  const [selected, setSelected] = useState<Sub | null>(null)
+  const fmtMoneda = useFormatoMoneda()
+  const { gestionar } = usePermisosDeProveedores()
+  const [elegido, setSelected] = useState<Sub | null>(null)
   const [showCreate, setShowCreate] = useState(false)
-  const [form, setForm] = useState({ name: '', company: '', email: '', phone: '', country: 'España', currency: currency, vat_number: '', notes: '' })
 
   const { data: dashboard } = useQuery({
     queryKey: ['sub-dashboard'],
@@ -826,6 +875,14 @@ export default function SubcontractorsPage() {
     queryKey: ['subcontractors'],
     queryFn: () => subcontractorsApi.list().then(r => r.data),
   })
+  // Panorama de proveedores (tipos, documentos, revisiones, estados de cuenta, previsión del mes).
+  const { data: panorama } = useQuery({
+    queryKey: ['suppliers', 'overview'],
+    queryFn: () => proveedoresApi.panorama().then(r => r.data),
+    retry: false,
+  })
+  // La ficha abierta sigue a la lista (clasificación, ciclo de vida y riesgo cambian desde la ficha).
+  const selected = elegido ? (subs.find(s => s.id === elegido.id) ?? elegido) : null
 
   const [showEdit, setShowEdit] = useState(false)
   const [editTarget, setEditTarget] = useState<Sub | null>(null)
@@ -833,20 +890,6 @@ export default function SubcontractorsPage() {
   const [view, setView] = useState('grid')
   const { sort: subSort, setSort: setSubSort, sortedData: sortedSubs } = useSort<Sub>(subs, 'name')
 
-  const campos = useErroresDeCampo()
-  const msg = (k: string) => campos.de(k) ? <div className="u-field-error">{campos.de(k)}</div> : null
-  const { mutate: create, isPending } = useMutation({
-    onMutate: () => campos.limpiar(),
-    mutationFn: (d: Record<string, unknown>) => subcontractorsApi.create(d),
-    onSuccess: (res) => {
-      qc.invalidateQueries({ queryKey: ['subcontractors'] })
-      setShowCreate(false)
-      setForm({ name: '', company: '', email: '', phone: '', country: 'España', currency: currency, vat_number: '', notes: '' })
-      setSelected(res.data)
-      toast.success(t('subcontractors.subcontratista_creado'))
-    },
-    onError: (e: unknown) => { if (!campos.recoger(e)) toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)) },
-  })
   const camposEdit = useErroresDeCampo()
   const msgEdit = (k: string) => camposEdit.de(k) ? <div className="u-field-error">{camposEdit.de(k)}</div> : null
   const { mutate: update, isPending: updating } = useMutation({
@@ -878,12 +921,14 @@ export default function SubcontractorsPage() {
   const confirmarEliminar = (s: Sub) =>
     openConfirmGlobal({ message: t('subcontractors.confirmar_eliminar', { name: s.name }), onConfirm: () => remove(s.id), danger: true })
 
-  if (selected) return <SubDetail sub={selected} onBack={() => setSelected(null)} />
+  if (selected) return <SubDetail sub={selected} onBack={() => setSelected(null)} onCambio={setSelected} />
 
   return (
     <PageShell>
       <PageHeader icon={<HardHat size={18} />} title={t('subcontractors.title')} subtitle={t('subcontractors.subtitle')}
-        actions={<Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('subcontractors.nuevo_subcontratista')}</Button>} />
+        actions={<>
+          {gestionar && <Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('subcontractors.nuevo_subcontratista')}</Button>}
+        </>} />
 
       <div className="u-stack-16">
       {/* KPIs */}
@@ -892,6 +937,20 @@ export default function SubcontractorsPage() {
           <KpiCard icon={<Handshake size={16} />} label={t('subcontractors.kpi_activos')} value={dashboard.total_active_subs} />
           <KpiCard icon={<Clock size={16} />} label={t('subcontractors.hours_logged')} value={fmtHours(dashboard.total_hours_logged)} />
           <KpiCard icon={<Receipt size={16} />} label={t('subcontractors.kpi_facturas_pendientes')} value={dashboard.pending_invoices} warning={dashboard.pending_invoices > 0} />
+        </div>
+      )}
+      {panorama && (
+        <div className="ds-grid-stats">
+          <KpiCard icon={<UserRound size={16} />} label={t('proveedores.kpi_freelance')} value={panorama.by_kind.freelance ?? 0} />
+          <KpiCard icon={<Building2 size={16} />} label={t('proveedores.kpi_empresas')} value={panorama.by_kind.company ?? 0}
+            sub={t('proveedores.kpi_modos', { personas: panorama.by_mode.staff_augmentation ?? 0, outsourcing: panorama.by_mode.outsourcing ?? 0, servicios: panorama.by_mode.managed_services ?? 0 })} />
+          <KpiCard icon={<ShieldCheck size={16} />} label={t('proveedores.kpi_documentos')} value={panorama.documents_expired + panorama.documents_expiring}
+            sub={t('proveedores.kpi_documentos_sub', { caducados: panorama.documents_expired, por_caducar: panorama.documents_expiring })}
+            danger={panorama.documents_expired > 0} warning={panorama.documents_expiring > 0} />
+          <KpiCard icon={<CalendarClock size={16} />} label={t('proveedores.kpi_revisiones')} value={panorama.reviews_overdue} warning={panorama.reviews_overdue > 0} />
+          <KpiCard icon={<Scale size={16} />} label={t('proveedores.kpi_estados')} value={panorama.statements_pending_approval}
+            sub={t('proveedores.kpi_disputados', { n: panorama.statements_disputed })} danger={panorama.statements_disputed > 0} />
+          <KpiCard icon={<Coins size={16} />} label={t('proveedores.kpi_prevision_mes')} value={fmtMoneda(panorama.forecast_month, { moneda: panorama.currency })} />
         </div>
       )}
 
@@ -908,7 +967,7 @@ export default function SubcontractorsPage() {
           icon={<Handshake size={28} />}
           title={t('subcontractors.sin_subcontratistas')}
           description={t('subcontractors.vacio_descripcion')}
-          action={<Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('subcontractors.nuevo_subcontratista')}</Button>}
+          action={gestionar ? <Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('subcontractors.nuevo_subcontratista')}</Button> : undefined}
         />
       ) : view === 'grid' ? (
         <div className="sub-grid">
@@ -924,14 +983,13 @@ export default function SubcontractorsPage() {
                   <div className="u-md-700">{s.name}</div>
                   {s.company && <div className="u-text2-xs">{s.company}</div>}
                 </div>
-                <StatusBadge kind={s.is_active ? 'success' : 'danger'} caps={false}>
-                  {s.is_active ? t('subcontractors.activo') : t('subcontractors.inactivo')}
-                </StatusBadge>
               </div>
+              <InsigniasDeProveedor sub={s} />
               {s.email && <div className="sub-mail"><Mail size={12} aria-hidden />{s.email}</div>}
               <div className="sub-card-meta">
                 <Users size={12} aria-hidden />{t((s.worker_count || 0) === 1 ? 'subcontractors.n_persona' : 'subcontractors.n_personas', { n: s.worker_count || 0 })} · {t((s.assignment_count || 0) === 1 ? 'subcontractors.n_asignacion' : 'subcontractors.n_asignaciones', { n: s.assignment_count || 0 })}
               </div>
+              {gestionar && (
               <div className="sub-card-actions">
                 <Button size="sm" variant="secondary" icon={<Pencil size={14} />} onClick={e => { e.stopPropagation(); abrirEdicion(s) }}>
                   {t('subcontractors.edit')}
@@ -940,6 +998,7 @@ export default function SubcontractorsPage() {
                   {t('subcontractors.delete')}
                 </Button>
               </div>
+              )}
             </div>
           ))}
         </div>
@@ -963,6 +1022,7 @@ export default function SubcontractorsPage() {
               <div>
                 <div className="u-base-600">{s.name}</div>
                 {s.company && <div className="u-text2-xs">{s.company}</div>}
+                <InsigniasDeProveedor sub={s} compacto />
               </div>
               <span className="u-text2-mono-xs">{s.code || '—'}</span>
               <span className="u-text2-sm">{s.email || '—'}</span>
@@ -974,56 +1034,19 @@ export default function SubcontractorsPage() {
                 </StatusBadge>
               </span>
               <div className="sub-row-actions">
+                {gestionar && <>
                 <IconButton onClick={e => { e.stopPropagation(); abrirEdicion(s) }}
                   ariaLabel={t('subcontractors.editar_a', { name: s.name })} title={t('subcontractors.editar_a', { name: s.name })}><Pencil size={14} aria-hidden /></IconButton>
                 <IconButton className="sub-borrar" onClick={e => { e.stopPropagation(); confirmarEliminar(s) }}
                   ariaLabel={t('subcontractors.eliminar_a', { name: s.name })} title={t('subcontractors.eliminar_a', { name: s.name })}><Trash2 size={14} aria-hidden /></IconButton>
+                </>}
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {showCreate && (
-        <Modal open title={t('subcontractors.nuevo_subcontratista_2')} onClose={() => setShowCreate(false)} width={520}>
-          <div className="sub-form-grid sub-form-grid--mb16">
-            <div>
-              <label id={`${idCampo}-nombre-et`} htmlFor={`${idCampo}-nombre`} className="sub-label">{t('subcontractors.nombre_razon_social')}</label>
-              <input id={`${idCampo}-nombre`} aria-labelledby={`${idCampo}-nombre-et`} value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} className="sub-input" placeholder={t('subcontractors.nombre_o_razon_social')} />{msg('name')}
-            </div>
-            <div>
-              <label id={`${idCampo}-1-et`} htmlFor={`${idCampo}-1`} className="sub-label">{t('subcontractors.empresa_si_es_persona_fisica')}</label>
-              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-1-et`} value={form.company} onChange={e => setForm(f=>({...f,company:e.target.value}))} className="sub-input" />{msg('company')}
-            </div>
-            <div>
-              <label id={`${idCampo}-2-et`} htmlFor={`${idCampo}-2`} className="sub-label">{t('subcontractors.email')}</label>
-              <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-2-et`} type="email" value={form.email} onChange={e => setForm(f=>({...f,email:e.target.value}))} className="sub-input" />{msg('email')}
-            </div>
-            <div>
-              <label id={`${idCampo}-3-et`} htmlFor={`${idCampo}-3`} className="sub-label">{t('subcontractors.telefono')}</label>
-              <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-3-et`} value={form.phone} onChange={e => setForm(f=>({...f,phone:e.target.value}))} className="sub-input" />{msg('phone')}
-            </div>
-            <div>
-              <label id={`${idCampo}-4-et`} htmlFor={`${idCampo}-4`} className="sub-label">{t('subcontractors.nif_vat')}</label>
-              <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-4-et`} value={form.vat_number} onChange={e => setForm(f=>({...f,vat_number:e.target.value}))} className="sub-input" />{msg('vat_number')}
-            </div>
-            <div>
-              <label id={`${idCampo}-5-et`} htmlFor={`${idCampo}-5`} className="sub-label">{t('subcontractors.moneda')}</label>
-              <Select suelto placeholder={false} id={`${idCampo}-5`} value={form.currency} onChange={e => setForm(f=>({...f,currency:e.target.value}))} className="sub-input">
-                {monedasDeLaEmpresa.map(c => <option key={c} value={c}>{c}</option>)}
-              </Select>{msg('currency')}
-            </div>
-          </div>
-          <div className="u-mb-16">
-            <label id={`${idCampo}-6-et`} htmlFor={`${idCampo}-6`} className="sub-label">{t('subcontractors.notes')}</label>
-            <textarea id={`${idCampo}-6`} aria-labelledby={`${idCampo}-6-et`} value={form.notes} onChange={e => setForm(f=>({...f,notes:e.target.value}))} className="sub-input sub-textarea" />{msg('notes')}
-          </div>
-          <div className="u-actions-8">
-            <Button variant="secondary" onClick={() => setShowCreate(false)}>{t('common.cancel')}</Button>
-            <Button onClick={() => create(form)} loading={isPending} disabled={!form.name || isPending}>{t('subcontractors.crear_subcontratista')}</Button>
-          </div>
-        </Modal>
-      )}
+      {showCreate && <AltaDeProveedor onClose={() => setShowCreate(false)} onCreado={setSelected} />}
 
       {showEdit && editTarget && (
         <Modal open title={t('subcontractors.editar_subcontratista')} onClose={() => { setShowEdit(false); setEditTarget(null) }} width={520}>

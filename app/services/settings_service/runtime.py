@@ -325,6 +325,11 @@ def set_runtime_value(
     if key in _umbrales.SUELTOS or _umbrales.otro_del_par(key):
         otra = _umbrales.otro_del_par(key)
         _umbrales.validar_umbral(key, float(stored), get_runtime_float(db, otra, org_id) if otra else None)
+    # 19-11-2026: valores de negocio que eran fijos (rampa canaria, retención
+    # propuesta del chat, máximo de vacaciones, plazos de evaluaciones).
+    from app.services.settings_service import valores_de_negocio as _vn
+    if key in _vn.VALIDADOS:
+        stored = _vn.validar(db, key, stored, org_id)
 
     # Capture old value pre-write for the audit trail. Runtime flags are
     # plaintext (no secrets), so is_secret=False always.

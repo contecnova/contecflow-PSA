@@ -16,6 +16,14 @@ from app.services.service_desk.change_impact_service.riesgo import (
     suggest_maintenance_window,
 )
 from app.core.codigos_de_error import error
+from app.services.service_desk.change_impact_service.textos import (
+    con_textos,
+    diferido,
+    idioma_de,
+    pintar_datos,
+    riesgo_diferido,
+    ventana_diferida,
+)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -45,150 +53,83 @@ _COMMS_AUDIENCES: dict[str, dict[str, list[str]]] = {
     },
 }
 
+#: Público -> canal por defecto (clave `cambio.canal.<código>`). El público
+#: sigue en inglés: es un código que la interfaz traduce (`sd_informes.publico`).
 _CHANNEL_MAP: dict[str, str] = {
-    "IT Operations Team": "email + IM (Slack/Teams)",
-    "Service Desk": "email + ticketing system notification",
-    "Line Manager": "email",
-    "End Users (affected services)": "email + service portal banner",
-    "Executive Team": "email + phone / executive summary",
-    "Key Stakeholders": "email",
-    "NOC": "IM (Slack/Teams) + monitoring alert",
+    "IT Operations Team": "ops",
+    "Service Desk": "service_desk",
+    "Line Manager": "correo",
+    "End Users (affected services)": "usuarios",
+    "Executive Team": "direccion",
+    "Key Stakeholders": "correo",
+    "NOC": "noc",
 }
 
 
 #: El plan de comunicación, declarado. Cada fila es un aviso:
 #:
-#:    (cuándo, horas antes, público, canal, asunto, mensaje, responsable,
-#:     condición)
+#:    (cuándo, horas antes, público, canal, aviso, responsable, condición)
 #:
 #: `condición` es `None` —siempre—, `"alto"` —riesgo alto o crítico— o
 #: `"critico"`. `canal` a `None` significa «el canal por defecto de ese
 #: público», que vive en `_CHANNEL_MAP`.
+#:
+#: 19-11-2026: asunto y mensaje son textos por clave
+#: (`cambio.aviso.<aviso>.asunto|mensaje` en `textos_de_salida_itsm.py`), el
+#: canal `cambio.canal.<canal>` y el responsable `cambio.rol.<rol>`: salen en el
+#: idioma de quien lee el plan, no en castellano fijo.
 #:
 #: Auditoría 2026-09 (hallazgo 18): eran 260 líneas de llamadas a un ayudante
 #: anidado con las condiciones repartidas entre ellas. Un plan de comunicación
 #: **es** una tabla, y verla entera es lo que hace falta para revisarla con
 #: quien la va a enviar: quién recibe qué, cuándo, y por qué canal.
 #:
-#: Las llaves dobles `{{...}}` son huecos que rellena quien envía el aviso en
-#: el momento; las simples se sustituyen aquí.
+#: Las llaves dobles `{{...}}` de los mensajes son huecos que rellena quien
+#: envía el aviso en el momento; las simples se sustituyen aquí.
 _AVISOS_DEL_PLAN: tuple[tuple, ...] = (
     # ── Antes del cambio ─────────────────────────────────────────────────────
-    ("T-7d", 168, "Executive Team", None,
-     "[CRITICAL CHANGE] {number} — {title}",
-     "Se planifica un cambio crítico ({number}): «{title}».\n"
-     "Ventana propuesta: {ventana}. Tiempo de inactividad estimado: {parada} min.\n"
-     "Se requiere confirmación de disponibilidad y aprobación ejecutiva.",
-     "Change Manager", "critico"),
-
-    ("T-72h", 72, "End Users (affected services)", None,
-     "[Aviso de mantenimiento] {number} — {title}",
-     "Estimado usuario,\nSe realizará un mantenimiento programado ({number}) el {ventana}.\n"
-     "Interrupción estimada: {parada} minutos. Disculpe las molestias.",
-     "Service Desk / Comms Team", "critico"),
-
-    ("T-48h", 48, "Service Desk", None,
-     "[Aviso previo] Cambio {number} — {title}",
-     "Notificación de cambio programado ({number}): «{title}».\n"
-     "Ventana: {ventana}. Impacto: riesgo {RIESGO}.\n"
-     "Prepara guiones de respuesta para consultas de usuarios durante la ventana.",
-     "Change Manager", "alto"),
-
-    ("T-48h", 48, "Line Manager", None,
-     "[Cambio programado] {number} — {title}",
-     "Cambio programado ({number}): «{title}».\n"
-     "Ventana: {ventana}. Riesgo: {RIESGO}.\n"
-     "Asegúrese de que el equipo técnico esté disponible durante la ventana.",
-     "Change Manager", "alto"),
-
-    ("T-24h", 24, "IT Operations Team", None,
-     "[Recordatorio] Cambio mañana: {number} — {title}",
-     "Recordatorio: mañana se ejecuta el cambio {number}: «{title}».\n"
-     "Ventana: {ventana}. Plan de pruebas y rollback deben estar listos.\n"
-     "Confirma disponibilidad respondiendo este mensaje.",
-     "Change Manager", None),
-
-    ("T-24h", 24, "End Users (affected services)", None,
-     "[Recordatorio mantenimiento mañana] {number}",
-     "Recordatorio: mañana {ventana} se realizará el mantenimiento {number}.\n"
-     "Inactividad estimada: {parada} min. Guarda tu trabajo antes de la ventana.",
-     "Service Desk / Comms Team", "alto"),
-
-    ("T-1h", 1, "IT Operations Team", "IM (Slack/Teams) — canal #operations",
-     "🔧 1 hora para inicio: {number}",
-     "En 1 hora inicia el cambio {number}: «{title}».\n"
-     "Confirma presencia en el canal de guardia. Plan de rollback accesible.",
-     "Change Manager", None),
-
-    ("T-1h", 1, "Service Desk", "IM (Slack/Teams) — canal #service-desk",
-     "⚠️ Cambio iniciará en 1h: {number}",
-     "En 1 hora inicia {number}. Activar modo guardia.\n"
-     "Cualquier incidente relacionado durante la ventana: escalar a Change Manager.",
-     "Change Manager", "alto"),
+    ("T-7d", 168, "Executive Team", None, "t7d_direccion", "gestor", "critico"),
+    ("T-72h", 72, "End Users (affected services)", None, "t72h_usuarios", "comunicacion", "critico"),
+    ("T-48h", 48, "Service Desk", None, "t48h_service_desk", "gestor", "alto"),
+    ("T-48h", 48, "Line Manager", None, "t48h_responsable", "gestor", "alto"),
+    ("T-24h", 24, "IT Operations Team", None, "t24h_operaciones", "gestor", None),
+    ("T-24h", 24, "End Users (affected services)", None, "t24h_usuarios", "comunicacion", "alto"),
+    ("T-1h", 1, "IT Operations Team", "im_operaciones", "t1h_operaciones", "gestor", None),
+    ("T-1h", 1, "Service Desk", "im_service_desk", "t1h_service_desk", "gestor", "alto"),
 
     # ── Durante el cambio ────────────────────────────────────────────────────
-    ("change_start", 0, "IT Operations Team", "IM (Slack/Teams) — canal #operations",
-     "▶️ Cambio iniciado: {number}",
-     "El cambio {number} ha iniciado a las {{hora_inicio_utc}} UTC.\n"
-     "Monitorización activa. Reportar anomalías inmediatamente.",
-     "Change Manager", "alto"),
-
-    ("change_midpoint", None, "Executive Team", None,
-     "[Status update] Cambio {number} en progreso",
-     "El cambio crítico {number} está en progreso.\n"
-     "Estado: {{estado_actual}}. Sin anomalías mayores detectadas hasta el momento.",
-     "Change Manager", "critico"),
+    ("change_start", 0, "IT Operations Team", "im_operaciones", "inicio_operaciones", "gestor", "alto"),
+    ("change_midpoint", None, "Executive Team", None, "mitad_direccion", "gestor", "critico"),
 
     # ── Después del cambio ───────────────────────────────────────────────────
-    ("post_change_success", None, "IT Operations Team", None,
-     "✅ Cambio completado: {number}",
-     "El cambio {number}: «{title}» se ha completado exitosamente.\n"
-     "Todos los tests post-cambio pasaron. Sistemas en estado operacional normal.",
-     "Change Manager", None),
-
-    ("post_change_success", None, "End Users (affected services)", None,
-     "✅ Mantenimiento finalizado: {number}",
-     "El mantenimiento programado {number} ha concluido.\n"
-     "Todos los servicios están disponibles con normalidad. Gracias por su paciencia.",
-     "Service Desk / Comms Team", "alto"),
-
-    ("post_change_failure_rollback", None, "IT Operations Team",
-     "IM (Slack/Teams) — canal #operations (URGENTE)",
-     "❌ ROLLBACK iniciado: {number}",
-     "El cambio {number} ha activado el plan de rollback.\n"
-     "Motivo: {{motivo_rollback}}. Equipo de rollback en acción. ETA: {{eta_minutos}} min.",
-     "Change Manager", None),
-
+    ("post_change_success", None, "IT Operations Team", None, "exito_operaciones", "gestor", None),
+    ("post_change_success", None, "End Users (affected services)", None, "exito_usuarios", "comunicacion", "alto"),
+    ("post_change_failure_rollback", None, "IT Operations Team", "im_operaciones_urgente",
+     "vuelta_operaciones", "gestor", None),
     ("post_change_failure_rollback", None, "End Users (affected services)", None,
-     "[Mantenimiento extendido] {number}",
-     "El mantenimiento {number} ha encontrado un inconveniente y se está resolviendo.\n"
-     "ETA de restauración: {{eta_restauracion}}. Pedimos disculpas por el tiempo adicional.",
-     "Service Desk / Comms Team", "alto"),
-
-    ("post_pir", None, "Executive Team", None,
-     "[PIR] Cambio {number} — Informe post-implementación",
-     "Se ha completado la Revisión Post-Implementación del cambio {number}.\n"
-     "Resultado: {{resultado_pir}}. Informe completo adjunto.",
-     "Change Manager", "critico"),
+     "vuelta_usuarios", "comunicacion", "alto"),
+    ("post_pir", None, "Executive Team", None, "pir_direccion", "gestor", "critico"),
 )
 
 
-def _avisos_aplicables(ctx: dict) -> list[dict]:
-    """Los avisos de la tabla que aplican a este cambio, ya numerados."""
+def _avisos_aplicables(ctx: dict, idioma: Optional[str] = None) -> list[dict]:
+    """Los avisos de la tabla que aplican a este cambio, ya numerados y pintados en `idioma`."""
     avisos: list[dict] = []
-    for cuando, horas, publico, canal, asunto, mensaje, responsable, condicion in _AVISOS_DEL_PLAN:
+    datos = {k: ctx[k] for k in ("number", "title", "ventana", "parada", "riesgo")}
+    for cuando, horas, publico, canal, aviso, responsable, condicion in _AVISOS_DEL_PLAN:
         if condicion and not ctx[condicion]:
             continue
-        avisos.append({
+        avisos.append(con_textos({
             "id": len(avisos) + 1,
             "timing": cuando,
             "hours_before_change": horas,
             "audience": publico,
-            "channel": canal or _CHANNEL_MAP[publico],
-            "subject": asunto.format(**ctx),
-            "message_template": mensaje.format(**ctx),
-            "responsible": responsable,
-        })
+        }, idioma,
+            channel=diferido(f"cambio.canal.{canal or _CHANNEL_MAP[publico]}"),
+            subject=diferido(f"cambio.aviso.{aviso}.asunto", **datos),
+            message_template=diferido(f"cambio.aviso.{aviso}.mensaje", **datos),
+            responsible=diferido(f"cambio.rol.{responsable}"),
+        ))
     return avisos
 
 
@@ -196,32 +137,37 @@ def generate_comms_plan(
     db: Session,
     change_id: str,
     current_user_id: Optional[str] = None,
+    idioma: Optional[str] = None,
 ) -> dict:
     """Plan de comunicación con públicos, canales y momentos.
 
     Cubre el antes, el durante —sólo en riesgo alto o crítico— y el después.
     Las plantillas de mensaje se adaptan al nivel de riesgo. Se guarda en
-    `AppSetting` para poder consultarlo luego.
+    `AppSetting` para poder consultarlo luego. Sale en `idioma` (sin el, el de
+    `current_user_id`); lo guardado lleva sus textos por clave (`textos.py`).
     """
     change = db.query(ITSMChangeRequest).filter(ITSMChangeRequest.id == change_id).first()
     if not change:
         raise error(404, "no_encontrado", detail=f"Change {change_id} not found", que="cambio")
 
+    idioma = idioma_de(db, user_id=current_user_id, idioma=idioma)
     riesgo = score_change_risk(db, change)
     etiqueta = riesgo["risk_label"]
     ventana = suggest_maintenance_window(db, change, riesgo["ci_ids_expanded"])
-    ventana_texto = ventana.get("window_label", "pendiente de confirmar")
+    # La etiqueta (en ingles) es la que interpreta la interfaz; en los mensajes
+    # la ventana va por clave, en el idioma de quien lee.
+    ventana_texto = ventana.get("window_label")
 
     ctx = {
         "number": change.number,
-        "title": change.title,
-        "ventana": ventana_texto,
+        "title": change.title or "",
+        "ventana": ventana_diferida(ventana),
         "parada": change.downtime_minutes or 0,
-        "RIESGO": etiqueta.upper(),
+        "riesgo": riesgo_diferido(etiqueta),
         "alto": etiqueta in ("high", "critical"),
         "critico": etiqueta == "critical",
     }
-    avisos = _avisos_aplicables(ctx)
+    avisos = _avisos_aplicables(ctx, idioma)
 
     comms_plan = {
         "change_id": change_id,
@@ -247,4 +193,4 @@ def generate_comms_plan(
 
     _set_json_setting(db, f"sd.change.comms.{change_id}", comms_plan)
     db.commit()
-    return comms_plan
+    return pintar_datos(comms_plan, idioma)

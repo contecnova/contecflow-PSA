@@ -133,6 +133,17 @@ CAPACIDADES: dict[str, Capacidad] = {
     "recursos.prevision": _c(ADMIN_PM_JEFE, "Previsión y planificador de recursos, procesos BPM", "resources",
                              _get("/api/v1/resource-forecast/weeks")),
     "externos.alta": _c(ADMIN_PM, "Dar de alta a un externo"),
+    # Proveedores y externalización (19-11-2026, docs/PROVEEDORES_Y_EXTERNALIZACION.md).
+    "proveedores.ver": _c(GESTORES, "Proveedores: ficha, contratos, servicios, paquetes, rendimiento y cumplimiento",
+                          sonda=_get("/api/v1/suppliers/overview", True)),
+    "proveedores.gestionar": _c(ADMIN_PM, "Gestionar proveedores: contratos, precios, consumo, facturación y GRC"),
+    "proveedores.config": _c(ADMIN_PM, "Configurar proveedores: plantillas de contrato, catálogos y umbrales"),
+    # Migración 191: portal del proveedor. Solo externos; además hace falta ser contacto
+    # del portal de su proveedor (`subcontractor_workers.supplier_portal`): sin la marca,
+    # la pantalla muestra que no tiene acceso y la API responde 403 (salvo `/me`, que
+    # responde `enabled: false`). La guarda de `/api/v1/supplier-portal` es esta capacidad.
+    "proveedores.portal": _c(("subcontractor",), "Portal del proveedor: informes, evidencias, paquetes, consumo "
+                             "y estado de cuenta de su proveedor", sonda=_get("/api/v1/supplier-portal/me", True)),
     "costes.ver": _c(ADMIN_RRHH, "Ver costes y tarifas de las personas"),
     "ausencias.gestionar": _c(GESTORES, "Gestionar las ausencias del equipo", "absences"),
     "ausencias.config": _c(ADMIN_RRHH, "Configurar ausencias y planificar vacaciones", "absences"),
@@ -145,6 +156,15 @@ CAPACIDADES: dict[str, Capacidad] = {
     "alm.personas": _c(ADMIN_PM_RRHH, "Altas y bajas de equipos (kits, bajas)",
                        sonda=_get("/api/v1/alm/integracion/bajas", True)),
     "alm.configurar": _c(ADMIN_RRHH, "Configurar altas y bajas de equipos"),
+    # Guardas de /alm por capacidad (19-11-2026). `alm.ver` decide la pantalla
+    # (/alm, dirección y PM); la API sirve a más roles y se desdobla con los
+    # mismos roles que tenían sus `require_*`:
+    "alm.gestionar": _c(GESTORES, "Licencias y activos: escribir y leer lo económico (API de /alm y /alm/uso)",
+                        sonda=_get("/api/v1/alm/dashboard", True)),
+    "alm.consultar": _c(INTERNOS, "Licencias y activos: catálogos de los selectores (proveedores, licencias, activos)",
+                        sonda=_get("/api/v1/alm/config", True)),
+    "alm.conexiones": _c(ADMIN, "Fuentes de uso real de licencias y equipos (conexiones y sincronización)",
+                         sonda=_get("/api/v1/alm/uso/conexiones", True)),
 
     # ── Clientes y finanzas ──────────────────────────────────────────────────
     "finanzas.ver": _c(ADMIN_PM, "Clientes, pipeline, contratos, facturación, rentabilidad, presupuestos",
@@ -159,9 +179,20 @@ CAPACIDADES: dict[str, Capacidad] = {
                     sonda=_get("/api/v1/sd/workflow-designer/blueprints", True)),
     "sd.administrar": _c(ADMIN, "Administrar el service desk (canales, SLA, plantillas, agente)"),
     "sd.gestionar": _c(GESTORES, "Responsable del análisis de cambios ITSM"),
+    # Pantalla: diseñador de flujos y calendarios SLA. API: escribir calendarios SLA
+    # (`/cmdb/sla-calendars`, antes `require_admin_or_pm`). El diseñador en sí lo
+    # guarda `sd.config` (gestores), como antes.
     "sd.disenar_flujos": _c(ADMIN_PM, "Diseñador de flujos del service desk y calendarios SLA"),
     "cmdb.ver": _c(ADMIN_PM, "CMDB y panel de agentes", sonda=_get("/api/v1/sd/cmdb")),
     "alm.ver": _c(ADMIN_PM, "Licencias y activos", sonda=_get("/api/v1/alm/dashboard")),
+    # CMDB de software y vulnerabilidades (19-11-2026, docs/CMDB_SOFTWARE_Y_VULNERABILIDADES.md).
+    "software.ver": _c(ADMIN_PM, "Software de la CMDB: catálogo, composición, dónde se usa, vulnerabilidades",
+                       sonda=_get("/api/v1/cmdb/software/dashboard", True)),
+    "software.gestionar": _c(ADMIN_PM, "Gestionar software: catálogo, instancias, importaciones, triaje y remediación",
+                             sonda=_get("/api/v1/cmdb/software/products", True)),
+    "software.aprobar": _c(ADMIN, "Aprobar excepciones de vulnerabilidad y líneas base de configuración"),
+    "software.config": _c(ADMIN, "Configurar fuentes de avisos, credenciales y SLA de remediación",
+                          sonda=_get("/api/v1/cmdb/software/config", True)),
 
     # ── Análisis ─────────────────────────────────────────────────────────────
     "analitica.ver": _c(ADMIN_PM, "Panel ejecutivo, explorador, generador de informes, predicciones, EVM",
@@ -179,14 +210,30 @@ CAPACIDADES: dict[str, Capacidad] = {
                  sonda=_get("/api/v1/automations")),
     "ia.asignacion": _c(ADMIN_PM_RRHH, "Asignación por IA", sonda=_get("/api/v1/semantic/config")),
     "ia.asignacion_config": _c(ADMIN_RRHH, "Configurar la asignación por IA"),
+    # Asistente de reuniones (19-11-2026, docs/ASISTENTE_DE_REUNIONES.md).
+    "reuniones.usar": _c(INTERNOS, "Asistente de reuniones: grabar, invitar el bot, traer reuniones, ver las suyas",
+                         sonda=_get("/api/v1/meeting-assistant/meetings", True)),
+    "reuniones.ver_todas": _c(ADMIN, "Ver y escuchar todas las reuniones de la empresa"),
+    "reuniones.config": _c(ADMIN, "Configurar el asistente de reuniones y el RGPD por persona",
+                           sonda=_get("/api/v1/meeting-assistant/config", True)),
 
     # ── Configuración (secciones de /settings) ───────────────────────────────
     "personas.config": _c(ADMIN_RRHH, "Departamentos, usuarios y vacaciones", "settings"),
-    "costes.config": _c(ADMIN_RRHH, "Costes de las personas", "settings"),
+    # 19-11-2026 (guardas por capacidad): `costes.config`, `integraciones.desarrollo`
+    # y `portal.formularios` guardan rutas fuera de /settings (/user-costs,
+    # /developer, /forms), así que van sin `modulo` (un rol personalizado que
+    # cierra Ajustes no perdía esas rutas). La sección sigue oculta igual: la
+    # pantalla la tapa por la ruta /settings/<sección> (`puedeVerSeccion`).
+    "costes.config": _c(ADMIN_RRHH, "Costes de las personas", sonda=_get("/api/v1/user-costs/summary", True)),
     "proyectos.config": _c(ADMIN_PM, "Plantillas, tipos, flujos, campos y permisos de proyecto", "settings"),
     "tarifas.config": _c(ADMIN_PM, "Tarifas", "settings"),
-    "integraciones.desarrollo": _c(ADMIN_PM, "Portal de desarrolladores e importación", "settings"),
-    "portal.formularios": _c(ADMIN_PM, "Formularios públicos", "settings"),
+    # API de tarifas (`/rate-cards`, escribir): gestores, como su `require_any_manager`.
+    "tarifas.gestionar": _c(GESTORES, "Crear y cambiar tablas de tarifas, entradas y excepciones"),
+    "integraciones.desarrollo": _c(ADMIN_PM, "Portal de desarrolladores e importación"),
+    # API de importación masiva (`/billing-reports/import/*`): gestores.
+    "integraciones.importar": _c(GESTORES, "Importación masiva de datos (plantillas, validar, ejecutar, historial)",
+                                 sonda=_get("/api/v1/billing-reports/import/jobs", True)),
+    "portal.formularios": _c(ADMIN_PM, "Formularios públicos"),
 }
 
 

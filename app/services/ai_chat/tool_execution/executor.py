@@ -11,10 +11,12 @@ from app.services.ai_chat.tool_execution import (
     crm,
     delivery,
     finance,
+    meetings,
     okrs,
     projects,
     resources,
     risks,
+    software,
     system,
     tasks,
     tickets,
@@ -35,6 +37,8 @@ for _mod in (
     resources,
     crm,
     system,
+    meetings,   # 19-11-2026: asistente de reuniones
+    software,   # 19-11-2026: CMDB de software y vulnerabilidades
 ):
     _HANDLERS.update(_mod.HANDLERS)
 

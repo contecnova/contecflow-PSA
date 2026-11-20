@@ -40,11 +40,6 @@
    "en": "AI is not available right now: try again later or contact your administrator",
    "zh": "AI 当前不可用：请稍后重试或联系管理员"
   },
-  "ia_uso_no_permitido": {
-   "es": "No puedes usar este asistente ahora: está desactivado o has llegado al límite diario",
-   "en": "You cannot use this assistant now: it is disabled or you have reached the daily limit",
-   "zh": "你现在无法使用此助手：它已停用或你已达到每日上限"
-  },
   "permiso_proyecto_denegado": {
    "es": "No tienes permiso para hacer esto en este proyecto",
    "en": "You don't have permission to do this in this project",
@@ -129,6 +124,21 @@
    "es": "La aplicación conectada aún no está lista",
    "en": "The connected application is not ready yet",
    "zh": "连接的应用尚未就绪"
+  },
+  "ia_limite_diario": {
+   "es": "Has llegado al límite diario de {n} acciones de «{modulo}». Vuelve mañana o pide al administrador que lo suba",
+   "en": "You have reached the daily limit of {n} actions for '{modulo}'. Try again tomorrow or ask the administrator to raise it",
+   "zh": "您已达到“{modulo}”每日 {n} 次操作的上限。请明天再试或请管理员提高上限"
+  },
+  "ia_modulo_desactivado": {
+   "es": "El asistente «{modulo}» está desactivado en Gobierno de IA",
+   "en": "The assistant '{modulo}' is disabled in AI Governance",
+   "zh": "助手“{modulo}”已在 AI 治理中停用"
+  },
+  "ia_presupuesto_diario_agotado": {
+   "es": "La empresa ha llegado a su límite diario de gasto en IA ({tope} USD). Se restablece a las 00:00 UTC o lo puede subir un administrador",
+   "en": "The company has reached its daily AI spending limit ({tope} USD). It resets at 00:00 UTC or an administrator can raise it",
+   "zh": "公司已达到每日 AI 支出上限（{tope} USD）。将在 UTC 00:00 重置，或由管理员提高上限"
   }
  },
  "que": {
@@ -136,6 +146,21 @@
    "es": "Valor del catálogo",
    "en": "Catalog value",
    "zh": "目录值"
+  },
+  "audio": {
+   "es": "Audio",
+   "en": "Audio",
+   "zh": "音频"
+  },
+  "segmento": {
+   "es": "Segmento",
+   "en": "Segment",
+   "zh": "片段"
+  },
+  "participante": {
+   "es": "Participante",
+   "en": "Participant",
+   "zh": "参与者"
   }
  }
 }

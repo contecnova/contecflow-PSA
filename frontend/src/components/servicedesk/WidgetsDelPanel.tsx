@@ -137,8 +137,8 @@ function Enlace({ numero, titulo, sub, onClick }: { numero?: string | null; titu
   return onClick ? <Pulsable className="sdp-enlace" onClick={onClick}>{cuerpo}</Pulsable> : cuerpo
 }
 
-/** Barra fina de 0-100 coloreada. */
-function Barra({ pct, color, etiqueta }: { pct: number; color: string; etiqueta: string }) {
+/** Barra fina de 0-100 coloreada (la usan también los informes de CMDB y del cambio). */
+export function Barra({ pct, color, etiqueta }: { pct: number; color: string; etiqueta: string }) {
   const v = Math.max(0, Math.min(100, Math.round(pct)))
   return (
     <span className="sdp-barra" role="img" aria-label={etiqueta}>
@@ -420,7 +420,7 @@ export function WidgetAgenteAutonomo({ datos }: PropsDeWidget<EstadisticasDelAge
           <div className="ds-eyebrow sdp-subtitulo">{t('sd_mercado.panel.por_playbook')}</div>
           <ul className="sdp-lista">
             {tipos.map(([tipo, n]) => (
-              <li key={tipo}><span className="sdp-wrap">{etiquetaCodigo(t, 'sd_mercado.panel.playbook', tipo, tipo.replace(/_/g, ' '))}</span><StatusBadge caps={false}>{n}</StatusBadge></li>
+              <li key={tipo}><span className="sdp-wrap">{etiquetaCodigo(t, 'sd_mercado.panel.playbook', tipo, etiquetaCodigo(t, 'sd_mercado.pb', tipo, tipo.replace(/_/g, ' ')))}</span><StatusBadge caps={false}>{n}</StatusBadge></li>
             ))}
           </ul>
         </div>

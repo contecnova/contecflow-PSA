@@ -12,6 +12,7 @@ from app.core.deps import (
     get_current_user,
     require_admin_or_pm,
     require_internal_user,
+    requiere_capacidad,
 )
 from app.core.abac_enforce import enforce_abac
 from app.core.periodo import CON_HORA, Periodo, periodo
@@ -329,7 +330,7 @@ def list_sla_calendars(
 
 @router.post("/sla-calendars")
 def create_sla_calendar(p: SLACalendarIn, db: Session = Depends(get_db),
-                        cu: User = Depends(require_admin_or_pm)):
+                        cu: User = Depends(requiere_capacidad("sd.disenar_flujos"))):
     return APIResponse.ok(data=svc.create_sla_calendar(p.name, p.timezone, p.work_start, p.work_end, p.work_days, db,
                                                      applies_to_all=p.applies_to_all))
 
@@ -337,13 +338,13 @@ def create_sla_calendar(p: SLACalendarIn, db: Session = Depends(get_db),
 @router.patch("/sla-calendars/{cal_id}")
 def update_sla_calendar(cal_id: str, p: SLACalendarIn,
                         db: Session = Depends(get_db),
-                        cu: User = Depends(require_admin_or_pm)):
+                        cu: User = Depends(requiere_capacidad("sd.disenar_flujos"))):
     return APIResponse.ok(data=svc.update_sla_calendar(cal_id, p, db))
 
 
 @router.delete("/sla-calendars/{cal_id}")
 def delete_sla_calendar(cal_id: str, db: Session = Depends(get_db),
-                        cu: User = Depends(require_admin_or_pm)):
+                        cu: User = Depends(requiere_capacidad("sd.disenar_flujos"))):
     enforce_abac(db, cu, "sla_calendar", cal_id, action="delete")
     return APIResponse.ok(data=svc.delete_sla_calendar(cal_id, db))
 
@@ -362,20 +363,20 @@ def list_holidays(
 
 @router.post("/sla-calendars/{cal_id}/holidays")
 def add_holiday(cal_id: str, p: SLAHolidayIn,
-                db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
+                db: Session = Depends(get_db), cu: User = Depends(requiere_capacidad("sd.disenar_flujos"))):
     return APIResponse.ok(data=svc.add_sla_holiday(cal_id, p.holiday_date, p.name, db, sla_policy_id=p.sla_policy_id))
 
 
 @router.patch("/sla-calendars/{cal_id}/holidays/{holiday_id}")
 def update_holiday(cal_id: str, holiday_id: str, p: SLAHolidayIn,
-                   db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
+                   db: Session = Depends(get_db), cu: User = Depends(requiere_capacidad("sd.disenar_flujos"))):
     return APIResponse.ok(data=svc.update_sla_holiday(cal_id, holiday_id, p.holiday_date, p.name, db,
                                                     sla_policy_id=p.sla_policy_id))
 
 
 @router.delete("/sla-calendars/{cal_id}/holidays/{holiday_id}")
 def delete_holiday(cal_id: str, holiday_id: str,
-                   db: Session = Depends(get_db), cu: User = Depends(require_admin_or_pm)):
+                   db: Session = Depends(get_db), cu: User = Depends(requiere_capacidad("sd.disenar_flujos"))):
     enforce_abac(db, cu, "sla_holiday", holiday_id, action="delete")
     return APIResponse.ok(data=svc.delete_sla_holiday(cal_id, holiday_id, db))
 

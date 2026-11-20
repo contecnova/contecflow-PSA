@@ -118,6 +118,9 @@ def _validar_campana(db: Session, cycle_id: str, subject_id: str,
     subject = db.query(User).filter(User.id == subject_id).first()
     if not subject:
         raise ErrorConCodigo("no_encontrado", detail="Persona evaluada no encontrada", que="persona_evaluada")
+    # Migracion 189: un externo solo se evalua si su proveedor lo activa (training_enabled).
+    from app.services.proveedores.asignabilidad import exigir_desarrollo_permitido
+    exigir_desarrollo_permitido(db, subject_id, como_valor=True)
 
     if manager_reviewer_id and manager_reviewer_id not in _elegibles(db, subject, "manager"):
         raise ErrorConCodigo("manager_no_directo")

@@ -12,7 +12,7 @@ Enterprise models:
 """
 from sqlalchemy import (
     Column, String, Float, DateTime, ForeignKey, Text,
-    Boolean, Integer, Enum, Date, BigInteger, Index
+    Boolean, Integer, Enum, Date, BigInteger, Index, JSON
 )
 from sqlalchemy import event as _sa_event
 from sqlalchemy.orm import Session as _SesionBase, relationship, validates
@@ -334,11 +334,37 @@ class Subcontractor(Base):
     notes       = Column(Text, nullable=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     updated_at  = Column(DateTime(timezone=True), onupdate=func.now())
+    # Proveedores y externalizacion (migracion 189, docs/PROVEEDORES_Y_EXTERNALIZACION.md).
+    # `kind`: freelance (persona fisica: es su unica persona y el recurso) |
+    # company. `engagement_modes`: staff_augmentation | outsourcing |
+    # managed_services (combinables). `lifecycle_status`: onboarding | active |
+    # suspended | offboarded.
+    kind             = Column(String(20), nullable=False, default="company", server_default="company")
+    engagement_modes = Column(JSON, nullable=True)
+    lifecycle_status = Column(String(20), nullable=False, default="active", server_default="active")
+    freelancer_worker_id = Column(String(36), ForeignKey("subcontractor_workers.id", ondelete="SET NULL", use_alter=True,
+                                                         name="fk_subcontractors_freelancer_worker"), nullable=True)
+    alm_vendor_id    = Column(String(36), ForeignKey("alm_vendors.id", ondelete="SET NULL"), nullable=True, index=True)
+    internal_owner_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    legal_name       = Column(String(255), nullable=True)
+    website          = Column(String(500), nullable=True)
+    address          = Column(Text, nullable=True)
+    training_enabled = Column(Boolean, default=False, nullable=False, server_default="0")
+    data_access      = Column(Boolean, default=False, nullable=False, server_default="0")
+    data_categories  = Column(String(500), nullable=True)
+    systems_access   = Column(String(500), nullable=True)
+    risk_level       = Column(String(20), nullable=True)
+    risk_score       = Column(Float, nullable=True)
+    next_review_date = Column(Date, nullable=True)
+    suspended_at     = Column(Date, nullable=True)
+    offboarded_at    = Column(Date, nullable=True)
+    offboarding_reason = Column(String(255), nullable=True)
 
     rates       = relationship("SubcontractorRate", back_populates="subcontractor",
                                cascade="all, delete-orphan")
     assignments = relationship("SubcontractorAssignment", back_populates="subcontractor")
     workers     = relationship("SubcontractorWorker", back_populates="subcontractor",
+                               foreign_keys="SubcontractorWorker.subcontractor_id",
                                cascade="all, delete-orphan")
 
 
@@ -390,10 +416,13 @@ class SubcontractorWorker(Base):
     access_until     = Column(Date, nullable=True)
     internal_owner_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     access_expiry_notified_at = Column(Date, nullable=True)
+    # Migracion 191: contacto del portal del proveedor (informes, evidencias,
+    # paquetes, consumo y estado de cuenta de SU proveedor; ver proveedores.portal).
+    supplier_portal  = Column(Boolean, default=False, nullable=False, server_default="0")
     created_at       = Column(DateTime(timezone=True), server_default=func.now())
     updated_at       = Column(DateTime(timezone=True), onupdate=func.now())
 
-    subcontractor = relationship("Subcontractor", back_populates="workers")
+    subcontractor = relationship("Subcontractor", back_populates="workers", foreign_keys=[subcontractor_id])
     user          = relationship("User", foreign_keys=[user_id])
     internal_owner = relationship("User", foreign_keys=[internal_owner_id])
     skills        = relationship("SubcontractorWorkerSkill", back_populates="worker",
@@ -474,6 +503,10 @@ class SubcontractorInvoice(Base):
     description      = Column(Text, nullable=True)
     file_path        = Column(String(500), nullable=True)     # adjunto PDF
     created_at       = Column(DateTime(timezone=True), server_default=func.now())
+    # Migracion 189: quien la registra (segregacion: no aprueba su estado de cuenta)
+    # y el contrato al que corresponde.
+    created_by       = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    contract_id      = Column(String(36), ForeignKey("supplier_contracts.id", ondelete="SET NULL"), nullable=True, index=True)
 
     subcontractor = relationship("Subcontractor")
     assignment    = relationship("SubcontractorAssignment")

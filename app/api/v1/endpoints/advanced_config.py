@@ -5,7 +5,7 @@ from typing import Optional, List
 from pydantic import BaseModel
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin, require_admin_or_hr
+from app.core.deps import get_current_user, require_admin, require_admin_or_hr, requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
@@ -132,11 +132,11 @@ def get_roles(db: Session = Depends(get_db), _: User = Depends(get_current_user)
     return APIListResponse.ok(items=_svc.list_roles(db))
 
 @router.post("/roles", summary="Crear rol personalizado")
-def create_role(payload: CustomRoleIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def create_role(payload: CustomRoleIn, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("org.administrar"))):
     return APIResponse.ok(data=_svc.create_role(payload.model_dump(), db))
 
 @router.patch("/roles/{role_id}", summary="Actualizar rol")
-def update_role(role_id: str, payload: CustomRoleUpdate, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def update_role(role_id: str, payload: CustomRoleUpdate, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("org.administrar"))):
     try:
         return APIResponse.ok(data=_svc.update_role(role_id, payload.model_dump(exclude_unset=True), db))
     except _svc.NotFoundError as e:
@@ -145,7 +145,7 @@ def update_role(role_id: str, payload: CustomRoleUpdate, db: Session = Depends(g
         raise desde_valor(400, e)
 
 @router.delete("/roles/{role_id}", summary="Eliminar rol")
-def delete_role(role_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
+def delete_role(role_id: str, db: Session = Depends(get_db), user: User = Depends(requiere_capacidad("org.administrar"))):
     enforce_abac(db, user, "custom_role", role_id, action="delete")
     try:
         return APIResponse.ok(data=_svc.delete_role(role_id, db))
@@ -191,13 +191,13 @@ def delete_task_type(type_id: str, db: Session = Depends(get_db), user: User = D
 # ── Alert configs ─────────────────────────────────────────────────────────────
 
 @router.get("/alert-configs", summary="Configuración de alertas")
-def get_alert_configs(db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def get_alert_configs(db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("org.administrar"))):
     # Segunda auditoría 2026-11: solo pedía sesión. Umbrales y destinatarios de
     # las alertas de la empresa: lo administra (y lo edita) el administrador.
     return APIListResponse.ok(items=_svc.list_alert_configs(db))
 
 @router.patch("/alert-configs/{alert_type}", summary="Actualizar configuración de alerta")
-def update_alert_config(alert_type: str, payload: AlertConfigUpdate, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def update_alert_config(alert_type: str, payload: AlertConfigUpdate, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("org.administrar"))):
     try:
         return APIResponse.ok(data=jsonable_encoder(_svc.update_alert_config(alert_type, payload.model_dump(exclude_unset=True), db)))
     except _svc.NotFoundError as e:
@@ -251,7 +251,7 @@ def delete_rate_table(table_id: str, db: Session = Depends(get_db), user: User =
 # ── Vacation policies ─────────────────────────────────────────────────────────
 
 @router.get("/vacation-policies", summary="Políticas de vacaciones", deprecated=True)
-def get_vacation_policies(db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
+def get_vacation_policies(db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("personas.config"))):
     return APIListResponse.ok(items=_svc.list_vacation_policies(db))
 
 @router.post("/vacation-policies", summary="Crear política de vacaciones", deprecated=True)
@@ -274,12 +274,13 @@ def delete_vacation_policy(policy_id: str, db: Session = Depends(get_db), user: 
         raise desde_valor(404, e)
 
 @router.get("/vacation-balances", summary="Saldos de vacaciones del equipo")
-def get_vacation_balances(year: int = Query(default=None), db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
+def get_vacation_balances(year: int = Query(default=None), db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("personas.config"))):
     return APIListResponse.ok(items=_svc.get_vacation_balances(year, db))
 
 @router.patch("/vacation-balances/{user_id}", summary="Actualizar saldo de vacaciones")
-def update_vacation_balance_endpoint(user_id: str, year: int = Query(...), days_entitled: float = Query(...), db: Session = Depends(get_db), _: User = Depends(require_admin_or_hr)):
-    return APIResponse.ok(data=_svc.update_vacation_balance(user_id, year, days_entitled, db))
+def update_vacation_balance_endpoint(user_id: str, year: int = Query(...), days_entitled: float = Query(...), db: Session = Depends(get_db), user: User = Depends(requiere_capacidad("personas.config"))):
+    # 19-11-2026 (GRC): el cambio queda auditado con quién lo hizo, el antes y el después.
+    return APIResponse.ok(data=_svc.update_vacation_balance(user_id, year, days_entitled, db, actor=user))
 
 
 # ── Offices ───────────────────────────────────────────────────────────────────
@@ -289,18 +290,18 @@ def get_offices(db: Session = Depends(get_db), _: User = Depends(get_current_use
     return APIListResponse.ok(items=_svc.list_offices(db))
 
 @router.post("/offices", summary="Crear sede")
-def create_office(payload: OfficeIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def create_office(payload: OfficeIn, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("org.administrar"))):
     return APIResponse.ok(data=_svc.create_office(payload.model_dump(), db))
 
 @router.patch("/offices/{office_id}", summary="Actualizar sede")
-def update_office(office_id: str, payload: OfficeIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def update_office(office_id: str, payload: OfficeIn, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("org.administrar"))):
     try:
         return APIResponse.ok(data=_svc.update_office(office_id, payload.model_dump(), db))
     except _svc.NotFoundError as e:
         raise desde_valor(404, e)
 
 @router.delete("/offices/{office_id}", summary="Eliminar sede")
-def delete_office(office_id: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
+def delete_office(office_id: str, db: Session = Depends(get_db), user: User = Depends(requiere_capacidad("org.administrar"))):
     enforce_abac(db, user, "office", office_id, action="delete")
     try:
         return APIResponse.ok(data=_svc.delete_office(office_id, db))
@@ -311,15 +312,15 @@ def delete_office(office_id: str, db: Session = Depends(get_db), user: User = De
 # ── Numbering sequences ───────────────────────────────────────────────────────
 
 @router.get("/numbering", summary="Secuencias de numeración")
-def get_numbering(db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def get_numbering(db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("org.administrar"))):
     return APIListResponse.ok(items=_svc.list_numbering(db))
 
 @router.patch("/numbering/{entity}", summary="Actualizar numeración")
-def update_numbering(entity: str, payload: NumberingIn, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def update_numbering(entity: str, payload: NumberingIn, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("org.administrar"))):
     return APIResponse.ok(data=_svc.update_numbering_seq(entity, payload.model_dump(), db))
 
 @router.post("/numbering/{entity}/reset", summary="Resetear contador")
-def reset_numbering(entity: str, db: Session = Depends(get_db), _: User = Depends(require_admin)):
+def reset_numbering(entity: str, db: Session = Depends(get_db), _: User = Depends(requiere_capacidad("org.administrar"))):
     try:
         return APIResponse.ok(data=_svc.reset_numbering_seq(entity, db))
     except _svc.NotFoundError as e:

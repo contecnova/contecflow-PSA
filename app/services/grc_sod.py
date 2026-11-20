@@ -97,6 +97,11 @@ MODULO_GRC_DE_ENTIDAD: dict[str, str] = {
     # 18-11-2026: horas extra. Son horas de trabajo: la regla «el empleado no
     # aprueba sus propios timesheets» (módulo timesheets) es la que aplica.
     "overtime": "timesheets",
+    # 19-11-2026: excepción de vulnerabilidad (CMDB de software; quien la pide no la aprueba).
+    "vuln_exception": "cmdb",
+    # Migración 191: estado de cuenta del proveedor = factura recibida; la regla
+    # «quien crea facturas no las aprueba» (módulo invoices) es la que aplica.
+    "supplier_statement": "invoices",
 }
 
 

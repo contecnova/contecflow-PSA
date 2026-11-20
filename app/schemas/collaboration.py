@@ -372,7 +372,8 @@ class RetentionPolicyIn(BaseModel):
     name: str = Field(..., description="Nombre de la política de retención")
     scope: str = Field("workspace", description="Ámbito de aplicación (workspace, team, channel)")
     target_id: Optional[str] = Field(None, description="ID del objetivo al que aplica la política")
-    retention_months: int = Field(24, description="Meses de retención antes de purgar")
+    # 19-11-2026: sin valor, el de la empresa (`CHAT_RETENTION_PROPOSED_MONTHS`, 24 por defecto).
+    retention_months: Optional[int] = Field(None, description="Meses de retención antes de purgar (sin valor: el propuesto por la empresa)")
     apply_to: str = Field("all", description="Tipo de contenido afectado (all, messages, files)")
 
 

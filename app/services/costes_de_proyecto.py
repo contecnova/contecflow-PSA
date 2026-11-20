@@ -15,6 +15,9 @@ era el presupuesto aprobado entero (con licencias, viajes y subcontratación).
   el parte manual es para externos sin acceso y, por diseno, un parte no cuenta
   si esa persona tiene imputacion en ese proyecto y dia
   (`externos.horas.partes_sin_duplicar`): nunca dos veces.
+  Proveedores (migracion 189): de los estados de cuenta aprobados, las lineas
+  que no son horas (precio cerrado, unidades, cuotas, creditos, bonus, gastos)
+  con proyecto (`proveedores.facturacion.partidas`). Las horas, no: ya estan.
 
 - **Licencias y equipos** (fase 3 de licencias y hardware, 16-11-2026): el
   coste diario de ALM imputado al proyecto (`alm_costes.coste_de_proyecto`):
@@ -84,6 +87,10 @@ def partidas_externas(db: Session, project_ids: list[str], moneda: str, desde=No
         t = t.filter(SubcontractorTimeLog.log_date <= hasta)
     for log, cur in t.all():
         salida.append((log.project_id, log.log_date, "subcontrata", convertir(log.cost_amount, cur, log.log_date)))
+    # Migracion 189: estados de cuenta aprobados de proveedores, lo que no son horas
+    # (precio cerrado, por unidad, cuota, creditos, bonus, gastos) con proyecto.
+    from app.services.proveedores.facturacion import partidas as partidas_de_proveedores
+    salida.extend(partidas_de_proveedores(db, ids, moneda, desde, hasta, convertir=convertir))
     return salida
 
 

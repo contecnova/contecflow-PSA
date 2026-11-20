@@ -46,6 +46,13 @@ def crear(db: Session, sub, payload, actor) -> dict:
     allocation = datos.pop("allocation_pct", None)
     if not db.query(Project.id).filter(Project.id == datos["project_id"]).first():
         raise error(404, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")
+    # Migracion 189: a una empresa no se le asigna nada como unidad por aqui. Sin
+    # persona es trabajo externalizado: un paquete de trabajo (`proveedores.paquetes`).
+    if not datos.get("worker_id"):
+        raise ErrorDeDominio(422, "La asignación necesita una persona del proveedor; para externalizar trabajo "
+                                  "a la empresa crea un paquete de trabajo.", code="proveedor_asignacion_sin_persona")
+    from app.services.proveedores.ficha import exigir_activo
+    exigir_activo(sub)
     worker = None
     if datos.get("worker_id"):
         worker = db.query(SubcontractorWorker).filter(

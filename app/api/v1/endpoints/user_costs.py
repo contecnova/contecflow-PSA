@@ -27,7 +27,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
-from app.core.deps import require_admin_or_hr
+from app.core.deps import requiere_capacidad
 from app.db.session import get_db
 from app.models.user import User
 from app.core.responses import APIListResponse, APIResponse
@@ -100,7 +100,7 @@ def _con_costes_por_defecto(db: Session, user: User, datos: dict) -> dict:
 @router.get("/countries", summary="List country presets")
 def list_countries(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_hr),
+    current_user: User = Depends(requiere_capacidad("costes.config")),
 ):
     org_id = getattr(current_user, "organization_id", None)
     rows = svc.list_country_presets(db, organization_id=org_id)
@@ -112,7 +112,7 @@ def list_countries(
 def create_country(
     payload: CountryPresetIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_hr),
+    current_user: User = Depends(requiere_capacidad("costes.config")),
 ):
     datos = _con_costes_por_defecto(db, current_user, payload.model_dump())
     if not datos.get("currency"):
@@ -126,7 +126,7 @@ def create_country(
 def seed_countries(
     force: bool = Query(False),
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin_or_hr),
+    _: User = Depends(requiere_capacidad("costes.config")),
 ):
     return APIResponse.ok(data=svc.seed_country_presets(db, force=force))
 
@@ -136,7 +136,7 @@ def update_country(
     preset_id: str,
     payload: CountryPresetUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_hr),
+    current_user: User = Depends(requiere_capacidad("costes.config")),
 ):
     enforce_abac(db, current_user, "country_preset", preset_id, action="update")
     row = actualizar_preset_de_pais(db, current_user, preset_id, payload.model_dump(exclude_none=True))
@@ -147,7 +147,7 @@ def update_country(
 def delete_country(
     preset_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_hr),
+    current_user: User = Depends(requiere_capacidad("costes.config")),
 ):
     enforce_abac(db, current_user, "country_preset", preset_id, action="delete")
     svc.borrar_preset_de_pais(db, current_user, preset_id)
@@ -159,7 +159,7 @@ def delete_country(
 def list_user_profiles(
     user_id: str,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin_or_hr),
+    _: User = Depends(requiere_capacidad("costes.config")),
 ):
     profiles = svc.list_profiles(db, user_id)
     items = [svc.serialize_profile(p) for p in profiles]
@@ -171,7 +171,7 @@ def create_user_profile(
     user_id: str,
     payload: ProfileIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_hr),
+    current_user: User = Depends(requiere_capacidad("costes.config")),
 ):
     svc.usuario_propio(db, current_user, user_id)
     org_id = getattr(current_user, "organization_id", None)
@@ -201,7 +201,7 @@ def get_active(
     db: Session = Depends(get_db),
     # Antes esta dependencia se descartaba con `_`, y por eso nunca se escribio
     # la comprobacion de organizacion: el sujeto estaba ahi y se tiraba.
-    current_user: User = Depends(require_admin_or_hr),
+    current_user: User = Depends(requiere_capacidad("costes.config")),
 ):
     # Este endpoint devuelve el perfil de coste y el `legacy_hourly_rate`: son
     # datos salariales, asi que la persona tiene que ser de la organizacion de
@@ -224,7 +224,7 @@ def preview_cost(
     user_id: str,
     payload: PreviewIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_hr),
+    current_user: User = Depends(requiere_capacidad("costes.config")),
 ):
     payload = payload.model_copy(update=_con_costes_por_defecto(
         db, current_user, payload.model_dump(include={"productive_hours_year"})))
@@ -242,7 +242,7 @@ def update_profile(
     profile_id: str,
     payload: ProfileUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_hr),
+    current_user: User = Depends(requiere_capacidad("costes.config")),
 ):
     enforce_abac(db, current_user, "user_cost_profile", profile_id, action="update")
     svc.perfil_propio(db, current_user, profile_id)
@@ -254,7 +254,7 @@ def update_profile(
 def delete_profile(
     profile_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_hr),
+    current_user: User = Depends(requiere_capacidad("costes.config")),
 ):
     enforce_abac(db, current_user, "user_cost_profile", profile_id, action="delete")
     svc.perfil_propio(db, current_user, profile_id)
@@ -272,7 +272,7 @@ COST_SUMMARY_HARD_CAP = 2000
 def cost_summary(
     on: Optional[Date] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_hr),
+    current_user: User = Depends(requiere_capacidad("costes.config")),
 ):
     on = on or Date.today()
     users = svc.usuarios_activos_de_la_organizacion(

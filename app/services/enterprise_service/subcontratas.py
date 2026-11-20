@@ -40,7 +40,14 @@ def serialize_subcontractor(s) -> dict:
         } for r in (s.rates or []) if r.is_active],
         "assignment_count": len(s.assignments or []),
         "worker_count": len([w for w in (s.workers or []) if w.is_active]),
+        # Migracion 189: tipo, modos, ciclo de vida y GRC de la ficha.
+        **_clasificacion(s),
     }
+
+
+def _clasificacion(s) -> dict:
+    from app.services.proveedores.serializar import clasificacion
+    return clasificacion(s)
 
 
 def serialize_worker(w) -> dict:
@@ -63,6 +70,8 @@ def serialize_worker(w) -> dict:
         "notes": w.notes,
         "has_access": bool(w.has_access),
         "access_until": str(w.access_until) if w.access_until else None,
+        # Migracion 191: contacto del portal del proveedor.
+        "supplier_portal": bool(getattr(w, "supplier_portal", False)),
         "internal_owner_id": w.internal_owner_id,
         "internal_owner_name": w.internal_owner.full_name if w.internal_owner_id and w.internal_owner else None,
         "company_name": w.subcontractor.name if w.subcontractor else None,
@@ -601,7 +610,7 @@ def get_sub_invoices(sub_id: str, db: Session) -> list:
         "amount": i.amount, "tax_pct": i.tax_pct, "total": i.total,
         "currency": i.currency, "status": i.status,
         "paid_date": str(i.paid_date) if i.paid_date else None,
-        "description": i.description,
+        "description": i.description, "contract_id": i.contract_id, "created_by": i.created_by,
     } for i in invs]
 
 
@@ -622,6 +631,8 @@ def create_sub_invoice(sub_id: str, payload: dict, current_user, db: Session) ->
         amount=amount, tax_pct=tax_pct, total=total,
         currency=payload.get("currency") or sub.currency or moneda_de_empresa(db, registro=sub),
         description=payload.get("description"),
+        # Migracion 189: quien la registra no aprueba su estado de cuenta (segregacion).
+        created_by=getattr(current_user, "id", None), contract_id=payload.get("contract_id"),
     )
     db.add(inv)
     if payload.get("timelog_ids"):

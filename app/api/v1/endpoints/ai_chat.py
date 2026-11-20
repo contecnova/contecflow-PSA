@@ -75,6 +75,19 @@ def _check_rate_limit(db: Session, user_id: str, module: str) -> Optional[str]:
     return _svc.check_rate_limit(db, user_id, module)
 
 
+def _exigir_uso_de_ia(db: Session, user_id: str, module: str) -> None:
+    """429 con la causa: `ia_modulo_desactivado` o `ia_limite_diario` (19-11-2026).
+
+    Antes un 429 genérico (`ia_uso_no_permitido`) para todo; ahora el código dice
+    qué pasa y la pantalla lo pinta en el idioma de quien lo lee (`err_srv`).
+    """
+    from app.services.ai_chat.rate_limit_service import limite_de_uso
+    limite = limite_de_uso(db, user_id, module)
+    if limite:
+        codigo, datos, texto_del_limite = limite
+        raise error_http(429, codigo, detail=texto_del_limite, **datos)
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # NEXUSASSIST — Conversational Copilot
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -178,7 +191,10 @@ def transformar_texto(
 def chat(
     payload: ChatPayload,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    # 20-11-2026: con guarda de rol, como /ai/texto y la valoración de sus
+    # respuestas (antes solo `get_current_user`: la conversación se acota a
+    # `current_user.id` en `prepare_chat`, pero la ruta no fijaba quién entra).
+    current_user: User = Depends(require_internal_user),
 ):
     t0 = time.time()
 
@@ -187,9 +203,7 @@ def chat(
         raise error_http(400, "ia_peticion_rechazada", detail="Petición rechazada: el mensaje contiene patrones que intentan manipular el sistema de IA.")
 
     # Rate-limit check
-    limit_err = _check_rate_limit(db, current_user.id, "nexusassist")
-    if limit_err:
-        raise error_http(429, "ia_uso_no_permitido", detail=limit_err)
+    _exigir_uso_de_ia(db, current_user.id, "nexusassist")
 
     # Revisión 2026-11: las políticas de entrada se aplican ANTES de guardar el
     # mensaje; antes se guardaba el original aunque una política lo redactara
@@ -223,7 +237,8 @@ def chat(
             organization_id=getattr(current_user, "organization_id", None),
         )
     except PresupuestoDeIAAgotado as e:
-        raise desde_valor(429, e)
+        # 19-11-2026: con su código (antes 429 sin código).
+        raise error_http(429, e.codigo, detail=str(e), **e.params)
     except ValueError as e:
         _logger.warning("IA chat: error de datos del proveedor: %s", e)
         raise error_http(400, "ia_error_datos")
@@ -236,7 +251,7 @@ def chat(
         raise error_http(500, "ia_proveedor_error_inesperado")
 
     # Si el mensaje fue bloqueado por governance, propagamos 400 al cliente
-    if assistant_text.startswith("[Mensaje bloqueado por política de gobernanza"):
+    if _gobernado.es_bloqueo_de_entrada(assistant_text):  # en cualquier idioma (19-11-2026)
         raise error_http(400, "bloqueado_por_politica", detail=assistant_text.strip("[]"),
                          motivo=assistant_text.strip("[]"))
 
@@ -370,9 +385,7 @@ def run_agent(
         raise error_http(400, "ia_peticion_rechazada", detail="Instrucción rechazada: el contenido parece intentar manipular el sistema de IA.")
 
     # Rate-limit check
-    limit_err = _check_rate_limit(db, current_user.id, "nexusagent")
-    if limit_err:
-        raise error_http(429, "ia_uso_no_permitido", detail=limit_err)
+    _exigir_uso_de_ia(db, current_user.id, "nexusagent")
 
     # Create execution record immediately and return; worker runs the loop async
     execution = _svc.create_agent_execution(db, current_user.id, payload.instruction)
@@ -612,7 +625,7 @@ def _emitir_eventos_de_agente(*, instruccion: str, auto_approve: bool, usuario, 
             proveedor=proveedor, base_url=base_url,
         )
     except PresupuestoDeIAAgotado as e:
-        yield _evento_sse({"type": "error", "message": str(e)})
+        yield _evento_sse({"type": "error", "message": str(e), "code": e.codigo, "params": e.params})
     except ValueError as e:
         yield _evento_sse({"type": "error", "message": f"Error de datos: {str(e)[:300]}"})
     except ConnectionError as e:
@@ -646,9 +659,7 @@ def run_agent_stream(
     if _check_prompt_injection(payload.instruction):
         raise error_http(400, "ia_peticion_rechazada", detail="Instrucción rechazada: el contenido parece intentar manipular el sistema de IA.")
 
-    limit_err = _check_rate_limit(db, current_user.id, "nexusagent")
-    if limit_err:
-        raise error_http(429, "ia_uso_no_permitido", detail=limit_err)
+    _exigir_uso_de_ia(db, current_user.id, "nexusagent")
 
     instruction   = payload.instruction
     # Item #55: default conservador (False). Antes era True (override del

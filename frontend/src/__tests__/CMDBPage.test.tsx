@@ -3,6 +3,8 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+// 19-11-2026: la cabecera lleva «Configurar» (software y vulnerabilidades), que navega.
+import { MemoryRouter } from 'react-router-dom'
 
 const sdList = vi.fn()
 const sdCreate = vi.fn()
@@ -34,7 +36,7 @@ import { puedeComo } from './capacidadesDelBackend'
 
 const pintar = () => render(
   <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-    <CMDBPage />
+    <MemoryRouter><CMDBPage /></MemoryRouter>
   </QueryClientProvider>,
 )
 

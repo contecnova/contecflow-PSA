@@ -175,9 +175,33 @@ def serialize_change(change: ITSMChangeRequest, full: bool = False) -> dict:
                 "test_plan": change.test_plan,
                 "impact_description": change.impact_description,
                 "pir_notes": change.pir_notes,
+                # 19-11-2026: nombre y tipo de cada CI afectado, para que la
+                # pantalla (pestaña Impacto, simulación) no enseñe el id.
+                "affected_ci_details": _detalles_de_cis(change),
             }
         )
     return base
+
+
+def _detalles_de_cis(change: ITSMChangeRequest) -> list[dict]:
+    """`[{id, name, code, ci_type}]` de los CIs afectados, en su orden; los que ya
+    no existen salen con `name` None (la pantalla dice «CI que ya no está»)."""
+    ids = [str(x) for x in _lista_json(change.affected_cis)]
+    if not ids:
+        return []
+    from sqlalchemy.orm import object_session
+    db = object_session(change)
+    encontrados: dict = {}
+    if db is not None:
+        from app.models.service_desk import ConfigurationItem
+        filas = db.query(ConfigurationItem).filter(ConfigurationItem.id.in_(ids)).all()
+        encontrados = {ci.id: ci for ci in filas}
+    salida = []
+    for i in ids:
+        ci = encontrados.get(i)
+        salida.append({"id": i, "name": getattr(ci, "name", None), "code": getattr(ci, "code", None),
+                       "ci_type": getattr(getattr(ci, "ci_type", None), "value", getattr(ci, "ci_type", None))})
+    return salida
 
 
 def _lista_json(raw) -> list:

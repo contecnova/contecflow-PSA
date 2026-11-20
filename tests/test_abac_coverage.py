@@ -27,6 +27,7 @@ import re
 
 from app.core.abac_registry import ABAC_COVERED_PREFIXES, ABAC_EXEMPT_PREFIXES
 from app.core.deps import (
+    RequiereCapacidad,
     require_admin,
     require_admin_or_hr,
     require_admin_or_pm,
@@ -47,6 +48,11 @@ ROUTE_ROLE_GUARDS = {
     # Externos como internos (16-11-2026): internos + subcontratado.
     require_worker,
 }
+
+
+def _es_guarda_de_rol(call) -> bool:
+    """Una `require_*` o una guarda por capacidad (`requiere_capacidad("x")`, 19-11-2026)."""
+    return call in ROUTE_ROLE_GUARDS or isinstance(call, RequiereCapacidad)
 
 # Señales de control de autorización en la capa de servicio. Es deliberadamente
 # amplio: el objetivo es detectar la AUSENCIA TOTAL de control, no auditar que
@@ -557,7 +563,7 @@ def test_enforce_abac_is_never_the_only_authorization_control():
     for _route, path, methods, dependant, endpoint in _api_routes():
         if not _calls_enforce_abac(_source(endpoint)):
             continue
-        if {d.call for d in dependant.dependencies} & ROUTE_ROLE_GUARDS:
+        if any(_es_guarda_de_rol(d.call) for d in dependant.dependencies):
             continue  # guarda de rol en la ruta
         if SERVICE_AUTHZ_SIGNALS.search(_called_service_sources(endpoint)):
             continue  # control en la capa de servicio

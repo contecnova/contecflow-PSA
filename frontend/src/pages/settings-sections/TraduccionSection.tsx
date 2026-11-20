@@ -29,7 +29,7 @@ import { IntegrationProviderEditor } from './SettingsAdvancedSections'
 import './TraduccionSection.css'
 
 /** Canales del servidor (`TRANSLATION_CHANNELS`), en el orden en que se enseñan. */
-export const CANALES_DE_TRADUCCION = ['ticket', 'email', 'livechat', 'whatsapp', 'slack', 'teams', 'portal_assistant', 'internal_chat', 'kb', 'editor', 'portal'] as const
+export const CANALES_DE_TRADUCCION = ['ticket', 'email', 'livechat', 'whatsapp', 'slack', 'teams', 'portal_assistant', 'internal_chat', 'kb', 'editor', 'portal', 'meetings'] as const
 const PROVEEDORES = ['ai', 'deepl', 'azure'] as const
 type Proveedor = typeof PROVEEDORES[number]
 

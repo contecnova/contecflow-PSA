@@ -53,8 +53,11 @@ ESCRITURA = {"POST", "PUT", "PATCH", "DELETE"}
 # `require_worker` (externos como internos, 16-11-2026) es guarda de rol: deja
 # fuera a quien no tiene rol de trabajo. `test_guardas_deniegan` no la sondea
 # porque ningún rol de usuario queda fuera de ella.
+# `requiere_capacidad("x")` (19-11-2026) es guarda de rol leída de la matriz de
+# permisos (`app/core/capacidades.py`): cuenta igual que las `require_*`.
 GUARDA = re.compile(
-    r"require_(admin_or_pm|admin_or_hr|any_manager|internal_user|worker|superadmin|admin)\b")
+    r"require_(admin_or_pm|admin_or_hr|any_manager|internal_user|worker|superadmin|admin)\b"
+    r"|\brequiere_capacidad\(\s*[\"'][\w.]+[\"']\s*\)")
 PORTAL = re.compile(r"get_current_client|get_current_portal_user|portal_user")
 APIKEY = re.compile(r"require_api_key|require_scim_token|verify_api_key|x_api_key")
 USUARIO = re.compile(r"get_current_user|get_current_active_user")
@@ -150,7 +153,9 @@ EXENCIONES_ESPERADAS = {
     # pasa a exigir gestor.
     # 94 desde 2026-11-16: +1 POST /translation/messages (e2a94c61), mensajes
     # guardados en el idioma de quien mira, acotados a `current_user.id`.
-    "acotada al propio usuario": 94,  # +1 medido, tarea #25 (rev. 167): rutas nuevas de /absences que `_acota_por_propiedad` ve acotadas al usuario (vista previa y adjuntar documento; POST /absences/my va en EXENTAS_REVISADAS); 2026-11 un solo TOTP: -4 rutas /mfa/* (setup, verify, validate, disable) retiradas, +2 /auth/mfa/setup y verify-setup (antes en EXENTAS_REVISADAS);  # +1 2026-11: cambio de empresa en la sesión; +2: reservar y liberar un documento (decide el permiso del documento, como el resto de /documents); +1 auditoria 2026-11 #22: change-password (antes en EXENTAS_REVISADAS) revoca las sesiones de `current_user.id` y el detector ya la ve acotada
+    # 93 desde 2026-11-20: POST /ai/chat sale de aquí (la conversación ya se acotaba a
+    # `current_user.id` en `prepare_chat`) y gana `require_internal_user` en la firma.
+    "acotada al propio usuario": 93,  # +1 medido, tarea #25 (rev. 167): rutas nuevas de /absences que `_acota_por_propiedad` ve acotadas al usuario (vista previa y adjuntar documento; POST /absences/my va en EXENTAS_REVISADAS); 2026-11 un solo TOTP: -4 rutas /mfa/* (setup, verify, validate, disable) retiradas, +2 /auth/mfa/setup y verify-setup (antes en EXENTAS_REVISADAS);  # +1 2026-11: cambio de empresa en la sesión; +2: reservar y liberar un documento (decide el permiso del documento, como el resto de /documents); +1 auditoria 2026-11 #22: change-password (antes en EXENTAS_REVISADAS) revoca las sesiones de `current_user.id` y el detector ya la ve acotada
     "superficie: API key": 6,  # 2026-11: fuera POST /bookings/api-keys/verify (oraculo)
     # 20 desde 2026-11-09: fuera la copia de /clients/{cid}/portal-users (POST y
     # PATCH) que no exigía el máximo de usuarios del portal.
@@ -175,7 +180,12 @@ EXENCIONES_ESPERADAS = {
     # `team_id`, marca de tiempo de 5 min como mucho) y responde 403 si no cuadra o si
     # el workspace no es de una sola empresa; `url_verification` vale con cualquier
     # signing secret conocido. El evento se procesa en la empresa del workspace.
-    "superficie: sin sujeto autenticado": 53,  # +1 elegir empresa tras la contraseña; +1 decidir desde el correo; +1 webhook de Stripe (firma); +1 POST /client-errors (solo log)
+    # 56 desde 2026-11-20 (+3, medido con _clasificar): avisos del asistente de reuniones,
+    # POST /webhooks/meetings/{recall|teams|zoom}/{org_id}. Sin sesión: `reuniones/webhooks.py`
+    # exige la firma de cada proveedor (Svix de Recall, clientState de Graph, HMAC de Zoom)
+    # con el secreto de la empresa del {org_id} y responde 403 si falta o no cuadra
+    # (test_asistente_de_reuniones::test_webhooks_sin_secreto_o_con_firma_mala_dan_403).
+    "superficie: sin sujeto autenticado": 56,  # +1 elegir empresa tras la contraseña; +1 decidir desde el correo; +1 webhook de Stripe (firma); +1 POST /client-errors (solo log)
 }
 
 #: Rutas de escritura que sí llevan guarda de rol. Sólo puede subir.

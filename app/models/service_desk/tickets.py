@@ -306,6 +306,11 @@ class TicketHistory(Base):
     field_name = Column(String(100), nullable=False)
     old_value = Column(String(500), nullable=True)
     new_value = Column(String(500), nullable=True)
+    # Migracion 192 (19-11-2026): si el valor es un texto que escribe el sistema,
+    # su clave de `textos_de_salida` y sus datos (JSON). Se pinta en el idioma de
+    # quien mira (`historial_del_ticket.pintar`); `new_value` queda de respaldo.
+    new_value_key = Column(String(120), nullable=True)
+    new_value_params = Column(Text, nullable=True)
     changed_by_user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     # NOTE: This model uses 'changed_at', NOT 'created_at' — keep consistent
     changed_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -138,8 +138,10 @@ _BUILTIN_PLAYBOOKS = [
                     "Si el problema persiste en 15 minutos, este ticket será asignado a un agente."
                 ),
             },
-            {"type": "notify", "content": "Se ha enviado respuesta automática al solicitante."},
-            {"type": "resolve", "content": "Resuelto automáticamente: instrucciones password reset enviadas."},
+            {"type": "notify", "content": "Se ha enviado respuesta automática al solicitante.",
+             "clave": "autonomo.pb.pw-reset.notify"},
+            {"type": "resolve", "content": "Resuelto automáticamente: instrucciones password reset enviadas.",
+             "clave": "autonomo.pb.pw-reset.resolve"},
         ],
     },
     {
@@ -160,7 +162,8 @@ _BUILTIN_PLAYBOOKS = [
                     "Tu ticket ha sido asignado con alta prioridad para revisión por el equipo de red."
                 ),
             },
-            {"type": "notify", "content": "Ticket de VPN: respuesta automática enviada y escalado a Red."},
+            {"type": "notify", "content": "Ticket de VPN: respuesta automática enviada y escalado a Red.",
+             "clave": "autonomo.pb.vpn-issue.notify"},
         ],
     },
     {
@@ -182,7 +185,8 @@ _BUILTIN_PLAYBOOKS = [
                     "Si el problema persiste tras estos pasos, responde a este ticket."
                 ),
             },
-            {"type": "resolve", "content": "Resuelto automáticamente: guía de troubleshooting enviada."},
+            {"type": "resolve", "content": "Resuelto automáticamente: guía de troubleshooting enviada.",
+             "clave": "autonomo.pb.email-issue.resolve"},
         ],
     },
     {
@@ -204,7 +208,8 @@ _BUILTIN_PLAYBOOKS = [
                     "Si el problema persiste, un técnico se pondrá en contacto contigo."
                 ),
             },
-            {"type": "resolve", "content": "Resuelto automáticamente: guía de impresora enviada."},
+            {"type": "resolve", "content": "Resuelto automáticamente: guía de impresora enviada.",
+             "clave": "autonomo.pb.printer-issue.resolve"},
         ],
     },
     {
@@ -226,10 +231,58 @@ _BUILTIN_PLAYBOOKS = [
                     "Si el problema continúa, un técnico revisará tu equipo remotamente."
                 ),
             },
-            {"type": "notify", "content": "Ticket de rendimiento: respuesta enviada, pendiente revisión técnica."},
+            {"type": "notify", "content": "Ticket de rendimiento: respuesta enviada, pendiente revisión técnica.",
+             "clave": "autonomo.pb.slow-pc.notify"},
         ],
     },
 ]
+
+
+# ── Textos de los playbooks de serie (19-11-2026) ───────────────────────────
+# El nombre y los avisos internos de los playbooks de serie los escribe el
+# sistema: salen por clave (`autonomo.pb.<id>` y la `clave` de cada paso, en
+# `textos_de_salida_itsm.py`) en el idioma que toca. Los playbooks propios de
+# la empresa (y el comentario al cliente, que ya se traduce al publicarlo con
+# `publicar_texto_del_operador`) salen como se escribieron.
+
+def _idioma_de_la_empresa(db: Session, org_id, preferido: Optional[str] = None) -> str:
+    from app.services.formato_regional import idioma_de_salida
+    return idioma_de_salida(db, org_id=org_id, preferido=preferido)
+
+
+def nombre_del_playbook(playbook: Optional[dict], idioma: Optional[str]) -> str:
+    """Nombre del playbook en `idioma` (los de serie) o el que le puso la empresa."""
+    from app.services.textos_de_salida import TEXTOS, texto
+    pb = playbook or {}
+    clave = f"autonomo.pb.{pb.get('id')}"
+    if clave in TEXTOS and any(p is pb or p.get("id") == pb.get("id") for p in _BUILTIN_PLAYBOOKS):
+        return texto(clave, idioma)
+    return pb.get("name") or texto("autonomo.agente", idioma)
+
+
+def nombre_diferido(playbook: Optional[dict]):
+    """El nombre del playbook para guardarlo: por clave si es de serie, el suyo si no.
+
+    Migracion 192: el motivo del registro se pinta al leer en el idioma de quien
+    mira (`textos_guardados.pintar`), y el nombre de un playbook de serie tambien.
+    """
+    from app.services.textos_de_salida import TEXTOS
+    from app.services.textos_guardados import diferido
+    pb = playbook or {}
+    clave = f"autonomo.pb.{pb.get('id')}"
+    if clave in TEXTOS and any(p is pb or p.get("id") == pb.get("id") for p in _BUILTIN_PLAYBOOKS):
+        return diferido(clave)
+    if pb.get("name"):
+        return pb["name"]
+    return diferido("autonomo.agente")
+
+
+def contenido_del_paso(paso: dict, idioma: Optional[str]) -> str:
+    """Texto del paso: por su `clave` (pasos de serie) o el escrito (playbooks propios)."""
+    if paso.get("clave"):
+        from app.services.textos_de_salida import texto
+        return texto(paso["clave"], idioma)
+    return paso.get("content", "") or ""
 
 
 # ── Playbook matching ─────────────────────────────────────────────────────────
@@ -302,6 +355,12 @@ def _destinatarios_del_paso(db, ticket) -> list:
     return list(dict.fromkeys(ids))
 
 
+def _autor_del_agente(db: Session, ticket: Ticket) -> str:
+    """«Agente autónomo» en el idioma de la empresa (antes «Autonomous Agent» fijo)."""
+    from app.services.textos_de_salida import texto
+    return texto("autonomo.agente", _idioma_de_la_empresa(db, ticket.organization_id))
+
+
 def _add_ticket_comment(db: Session, ticket: Ticket, content: str, acting_user_id: Optional[str]) -> None:
     """Add a public comment to the ticket.
 
@@ -319,7 +378,7 @@ def _add_ticket_comment(db: Session, ticket: Ticket, content: str, acting_user_i
             is_public=True,
             is_solution=False,
             author_user_id=acting_user_id,
-            author_name="Autonomous Agent",
+            author_name=_autor_del_agente(db, ticket),
         ))
     except Exception as exc:
         logger.warning("Could not add comment to ticket %s: %s", ticket.id, exc)
@@ -354,10 +413,15 @@ def execute_playbook(
     Returns execution summary dict.
     """
     steps_executed = []
+    # 19-11-2026: notas internas en el idioma de la empresa; la resolucion (la
+    # lee el cliente) en el idioma del ticket si es uno admitido.
+    idioma = _idioma_de_la_empresa(db, ticket.organization_id)
+    idioma_cliente = _idioma_de_la_empresa(db, ticket.organization_id, getattr(ticket, "language", None))
+    nombre = nombre_del_playbook(playbook, idioma)
 
     for step in playbook.get("steps", []):
         step_type = step.get("type")
-        content = step.get("content", "")
+        content = contenido_del_paso(step, idioma_cliente if step_type == "resolve" else idioma)
 
         try:
             if step_type == "comment":
@@ -379,13 +443,17 @@ def execute_playbook(
                 from app.services.service_desk.ticket_events import registrar
                 destinatarios = _destinatarios_del_paso(db, ticket)
                 registrar(db, ticket, "escalated",
-                          {"rule": playbook.get("name") or "Agente autónomo", "action": content[:500],
+                          {"rule": nombre, "action": content[:500],
+                           # Cada destinatario lo lee en su idioma (ticket_event_processor).
+                           "action_clave": step.get("clave"),
                            "recipients": destinatarios},
                           actor_user_id=acting_user_id)
                 db.add(TicketHistory(
                     id=str(uuid4()), ticket_id=ticket.id,
                     field_name="autonomous_note" if step_type == "notify" else "autonomous_escalate",
                     old_value=None, new_value=content[:500], changed_by_user_id=acting_user_id,
+                    # Migracion 192: el paso de serie, por clave (se lee en el idioma de quien mira).
+                    new_value_key=step.get("clave") or None,
                 ))
                 steps_executed.append({"type": step_type, "status": "ok", "notified": len(destinatarios)})
 
@@ -399,7 +467,7 @@ def execute_playbook(
     db.flush()
     return {
         "playbook_id": playbook.get("id"),
-        "playbook_name": playbook.get("name"),
+        "playbook_name": nombre,
         "steps_executed": steps_executed,
         "auto_resolved": playbook.get("auto_resolve", False),
     }
@@ -407,7 +475,7 @@ def execute_playbook(
 
 # ── Autonomous resolution evaluation ─────────────────────────────────────────
 
-def evaluate_ticket_for_autonomy(db: Session, ticket: Ticket) -> dict:
+def evaluate_ticket_for_autonomy(db: Session, ticket: Ticket, idioma: Optional[str] = None) -> dict:
     """Determine whether a ticket can be handled autonomously.
 
     Returns:
@@ -416,9 +484,11 @@ def evaluate_ticket_for_autonomy(db: Session, ticket: Ticket) -> dict:
           "action": str,   # "auto_resolve" | "playbook_assist" | "human_required"
           "score": float,  # composite confidence 0-1
           "playbook": dict | None,
-          "reason": str,
+          "reason": str,   # en `idioma` (sin el, el de la empresa); clave en `reason_code`
         }
     """
+    from app.services.textos_de_salida import texto
+    idioma = _idioma_de_la_empresa(db, ticket.organization_id, idioma)
     # Safety: never autonomously handle critical tickets without KB match
     priority_val = getattr(ticket.priority, "value", str(ticket.priority))
     if priority_val == "p1_critical":
@@ -427,7 +497,9 @@ def evaluate_ticket_for_autonomy(db: Session, ticket: Ticket) -> dict:
             "action": "human_required",
             "score": 0.0,
             "playbook": None,
-            "reason": "P1 tickets always require human review",
+            "reason": texto("autonomo.motivo.p1", idioma),
+            "reason_code": "p1",
+            "reason_params": {},
         }
 
     # Check auto-resolution scoring from incident_intelligence
@@ -454,7 +526,10 @@ def evaluate_ticket_for_autonomy(db: Session, ticket: Ticket) -> dict:
             "action": "auto_resolve",
             "score": composite,
             "playbook": playbook,
-            "reason": f"High confidence ({composite:.0%}) + playbook '{playbook['name']}' matched",
+            "reason": texto("autonomo.motivo.alta", idioma, confianza=f"{composite:.0%}",
+                            playbook=nombre_del_playbook(playbook, idioma)),
+            "reason_code": "alta",
+            "reason_params": {"confianza": f"{composite:.0%}", "playbook": nombre_diferido(playbook)},
         }
     elif composite >= umbral_sugerir and playbook:
         return {
@@ -462,7 +537,9 @@ def evaluate_ticket_for_autonomy(db: Session, ticket: Ticket) -> dict:
             "action": "playbook_assist",
             "score": composite,
             "playbook": playbook,
-            "reason": f"Medium confidence ({composite:.0%}) — playbook assist without auto-close",
+            "reason": texto("autonomo.motivo.media", idioma, confianza=f"{composite:.0%}"),
+            "reason_code": "media",
+            "reason_params": {"confianza": f"{composite:.0%}"},
         }
     else:
         return {
@@ -470,7 +547,9 @@ def evaluate_ticket_for_autonomy(db: Session, ticket: Ticket) -> dict:
             "action": "human_required",
             "score": composite,
             "playbook": playbook,
-            "reason": f"Confidence too low ({composite:.0%}) or no matching playbook",
+            "reason": texto("autonomo.motivo.baja", idioma, confianza=f"{composite:.0%}"),
+            "reason_code": "baja",
+            "reason_params": {"confianza": f"{composite:.0%}"},
         }
 
 
@@ -482,12 +561,18 @@ def _anotar(db: Session, ticket: Ticket, evaluation: dict, estado: str, origen: 
     impide que el barrido evalue dos veces el mismo ticket y, en modo
     `suggest`, la propuesta que un agente aplica o descarta."""
     from app.models.service_desk import AutonomousPlaybookExecution
+    from app.services.textos_guardados import por_clave
     pb = evaluation.get("playbook") or {}
+    # Migracion 192: el motivo tambien por clave, para leerlo en otro idioma.
+    clave_nota, datos_nota = (por_clave(f"autonomo.motivo.{evaluation['reason_code']}",
+                                        **(evaluation.get("reason_params") or {}))
+                              if evaluation.get("reason_code") else (None, None))
     fila = AutonomousPlaybookExecution(
         organization_id=ticket.organization_id, ticket_id=ticket.id,
         playbook_type=str(pb.get("id") or evaluation.get("action") or "none")[:50],
         status=estado, confidence_score=evaluation.get("score"),
         resolution_note=(evaluation.get("reason") or "")[:2000], triggered_by=origen,
+        resolution_note_key=clave_nota, resolution_note_params=datos_nota,
         mode=modo, playbook_id=str(pb.get("id"))[:64] if pb.get("id") else None,
         action=str(evaluation.get("action") or "")[:30] or None,
         actions_json=json.dumps(acciones, default=str) if acciones is not None else None,
@@ -497,14 +582,14 @@ def _anotar(db: Session, ticket: Ticket, evaluation: dict, estado: str, origen: 
     return fila
 
 
-def _pasos_previstos(playbook: dict) -> list[dict]:
+def _pasos_previstos(playbook: dict, idioma: Optional[str] = None) -> list[dict]:
     """Lo que haria el playbook, paso a paso, sin hacerlo (modo sugerir)."""
     salida = []
     for paso in playbook.get("steps", []):
         tipo = paso.get("type")
         if tipo == "resolve" and not playbook.get("auto_resolve"):
             continue
-        salida.append({"type": tipo, "content": (paso.get("content") or "")[:2000], "status": "planned"})
+        salida.append({"type": tipo, "content": contenido_del_paso(paso, idioma)[:2000], "status": "planned"})
     return salida
 
 
@@ -549,7 +634,7 @@ def run_autonomous_resolution(
     playbook = evaluation["playbook"]
     if modo == "suggest":
         fila = _anotar(db, ticket, evaluation, "suggested", origen, modo=modo,
-                       acciones=_pasos_previstos(playbook))
+                       acciones=_pasos_previstos(playbook, _idioma_de_la_empresa(db, ticket.organization_id)))
         db.commit()
         return {"ticket_id": ticket_id, "action": evaluation["action"], "eligible": True,
                 "score": evaluation["score"], "reason": evaluation["reason"], "mode": modo,
@@ -673,8 +758,11 @@ def run_autonomous_scan(db: Session, org_id=None) -> dict:
 
 # ── Playbook CRUD (DB-backed) ─────────────────────────────────────────────────
 
-def list_playbooks(db: Session, org_id=None) -> list[dict]:
-    """Los playbooks de la empresa y los de serie, con si estan encendidos en ella."""
+def list_playbooks(db: Session, org_id=None, idioma: Optional[str] = None) -> list[dict]:
+    """Los playbooks de la empresa y los de serie, con si estan encendidos en ella.
+
+    19-11-2026: el nombre de los de serie en `idioma` (sin el, el de la empresa)."""
+    idioma = _idioma_de_la_empresa(db, org_id, idioma)
     from app.models.service_desk import AutonomousPlaybook
 
     q = db.query(AutonomousPlaybook).filter(AutonomousPlaybook.is_active.is_(True))
@@ -691,7 +779,7 @@ def list_playbooks(db: Session, org_id=None) -> list[dict]:
     apagados = playbooks_de_serie_apagados(db, org_id)
     builtin_dicts = [
         {
-            "id": pb["id"], "name": pb["name"], "playbook_type": pb["id"], "description": None,
+            "id": pb["id"], "name": nombre_del_playbook(pb, idioma), "playbook_type": pb["id"], "description": None,
             "steps": pb["steps"],
             "conditions": {
                 "trigger_keywords": pb.get("trigger_keywords", []),
@@ -819,9 +907,14 @@ def get_execution_stats(db: Session, org_id=None) -> dict:
 
 
 def get_execution_log(db: Session, page: int = 1, page_size: int = 25, org_id=None,
-                      estado: Optional[str] = None, ticket_id: Optional[str] = None) -> dict:
-    """Registro de la empresa, lo mas reciente primero, con lo que hizo o propuso."""
+                      estado: Optional[str] = None, ticket_id: Optional[str] = None,
+                      idioma: Optional[str] = None) -> dict:
+    """Registro de la empresa, lo mas reciente primero, con lo que hizo o propuso.
+
+    El motivo (`resolution_note`) sale en `idioma` si la fila tiene su clave
+    (migracion 192); las de antes, con el texto guardado."""
     from app.models.service_desk import AutonomousPlaybookExecution
+    from app.services.textos_guardados import pintar
 
     q = db.query(AutonomousPlaybookExecution).filter(AutonomousPlaybookExecution.organization_id == org_id)
     if estado:
@@ -842,7 +935,9 @@ def get_execution_log(db: Session, page: int = 1, page_size: int = 25, org_id=No
                 "id": r.id, "ticket_id": r.ticket_id, "ticket_number": numeros.get(r.ticket_id),
                 "playbook_type": r.playbook_type, "playbook_id": r.playbook_id, "action": r.action,
                 "status": r.status, "mode": r.mode, "confidence_score": r.confidence_score,
-                "resolution_note": r.resolution_note, "error_message": r.error_message,
+                "resolution_note": pintar(r.resolution_note_key, r.resolution_note_params,
+                                          r.resolution_note, idioma),
+                "error_message": r.error_message,
                 "actions": _safe_json(r.actions_json, []),
                 "executed_at": r.executed_at.isoformat() if r.executed_at else None,
                 "decided_by_user_id": r.decided_by_user_id,

@@ -34,6 +34,11 @@ class AutonomousPlaybookExecution(Base):
     status           = Column(String(20), default="success")   # success|failed|skipped
     confidence_score = Column(Float, nullable=True)
     resolution_note  = Column(Text, nullable=True)
+    # Migracion 192 (19-11-2026): clave (`autonomo.motivo.*`) y datos (JSON) del
+    # motivo, para pintarlo en el idioma de quien lee el registro; la nota queda
+    # de respaldo (filas de antes).
+    resolution_note_key    = Column(String(120), nullable=True)
+    resolution_note_params = Column(Text, nullable=True)
     error_message    = Column(Text, nullable=True)
     executed_at      = Column(DateTime(timezone=True), server_default=func.now())
     triggered_by     = Column(String(20), default="celery")    # celery|api|manual

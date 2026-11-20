@@ -730,7 +730,13 @@ export function SystemStateSection() {
 // y ya no salen aquí; las claves de `locale` que edita Empresa → General
 // (CLAVES_EN_GENERAL) se ocultan en este editor.
 export const CLAVES_EN_GENERAL = ['DEFAULT_CURRENCY', 'DEFAULT_TIMEZONE', 'DEFAULT_LANGUAGE', 'DEFAULT_WORKING_HOURS_PER_DAY']
-const OCULTAS_POR_GRUPO: Record<string, string[]> = { locale: CLAVES_EN_GENERAL }
+// 19-11-2026: valores de negocio que se editan en su sección (Personas → Vacaciones; Seguridad → Chat).
+export const CLAVE_MAXIMO_VACACIONES = 'VACATION_MAX_DAYS_ENTITLED'
+export const CLAVE_RETENCION_PROPUESTA_CHAT = 'CHAT_RETENTION_PROPOSED_MONTHS'
+const OCULTAS_POR_GRUPO: Record<string, string[]> = {
+  locale: [...CLAVES_EN_GENERAL, CLAVE_MAXIMO_VACACIONES],
+  audit: [CLAVE_RETENCION_PROPUESTA_CHAT],
+}
 
 const RUNTIME_GROUPS = [
   { id: 'sla',             label: 'SLA',                description: 'Tiempos por prioridad, jornada sin política y umbral de riesgo.' },
@@ -765,7 +771,8 @@ const RUNTIME_GROUPS = [
 ]
 
 
-export function RuntimeGroupEditor({ groupId, description, ocultar = [] }: { groupId: string; description?: string; ocultar?: string[] }) {
+/** `solo` (19-11-2026): pinta sólo esas claves del grupo, para editar un ajuste en su sección. */
+export function RuntimeGroupEditor({ groupId, description, ocultar = [], solo }: { groupId: string; description?: string; ocultar?: string[]; solo?: string[] }) {
   const { t } = useAppLang()
   // Los ajustes de plataforma sólo los cambia el superadmin (revisión 2026-11).
   const esSuperadmin = useAuth().puede('plataforma.empresas')
@@ -781,6 +788,8 @@ export function RuntimeGroupEditor({ groupId, description, ocultar = [] }: { gro
     mutationFn: ({ key, value }: { key: string; value: string | boolean }) => settingsApi.setRuntime(groupId, key, value),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['runtime-flags', groupId] })
+      // Los valores de formulario (`propuestas`) y los umbrales llegan por /settings/org-defaults.
+      qc.invalidateQueries({ queryKey: ['org-defaults'] })
       toast.success(t('i18n.saved'))
     },
     onError: (e: unknown) => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
@@ -798,7 +807,7 @@ export function RuntimeGroupEditor({ groupId, description, ocultar = [] }: { gro
   if (isLoading) return <div className="seadse-box-28">{t('chat.loading')}</div>
   if (isError) return <div className="seadse-box-29">{extractErr(error, GENERIC_ERROR_FALLBACK)}</div>
 
-  const items = (data?.items || []).filter(it => !ocultar.includes(it.key))
+  const items = (data?.items || []).filter(it => !ocultar.includes(it.key) && (!solo || solo.includes(it.key)))
 
   return (
     <div className="u-stack-14">

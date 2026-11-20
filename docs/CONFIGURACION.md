@@ -6,8 +6,15 @@ Reorganizada el 18-11-2026. El estado de antes, medido, está en
 ## Criterio
 
 - **Toda** la configuración vive en **Configuración** (`/settings/:seccion`).
-  En el menú hay una sola entrada. Los módulos se quedan con lo operativo y,
-  para quien tiene permiso, un botón **Configurar** que lleva a su sección.
+  En el menú hay una sola entrada. Los módulos se quedan con lo operativo y
+  **no llevan botón «Configurar»** (decisión del 19-11-2026). Solo hay un enlace
+  contextual «Ir a Configuración» donde una acción está desactivada o falla por
+  falta de configuración (p. ej. «Invitar el bot» sin bot activado, «Traer de
+  Teams, Zoom o Meet» sin conectores, sincronizar informes de Microsoft 365 sin
+  secreto, agente autónomo apagado). El aviso explica qué falta y el enlace sale
+  solo si el usuario tiene la capacidad de la sección (`puede('<capacidad>')`).
+  El test `configuracionUnica.test.ts` exige que ningún módulo movido use
+  `ajustes.configurar`.
 - **Cada ajuste está en un solo sitio.** Lo que estaba en dos sitios se ha
   quitado de uno (ver «Duplicados resueltos»); el otro sitio enlaza.
 - **Solo ves lo que puedes usar.** Cada sección declara su **capacidad** de la
@@ -58,7 +65,7 @@ Reorganizada el 18-11-2026. El estado de antes, medido, está en
 | Personas y jornada | `users` Usuarios | admin, hr (alta, baja y borrado solo admin) | pestaña |
 | | `roles` Roles y permisos | admin | pestaña |
 | | `ausencias` Ausencias: tipos, documentos, turnos, jornadas, festivos, personas y saldos, horario, acceso especial, ejemplos | admin, hr | Ausencias → pestaña Configuración |
-| | `vacations` Vacaciones (derecho anual) | admin, hr | pestaña |
+| | `vacations` Vacaciones (derecho anual; máximo asignable `VACATION_MAX_DAYS_ENTITLED`, que solo edita admin) | admin, hr | pestaña |
 | | `horas-extra` Horas extra | admin, hr | Horas extra → pestaña Configuración |
 | Proyectos y trabajo | `project-templates` Plantillas | admin, pm | `/project-templates` |
 | | `issue-types` Tipos de tarea | admin, pm | `/issue-types` (+ pestaña «Tipos tarea», retirada) |
@@ -72,8 +79,10 @@ Reorganizada el 18-11-2026. El estado de antes, medido, está en
 | | `sd-agente` Agente autónomo: encendido, modo, umbrales, playbooks de serie | admin (`sd.administrar`) | Herramientas → Agente → pestaña Configuración (19-11-2026; antes la veía el equipo en solo lectura) |
 | | `sd-autorresolucion` Autorresolución: umbrales, cierre automático, validación, lote | admin (`sd.administrar`) | Herramientas → Autorresolución → tarjeta Configuración (19-11-2026) |
 | | `sd-voz` Agente de voz: saludo, idioma, silencio, teclas, palabras clave | admin (`sd.administrar`) | Herramientas → Voz → pestaña Configuración (19-11-2026) |
+| | `cmdb-software` Software y vulnerabilidades: fuentes de avisos (OSV, NVD, GitHub, EPSS, KEV, endoflife.date) con credenciales cifradas, sincronización, SLA de remediación por severidad, licencias permitidas/prohibidas, ticket automático | admin (`software.config`) | nueva (19-11-2026), con las conexiones de escaneo SSH/WinRM/API (credenciales cifradas). Sin botón en el módulo: la CMDB avisa donde falta configuración y enlaza aquí solo a quien tiene `software.config`. Auditada (`sw_config`, `sw_scan_connection`, sin secretos) |
 | Finanzas | `rates` Tarifas | admin, pm | `/rate-cards` + pestaña «Tarifas» |
 | | `user-costs` Estructura de coste | admin, hr | `/user-costs` |
+| | `proveedores` Proveedores: plantillas de contrato, tipos de servicio, unidades de cobro y umbrales `PROVEEDORES_*` (`proveedores.config`). La pantalla de proveedores no tiene botón «Configurar»: si a una acción le falta un catálogo, su aviso lo dice y enlaza aquí (solo a quien tiene `proveedores.config`). La aprobación por importe de estados de cuenta se diseña en `approval-workflows` (tipo «Estado de cuenta de proveedor», `supplier_statement`, revisión 191) | admin, pm | nueva (19-11-2026, revisión 189) |
 | Aprobaciones y políticas | `approval-workflows` Flujos de aprobación | admin | `/settings/approval-workflows` (pm y team_lead lo veían; las escrituras son de admin) |
 | | `policies` Políticas y reglas | admin | `/settings/policies` |
 | IA e idiomas | `ai-hub` Proveedores de IA | admin | `/ai-hub` (pm: Enrutado y acciones daban 403) |
@@ -81,6 +90,7 @@ Reorganizada el 18-11-2026. El estado de antes, medido, está en
 | | `idiomas` Idiomas | admin | pestaña |
 | | `traduccion` Traducción | admin | pestaña |
 | | `ia-asignacion` Asignación por IA: modo del motor, embeddings, umbrales, auto-asignación | admin, hr (`ia.asignacion_config`) | `/semantic-engine` → pestaña Configuración (19-11-2026; pm la veía y le daba 403 al guardar) |
+| | `reuniones` Asistente de reuniones: consentimiento, retención de audio y transcripción, traducción, STT externo, Teams, Zoom, Meet, bot invitado y RGPD por persona | admin (`reuniones.config`) | Nueva (19-11-2026, `docs/ASISTENTE_DE_REUNIONES.md`); `/meetings-ai` queda operativo, sin botón «Configurar» (solo avisos con enlace si falta bot o conector) |
 | Integraciones | `integrations` Credenciales | admin | pestaña |
 | | `esign` Firma electrónica | admin | pestaña |
 | | `m365` Microsoft 365 | admin | `/m365` |
@@ -94,14 +104,34 @@ Reorganizada el 18-11-2026. El estado de antes, medido, está en
 | Seguridad y GRC | `session` Sesión | admin | pestaña |
 | | `mfa` Mi verificación en dos pasos | todos | `/mfa` |
 | | `grc` GRC y segregación de funciones | admin | `/grc` |
-| | `chat-admin` Administración del chat | admin | `/settings/chat-admin` (no estaba en el menú) |
+| | `chat-admin` Administración del chat (y meses de retención propuestos `CHAT_RETENTION_PROPOSED_MONTHS`) | admin | `/settings/chat-admin` (no estaba en el menú) |
 | Portal de clientes | `public-forms` Formularios públicos | admin, pm | `/public-forms` |
 | | `portal-translations` Traducciones del portal | admin | Service desk → Configuración → Traducciones del portal |
 | Alertas y métricas | `alert-config` Alertas · `metrics` Métricas | admin | pestañas |
 | Sistema | `runtime-flags` Config. dinámica · `log-level` · `system-state` | admin | pestañas |
 
-Son 12 grupos y 67 secciones (19-11-2026, contadas en el catálogo; la tabla
-muestra las de la reorganización y las movidas después).
+Son 12 grupos y 58 secciones (19-11-2026, contadas en el catálogo
+`SECCIONES` de `frontend/src/pages/settings/catalogoDeAjustes.tsx`: integraciones
+10; empresa, proyectos y service desk 7; IA 6; personas 5; seguridad 4;
+finanzas y sistema 3; aprobaciones, portal y alertas 2. La tabla muestra las de
+la reorganización y las movidas después; el «67» anterior estaba mal contado).
+
+**Valores de negocio que eran fijos (19-11-2026, `app/services/settings_service/valores_de_negocio.py`).**
+Ajustes por empresa del registro en vivo, validados al guardarlos (código
+`ajuste_valor_no_valido`) y auditados como cualquier ajuste (`record_change`,
+ámbito `runtime`). Las pantallas los leen en `GET /settings/org-defaults` →
+`propuestas` (`usePropuestas()`):
+
+| Clave | Por defecto | Validación | Sección |
+|---|---|---|---|
+| `CHANGE_CANARY_RAMP_PCT` | `1,5,25,50,100` | 2-10 enteros 1-100, crecientes, el último 100 | `sd` → Escalado y avisos (grupo `service_desk`) |
+| `CHANGE_CANARY_FIRST/STEP/LAST_MINUTES` | 30 / 45 / 60 | 5-1440 (una fase acepta ≥ 5) | `sd` → Escalado y avisos |
+| `CHAT_RETENTION_PROPOSED_MONTHS` | 24 | 1-120, ≥ `RETENTION_MIN_DAYS` en meses de 30 días, ≤ tope del chat de la empresa | `chat-admin` → Retención (grupo `audit`) |
+| `VACATION_MAX_DAYS_ENTITLED` | 60 | 1-366, ≥ `DEFAULT_VACATION_DAYS_PER_YEAR` (y este ≤ el máximo) | `vacations` (grupo `locale`, solo admin) |
+| `PERF_REMINDER_WINDOW_DAYS` | 7 | 1-90 | `runtime-flags` → Automatizaciones |
+| `PERF_REMINDER_UNDATED_CYCLE_DAYS` | 30 | 1-365 | `runtime-flags` → Automatizaciones |
+| `PERF_STALLED_CYCLE_DAYS` | 45 | 1-365 | `runtime-flags` → Automatizaciones |
+| `PERF_STALLED_COMPLETION_PCT` | 50 | 0-100 | `runtime-flags` → Automatizaciones |
 
 **Se quedan en su módulo, porque son trabajo del día a día y no ajustes:**
 
@@ -174,7 +204,8 @@ muestra las de la reorganización y las movidas después).
   `/settings/ia-asignacion` (19-11-2026).
 - Las pestañas de los paneles (Office 365 en Plataforma de datos; Agente, Voz y
   Autorresolución en Service desk → Herramientas) no tenían URL propia: no hay
-  nada que redirigir. Cada panel enseña «Configurar» a quien tiene la capacidad.
+  nada que redirigir. Ya no llevan botón «Configurar»; solo el aviso con enlace
+  cuando falta configurar (ver «Criterio»).
 
 **GRC de lo movido el 19-11-2026.** Cada sección pide la capacidad que coincide
 con la guarda del backend (mínimo privilegio): quien no puede guardar ya no ve
@@ -187,6 +218,22 @@ e informes de Microsoft 365; desde ahora sí: `sd_voice_config`,
 Graph nunca: `get_config` solo da `secret_puesto`, y `metadata.secreto_cambiado`
 dice si se cambió). Git es solo lectura (el secreto se pone en Credenciales).
 Test: `tests/test_configuracion_movida_auditada.py`.
+
+**Secciones cuya API vive fuera de /settings (cierre del 19-11-2026).** Costes
+(`costes.config`, `/user-costs`), Portal de desarrolladores e Importación
+(`integraciones.desarrollo`, `/developer`) y Formularios públicos
+(`portal.formularios`, `/forms`) ya no llevan el módulo `settings` en la
+capacidad: su API guarda con `requiere_capacidad` y esas rutas no están bajo
+/settings, así que con módulo un rol personalizado que cierra Ajustes habría
+perdido rutas que hoy tiene. La sección se ve igual que antes: la tapa
+`puedeVerSeccion` por la ruta `/settings/<sección>` (`blocked_routes`). Tarifas e
+Importación siguen apareciendo solo a dirección y PM (`tarifas.config`,
+`integraciones.desarrollo`); su API escribe con `tarifas.gestionar` e
+`integraciones.importar` (gestores), los mismos roles que sus `require_*` de antes.
+Calendarios SLA: la sección y su API piden `sd.disenar_flujos` (dirección y PM).
+El derecho de vacaciones de una persona (Personas → Vacaciones) queda auditado
+(`vacation_balance`, antes y después, quién). Test:
+`tests/test_guardas_por_capacidad_cierre_2026_11_19.py`.
 
 **Enlaces del backend.** Los de `app/services/puesta_en_marcha.py` apuntan ya a
 las secciones nuevas.

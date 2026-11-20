@@ -26,10 +26,10 @@ import { useFormValidation } from '../hooks/useFormValidation'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import SeccionDeAjustes from './settings-sections/SeccionDeAjustes'
 import ConfirmarBajaModal from '../components/alm/ConfirmarBajaModal'
-import { IdiomasSection, LogLevelSection, SystemStateSection, RuntimeFlagsSection, IntegrationCredentialsSection } from './settings-sections/SettingsAdvancedSections'
+import { IdiomasSection, LogLevelSection, SystemStateSection, RuntimeFlagsSection, IntegrationCredentialsSection, RuntimeGroupEditor, CLAVE_MAXIMO_VACACIONES } from './settings-sections/SettingsAdvancedSections'
 
 import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
-import { useOrgSettings } from '../hooks/useOrgSettings'
+import { useOrgSettings, usePropuestas } from '../hooks/useOrgSettings'
 import { timezoneOptions } from '../constants/timezones'
 import { COLOR_DATO_POR_DEFECTO } from '../constants/theme'
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
@@ -746,6 +746,10 @@ function VacationSection() {
   const qc = useQueryClient()
   const currentYear = new Date().getFullYear()
   const [year, setYear] = useState(currentYear)
+  // 19-11-2026: el máximo es el ajuste de la empresa (VACATION_MAX_DAYS_ENTITLED, antes 60 fijo);
+  // lo edita aquí quien administra la empresa (la escritura de ajustes es require_admin).
+  const maxDias = usePropuestas().vacation_max_days_entitled
+  const esAdmin = useAuth().puede('org.administrar')
   const { data: balances = [] } = useQuery<VacationBalance[]>({ queryKey: ['vacation-balances', year], queryFn: () => advancedConfigApi.getVacationBalances(year).then(r => r.data) })
   const { mutate: updateBalance } = useMutation({ mutationFn: ({ userId, days }: { userId: string; days: number }) => advancedConfigApi.updateVacationBalance(userId, year, days), onSuccess: () => { qc.invalidateQueries({ queryKey: ['vacation-balances', year] }); qc.invalidateQueries({ queryKey: ['vacation-balance-my'] }); } , onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK))})
 
@@ -757,6 +761,11 @@ function VacationSection() {
           {[currentYear - 1, currentYear, currentYear + 1].map(y => <option key={y} value={y}>{y}</option>)}
         </Select>
       </div>
+      {esAdmin && (
+        <div className="u-mb-12">
+          <RuntimeGroupEditor groupId="locale" solo={[CLAVE_MAXIMO_VACACIONES]} />
+        </div>
+      )}
       <div className="ds-card ds-card--plano">
         <div className="set-bal-row set-bal-row--2 set-bal-head">
           <span>{t('settings_sections.persona')}</span><span>{t('settings_sections.asignados')}</span>
@@ -767,7 +776,7 @@ function VacationSection() {
               <div className="u-base-600">{b.user_name}</div>
               {b.department && <div className="u-text2-xs">{b.department}</div>}
             </div>
-            <input type="number" aria-label={t('settings_sections.dias_asignados_de', { nombre: b.user_name })} defaultValue={b.days_entitled} min="0" max="60" onBlur={e => updateBalance({ userId: b.user_id, days: +e.target.value })}
+            <input type="number" aria-label={t('settings_sections.dias_asignados_de', { nombre: b.user_name })} defaultValue={b.days_entitled} min="0" max={maxDias} onBlur={e => updateBalance({ userId: b.user_id, days: +e.target.value })}
               className="set-threshold set-threshold--full" />
           </div>
         ))}

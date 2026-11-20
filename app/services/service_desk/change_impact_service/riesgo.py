@@ -305,11 +305,12 @@ def score_change_risk(
 
 # ── Impact report ─────────────────────────────────────────────────────────────
 
-def generate_impact_report(db: Session, change_id: str) -> dict:
+def generate_impact_report(db: Session, change_id: str, idioma: Optional[str] = None) -> dict:
     """Generate a comprehensive impact analysis report for CAB review.
 
     Returns a structured dict ready to be serialised as JSON and stored
-    in `sd_change_requests.impact_analysis_json`.
+    in `sd_change_requests.impact_analysis_json`. El resumen sale en `idioma`
+    (sin el, el de la empresa) y lleva su clave en `_textos` (`textos.py`).
     """
     change = db.query(ITSMChangeRequest).filter(ITSMChangeRequest.id == change_id).first()
     if not change:
@@ -342,13 +343,26 @@ def generate_impact_report(db: Session, change_id: str) -> dict:
         "open_incidents_on_cis": open_incidents,
         "incidents_last_30d": recent_incidents_30d,
         "suggested_window": window,
-        "summary": (
-            f"Change '{change.title}' affects {len(risk_data['ci_ids_expanded'])} CIs "
-            f"(direct: {len(risk_data['ci_ids_direct'])}). "
-            f"Risk score: {risk_data['score']}/100 ({risk_data['risk_label'].upper()}). "
-            f"Suggested maintenance window: {window['window_label']}."
-        ),
     }
+    # 19-11-2026: el resumen por clave (`cambio.resumen_impacto`), pintado en
+    # `idioma` y guardado en `_textos` para pintarlo luego en el de quien lea.
+    from app.services.service_desk.change_impact_service.textos import (
+        con_textos, diferido, idioma_de, riesgo_diferido, ventana_diferida,
+    )
+    idioma = idioma_de(db, org_id=change.organization_id, idioma=idioma)
+    con_textos(report, idioma, summary=diferido(
+        "cambio.resumen_impacto", titulo=change.title or "", n=len(risk_data["ci_ids_expanded"]),
+        directos=len(risk_data["ci_ids_direct"]), score=risk_data["score"],
+        riesgo=riesgo_diferido(risk_data["risk_label"]), ventana=ventana_diferida(window)))
+    # 19-11-2026: CMDB de software. Qué software corre en los CIs afectados, con
+    # sus vulnerabilidades abiertas y lo que está sin soporte: el CAB lo ve en el
+    # mismo informe (y un cambio que actualiza puede cerrar hallazgos).
+    try:
+        from app.services.cmdb_software.analisis import resumen_de_cis
+        with db.begin_nested():
+            report["software_on_cis"] = resumen_de_cis(db, change.organization_id, risk_data["ci_ids_expanded"])
+    except Exception:  # noqa: BLE001 - el informe de impacto no depende de este bloque
+        logger.debug("software_on_cis: no disponible", exc_info=True)
 
     return report
 

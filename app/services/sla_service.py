@@ -821,6 +821,10 @@ def ticket_out(t: "Ticket", include_comments: bool = False, include_internal: bo
                 "field": h.field_name,
                 "old_value": h.old_value,
                 "new_value": h.new_value,
+                # Migracion 192: texto del sistema por clave; el detalle lo pinta en
+                # el idioma de quien mira (`ticket_read_service.pintar_historial`).
+                "new_value_key": getattr(h, "new_value_key", None),
+                "new_value_params": getattr(h, "new_value_params", None),
                 "changed_by": h.changed_by.full_name if h.changed_by else "Sistema",
                 "changed_at": str(h.changed_at)[:16],
             }

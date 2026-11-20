@@ -255,6 +255,18 @@ def _exigir_alta_en_su_proyecto(db: Session, payload, project, current_user) -> 
             raise error_con_codigo(404, "no_encontrado", detail="Usuario no encontrado", que="usuario")
 
 
+def _exigir_quien_externaliza(payload, current_user) -> None:
+    """Migracion 189: externalizar una tarea a una empresa es de gestion (admin,
+    PM, team lead); el empleado y el externo no la mueven a un proveedor."""
+    if getattr(current_user, "is_superadmin", False):
+        return
+    datos = payload.model_dump(exclude_unset=True)
+    if not (datos.get("supplier_id") or datos.get("supplier_work_package_id")):
+        return
+    if current_user.role in (UserRole.employee, UserRole.subcontractor, UserRole.hr):
+        raise error_con_codigo(403, "sin_permiso")
+
+
 def create_task_record(db: Session, payload, current_user):
 
     project = project_for_user(db, payload.project_id, current_user)
@@ -263,6 +275,7 @@ def create_task_record(db: Session, payload, current_user):
     if not getattr(current_user, "is_superadmin", False) and current_user.role in (
             UserRole.employee, UserRole.subcontractor):
         _exigir_alta_en_su_proyecto(db, payload, project, current_user)
+    _exigir_quien_externaliza(payload, current_user)
     from app.services.issue_type_service import validar_tipo
     validar_tipo(project.id, payload.issue_type, db)
 
@@ -418,6 +431,7 @@ def update_task_record(db: Session, task_id: str, payload, current_user):
         raise error_con_codigo(404, "no_encontrado", detail="Proyecto no encontrado", que="proyecto")
 
     _autorizar_edicion_de_tarea(task, project, current_user)
+    _exigir_quien_externaliza(payload, current_user)
     from app.services.issue_type_service import validar_tipo
     validar_tipo(project.id, getattr(payload, "issue_type", None), db)
 

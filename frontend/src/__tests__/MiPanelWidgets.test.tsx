@@ -13,7 +13,10 @@ import {
   TAMANO_DE_WIDGET, WidgetAgenteAutonomo, WidgetCab, WidgetIncidentesMayores, WidgetMetricasItil, WidgetMiCola,
   WidgetMisAprobaciones, WidgetRendimiento, WidgetRiesgoSla, variacion,
 } from '../components/servicedesk/WidgetsDelPanel'
-import VistaDeDatos, { limpiarDatos } from '../components/servicedesk/VistaDeDatos'
+import fs from 'node:fs'
+import path from 'node:path'
+
+const estilos = fs.readFileSync(path.resolve(__dirname, '../components/servicedesk/sdMercado.css'), 'utf8')
 
 // `useTono` lee los umbrales de /settings/org-defaults: sin servidor, los de serie.
 vi.mock('../services/api', () => ({ default: { get: () => Promise.resolve({ data: {} }) } }))
@@ -132,17 +135,13 @@ describe('Mi panel — renders por widget', () => {
     expect(variacion(50, 40)).toBe(25)
     expect(variacion(5, 0)).toBeNull()
   })
-})
 
-describe('VistaDeDatos — sin ids internos', () => {
-  it('quita claves de id y valores con forma de UUID, y abre JSON en texto', () => {
-    expect(limpiarDatos({ id: UUID, ci_id: 'x', name: 'web01', owner: UUID, summary_json: '{"created": 2}' }))
-      .toEqual({ name: 'web01', summary_json: { created: 2 } })
-  })
-
-  it('no pinta el UUID y traduce la clave', () => {
-    const { container } = montar(<VistaDeDatos datos={[{ id: UUID, number: 'MI0001', status: 'active' }]} />)
-    sinUuid(container)
-    expect(container.textContent).toContain('Activo')
+  it('la rejilla se adapta al hueco del panel (container queries), no a la ventana', () => {
+    const css = estilos.replace(/\/\*[\s\S]*?\*\//g, '')
+    expect(css).toMatch(/\.sdp-rejilla\s*\{[^}]*container-type:\s*inline-size/)
+    expect(css).toMatch(/@container sdp-rejilla \(max-width: \d+px\)/)
+    // Ningún @media decide ya el ancho de los widgets.
+    const medias = css.match(/@media[^{]*\{(?:[^{}]*\{[^}]*\})*[^}]*\}/g) ?? []
+    expect(medias.some(m => m.includes('.sdp-widget'))).toBe(false)
   })
 })

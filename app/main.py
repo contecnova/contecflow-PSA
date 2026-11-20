@@ -41,6 +41,7 @@ import app.services.automation_events  # noqa: F401,E402
 import app.services.preferencias_de_aviso  # noqa: F401,E402  (filtro de avisos por preferencia)
 import app.services.traduccion.deteccion  # noqa: F401,E402  (idioma de los mensajes al guardar)
 import app.services.externos.horas  # noqa: F401,E402  (hours_logged de externos al imputar)
+import app.services.proveedores.asignabilidad  # noqa: F401,E402  (quien recibe trabajo: rev. 189)
 
 
 def _read_alembic_revisions(database_url: str) -> set[str] | None:
@@ -660,7 +661,11 @@ from app.services.ai_provider_service import PresupuestoDeIAAgotado as _Presupue
 @app.exception_handler(_PresupuestoDeIAAgotado)
 async def _presupuesto_de_ia_agotado(_request, exc):
     from fastapi.responses import JSONResponse
-    return JSONResponse(status_code=429, content={"detail": str(exc)})
+    # 19-11-2026: con su código (`ia_presupuesto_diario_agotado`) y el tope, para
+    # que la pantalla lo diga en el idioma de quien lo lee.
+    return JSONResponse(status_code=429, content={
+        "detail": str(exc), "code": getattr(exc, "codigo", None) or "ia_presupuesto_diario_agotado",
+        "params": getattr(exc, "params", None) or {}})
 
 
 from app.core.errores import ErrorDeDominio  # noqa: E402

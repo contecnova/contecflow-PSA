@@ -14,6 +14,30 @@ from app.models.user import User
 _logger = logging.getLogger("ai_provider_service")
 
 
+# 19-11-2026: los textos de bloqueo los escribe el sistema: salen en el idioma
+# del usuario gobernado (`gobernanza.*` en `textos_de_salida`). El nombre de la
+# politica (`blocked_by`) lo puso la empresa y sale tal cual.
+
+def _idioma_del_gobernado(db: Session, usuario) -> str:
+    from app.services.formato_regional import idioma_de_salida
+    try:
+        return idioma_de_salida(db, user_id=getattr(usuario, "id", None),
+                                org_id=getattr(usuario, "organization_id", None))
+    except Exception:  # noqa: BLE001 - un bloqueo nunca deja de salir por el idioma
+        _logger.debug("gobernanza: idioma no legible", exc_info=True)
+        return "es"
+
+
+def _prefijos_de_bloqueo_de_entrada() -> tuple[str, ...]:
+    from app.services.textos_de_salida import TEXTOS
+    return tuple(v.split("{", 1)[0] for v in TEXTOS["gobernanza.mensaje_bloqueado"].values())
+
+
+def es_bloqueo_de_entrada(texto) -> bool:
+    """Si `texto` es el aviso de «mensaje bloqueado por politica», en cualquier idioma."""
+    return isinstance(texto, str) and texto.startswith(_prefijos_de_bloqueo_de_entrada())
+
+
 def _resolver_usuario_de_gobernanza(db: Session, user_id, skip_guardrails: bool):
     """El usuario contra el que se evaluan las politicas, resuelto una sola vez.
 
@@ -64,10 +88,9 @@ def _aplicar_guardrail_de_entrada(db: Session, messages: list, governance_user,
         return None
 
     if not gr.allowed:
-        return (
-            "[Mensaje bloqueado por política de gobernanza: "
-            f"{gr.blocked_by or 'policy'}]"
-        )
+        from app.services.textos_de_salida import texto
+        return texto("gobernanza.mensaje_bloqueado", _idioma_del_gobernado(db, governance_user),
+                     politica=gr.blocked_by or "policy")
     if gr.redacted_text:
         last_user_msg["content"] = gr.redacted_text
     return None
@@ -90,7 +113,8 @@ def _aplicar_guardrail_de_salida(db: Session, texto: str, governance_user,
         return texto
 
     if not gr_out.allowed:
-        return "[Respuesta bloqueada por política de gobernanza]"
+        from app.services.textos_de_salida import texto
+        return texto("gobernanza.respuesta_bloqueada", _idioma_del_gobernado(db, governance_user))
     if gr_out.redacted_text:
         return gr_out.redacted_text
     return texto

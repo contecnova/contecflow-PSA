@@ -731,6 +731,15 @@ def process_agent_checkin(
     from app.services.alm_uso.inventario import procesar_checkin as inventario_alm
     alm = inventario_alm(db, reg.organization_id, reg.id, payload)
 
+    # CMDB de software (19-11-2026): lo que corre en el host, su versión, su
+    # configuración (enmascarada) y su composición (`software_inventory`).
+    software = None
+    if payload.get("software_inventory") and ci is not None:
+        from app.services.cmdb_software.importacion import procesar_checkin as inventario_software
+        from app.services.cmdb_software.correlacion import reevaluar
+        software = inventario_software(db, reg.organization_id, ci.id, payload)
+        reevaluar(db, reg.organization_id)
+
     return {
         "ok": True,
         "agent_id": reg.id,
@@ -740,4 +749,5 @@ def process_agent_checkin(
         "updated": stats["updated"],
         "checkin_at": now.isoformat(),
         "alm": alm,
+        "software": software,
     }

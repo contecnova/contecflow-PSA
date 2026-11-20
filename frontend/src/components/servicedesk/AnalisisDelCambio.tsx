@@ -13,8 +13,19 @@
  * 16-11-2026 (pasada de diseño): vacíos con icono lucide; fecha de la reunión
  * con DateInput (antes `datetime-local` nativo); «Rechazar» y «vía rápida» ya
  * no usan la variante `danger`, que queda para borrar; textos de ayuda legibles.
+ *
+ * 19-11-2026: cada pestaña pinta su informe propio (`InformesDelCambio.tsx`;
+ * el radio de impacto, el de `cmdb/InformesDeCmdb.tsx`) en vez del volcado
+ * genérico `VistaDeDatos`, que se ha retirado.
+ *
+ * 19-11-2026 (cierre): el desplegable «CI afectado» y la simulación enseñan el
+ * nombre y el tipo del CI (`affected_ci_details` del detalle del cambio), nunca
+ * su id. Un plan guardado antes de que los planes se guardaran por idioma
+ * (`textos_anteriores`) avisa de si se ha traducido al abrirlo y ofrece
+ * «Regenerar en el idioma actual».
  */
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, FileText, FlaskConical, Gauge, Megaphone, Radar, RotateCcw, ShieldCheck, Zap } from 'lucide-react'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -27,12 +38,40 @@ import { Button, EmptyState, GrupoDeOpciones, Select, Spinner, StatusBadge, Tabs
 import { usersApi } from '../../services/api'
 import { cambiosApi } from '../../services/api/serviceDeskMercado'
 import type { WhatIf } from '../../services/api/serviceDeskMercado'
-import VistaDeDatos from './VistaDeDatos'
+import {
+  InformeComunicaciones, InformeFlujoCab, InformeImpacto, InformeMatrizDeRiesgo, InformePruebas, InformeSimulacion, InformeVueltaAtras,
+} from './InformesDelCambio'
+import type {
+  AnalisisDeImpacto, FilaDeMatriz, FlujoDelCab, PlanDeComunicaciones, PlanDePruebas, PlanDeVueltaAtras, Simulacion as DatosDeSimulacion,
+} from './InformesDelCambio'
+import { codigo } from './InformesComunes'
+import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
+import { InformeRadioDeImpacto } from '../cmdb/InformesDeCmdb'
+import type { RadioDeImpacto } from '../cmdb/InformesDeCmdb'
 import { etiquetaSd } from '../../pages/service-desk/sdUtils'
 import DateInput from '../ui/DateInput'
 import './sdMercado.css'
 
-interface CambioMin { id: string; number?: string; status?: string | null; change_type?: string | null; affected_cis?: string[]; requester_id?: string | null }
+interface DetalleDeCi { id: string; name: string | null; code?: string | null; ci_type?: string | null }
+interface CambioMin {
+  id: string; number?: string; status?: string | null; change_type?: string | null; affected_cis?: string[]; requester_id?: string | null
+  /** Nombre, código y tipo de cada CI afectado (detalle del cambio). */
+  affected_ci_details?: DetalleDeCi[]
+}
+
+/** «Nombre (código) · Tipo» de un CI afectado; nunca su id. */
+function useNombreDeCi(cambio: CambioMin) {
+  const t = useAppT()
+  const detalles = new Map((cambio.affected_ci_details ?? []).map(d => [d.id, d]))
+  return (id: string): string => {
+    const d = detalles.get(id)
+    if (!d?.name) return t('sd_mercado.ci_retirado')
+    const tipo = d.ci_type ? etiquetaCodigo(t, 'sd_mercado.clase_base', codigo(d.ci_type)) : ''
+    return [d.code ? `${d.name} (${d.code})` : d.name, tipo].filter(Boolean).join(' · ')
+  }
+}
+
+interface TextosAnteriores { status?: string; reason?: string | null; regenerable?: boolean }
 
 
 export default function AnalisisDelCambio({ cambio }: { cambio: CambioMin }) {
@@ -52,9 +91,12 @@ export default function AnalisisDelCambio({ cambio }: { cambio: CambioMin }) {
       <div className="u-mb-10" />
       {vista === 'impacto' && <Impacto cambio={cambio} />}
       {vista === 'riesgo' && <Matriz cambio={cambio} />}
-      {vista === 'vuelta' && <Plan cambio={cambio} clave="vuelta" leer={cambiosApi.vueltaAtras} generar={cambiosApi.generarVueltaAtras} />}
-      {vista === 'pruebas' && <Plan cambio={cambio} clave="pruebas" leer={cambiosApi.pruebas} generar={cambiosApi.generarPruebas} />}
-      {vista === 'comunicaciones' && <Plan cambio={cambio} clave="comunicaciones" leer={cambiosApi.comunicaciones} generar={cambiosApi.generarComunicaciones} />}
+      {vista === 'vuelta' && <Plan cambio={cambio} clave="vuelta" leer={cambiosApi.vueltaAtras} generar={cambiosApi.generarVueltaAtras}
+        pintar={d => <InformeVueltaAtras datos={d as unknown as PlanDeVueltaAtras} />} />}
+      {vista === 'pruebas' && <Plan cambio={cambio} clave="pruebas" leer={cambiosApi.pruebas} generar={cambiosApi.generarPruebas}
+        pintar={d => <InformePruebas datos={d as unknown as PlanDePruebas} />} />}
+      {vista === 'comunicaciones' && <Plan cambio={cambio} clave="comunicaciones" leer={cambiosApi.comunicaciones} generar={cambiosApi.generarComunicaciones}
+        pintar={d => <InformeComunicaciones datos={d as unknown as PlanDeComunicaciones} />} />}
       {vista === 'simulacion' && <Simulacion cambio={cambio} />}
       {vista === 'aprobacion' && <Aprobacion cambio={cambio} />}
     </div>
@@ -63,9 +105,11 @@ export default function AnalisisDelCambio({ cambio }: { cambio: CambioMin }) {
 
 const err404 = (e: unknown) => (e as { response?: { status?: number } })?.response?.status === 404
 
-function Plan({ cambio, clave, leer, generar }: {
+function Plan({ cambio, clave, leer, generar, pintar }: {
   cambio: CambioMin; clave: string
   leer: (id: string) => Promise<Record<string, unknown>>; generar: (id: string) => Promise<Record<string, unknown>>
+  /** Informe propio de este plan (InformesDelCambio). */
+  pintar: (datos: Record<string, unknown>) => ReactNode
 }) {
   const t = useAppT()
   const toast = useToast()
@@ -76,10 +120,17 @@ function Plan({ cambio, clave, leer, generar }: {
     onSuccess: d => { qc.setQueryData(['sdm-chg', clave, cambio.id], d); toast.success(t('sd_mercado.plan_generado')) },
     onError: e => toast.error(extractErr(e, GENERIC_ERROR_FALLBACK)),
   })
+  const anteriores = q.data?.textos_anteriores as TextosAnteriores | undefined
   return (
     <div className="u-stack-10">
       <div className="u-row-end"><Button size="sm" variant="secondary" onClick={() => gen.mutate()} loading={gen.isPending}>{t(q.data ? 'sd_mercado.regenerar' : 'sd_mercado.generar')}</Button></div>
-      {q.isLoading ? <Spinner /> : q.data ? <VistaDeDatos datos={q.data} />
+      {anteriores && (
+        <div role="status" className="u-text2-xs u-stack-6">
+          <span>{t('sd_mercado.textos_anteriores')} {t(anteriores.status === 'translated' ? 'sd_mercado.textos_anteriores_traducido' : 'sd_mercado.textos_anteriores_sin_traducir')}</span>
+          <div><Button size="sm" variant="secondary" icon={<RotateCcw size={13} />} onClick={() => gen.mutate()} loading={gen.isPending}>{t('sd_mercado.regenerar_idioma')}</Button></div>
+        </div>
+      )}
+      {q.isLoading ? <Spinner /> : q.data ? pintar(q.data)
         : <EmptyState icon={<FileText size={28} />} title={t(q.isError && !err404(q.error) ? 'sd_mercado.error_carga' : 'sd_mercado.plan_sin_generar')} />}
     </div>
   )
@@ -87,20 +138,22 @@ function Plan({ cambio, clave, leer, generar }: {
 
 function Impacto({ cambio }: { cambio: CambioMin }) {
   const t = useAppT()
+  const nombreDeCi = useNombreDeCi(cambio)
   const cis = cambio.affected_cis ?? []
   const [ci, setCi] = useState(cis[0] ?? '')
   const radio = useQuery({ queryKey: ['sdm-blast', ci], queryFn: () => cambiosApi.radioDeImpacto(ci), enabled: !!ci, retry: false })
   return (
     <div className="u-stack-12">
-      <Plan cambio={cambio} clave="impacto" leer={cambiosApi.impacto} generar={cambiosApi.analizarImpacto} />
+      <Plan cambio={cambio} clave="impacto" leer={cambiosApi.impacto} generar={cambiosApi.analizarImpacto}
+        pintar={d => <InformeImpacto datos={d as unknown as AnalisisDeImpacto} />} />
       <div className="ds-eyebrow">{t('sd_mercado.radio_impacto')}</div>
       {cis.length === 0 ? <EmptyState icon={<Radar size={28} />} title={t('sd_mercado.sin_cis')} /> : (
         <>
           <label className="sdm-field"><span>{t('sd_mercado.ci_afectado')}</span>
             <Select suelto placeholder={false} value={ci} onChange={e => setCi(e.target.value)}>
-              {cis.map(c => <option key={c} value={c}>{c}</option>)}
+              {cis.map(c => <option key={c} value={c}>{nombreDeCi(c)}</option>)}
             </Select></label>
-          {radio.isLoading ? <Spinner size={16} /> : radio.data ? <VistaDeDatos datos={radio.data} /> : <div className="u-text2-xs">{t('sd_mercado.error_carga')}</div>}
+          {radio.isLoading ? <Spinner size={16} /> : radio.data ? <InformeRadioDeImpacto datos={radio.data as unknown as RadioDeImpacto} /> : <div className="u-text2-xs">{t('sd_mercado.error_carga')}</div>}
         </>
       )}
     </div>
@@ -112,12 +165,13 @@ function Matriz({ cambio }: { cambio: CambioMin }) {
   const q = useQuery({ queryKey: ['sdm-chg', 'matriz', cambio.id], queryFn: () => cambiosApi.matrizDeRiesgo(cambio.id), retry: false })
   if (q.isLoading) return <Spinner />
   if (!q.data || q.data.risk_matrix.length === 0) return <EmptyState icon={<Gauge size={28} />} title={t('sd_mercado.matriz_vacia')} />
-  return <VistaDeDatos datos={q.data.risk_matrix} />
+  return <InformeMatrizDeRiesgo datos={q.data.risk_matrix as unknown as FilaDeMatriz[]} />
 }
 
 function Simulacion({ cambio }: { cambio: CambioMin }) {
   const t = useAppT()
   const toast = useToast()
+  const nombreDeCi = useNombreDeCi(cambio)
   const [f, setF] = useState<{ downtime: string; tipo: string; hora: string; dia: string; quitar: string[] }>({ downtime: '', tipo: '', hora: '', dia: '', quitar: [] })
   const sim = useMutation({
     mutationFn: () => {
@@ -151,10 +205,10 @@ function Simulacion({ cambio }: { cambio: CambioMin }) {
       {(cambio.affected_cis ?? []).length > 0 && (
         <GrupoDeOpciones tipo="checkbox" forma="lista" className="u-stack-6" leyenda={t('sd_mercado.quitar_cis')} valor={f.quitar}
           onChange={quitar => setF({ ...f, quitar })}
-          opciones={(cambio.affected_cis ?? []).map(c => ({ valor: c, titulo: c }))} />
+          opciones={(cambio.affected_cis ?? []).map(c => ({ valor: c, titulo: nombreDeCi(c) }))} />
       )}
       <div className="u-row-end"><Button size="sm" onClick={() => sim.mutate()} loading={sim.isPending}>{t('sd_mercado.simular')}</Button></div>
-      {sim.data && <VistaDeDatos datos={sim.data} />}
+      {sim.data && <InformeSimulacion datos={sim.data as unknown as DatosDeSimulacion} />}
     </div>
   )
 }
@@ -193,7 +247,7 @@ function Aprobacion({ cambio }: { cambio: CambioMin }) {
   return (
     <div className="u-stack-12">
       {flujo.data && (
-        <div className="ds-card sdm-card"><div className="sdm-card__head">{t('sd_mercado.flujo_cab')}</div><VistaDeDatos datos={flujo.data} /></div>
+        <div className="ds-card sdm-card"><div className="sdm-card__head">{t('sd_mercado.flujo_cab')}</div><InformeFlujoCab datos={flujo.data as unknown as FlujoDelCab} /></div>
       )}
       {esResponsable && (
         <div className="ds-card sdm-card">

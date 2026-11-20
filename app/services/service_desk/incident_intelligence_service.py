@@ -219,10 +219,15 @@ def auto_resolve_ticket(
 
     old_status = ticket.status
     ticket.status = TicketStatus.resolved
-    ticket.resolution = (
-        f"[Auto-resolved] Resolved automatically via KB article: "
-        f"{article.number} — {article.title}"
-    )
+    # Migracion 192: antes en ingles fijo. La resolucion la lee el cliente: en su
+    # idioma (el del ticket) o el de la empresa. El historial guarda la clave y
+    # se pinta en el idioma de quien lo mira.
+    from app.services.formato_regional import idioma_de_salida
+    from app.services.textos_guardados import en_idioma, por_clave
+    datos_kb = {"numero": article.number or "", "titulo": article.title or ""}
+    clave_kb, params_kb = por_clave("historial.autorresuelto_kb", **datos_kb)
+    ticket.resolution = en_idioma(clave_kb, idioma_de_salida(
+        db, org_id=ticket.organization_id, preferido=getattr(ticket, "language", None)), **datos_kb)
     ticket.resolved_at = datetime.now(timezone.utc)
 
     db.add(TicketHistory(
@@ -237,6 +242,7 @@ def auto_resolve_ticket(
         field_name="resolution",
         old_value="",
         new_value=ticket.resolution[:500],
+        new_value_key=clave_kb, new_value_params=params_kb,
         changed_by_user_id=resolved_by_user_id,
     ))
 
@@ -339,11 +345,17 @@ def deduplicate_new_ticket(
     except Exception as exc:
         logger.debug("Could not create TicketLink for dedup: %s", exc)
 
+    # Migracion 192: antes en ingles fijo; ahora por clave, en el idioma de quien mira.
+    from app.services.formato_regional import idioma_de_salida
+    from app.services.textos_guardados import en_idioma, por_clave
+    clave_dup, params_dup = por_clave("historial.posible_duplicado", numero=parent.number or "")
     db.add(TicketHistory(
         ticket_id=ticket.id,
         field_name="deduplication",
         old_value="",
-        new_value=f"Possible duplicate of {parent.number}",
+        new_value=en_idioma(clave_dup, idioma_de_salida(db, org_id=ticket.organization_id),
+                            numero=parent.number or "")[:500],
+        new_value_key=clave_dup, new_value_params=params_dup,
         changed_by_user_id=acting_user_id,
     ))
 

@@ -24,7 +24,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, get_db, require_admin_or_pm
+from app.core.deps import get_current_user, get_db, requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.models.user import User, UserRole
 from app.services import developer_portal_service as svc
@@ -93,7 +93,7 @@ def create_app(
     payload: AppCreateIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: excepcion revisada: credenciales OAuth, pero la audiencia prevista es PM segun test_developer_portal
+    _rol: User = Depends(requiere_capacidad("integraciones.desarrollo")),  # auditoria 2026-09: excepcion revisada: credenciales OAuth, pero la audiencia prevista es PM segun test_developer_portal
 ):
     app_count = svc.count_apps_for_user(db, current_user.id)
     if app_count >= _MAX_APPS_PER_USER:
@@ -130,7 +130,7 @@ def update_app(
     payload: AppUpdateIn,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: excepcion revisada: la aplicacion es de quien la creo; misma audiencia que crearla
+    _rol: User = Depends(requiere_capacidad("integraciones.desarrollo")),  # auditoria 2026-09: excepcion revisada: la aplicacion es de quien la creo; misma audiencia que crearla
 ):
     app = svc.get_app_by_id(db, app_id)
     if not app:
@@ -144,7 +144,7 @@ def update_app(
 
 @router.delete("/apps/{app_id}", summary="Eliminar aplicación")
 def delete_app(app_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: excepcion revisada: la aplicacion es de quien la creo; misma audiencia que crearla
+    _rol: User = Depends(requiere_capacidad("integraciones.desarrollo")),  # auditoria 2026-09: excepcion revisada: la aplicacion es de quien la creo; misma audiencia que crearla
 ):
     app = svc.get_app_by_id(db, app_id)
     if not app:
@@ -158,7 +158,7 @@ def delete_app(app_id: str, db: Session = Depends(get_db), current_user: User = 
 
 @router.post("/apps/{app_id}/rotate-secret", summary="Rotar secreto de cliente")
 def rotate_secret(app_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
-    _rol: User = Depends(require_admin_or_pm),  # auditoria 2026-09: excepcion revisada: rotar el secreto de la propia aplicacion
+    _rol: User = Depends(requiere_capacidad("integraciones.desarrollo")),  # auditoria 2026-09: excepcion revisada: rotar el secreto de la propia aplicacion
 ):
     app = svc.get_app_by_id(db, app_id)
     if not app:

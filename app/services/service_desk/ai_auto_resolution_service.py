@@ -417,6 +417,9 @@ def validate_auto_resolution(db: Session, ticket: Ticket) -> dict:
                 field_name="auto_resolution_validation",
                 old_value="resolved",
                 new_value="reopened_after_auto_resolve",
+                # Migracion 192: el codigo se queda (lo leen las metricas); la
+                # pantalla lo pinta por su clave en el idioma de quien mira.
+                new_value_key="historial.reabierto_tras_autorresolucion",
                 changed_by_user_id=None,
             ))
             db.flush()

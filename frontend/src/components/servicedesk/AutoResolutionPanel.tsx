@@ -17,14 +17,13 @@
  * 19-11-2026: la tarjeta «Configuración» (umbrales, cierre automático,
  * ventana de validación, lote) vive en Configuración → Service desk →
  * Autorresolución (`/settings/sd-autorresolucion`, ConfigAutoResolucion.tsx).
- * Aquí queda el botón «Configurar» para quien tiene `sd.administrar`; el lote
+ * Aquí no hay botón «Configurar»; el lote
  * de «Ejecutar» se sigue leyendo de la configuración guardada.
  */
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import type { CSSProperties, ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, History, Lock, MessageSquareText, Play, Settings2, ShieldCheck, ThumbsDown, ThumbsUp, Activity, Layers, Gauge } from 'lucide-react'
+import { CheckCircle2, History, Lock, MessageSquareText, Play, ShieldCheck, ThumbsDown, ThumbsUp, Activity, Layers, Gauge } from 'lucide-react'
 import { autoResolutionApi, ticketsApi } from '../../services/api'
 import type { ConfigDeAutoResolucion, EstadisticasDeAutoResolucion } from '../../services/api/tipos-analitica'
 import { Card, Button, Pulsable, Spinner, Modal, KpiCard, Input, Section, EmptyState } from '../ui'
@@ -111,7 +110,6 @@ export default function AutoResolutionPanel() {
   const qc = useQueryClient()
   const [feedbackTicketId, setFeedbackTicketId] = useState<string | null>(null)
   const [buscado, setBuscado] = useState('')
-  const navigate = useNavigate()
   const configura = useAuth().puede('sd.administrar')
 
   // Solo para el lote de «Ejecutar»; la configuración se edita en Configuración.
@@ -174,11 +172,6 @@ export default function AutoResolutionPanel() {
 
   return (
     <div className="u-stack-16">
-      {configura && (
-        <div className="u-row-end">
-          <Button variant="secondary" icon={<Settings2 size={14} />} onClick={() => navigate('/settings/sd-autorresolucion')}>{t('ajustes.configurar')}</Button>
-        </div>
-      )}
       {/* Resultados */}
       {statsLoading ? <div className="arp-cargando"><Spinner /></div> : (
         <div className="ds-grid-stats">

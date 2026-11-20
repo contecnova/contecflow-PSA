@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin_or_hr, require_internal_user
+from app.core.deps import get_current_user, require_internal_user, requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User, UserRole
@@ -42,7 +42,7 @@ def get_catalog(
 def create_skill(
     payload: SkillIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_hr),
+    current_user: User = Depends(requiere_capacidad("competencias.gestionar")),
 ):
     if skill_service.get_skill_by_name(db, payload.name):
         raise error_http(400, "skill_nombre_duplicado", detail="Ya existe un skill con ese nombre")
@@ -55,7 +55,7 @@ def update_skill(
     skill_id: str,
     payload: SkillIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_hr),
+    current_user: User = Depends(requiere_capacidad("competencias.gestionar")),
 ):
     s = skill_service.get_skill_by_id(db, skill_id)
     if not s:
@@ -68,7 +68,7 @@ def update_skill(
 def delete_skill(
     skill_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_hr),
+    current_user: User = Depends(requiere_capacidad("competencias.gestionar")),
 ):
     enforce_abac(db, current_user, "skill", skill_id, action="delete")
     s = skill_service.get_skill_by_id(db, skill_id)
@@ -150,7 +150,7 @@ def search_by_skills(
     skill_ids: str = Query(..., description="Comma-separated skill IDs"),
     min_level: str = Query("basic"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_hr),
+    current_user: User = Depends(requiere_capacidad("competencias.gestionar")),
 ):
     """Find users who have all the required skills at minimum level."""
     ids = [s.strip() for s in skill_ids.split(",") if s.strip()]
@@ -164,7 +164,7 @@ def search_by_skills(
 @router.get("/matrix", summary="Matriz de skills del equipo")
 def get_skills_matrix(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin_or_hr),
+    current_user: User = Depends(requiere_capacidad("competencias.gestionar")),
 ):
     """Returns a matrix of users × skills."""
     data = skill_service.get_skills_matrix(db)
@@ -225,7 +225,7 @@ def record_skill_assessment(
     user_id: str,
     payload: dict,
     db: Session = Depends(get_db),
-    cu: User = Depends(require_admin_or_hr),
+    cu: User = Depends(requiere_capacidad("competencias.gestionar")),
 ):
     """Registra explícitamente un cambio de nivel evaluado por un manager/RRHH."""
     skill_id  = payload.get("skill_id")

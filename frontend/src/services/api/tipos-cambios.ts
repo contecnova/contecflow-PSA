@@ -52,6 +52,8 @@ export type CambioItsm = {
   downtime_minutes: number | null
   created_at: string
   affected_cis: string[]
+  /** Solo en el detalle (19-11-2026): nombre, código y tipo de cada CI afectado; `name` null si ya no existe. */
+  affected_ci_details?: { id: string; name: string | null; code: string | null; ci_type: string | null }[]
   release_id: string | null
   implementer_id: string | null
   rejected_reason: string | null

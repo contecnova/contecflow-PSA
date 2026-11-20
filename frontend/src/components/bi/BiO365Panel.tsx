@@ -8,17 +8,17 @@
  *
  * 19-11-2026: la pestaña «Configuración» (tenant, client id, secreto, activar)
  * vive en Configuración → Integraciones → Informes de Microsoft 365
- * (`/settings/m365-informes`, ConfigBiO365.tsx). Aquí queda el botón
- * «Configurar» para quien tiene `org.administrar`.
+ * (`/settings/m365-informes`, ConfigBiO365.tsx). Aquí queda solo el
+ * enlace «Ir a Configuración» solo si falta configurar y se tiene `org.administrar`.
  */
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { tooltipDelTema } from '../../constants/estilosGrafico'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biO365Api } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useChartTheme } from '../../charts/useChartTheme'
-import { BarChart3, Cloud, RefreshCw, Settings2, Users } from 'lucide-react'
+import { BarChart3, Cloud, RefreshCw, Users } from 'lucide-react'
 import { Button, EmptyState, Tabs } from '../ui'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { extractErr, localeActivo } from '../../utils/helpers'
@@ -29,7 +29,6 @@ import './BiO365Panel.css'
 
 export default function BiO365Panel() {
   const t             = useAppT()
-  const navigate      = useNavigate()
   const configura     = useAuth().puede('org.administrar')
   const toast         = useToast()
   const { tokens }    = useChartTheme()
@@ -91,11 +90,6 @@ export default function BiO365Panel() {
           </div>
         </div>
         <div className="u-row-center-8">
-        {configura && (
-          <Button size="sm" variant="secondary" icon={<Settings2 size={14} />} onClick={() => navigate('/settings/m365-informes')}>
-            {t('ajustes.configurar')}
-          </Button>
-        )}
         <Button size="sm" variant="secondary" icon={<RefreshCw size={14} />}
           onClick={() => syncMutation.mutate()}
           disabled={syncMutation.isPending || !puedeSincronizar}
@@ -106,6 +100,13 @@ export default function BiO365Panel() {
         </Button>
         </div>
       </div>
+
+      {config && !puedeSincronizar && (
+        <p className="bio3pa-box-2" role="status">
+          {t('bio365.falta_configurar')}{' '}
+          {configura && <Link to="/settings/m365-informes">{t('bio365.ir_a_configuracion')}</Link>}
+        </p>
+      )}
 
       {/* Tab navigation */}
       <Tabs items={TAB_NAV} active={tab} onChange={setTab} ariaLabel={t('bio365.titulo')} className="bio3pa-tabs" />

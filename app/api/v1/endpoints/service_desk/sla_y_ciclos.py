@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import require_admin, require_internal_user, require_worker
+from app.core.deps import require_internal_user, require_worker, requiere_capacidad
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.user import User
@@ -74,7 +74,7 @@ def list_rules(db: Session = Depends(get_db), current_user: User = Depends(requi
 
 
 @router.post("/sla-rules", summary="Crear regla de SLA condicional", status_code=201)
-def create_rule(payload: ReglaIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def create_rule(payload: ReglaIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     r = reglas_sla.guardar_regla(db, _org(current_user), payload.model_dump())
     auditar_y_confirmar(db, current_user, "CREATE", "sd_sla_rule", r["id"], r["name"], new_values=r)
     return APIResponse.ok(data=r)
@@ -82,14 +82,14 @@ def create_rule(payload: ReglaIn, db: Session = Depends(get_db), current_user: U
 
 @router.put("/sla-rules/{rule_id}", summary="Cambiar regla de SLA condicional")
 def update_rule(rule_id: str, payload: ReglaIn, db: Session = Depends(get_db),
-                current_user: User = Depends(require_admin)):
+                current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     r = reglas_sla.guardar_regla(db, _org(current_user), payload.model_dump(), rule_id)
     auditar_y_confirmar(db, current_user, "UPDATE", "sd_sla_rule", rule_id, r["name"], new_values=r)
     return APIResponse.ok(data=r)
 
 
 @router.delete("/sla-rules/{rule_id}", summary="Borrar regla de SLA condicional")
-def delete_rule(rule_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def delete_rule(rule_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     reglas_sla.borrar_regla(db, _org(current_user), rule_id)
     auditar_y_confirmar(db, current_user, "DELETE", "sd_sla_rule", rule_id)
     return APIResponse.ok(data={"ok": True})
@@ -103,7 +103,7 @@ def get_ola(group_id: str, db: Session = Depends(get_db), current_user: User = D
 
 
 @router.put("/groups/{group_id}/ola-targets", summary="Fijar el OLA de la cola por prioridad")
-def put_ola(group_id: str, payload: OlaIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def put_ola(group_id: str, payload: OlaIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     r = reglas_sla.guardar_ola(db, _org(current_user), group_id, payload.targets)
     auditar_y_confirmar(db, current_user, "UPDATE", "sd_ola_targets", group_id, new_values=r["targets"])
     return APIResponse.ok(data=r)
@@ -117,14 +117,14 @@ def list_lifecycles(db: Session = Depends(get_db), current_user: User = Depends(
 
 
 @router.put("/lifecycles", summary="Crear o sustituir el ciclo de vida de un tipo de ticket")
-def put_lifecycle(payload: CicloIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def put_lifecycle(payload: CicloIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     r = ciclos_de_vida.guardar(db, _org(current_user), payload.model_dump())
     auditar_y_confirmar(db, current_user, "UPDATE", "sd_ticket_lifecycle", r["id"], r["name"], new_values=r)
     return APIResponse.ok(data=r)
 
 
 @router.delete("/lifecycles/{lifecycle_id}", summary="Borrar un ciclo de vida (el tipo vuelve a los estados base)")
-def delete_lifecycle(lifecycle_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def delete_lifecycle(lifecycle_id: str, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     ciclos_de_vida.borrar(db, _org(current_user), lifecycle_id)
     auditar_y_confirmar(db, current_user, "DELETE", "sd_ticket_lifecycle", lifecycle_id)
     return APIResponse.ok(data={"ok": True})

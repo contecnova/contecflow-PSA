@@ -66,19 +66,45 @@ def get_vacation_balances(year: Optional[int], db: Session) -> list:
 
 
 def update_vacation_balance(
-    user_id: str, year: int, days_entitled: float, db: Session,
+    user_id: str, year: int, days_entitled: float, db: Session, actor=None,
 ) -> dict:
+    """Cambia el derecho de vacaciones de `user_id` en `year`.
+
+    19-11-2026 (GRC): queda en la auditoría (`audit_logs`, recurso
+    `vacation_balance`): quién (`actor`), de quién y qué año, el antes y el
+    después de `days_entitled`, en la misma transacción que el cambio.
+    """
+    # 19-11-2026: el máximo era sólo el `max="60"` de la pantalla; ahora es el
+    # ajuste de la empresa de la persona (`VACATION_MAX_DAYS_ENTITLED`) y lo
+    # comprueba el servidor.
+    from app.core.codigos_de_error import error
+    from app.services.settings_service.valores_de_negocio import maximo_de_dias_de_vacaciones
+    persona = db.get(UserModel, user_id)
+    maximo = maximo_de_dias_de_vacaciones(db, registro=persona)
+    if not (0 <= float(days_entitled) <= maximo):
+        raise error(422, "ajuste_valor_no_valido", detail=f"days_entitled must be between 0 and {maximo}",
+                    clave="days_entitled", esperado=f"0..{maximo}")
     bal = db.query(UserVacationBalance).filter(
         UserVacationBalance.user_id == user_id,
         UserVacationBalance.year == year,
     ).first()
+    # Sin fila, el derecho efectivo era el de por defecto (lo que se enseñaba).
+    antes = bal.days_entitled if bal else settings.DEFAULT_VACATION_DAYS_PER_YEAR
+    fila_nueva = bal is None
     if not bal:
         bal = UserVacationBalance(
             user_id=user_id, year=year, days_entitled=days_entitled,
         )
         db.add(bal)
+        db.flush()
     else:
         bal.days_entitled = days_entitled
+    from app.services.audit import audit_log
+    audit_log(db, actor, "UPDATE", "vacation_balance", bal.id,
+              getattr(persona, "full_name", None) or user_id,
+              old_values={"days_entitled": antes, "year": year},
+              new_values={"days_entitled": float(days_entitled), "year": year},
+              metadata={"user_id": user_id, "fila_nueva": fila_nueva})
     db.commit()
     return {"ok": True}
 

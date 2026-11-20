@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_admin_or_hr, require_any_manager, require_internal_user
+from app.core.deps import get_current_user, require_any_manager, require_internal_user, requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User, UserRole
@@ -33,14 +33,14 @@ def list_courses(category: Optional[str] = None,
 
 @router.post("/courses", summary="Crear curso", status_code=201)
 def create_course(payload: CourseIn, db: Session = Depends(get_db),
-                  cu: User = Depends(require_admin_or_hr), response: Response = None):
+                  cu: User = Depends(requiere_capacidad("formacion.gestionar")), response: Response = None):
     c = training_service.create_course(db, payload.model_dump())
     return APIResponse.ok(data={"id": c.id, "title": c.title})
 
 
 @router.patch("/courses/{course_id}", summary="Actualizar curso")
 def update_course(course_id: str, payload: CourseIn, db: Session = Depends(get_db),
-                  cu: User = Depends(require_admin_or_hr), response: Response = None):
+                  cu: User = Depends(requiere_capacidad("formacion.gestionar")), response: Response = None):
     c = training_service.get_course(db, course_id)
     if not c:
         raise error_http(404, "no_encontrado", detail="Curso no encontrado", que="curso")
@@ -50,7 +50,7 @@ def update_course(course_id: str, payload: CourseIn, db: Session = Depends(get_d
 
 @router.delete("/courses/{course_id}", summary="Eliminar curso")
 def delete_course(course_id: str, db: Session = Depends(get_db),
-                  cu: User = Depends(require_admin_or_hr), response: Response = None):
+                  cu: User = Depends(requiere_capacidad("formacion.gestionar")), response: Response = None):
     c = training_service.get_course(db, course_id)
     if not c:
         raise error_http(404, "no_encontrado", detail="Curso no encontrado", que="curso")

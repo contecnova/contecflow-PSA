@@ -15,7 +15,13 @@ from fastapi import APIRouter, Body, Depends, Request
 from sqlalchemy.orm import Session
 
 from app.core.abac_enforce import enforce_abac
-from app.core.deps import RequireRole, get_current_user, require_admin, require_admin_or_hr, require_any_manager
+from app.core.deps import (
+    RequireRole,
+    get_current_user,
+    require_admin,
+    require_any_manager,
+    requiere_capacidad,
+)
 from app.core.errores import ErrorDeDominio
 from app.core.periodo import SIN_HORA, Periodo, periodo
 from app.core.responses import APIListResponse, APIResponse
@@ -93,13 +99,13 @@ def firmar_acta(acta_id: str, request: Request, db: Session = Depends(get_db),
 
 @router.get("/bajas", summary="Bajas y su seguimiento")
 def listar_bajas(estado: Optional[str] = None, db: Session = Depends(get_db),
-                 user: User = Depends(require_gestor_de_personas)):
+                 user: User = Depends(requiere_capacidad("alm.personas"))):
     enforce_abac(db, user, "alm", None, action="read")
     return APIListResponse.ok(items=bajas.listar_bajas(db, estado))
 
 
 @router.get("/bajas/{baja_id}", summary="Detalle de una baja")
-def detalle_baja(baja_id: str, db: Session = Depends(get_db), user: User = Depends(require_gestor_de_personas)):
+def detalle_baja(baja_id: str, db: Session = Depends(get_db), user: User = Depends(requiere_capacidad("alm.personas"))):
     enforce_abac(db, user, "alm", baja_id, action="read")
     return APIResponse.ok(data=bajas.detalle_baja(db, baja_id))
 
@@ -150,27 +156,27 @@ def perdida(dev_id: str, datos: dict = Body(...), db: Session = Depends(get_db),
 # ── Kits de alta ──────────────────────────────────────────────────────────────
 
 @router.get("/kits", summary="Kits de alta de la empresa")
-def listar_kits(db: Session = Depends(get_db), user: User = Depends(require_gestor_de_personas)):
+def listar_kits(db: Session = Depends(get_db), user: User = Depends(requiere_capacidad("alm.personas"))):
     return APIListResponse.ok(items=kits.listar_kits(db))
 
 
 @router.post("/kits", summary="Crear un kit de alta")
 def crear_kit(datos: dict = Body(...), db: Session = Depends(get_db),
-              user: User = Depends(require_admin_or_hr)):
+              user: User = Depends(requiere_capacidad("alm.configurar"))):
     enforce_abac(db, user, "alm", None, action="create")
     return APIResponse.ok(data=kits.guardar_kit(db, datos, user))
 
 
 @router.put("/kits/{kit_id}", summary="Cambiar un kit de alta")
 def cambiar_kit(kit_id: str, datos: dict = Body(...), db: Session = Depends(get_db),
-                user: User = Depends(require_admin_or_hr)):
+                user: User = Depends(requiere_capacidad("alm.configurar"))):
     enforce_abac(db, user, "alm", kit_id, action="update")
     return APIResponse.ok(data=kits.guardar_kit(db, datos, user, kit_id))
 
 
 @router.delete("/kits/{kit_id}", summary="Retirar un kit de alta")
 def borrar_kit(kit_id: str, db: Session = Depends(get_db),
-               user: User = Depends(require_admin_or_hr)):
+               user: User = Depends(requiere_capacidad("alm.configurar"))):
     enforce_abac(db, user, "alm", kit_id, action="delete")
     return APIResponse.ok(data=kits.borrar_kit(db, kit_id, user))
 

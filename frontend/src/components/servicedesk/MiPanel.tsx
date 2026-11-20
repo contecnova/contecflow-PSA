@@ -10,6 +10,11 @@
  * (`WidgetsDelPanel.tsx`) en vez del volcado genérico `VistaDeDatos`, con su
  * ancho en una rejilla de 12 columnas (KPIs 4, tablas 8, métricas ITIL 12), y
  * las métricas ITIL comparan con los 30 días anteriores.
+ *
+ * 19-11-2026: la rejilla (`.sdp-rejilla`, sdMercado.css) es un contenedor CSS
+ * (`container-type: inline-size`) y los anchos de los widgets cambian con
+ * `@container` según el hueco del panel, no según la ventana: con un ticket
+ * abierto al lado se recolocan igual que en una pantalla estrecha.
  */
 import { useEffect, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'

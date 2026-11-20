@@ -1,6 +1,7 @@
 import { useAppName } from '../../hooks/useAppName'
 import React, { type CSSProperties, useState, useEffect, useRef, useMemo } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import { Avatar, IconButton, Pulsable } from '../ui'
@@ -32,7 +33,7 @@ import {
   Timer, Flag, Layers, Shield, Keyboard, BarChart, LayoutGrid,
   Wrench, FolderOpen, ScrollText, ClipboardCheck,
   CalendarRange, Plus, Inbox, Database, MessageSquareText, Lightbulb,
-  Laptop, UserMinus,
+  Laptop, UserMinus, Globe,
 } from 'lucide-react'
 import { ANIMATION_FAST_MS, CLOCK_TICK_MS, DROPDOWN_DELAY_MS, POLL_FAST_MS, STALE_5_MIN_MS, STALE_LIVE_MS } from '../../constants/timings'
 import './Layout.css'
@@ -57,7 +58,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/clients': 'Clients / CRM', '/pipeline': 'Sales Pipeline', '/contracts': 'Contracts',
   '/invoices': 'Invoicing', '/milestone-billing': 'Milestone Billing',
   '/profitability': 'Profitability', '/revenue': 'Revenue Recognition', '/budgets': 'Budgets',
-  '/rate-cards': 'Rate Cards', '/subcontractors': 'Subcontractors',
+  '/rate-cards': 'Rate Cards', '/subcontractors': 'Subcontractors', '/supplier-portal': 'Supplier portal',
   '/scenarios': 'What-If Scenarios', '/nps': 'NPS & Health',
   '/service-desk': 'Service Desk', '/cmdb': 'CMDB', '/sd/workflow-designer': 'Workflow Designer', '/alm': 'Licenses & Assets',
   '/alm/altas-y-bajas': 'Onboarding & offboarding', '/my-equipment': 'My equipment & licences',
@@ -103,14 +104,14 @@ const ROUTE_SECTION: Record<string, string> = {
   '/raci': 'Projects', '/changelog': 'Projects', '/uat': 'Projects',
   '/gantt': 'Projects', '/epic-gantt': 'Projects', '/epics': 'Projects', '/deliverables': 'Projects',
   '/changes': 'Projects', '/risks': 'Projects', '/dependencies': 'Projects',
-  '/git': 'Projects', '/wiki': 'Projects', '/meetings-ai': 'Projects',
+  '/git': 'Projects', '/wiki': 'Projects', '/meetings-ai': 'My Work',
   '/resources': 'Team', '/resources/planning': 'Team', '/portfolio/intake': 'Analytics', '/capacity': 'Team', '/resource-forecast': 'Team', '/resource-scheduler': 'Team',
   '/skills': 'Team', '/org-chart': 'Team', '/okrs': 'Team',
   '/performance-reviews': 'Team', '/training': 'Team',
   '/clients': 'Finance', '/pipeline': 'Finance', '/contracts': 'Finance',
   '/invoices': 'Finance', '/milestone-billing': 'Finance',
   '/profitability': 'Finance', '/revenue': 'Finance', '/budgets': 'Finance',
-  '/rate-cards': 'Finance', '/subcontractors': 'Finance',
+  '/rate-cards': 'Finance', '/subcontractors': 'Finance', '/supplier-portal': 'My Work',
   '/scenarios': 'Finance', '/nps': 'Finance',
   '/service-desk': 'Support', '/cmdb': 'Support', '/sd/workflow-designer': 'Support', '/alm': 'Support', '/alm/altas-y-bajas': 'Support', '/my-equipment': 'My Work',
   '/sla-calendars': 'Support', '/agent-dashboard': 'Support',
@@ -182,16 +183,15 @@ const WORKSPACE_GROUPS: Record<string, string[]> = {
 }
 
 // Textos del armazón: diccionarios, módulo `layout_texto` (es/en/zh).
-const CLAVES_LAYOUT = ["shortcuts", "keyboard_shortcuts", "shortcuts_hint", "shortcuts_hint_suffix", "close", "recent", "workspace", "workspace_all", "workspace_work", "workspace_projects", "workspace_team", "workspace_business", "workspace_support", "workspace_analytics", "workspace_ai", "workspace_settings", "global_search_title", "open_global_search", "search_placeholder", "ai_title", "open_ai", "ai_short", "active_alerts_title", "pending_approvals_title", "skip_to_content", "main_navigation", "side_menu", "expand_sidebar", "collapse_sidebar", "main_content", "open_menu"] as const
+const CLAVES_LAYOUT = ["shortcut_global_search", "shortcut_ai_assist", "shortcut_view_shortcuts", "shortcut_close_modal", "shortcut_toggle_sidebar", "shortcut_go_tasks", "shortcut_go_projects", "shortcut_go_log_hours", "shortcut_go_service_desk", "shortcuts", "keyboard_shortcuts", "shortcuts_hint", "shortcuts_hint_suffix", "close", "recent", "workspace", "workspace_all", "workspace_work", "workspace_projects", "workspace_team", "workspace_business", "workspace_support", "workspace_analytics", "workspace_ai", "workspace_settings", "global_search_title", "open_global_search", "search_placeholder", "ai_title", "open_ai", "ai_short", "active_alerts_title", "pending_approvals_title", "skip_to_content", "main_navigation", "side_menu", "expand_sidebar", "collapse_sidebar", "main_content", "open_menu"] as const
 
 const NAV_GROUPS: NavGroupConfig[] = [
   { id: 'trabajo', label: 'My Work', groupKey: 'group_work', icon: <Clock size={12} />, items: [
     { to: '/work-dashboard',  icon: <LayoutGrid size={SZ} />,   label: 'Mi día' },
     { to: '/inbox',           icon: <Inbox size={SZ} />,        label: 'Bandeja de entrada' },
-    { to: '/chat',            icon: <MessageSquare size={SZ} />, label: 'Chat (Teams)' },
     { to: '/tasks',           icon: <CheckSquare size={SZ} />,  label: 'Tasks' },
     { to: '/time',            icon: <Clock size={SZ} />,        label: 'Tiempo' },
-    { to: '/calendar',        icon: <Calendar size={SZ} />,     label: 'Calendar' },
+    { to: '/meetings-ai',     icon: <Mic size={SZ} />,            label: 'Meeting Assistant' },
     { to: '/absences',        icon: <Umbrella size={SZ} />,     label: 'Absences' },
     { to: '/overtime',        icon: <AlarmClockPlus size={SZ} />,label: 'Overtime' },
     { to: '/documents',       icon: <FileText size={SZ} />,     label: 'Documents' },
@@ -199,6 +199,8 @@ const NAV_GROUPS: NavGroupConfig[] = [
     { to: '/approvals',       icon: <CheckCircle size={SZ} />,  label: 'Approval Inbox' },
     // Licencias y hardware, fase 4: la ve toda persona con sesión (cada uno lo suyo).
     { to: '/my-equipment',    icon: <Laptop size={SZ} />,       label: 'My equipment & licences' },
+    // Migración 191: portal del proveedor (solo externos con `proveedores.portal`).
+    { to: '/supplier-portal', icon: <Globe size={SZ} />,        label: 'Supplier portal' },
   ]},
   { id: 'proyectos', label: 'Projects', groupKey: 'group_projects', icon: <Folder size={12} />, items: [
     { to: '/projects-dashboard', icon: <LayoutGrid size={SZ} />,  label: 'Salud del portfolio' },
@@ -219,7 +221,6 @@ const NAV_GROUPS: NavGroupConfig[] = [
     { to: '/dependencies',    icon: <Link size={SZ} />,           label: 'Dependencies' },
     { to: '/git',             icon: <GitBranch size={SZ} />,      label: 'Git Integration' },
     { to: '/wiki',            icon: <BookOpen size={SZ} />,       label: 'Wiki' },
-    { to: '/meetings-ai',     icon: <Mic size={SZ} />,            label: 'Meeting Assistant' },
   ]},
   { id: 'equipo', label: 'Team & People', groupKey: 'group_team', icon: <Users size={12} />, items: [
     { to: '/team-dashboard',  icon: <LayoutGrid size={SZ} />,     label: 'Capacidad del equipo' },
@@ -326,6 +327,8 @@ function computeTimerElapsed(timer: TimerState | null | undefined): number {
 const RUTAS_DEL_MENU = NAV_GROUPS.flatMap(g => g.items.map(i => i.to || '')).filter(Boolean)
 const RUTAS_PADRE_DEL_MENU = new Set(RUTAS_DEL_MENU.filter(r => RUTAS_DEL_MENU.some(o => o !== r && o.startsWith(r + '/'))))
 
+/** ⌘ solo en Mac; en Windows y Linux la tecla es Ctrl (19-11-2026). */
+const ES_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)
 const SHORTCUTS = [
   { keys: ['⌘', 'K'], labelKey: 'shortcut_global_search' },
   { keys: ['Ctrl', 'I'], labelKey: 'shortcut_ai_assist' },
@@ -403,7 +406,7 @@ function ShortcutsModal({ onClose, text }: { onClose: () => void; text: Record<s
             <div key={i} className="shortcut-row">
               <span className="u-text2-sm">{text[s.labelKey]}</span>
               <div className="layo-row-1">
-                {s.keys.map((k, j) => <span key={j} className="kbd">{k}</span>)}
+                {s.keys.map((k, j) => <span key={j} className="kbd">{k === '⌘' && !ES_MAC ? 'Ctrl' : k}</span>)}
               </div>
             </div>
           ))}
@@ -538,7 +541,9 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, t, open, onTogg
             <NavItem key={item.to} item={item} collapsed alertCount={alertCount} approvalCount={approvalCount} t={t} />
           ))}
         </div>
-        {hoverOpen && (
+        {/* 19-11-2026: en un portal al <body>. Dentro de la barra lateral quedaba en su
+            capa y lo tapaban columnas de las páginas (p. ej. la del chat). */}
+        {hoverOpen && createPortal(
           <div className="nav-hover-preview layo-box-23 layout-e5" style={{ '--layout-top': px(hoverTop - 4) } as CSSProperties}
             onPointerEnter={() => { if (hoverTimer.current) clearTimeout(hoverTimer.current); setHoverOpen(true) }}
             onPointerLeave={() => { hoverTimer.current = setTimeout(() => setHoverOpen(false), DROPDOWN_DELAY_MS) }}
@@ -560,7 +565,8 @@ function NavGroup({ group, collapsed, alertCount, approvalCount, t, open, onTogg
               </NavLink>
               )
             })}
-          </div>
+          </div>,
+          document.body,
         )}
         <div className="layo-box-5" />
       </div>
@@ -641,6 +647,7 @@ interface TopAppBarProps {
 }
 
 function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, chatUnread, user, onProfileOpen, onLogout, alertCount, approvalCount, t, allNavItems, text, activeTimer, timerElapsed, onAlertsOpen: _onAlertsOpen, onQuickCreate, onVoiceOpen }: TopAppBarProps) {
+  const { puede } = useAuth()
   const { t: traducir } = useAppLang()
   const location = useLocation()
   const [chatBadgeVisible, setChatBadgeVisible] = useState<boolean>(chatUnread > 0)
@@ -779,7 +786,6 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
         </IconButton>
         <Pulsable className={`layo-row-19 layout-sx3 layout-e13 ${chatOpen ? 'layout-m14' : 'layout-m15'}`} onClick={onChatToggle} title={traducir('layoutshell.abrir_chat')} aria-label={traducir('layoutshell.abrir_chat')} aria-pressed={chatOpen} style={{ '--layout-border': `1px solid ${chatOpen ? 'color-mix(in srgb, var(--accent) 35%, transparent)' : 'var(--surface-4)'}` } as CSSProperties}>
           <MessageSquare size={13} />
-          <span className="app-topbar-texto">{traducir('layoutshell.chat')}</span>
           {chatBadgeVisible && (
             <span className={`layo-row-20 ${chatUnread > 0 ? 'layout-m16' : 'layout-m17'}`}>
               {chatBadgeCount > 99 ? '99+' : chatBadgeCount}
@@ -788,6 +794,14 @@ function TopAppBar({ onSearchOpen, onAiToggle, aiOpen, onChatToggle, chatOpen, c
         </Pulsable>
         {/* Campana de avisos sin leer (16-11-2026): contador y panel con los últimos. */}
         {user && <CampanaDeAvisos />}
+        {/* 19-11-2026: Calendario y Chat salen del menú lateral y quedan como iconos
+            de la barra superior (como la campana), visibles desde cualquier pantalla. */}
+        {user && puedeAbrir('/calendar', puede) && (
+          <NavLink to="/calendar" title={traducir('layoutshell.abrir_calendario')} aria-label={traducir('layoutshell.abrir_calendario')}
+            className={({ isActive }) => `layo-row-19 layout-sx3 layout-e13 ${isActive ? 'layout-m14' : 'layout-m15'}`}>
+            <Calendar size={13} aria-hidden />
+          </NavLink>
+        )}
         {activeTimer && !activeTimer.paused_at && (
           <NavLink to="/timer"
             title={topbarTimerSubtitle ? `Cronómetro activo: ${topbarTimerSubtitle}` : 'Cronómetro activo — click para gestionar'} className="layout-sx4"

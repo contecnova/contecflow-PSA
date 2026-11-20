@@ -28,7 +28,12 @@ const EDITABLES: NombreDeCatalogo[] = ['project-types', 'client-industries', 'ex
 const claveDe = (nombre: string) => nombre.normalize('NFD').replace(/\p{M}/gu, '').trim().toLowerCase()
   .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 50)
 
-function Catalogo({ catalogo }: { catalogo: NombreDeCatalogo }) {
+/**
+ * Un catálogo editable. Exportado (19-11-2026) para que la sección Proveedores
+ * pinte allí sus dos catálogos (tipos de servicio y unidades de cobro) en vez de
+ * repetirlos aquí: cada catálogo vive en un solo sitio de Configuración.
+ */
+export function Catalogo({ catalogo }: { catalogo: NombreDeCatalogo }) {
   const t = useAppT()
   const toast = useToast()
   const qc = useQueryClient()

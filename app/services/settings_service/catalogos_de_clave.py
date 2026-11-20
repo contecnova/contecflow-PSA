@@ -24,7 +24,9 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.core.codigos_de_error import error
-from app.models.settings import CustomClientIndustry, CustomExpenseCategory, CustomProjectType
+from app.models.settings import (CustomClientIndustry, CustomExpenseCategory, CustomProjectType,
+                                 CustomSupplierBillingUnit, CustomSupplierServiceType)
+from app.services.proveedores.tipos import DEFAULT_BILLING_UNITS, DEFAULT_SERVICE_TYPES
 from app.services.settings_service.catalogos import DEFAULT_PROJECT_TYPES, _exigir_propio, _sellar
 
 DEFAULT_CLIENT_INDUSTRIES = [
@@ -56,6 +58,9 @@ CATALOGOS = {
     "project_types": (CustomProjectType, DEFAULT_PROJECT_TYPES, "tipo de proyecto"),
     "client_industries": (CustomClientIndustry, DEFAULT_CLIENT_INDUSTRIES, "sector"),
     "expense_categories": (CustomExpenseCategory, DEFAULT_EXPENSE_CATEGORIES, "categoría de gasto"),
+    # Proveedores (migracion 189): `supplier_services.service_type` y `supplier_pricing_lines.unit`.
+    "supplier_service_types": (CustomSupplierServiceType, DEFAULT_SERVICE_TYPES, "tipo de servicio"),
+    "supplier_billing_units": (CustomSupplierBillingUnit, DEFAULT_BILLING_UNITS, "unidad de cobro"),
 }
 
 
@@ -151,6 +156,8 @@ _VIGILADOS = (
     ("app.models.project", "Project", "project_type", "project_types"),
     ("app.models.clients", "Client", "industry", "client_industries"),
     ("app.models.expenses", "Expense", "category", "expense_categories"),
+    ("app.models.proveedores", "SupplierService", "service_type", "supplier_service_types"),
+    ("app.models.proveedores", "SupplierPricingLine", "unit", "supplier_billing_units"),
 )
 _clases: dict = {}
 

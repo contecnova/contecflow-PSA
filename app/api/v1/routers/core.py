@@ -15,6 +15,8 @@ from app.api.v1.endpoints import (
 )
 from app.api.v1.endpoints import ausencias
 from app.api.v1.endpoints import horas_extra
+from app.api.v1.endpoints import proveedores  # rev. 190: proveedores y externalizacion
+from app.api.v1.endpoints import proveedores_portal  # rev. 191: portal del proveedor
 from app.api.v1.endpoints import collaboration as collaboration_pkg
 from app.api.v1.endpoints import collaboration_portal
 from app.api.v1.endpoints import periodo as periodo_ep
@@ -64,5 +66,11 @@ from app.api.v1.endpoints import bpmn_instances  # noqa: E402
 router.include_router(bpmn_instances.procesos, prefix="/bpmn-processes", tags=["BPMN Processes"])
 router.include_router(bpmn_instances.router,   prefix="/bpmn-instances", tags=["BPMN Instances"])
 router.include_router(user_costs.router,      prefix="/user-costs",      tags=["User Costs"])
+router.include_router(proveedores.router,     prefix="/suppliers",       tags=["Proveedores"])
+router.include_router(proveedores_portal.router, prefix="/supplier-portal", tags=["Portal del proveedor"])
 router.include_router(collaboration_pkg.router, prefix="/collaboration",  tags=["Collaboration"])
 router.include_router(collaboration_portal.router, prefix="/portal/collaboration", tags=["Portal Collaboration"])
+# CMDB de software, composición y vulnerabilidades (rev. 190, 19-11-2026). Bajo
+# /cmdb: módulo GRC `cmdb` y prefijo ABAC `/api/v1/cmdb` (abac_registry).
+from app.api.v1.endpoints import cmdb_software  # noqa: E402
+router.include_router(cmdb_software.router, prefix="/cmdb/software", tags=["CMDB de software y vulnerabilidades"])

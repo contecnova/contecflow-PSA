@@ -19,6 +19,7 @@ from app.core.config_groups import (
     ALMIntegracionSettingsMixin,
     TraduccionSettingsMixin,
     UmbralesSettingsMixin,
+    ValoresDeNegocioSettingsMixin,
 )
 
 
@@ -38,6 +39,7 @@ class Settings(
     ALMIntegracionSettingsMixin,
     TraduccionSettingsMixin,
     UmbralesSettingsMixin,
+    ValoresDeNegocioSettingsMixin,
     BaseSettings,
 ):
     """
@@ -303,6 +305,13 @@ class Settings(
     EXTERNOS_UMBRAL_CONSUMO_PCT: float = Field(default=80.0, env="EXTERNOS_UMBRAL_CONSUMO_PCT")
     # Dias de antelacion del aviso de caducidad del acceso de un externo.
     EXTERNOS_AVISO_CADUCIDAD_DIAS: int = Field(default=14, env="EXTERNOS_AVISO_CADUCIDAD_DIAS")
+    # ── Proveedores y externalizacion (migracion 189) ───────────────────────
+    # Diferencia (%) admitida entre la factura del proveedor y la prevision del periodo.
+    PROVEEDORES_TOLERANCIA_CONCILIACION_PCT: float = Field(default=2.0, env="PROVEEDORES_TOLERANCIA_CONCILIACION_PCT")
+    # Dias de antelacion del aviso de caducidad de documentos y certificaciones.
+    PROVEEDORES_AVISO_DOCUMENTO_DIAS: int = Field(default=30, env="PROVEEDORES_AVISO_DOCUMENTO_DIAS")
+    # Meses hasta la proxima revision de riesgo (la mitad con riesgo alto o critico).
+    PROVEEDORES_REVISION_RIESGO_MESES: int = Field(default=12, env="PROVEEDORES_REVISION_RIESGO_MESES")
 
     # ── Locale / Internationalisation ─────────────────────────────────────────
     DEFAULT_TIMEZONE: str = Field(default="Europe/Madrid", env="DEFAULT_TIMEZONE")

@@ -47,6 +47,11 @@ def start_call(payload: CallStartIn, current_user: User = Depends(get_current_us
 @router.post("/calls/{call_id}/join", response_model=APIResponse[CallTokenOut], summary="Unirse a llamada")
 def join_call(call_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     call = svc.join_call(db, current_user, call_id)
+    # 19-11-2026: con el asistente de reuniones grabando, quien entra pasa a ser
+    # participante de la reunión (su consentimiento queda pendiente).
+    from app.services.reuniones import llamadas as asistente
+    asistente.al_unirse(db, current_user, call_id)
+    db.commit()
     return APIResponse.ok(data=_token_de(call, current_user, role="participant"))
 
 
@@ -67,6 +72,11 @@ def end_call(call_id: str, current_user: User = Depends(get_current_user), db: S
         from app.services.collaboration import bots as bot_svc
         from app.services.collaboration._queue import task_queue
         task_queue.enqueue(bot_svc.summarize_call, call_id, _org(current_user))
+        # 19-11-2026: si el asistente de reuniones grababa, se analiza, se hace
+        # el acta y se publica el enlace en la conversación.
+        from app.services.reuniones import llamadas as asistente
+        if asistente.reunion_de(db, call_id) is not None:
+            task_queue.enqueue(asistente.cerrar, call_id, _org(current_user))
     return APIResponse.ok(data={"ok": True})
 
 
@@ -99,12 +109,24 @@ def transcribe_chunk(
     # hasta 30 s o un subproceso de whisper: en `async def` paraba el bucle.
     datos = audio.file.read()
 
-    from app.services.collaboration._transcription import transcribe_audio_chunk
-    texto = transcribe_audio_chunk(datos, audio.filename or "chunk.webm", db=db,
-                                   org_id=getattr(current_user, "organization_id", None),
-                                   user_id=current_user.id)
+    # 19-11-2026: con el asistente de reuniones grabando, el audio solo va a los
+    # proveedores de voz que la empresa permite para reuniones (externos solo
+    # con activación y contrato) y nada de quien dijo «no».
+    from app.services.reuniones import llamadas as asistente
+    texto = asistente.transcribir_si_graba(db, current_user, call_id, datos, audio.filename or "chunk.webm",
+                                           audio.content_type or "audio/webm")
+    if texto is None:
+        from app.services.collaboration._transcription import transcribe_audio_chunk
+        texto = transcribe_audio_chunk(datos, audio.filename or "chunk.webm", db=db,
+                                       org_id=getattr(current_user, "organization_id", None),
+                                       user_id=current_user.id)
     if texto:
         svc.append_transcript_segment(db, current_user, call_id, texto)
+        # 19-11-2026: los mismos subtítulos alimentan al asistente de reuniones si
+        # está grabando (hablante = quien sube su propio audio; respeta su «no»).
+        if asistente.registrar_fragmento(db, current_user, call_id, texto, datos,
+                                         audio.content_type or "audio/webm"):
+            db.commit()
     return {"text": texto or ""}
 
 

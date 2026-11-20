@@ -326,6 +326,12 @@ TEXTOS: dict[str, dict[str, str]] = {
     "uat.notas": {"es": "Notas", "en": "Notes", "zh": "备注"},
 }
 
+# 19-11-2026: planes de cambio, playbooks de serie y bloqueos/cupos del sistema
+# (bloque propio en otro fichero; mismo formato, mismas reglas).
+from app.services.textos_de_salida_itsm import TEXTOS_ITSM as _TEXTOS_ITSM  # noqa: E402
+
+TEXTOS.update(_TEXTOS_ITSM)
+
 
 def texto(clave: str, idioma: Optional[str] = None, **params) -> str:
     """El texto `clave` en `idioma` (castellano si no lo hay) con sus datos.

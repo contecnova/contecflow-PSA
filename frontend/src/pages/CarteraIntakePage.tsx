@@ -14,14 +14,13 @@
  *
  * 19-11-2026: la pestaña «Configuración» (criterios y fases) vive en
  * Configuración → Proyectos y trabajo → Entrada a la cartera
- * (`/settings/cartera`, components/cartera/ConfigCartera.tsx). Aquí queda el
- * botón «Configurar» para quien tiene `cartera.gestionar` y `?tab=config`
- * redirige allí.
+ * (`/settings/cartera`, components/cartera/ConfigCartera.tsx). Aquí no hay
+ * botón «Configurar» y `?tab=config` redirige allí.
  */
 import { Fragment, useState } from 'react'
-import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRightCircle, CheckCircle2, FolderPlus, Inbox, Plus, Settings2, XCircle } from 'lucide-react'
+import { ArrowRightCircle, CheckCircle2, FolderPlus, Inbox, Plus, XCircle } from 'lucide-react'
 import Page from '../components/ui/Page'
 import { Button, EmptyState, Input, Modal, Spinner, StatusBadge, Pulsable, Select, TablaSimple, useErroresDeCampo } from '../components/ui'
 import { carteraApi, type Propuesta } from '../services/api'
@@ -40,18 +39,13 @@ const KIND: Record<string, 'neutral' | 'warning' | 'info' | 'success' | 'danger'
 
 export default function CarteraIntakePage() {
   const t = useAppT()
-  const gestiona = useAuth().puede('cartera.gestionar')
-  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [editando, setEditando] = useState<Propuesta | 'nueva' | null>(null)
   // La configuración vive en Configuración (19-11-2026): los enlaces antiguos redirigen.
   if (searchParams.get('tab') === 'config') return <Navigate to="/settings/cartera" replace />
   return (
     <Page icon={<Inbox size={18} />} title={t('nav.portfolio_intake')} subtitle={t('cartera.subtitulo')}
-      actions={<>
-        {gestiona && <Button variant="secondary" icon={<Settings2 size={13} />} onClick={() => navigate('/settings/cartera')}>{t('ajustes.configurar')}</Button>}
-        <Button icon={<Plus size={13} />} onClick={() => setEditando('nueva')}>{t('cartera.nueva_propuesta')}</Button>
-      </>}>
+      actions={<Button icon={<Plus size={13} />} onClick={() => setEditando('nueva')}>{t('cartera.nueva_propuesta')}</Button>}>
       <ListaDePropuestas onEditar={setEditando} onNueva={() => setEditando('nueva')} />
       {editando && <FormularioDePropuesta propuesta={editando === 'nueva' ? null : editando} onClose={() => setEditando(null)} />}
     </Page>

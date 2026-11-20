@@ -36,7 +36,13 @@ TIPOS = ("expense", "timesheet", "leave", "change_request", "invoice", "budget",
          # con aprobacion multinivel (`catalog_approval_service`, modo `engine`).
          "catalog_request",
          # Horas extra (rev. 184, 18-11-2026): `app/services/horas_extra/solicitudes.py`.
-         "overtime")
+         "overtime",
+         # CMDB de software (19-11-2026): excepción de vulnerabilidad con caducidad
+         # (`app/services/cmdb_software/gestion.py`).
+         "vuln_exception",
+         # Proveedores (migración 191): estado de cuenta / factura del proveedor
+         # por importe (`app/services/proveedores/facturacion.py`).
+         "supplier_statement")
 
 
 def abrir(db: Session, tipo: str, entidad_id: str, resumen: str, solicitante_id: str,
@@ -137,6 +143,10 @@ def aplicar(req, decision: str, actor, db: Session) -> None:
             # Licencias y hardware, fase 2: aprobar libera la licencia sin uso; rechazar la conserva.
             from app.services.alm_uso.recuperacion import aplicar_desde_bandeja as aplicar_recuperacion
             aplicar_recuperacion(req, decision, actor, db)
+        elif req.entity_type == "vuln_exception":
+            # CMDB de software: aprobada, el hallazgo pasa a riesgo aceptado hasta su caducidad.
+            from app.services.cmdb_software.gestion import aplicar_desde_bandeja as aplicar_excepcion
+            aplicar_excepcion(db, req.entity_id, aprobado, actor, nota)
         elif req.entity_type == "portfolio_gate":
             # Cartera (rev. 173): la fase de una propuesta; aprobada, pasa a la siguiente.
             from app.services.cartera_service import aplicar_decision as aplicar_fase
@@ -147,6 +157,11 @@ def aplicar(req, decision: str, actor, db: Session) -> None:
         elif req.entity_type == "overtime":
             from app.services.horas_extra.solicitudes import aplicar_desde_bandeja as aplicar_horas_extra
             aplicar_horas_extra(req, decision, actor, db)
+        elif req.entity_type == "supplier_statement":
+            # Proveedores (migración 191): aprobado, el estado de cuenta y su factura quedan aprobados;
+            # rechazado, en disputa con la nota de la bandeja.
+            from app.services.proveedores.facturacion import aplicar_desde_bandeja as aplicar_estado_de_cuenta
+            aplicar_estado_de_cuenta(db, req.entity_id, aprobado, actor, nota)
         elif req.entity_type == "invoice":
             from app.models.billing_reports import Invoice, InvoiceStatus
             inv = db.query(Invoice).filter(Invoice.id == req.entity_id).first()
@@ -171,6 +186,11 @@ def comprobar_antes(req, decision: str, db: Session, actor=None) -> None:
     if req.entity_type == "overtime":
         from app.services.horas_extra.solicitudes import comprobar_en_bandeja
         comprobar_en_bandeja(req, actor, db)
+        return
+    if req.entity_type == "supplier_statement":
+        # Proveedores (migración 191): no aprueba quien cerró el periodo ni quien registró la factura.
+        from app.services.proveedores.facturacion import comprobar_en_bandeja as segregacion_del_estado
+        segregacion_del_estado(req, actor, db, decision)
         return
     if decision != "approved" or req.entity_type != "expense":
         return

@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_admin, require_internal_user
+from app.core.deps import require_internal_user, requiere_capacidad
 from app.core.tenancy import org_scoped_or_404
 from app.db.session import get_db
 from app.models.user import User
@@ -43,6 +43,12 @@ router = APIRouter(prefix="/autonomous", tags=["Autonomous Agents"])
 
 def _org(user: User):
     return getattr(user, "organization_id", None)
+
+
+def _idioma(db: Session, user: User) -> str:
+    """Idioma de quien llama: nombres de los playbooks de serie y motivos (19-11-2026)."""
+    from app.services.formato_regional import idioma_de_salida
+    return idioma_de_salida(db, user_id=str(user.id))
 
 
 # ── Pydantic schemas ───────────────────────────────────────────────────────────
@@ -89,7 +95,7 @@ def get_config(db: Session = Depends(get_db), current_user: User = Depends(requi
 
 
 @router.put("/config", summary="Guardar la configuración del agente autónomo (admin)")
-def put_config(payload: ConfigIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def put_config(payload: ConfigIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     antes = configuracion_del_agente(db, _org(current_user))
     despues = guardar_configuracion_del_agente(db, _org(current_user), payload.model_dump(exclude_none=True))
     auditar_y_confirmar(db, current_user, "UPDATE", "sd_autonomous_agent", _org(current_user),
@@ -101,12 +107,12 @@ def put_config(payload: ConfigIn, db: Session = Depends(get_db), current_user: U
 
 @router.get("/playbooks", summary="Listar playbooks (de serie y de la empresa)")
 def get_playbooks(db: Session = Depends(get_db), current_user: User = Depends(require_internal_user)):
-    return APIListResponse.ok(items=list_playbooks(db, _org(current_user)))
+    return APIListResponse.ok(items=list_playbooks(db, _org(current_user), _idioma(db, current_user)))
 
 
 @router.post("/playbooks", summary="Crear playbook de la empresa")
 def post_playbook(payload: PlaybookCreateIn, db: Session = Depends(get_db),
-                  current_user: User = Depends(require_admin)):
+                  current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     result = create_playbook(db, payload.model_dump(), _org(current_user))
     auditar_y_confirmar(db, current_user, "CREATE", "sd_playbook", result["id"], resource_name=result["name"])
     return APIResponse.ok(data=result)
@@ -114,7 +120,7 @@ def post_playbook(payload: PlaybookCreateIn, db: Session = Depends(get_db),
 
 @router.put("/playbooks/{playbook_id}", summary="Actualizar playbook de la empresa")
 def put_playbook(playbook_id: str, payload: PlaybookUpdateIn, db: Session = Depends(get_db),
-                 current_user: User = Depends(require_admin)):
+                 current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     result = update_playbook(db, playbook_id, payload.model_dump(exclude_unset=True), _org(current_user))
     auditar_y_confirmar(db, current_user, "UPDATE", "sd_playbook", playbook_id,
                         new_values=payload.model_dump(exclude_unset=True))
@@ -127,7 +133,7 @@ def delete_playbook(
     db: Session = Depends(get_db),
     # Un playbook es configuracion de automatizacion: desactivarlo apaga
     # resoluciones automaticas para toda la organizacion. Es de administrador.
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(requiere_capacidad("sd.administrar")),
 ):
     enforce_abac(db, current_user, "sd_playbook", playbook_id, action="delete")
     result = deactivate_playbook(db, playbook_id, _org(current_user))
@@ -142,12 +148,12 @@ def evaluate_ticket(ticket_id: str, db: Session = Depends(get_db),
                     current_user: User = Depends(require_internal_user)):
     from app.models.service_desk import Ticket
     ticket = org_scoped_or_404(db, Ticket, ticket_id, current_user, detail="Ticket not found")
-    return APIResponse.ok(data=evaluate_ticket_for_autonomy(db, ticket))
+    return APIResponse.ok(data=evaluate_ticket_for_autonomy(db, ticket, _idioma(db, current_user)))
 
 
 @router.post("/tickets/{ticket_id}/resolve", summary="Pasar el agente autónomo por un ticket")
 def resolve_ticket(ticket_id: str, payload: EjecutarIn = EjecutarIn(), db: Session = Depends(get_db),
-                   current_user: User = Depends(require_admin)):
+                   current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     resultado = run_autonomous_resolution(db, ticket_id, acting_user_id=current_user.id, origen="manual",
                                           org_id=_org(current_user), modo=payload.mode)
     auditar_y_confirmar(db, current_user, "EXECUTE", "sd_autonomous_agent", ticket_id,
@@ -172,7 +178,7 @@ def discard_suggestion(execution_id: str, db: Session = Depends(get_db),
 
 
 @router.post("/scan", summary="Pasar ahora el agente por los tickets nuevos de la empresa (admin)")
-def autonomous_scan(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def autonomous_scan(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     """La misma pasada que corre cada 5 minutos, solo sobre la empresa de quien llama."""
     return APIResponse.ok(data=run_autonomous_scan(db, org_id=_org(current_user)))
 
@@ -192,6 +198,8 @@ def execution_log(
     current_user: User = Depends(require_internal_user),
 ):
     result = get_execution_log(db, page=page, page_size=page_size, org_id=_org(current_user),
-                               estado=status, ticket_id=ticket_id)
+                               estado=status, ticket_id=ticket_id,
+                               # Migracion 192: el motivo, en el idioma de quien lo lee.
+                               idioma=_idioma(db, current_user))
     return APIListResponse.ok(items=result["items"], total=result["total"], page=result["page"],
                               page_size=page_size)

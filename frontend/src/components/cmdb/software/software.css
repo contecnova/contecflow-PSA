@@ -1,0 +1,51 @@
+/* CMDB de software y vulnerabilidades (19-11-2026). Solo variables del tema: claro y oscuro. */
+.sw-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sw-enlace { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; font-weight: var(--font-semibold); cursor: pointer; text-align: left; }
+.sw-enlace:hover, .sw-enlace:focus-visible { text-decoration: underline; }
+.sw-recorte { max-width: 36ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sw-kv-fila { display: contents; }
+.sw-casillas { align-items: center; align-self: end; min-height: 36px; }
+.sw-campo-estrecho { max-width: 320px; }
+
+.sw-barras { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.sw-barras > li { display: grid; grid-template-columns: minmax(70px, max-content) 1fr auto; align-items: center; gap: 10px; font-size: var(--text-sm); color: var(--text-2); }
+
+.sw-detalles > summary { cursor: pointer; font-size: var(--text-xs); color: var(--text-2); margin-bottom: 6px; }
+.sw-incumplimientos { margin: 0; padding: 8px 10px; border-radius: 8px; background: var(--warning-bg); border: 1px solid var(--warning-border); color: var(--text-1); font-size: var(--text-sm); }
+.sw-incumplimientos ul { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+ul.sw-incumplimientos { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+
+.sw-lista-simple { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: var(--text-sm); color: var(--text-2); }
+.sw-referencias { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: var(--text-xs); }
+.sw-referencias a { color: var(--accent); display: inline-flex; align-items: center; gap: 4px; }
+
+.sw-aviso { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 8px; background: var(--accent-dim); color: var(--text-1); font-size: var(--text-sm); }
+
+/* Avisos contextuales (falta configuración o algo falló); sin botón «Configurar» en el módulo. */
+.sw-aviso-config { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border-radius: 8px; font-size: var(--text-sm); color: var(--text-1); }
+.sw-aviso-config > svg { flex: none; margin-top: 2px; }
+.sw-aviso-config--warning { background: var(--warning-bg); border: 1px solid var(--warning-border); }
+.sw-aviso-config--warning > svg { color: var(--warning); }
+.sw-aviso-config--danger { background: var(--danger-bg); border: 1px solid var(--danger-border); }
+.sw-aviso-config--danger > svg { color: var(--danger); }
+.sw-aviso-config__enlace { color: var(--accent); font-weight: var(--font-semibold); white-space: nowrap; }
+.sw-campo-ancho { grid-column: 1 / -1; }
+.sw-version-desconocida { font-style: italic; color: var(--text-3); }
+
+/* Árbol de dependencias */
+.sw-arbol, .sw-arbol ul { list-style: none; margin: 0; padding: 0; }
+.sw-arbol ul { padding-left: 22px; border-left: 1px solid var(--border); margin-left: 12px; }
+.sw-nodo { padding: 2px 0; }
+.sw-nodo__fila { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-height: 30px; }
+.sw-nodo__hueco { display: inline-block; width: 28px; flex: none; }
+.sw-nodo__quitar { margin-left: auto; }
+.sw-nodo__aviso { padding-left: 34px; color: var(--warning); }
+
+/* Reglas de línea base */
+.sw-regla { display: grid; grid-template-columns: minmax(140px, 2fr) minmax(130px, 1fr) minmax(120px, 2fr) minmax(110px, 1fr) auto; gap: 8px; align-items: center; }
+
+@media (max-width: 720px) {
+  .sw-regla { grid-template-columns: 1fr 1fr; }
+  .sw-recorte { max-width: 22ch; }
+  .sw-arbol ul { padding-left: 12px; margin-left: 6px; }
+}

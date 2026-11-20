@@ -214,7 +214,14 @@ def externos_caducidad_y_asignaciones(db: Session, org_id: str) -> dict:
     """Externos: aviso previo de fin de acceso, accesos caducados (sin acceso y
     sesiones revocadas) y asignaciones vencidas (dejan de ser miembros)."""
     from app.services.externos.ciclo import caducar_accesos
-    return caducar_accesos(db, org_id)
+    from app.services.proveedores.grc import avisos_diarios
+    resultado = caducar_accesos(db, org_id)
+    # Migracion 189: documentos de proveedor por caducar, accesos caducados y revisiones de riesgo.
+    resultado.update(avisos_diarios(db, org_id))
+    # Migracion 191: recuento diario de dispositivos/usuarios de los servicios medidos en la CMDB.
+    from app.services.proveedores.medicion import medir_todo
+    resultado.update(medir_todo(db, org_id))
+    return resultado
 
 
 def generar_facturas_de_retainer(db: Session, org_id: str) -> dict:

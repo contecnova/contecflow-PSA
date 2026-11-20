@@ -84,6 +84,11 @@ def suprimir_persona(db: Session, user) -> dict:
     from app.db.session import sin_filtro_de_tenant
 
     exigir_sin_bloqueo_legal(db, user)
+    # 19-11-2026: en las reuniones también se tacha lo que DIJO (no es una copia
+    # exacta de su nombre) y se borra el audio. Antes de seudonimizar el correo,
+    # que es lo que identifica su participación.
+    from app.services.reuniones import rgpd as rgpd_reuniones
+    reuniones = rgpd_reuniones.suprimir(db, None, user_id=user.id, email=user.email)
     originales = {}
     if user.email:
         originales[user.email] = _seudonimo(user.email) + "@erased.invalid"
@@ -92,7 +97,7 @@ def suprimir_persona(db: Session, user) -> dict:
             originales.setdefault(v, BORRADO)
     empresas = _empresas_de(db, user)
 
-    informe: dict = {"user_id": user.id, "tablas": {}, "credenciales": {}, "almacen": None}
+    informe: dict = {"user_id": user.id, "tablas": {}, "credenciales": {}, "almacen": None, "reuniones": reuniones}
     # 1. La ficha.
     user.email = originales.get(user.email) or f"{_seudonimo(user.id)}@erased.invalid"
     user.username = f"deleted_{_seudonimo(user.id)}"

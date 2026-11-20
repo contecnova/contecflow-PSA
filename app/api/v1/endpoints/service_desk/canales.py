@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 from app.core.async_db import run_db
 from app.core.config import settings as app_settings
 from app.core.constantes import MAX_TAMANO_DE_PAGINA
-from app.core.deps import get_current_portal_client, require_admin, require_internal_user
+from app.core.deps import get_current_portal_client, require_internal_user, requiere_capacidad
 from app.core.errores import ErrorDeDominio
 from app.core.codigos_de_error import error as error_con_codigo
 from app.core.responses import APIListResponse, APIResponse
@@ -193,7 +193,7 @@ def close_conversation(conv_id: str, db: Session = Depends(get_db), current_user
 
 
 @router.get("/status", summary="Qué canales tiene configurados la empresa (admin)")
-def channels_status(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def channels_status(db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.administrar"))):
     from app.services.integration_credentials_service import get_credential
     from app.services.integrations import secreto_de_firma_de_slack
     org = current_user.organization_id

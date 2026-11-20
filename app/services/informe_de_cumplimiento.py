@@ -218,6 +218,18 @@ def generar(db, org: str) -> dict:
         bloqueos = db.query(LegalHold).filter(LegalHold.organization_id == org, LegalHold.is_active.is_(True)).count()
         controles.append(_control("retention", "info", {"active_policies": politicas, "active_legal_holds": bloqueos},
                                   "retention_policies y legal_holds activos", ("ISO27001 A.5.33", "RGPD art. 5.1.e")))
+        # 19-11-2026: asistente de reuniones (terceros con contrato, retención
+        # separada de audio y transcripción, aviso y consentimiento).
+        from app.services.reuniones.cumplimiento import controles as controles_de_reuniones
+        controles.extend(controles_de_reuniones(db, org, _control))
+        # 19-11-2026: CMDB de software (vulnerabilidades fuera de SLA, fin de vida en
+        # producción, CIs y aplicaciones sin propietario, excepciones, avisos al día).
+        from app.services.cmdb_software.cumplimiento import controles as controles_de_software
+        controles.extend(controles_de_software(db, org, _control))
+        # Migracion 189: GRC de terceros (DPA, documentos, revisiones, accesos).
+        from app.services.proveedores.grc import controles as controles_de_terceros
+        for id_, estado, medido, fuente, marcos in controles_de_terceros(db, org):
+            controles.append(_control(id_, estado, medido, fuente, marcos))
         controles.append(_control("backups", "not_measurable", {},
                                   "las copias se hacen fuera de la aplicación (base de datos y almacenamiento)",
                                   ("ISO27001 A.8.13", "SOC2 A1.2")))

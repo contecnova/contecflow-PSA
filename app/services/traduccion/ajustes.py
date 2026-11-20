@@ -13,8 +13,10 @@ from sqlalchemy.orm import Session
 #: Canales a los que se puede aplicar la traduccion (`TRANSLATION_CHANNELS`).
 # `portal` (16-11-2026): contenido que escriben los operadores y lee el cliente
 # del portal (avisos, paginas de la wiki del portal, catalogo de servicios).
+# `meetings` (19-11-2026): el asistente de reuniones (resumen, acciones y transcripción en el
+# idioma de cada persona; `app/services/reuniones/traduccion.py`).
 CANALES = ("ticket", "email", "livechat", "whatsapp", "slack", "teams", "portal_assistant", "internal_chat",
-           "kb", "editor", "portal")
+           "kb", "editor", "portal", "meetings")
 #: Proveedores (`TRANSLATION_PROVIDER`).
 PROVEEDORES = ("ai", "deepl", "azure")
 

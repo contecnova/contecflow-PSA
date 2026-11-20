@@ -107,8 +107,11 @@ def _gdpr_erase_user(db: Session, user) -> dict:
     """Supresión de una persona (el mismo borrado que Gobierno del dato). No guarda su correo original."""
     from app.services.supresion_service import suprimir_persona
     detalle = suprimir_persona(db, user)
+    # Migracion 189: su ficha de persona externa (y la de proveedor si es freelance).
+    from app.services.proveedores.grc import suprimir as suprimir_ficha_de_proveedor
+    detalle["tablas"]["proveedor"] = suprimir_ficha_de_proveedor(db, user)
     return {"anonymised": True, "tablas": detalle["tablas"], "credenciales": detalle["credenciales"],
-            "almacen": detalle["almacen"], "records_kept": ["imputations", "timesheets", "expenses", "overtime_requests"]}
+            "almacen": detalle["almacen"], "meetings": detalle.get("reuniones"), "records_kept": ["imputations", "timesheets", "expenses", "overtime_requests"]}
 
 
 def _gdpr_portability_export(db: Session, user) -> dict:
@@ -125,7 +128,12 @@ def _gdpr_portability_export(db: Session, user) -> dict:
     # 18-11-2026: sus horas extra (pedidas, declaradas, decididas, compensadas) con su línea de tiempo.
     from app.services.horas_extra.consultas import mis_datos as horas_extra_de
     horas_extra = horas_extra_de(db, user.id)
+    # 19-11-2026: sus reuniones (como asistente o hablante): lo que dijo, su
+    # consentimiento y sus acciones (`app/services/reuniones/rgpd.py`).
+    from app.services.reuniones import rgpd as rgpd_reuniones
+    reuniones = rgpd_reuniones.copia(db, None, user_id=user.id, email=user.email)
     return {
+        "meetings": reuniones["meetings"],
         "user": {
             "email": user.email, "full_name": user.full_name,
             "username": user.username, "role": getattr(user.role, "value", user.role),
@@ -137,11 +145,18 @@ def _gdpr_portability_export(db: Session, user) -> dict:
         "tickets": [{"number": t.number, "title": t.title, "status": str(getattr(t.status, "value", t.status)),
                      "created_at": str(t.created_at)[:19] if t.created_at else None} for t in tickets],
         "overtime_requests": horas_extra,
+        # Migracion 189: si es persona externa (o freelance), su ficha de proveedor y accesos.
+        "supplier": _datos_de_proveedor(db, user),
         "data_summary": {"imputations": len(imputaciones), "tickets": len(tickets),
-                         "overtime_requests": len(horas_extra)},
+                         "overtime_requests": len(horas_extra), "meetings": reuniones["meetings_count"]},
         "export_date": str(timeutil.today()),
         "format": "JSON",
     }
+
+
+def _datos_de_proveedor(db: Session, user):
+    from app.services.proveedores.grc import datos_personales
+    return datos_personales(db, user)
 
 
 def _de_la_empresa_o_404(db: Session, request_id: str, org):
@@ -168,7 +183,10 @@ def process_gdpr_request(request_id: str, current_user, db: Session) -> dict:
     from app.services import datos_personales_de_contactos as contactos_rgpd
     email = (user.email if user else None) or req.subject_email
     es_contacto = bool(contactos_rgpd.contactos_de(db, email, org) or contactos_rgpd.usuarios_del_portal_de(db, email, org))
-    if tipo in _CON_COPIA and user is None and not es_contacto:
+    # 19-11-2026: también quien solo fue asistente o hablante de una reunión (sin cuenta).
+    from app.services.reuniones import rgpd as rgpd_reuniones
+    en_reuniones = bool(user is None and email and rgpd_reuniones.hay_datos(db, org, None, email))
+    if tipo in _CON_COPIA and user is None and not es_contacto and not en_reuniones:
         raise error(422, "rgpd_sin_persona")
     if tipo == GDPRRequestType.erasure:
         # Segunda auditoría 2026-11: bajo bloqueo legal, 409 antes de marcarla en curso.
@@ -183,12 +201,15 @@ def process_gdpr_request(request_id: str, current_user, db: Session) -> dict:
     db.commit()
     export_data: dict = {}
 
-    if tipo == GDPRRequestType.erasure and (user or es_contacto):
+    if tipo == GDPRRequestType.erasure and (user or es_contacto or en_reuniones):
         # Primero sus fichas de contacto (con el email original), luego la cuenta.
         contactos_suprimidos = contactos_rgpd.anonimizar(db, email, org) if es_contacto else None
+        reuniones_suprimidas = rgpd_reuniones.suprimir(db, org, email=email) if en_reuniones else None
         export_data = _gdpr_erase_user(db, user) if user else {"anonymised": True}
         if contactos_suprimidos is not None:
             export_data["client_contacts"] = contactos_suprimidos
+        if reuniones_suprimidas is not None:
+            export_data["meetings"] = reuniones_suprimidas
     elif tipo in _CON_COPIA:
         # Revisión GRC 16-11-2026: «acceso» (art. 15) se marcaba completada sin
         # entregar nada; da la misma copia que la portabilidad.
@@ -196,6 +217,8 @@ def process_gdpr_request(request_id: str, current_user, db: Session) -> dict:
             "export_date": str(timeutil.today()), "format": "JSON"}
         if es_contacto:
             export_data.update(contactos_rgpd.copia(db, email, org))
+        if en_reuniones:
+            export_data["meetings"] = rgpd_reuniones.copia(db, org, email=email)["meetings"]
     elif tipo == GDPRRequestType.rectification:
         # La rectificación la hace una persona en la ficha: aquí se deja
         # constancia de quién la confirma.

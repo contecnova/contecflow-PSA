@@ -66,6 +66,11 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("SD_CAB_GROUP_ID", "str", "Changes — queue (group id) acting as the CAB"),
         ("SD_CAB_APPROVAL_RULE", "str", "Changes — CAB rule: majority, all or any"),
         ("SD_CHANGE_AUTO_APPROVE_MAX_RISK", "int", "Changes — standard changes up to this risk score self-approve"),
+        # 19-11-2026: antes fijos en ChangeRolloutPanel (valores_de_negocio.py).
+        ("CHANGE_CANARY_RAMP_PCT", "str", "Changes — canary rollout: % of users per phase (CSV, increasing, ends in 100)"),
+        ("CHANGE_CANARY_FIRST_MINUTES", "int", "Changes — canary rollout: minutes of the first phase (5-1440)"),
+        ("CHANGE_CANARY_STEP_MINUTES", "int", "Changes — canary rollout: minutes of each middle phase (5-1440)"),
+        ("CHANGE_CANARY_LAST_MINUTES", "int", "Changes — canary rollout: minutes of the last phase (5-1440)"),
         ("SD_EVENT_SEVERITY_MAP", "str", "Monitoring — alert severity → ticket priority (JSON)"),
         ("SD_EVENT_AUTO_RESOLVE", "bool", "Monitoring — resolve the incident when the alert recovers, if untouched"),
         ("SD_ONCALL_PRIORITIES", "str", "On-call — priorities that page the on-call agent"),
@@ -95,6 +100,11 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("NOTIFICATIONS_BUDGET_CAMPAIGN_TIME", "str", "Budget campaign reminder — local time (HH:MM) it is sent each day"),
         ("NOTIFICATIONS_MISSING_IMPUTATIONS_TIME", "str", "Missing time entries reminder — local time (HH:MM); only people whose schedule has work that day"),
         ("NOTIFICATIONS_PERF_REMINDERS_TIME", "str", "Performance review reminders — local time (HH:MM) they are sent each day"),
+        # 19-11-2026: antes constantes de perf_reminder_service (valores_de_negocio.py).
+        ("PERF_REMINDER_WINDOW_DAYS", "int", "Performance review reminders — remind when the cycle closes within N days (1-90)"),
+        ("PERF_REMINDER_UNDATED_CYCLE_DAYS", "int", "Performance review reminders — a cycle without end date is reminded after N days active (1-365)"),
+        ("PERF_STALLED_CYCLE_DAYS", "int", "Performance reviews — a cycle active more than N days with low completion is stalled (1-365)"),
+        ("PERF_STALLED_COMPLETION_PCT", "float", "Performance reviews — stalled below this completion % when overdue or old (0-100)"),
         ("AUTOMATIONS_MAX_CHAIN_DEPTH", "int", "A rule may trigger another one up to this depth"),
         ("AUTOMATIONS_EVENT_BATCH_SIZE", "int", "Events processed per run"),
         ("AUTOMATIONS_EVENT_MAX_ATTEMPTS", "int", "Attempts per event before it is left as failed"),
@@ -120,6 +130,8 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("COMPLIANCE_MFA_MIN_COVERAGE_PCT", "float", "Compliance report — minimum % of active users with a second factor"),
         ("COMPLIANCE_MIN_PASSWORD_LENGTH", "int", "Compliance report — minimum password length the policy must require"),
         ("RETENTION_MIN_DAYS", "int", "Retention — no policy may keep a record type for fewer days than this"),
+        # 19-11-2026: antes fijo en ChatAdminPage; se edita en Seguridad › Chat (valores_de_negocio.py).
+        ("CHAT_RETENTION_PROPOSED_MONTHS", "int", "Chat — retention (months) proposed for a new policy (≥ RETENTION_MIN_DAYS, ≤ the chat maximum)"),
     ],
     "risk": [
         ("RISK_WEIGHT_SCHEDULE", "float", "Risk score — weight of schedule (0-1)"),
@@ -185,6 +197,9 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("EVM_CURVE_MAX_POINTS", "int", "Earned value — S-curve points returned (most recent)"),
         ("EXTERNOS_UMBRAL_CONSUMO_PCT", "float", "External staff — warn when an assignment consumes this % of contracted hours or PO amount"),
         ("EXTERNOS_AVISO_CADUCIDAD_DIAS", "int", "External staff — days ahead to warn that their access expires"),
+        ("PROVEEDORES_TOLERANCIA_CONCILIACION_PCT", "float", "Suppliers — accepted difference (%) between the supplier invoice and the period forecast"),
+        ("PROVEEDORES_AVISO_DOCUMENTO_DIAS", "int", "Suppliers — days ahead to warn that a document or certification expires"),
+        ("PROVEEDORES_REVISION_RIESGO_MESES", "int", "Suppliers — months to the next risk review (half for high or critical risk)"),
         ("PORTFOLIO_MIN_SCORE_TO_ADVANCE", "float", "Portfolio — minimum proposal score (0-100) to pass a gate"),
     ],
     "semantic": [
@@ -224,6 +239,8 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("DEFAULT_EMPLOYER_COST_PCT", "float", "Staff cost — employer cost on gross salary (0.32 = 32 %) when the profile and country preset say nothing"),
         ("SCENARIO_CAPACITY_ROLES", "str", "Scenarios — roles whose capacity counts (comma separated)"),
         ("DEFAULT_VACATION_DAYS_PER_YEAR", "int", "Vacation days/year"),
+        # 19-11-2026: antes sólo el max="60" de Configuración › Vacaciones; se edita allí (valores_de_negocio.py).
+        ("VACATION_MAX_DAYS_ENTITLED", "int", "Vacation — maximum days assigned to a person for a year (≥ vacation days/year)"),
         ("DEFAULT_WORKDAY_START", "str", "Company workday start (HH:MM) for people without a shift or work schedule"),
         ("ABSENCE_BALANCE_CARRY_PERIODS", "int", "Absences — previous balance periods looked at to carry over leftovers"),
         ("HOUR_BANK_RECALC_DAYS", "int", "Absences — days back the daily pass recomputes the hour bank from time entries"),

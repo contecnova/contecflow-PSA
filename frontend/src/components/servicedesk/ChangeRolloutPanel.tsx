@@ -28,6 +28,7 @@ import type { StatusBadgeKind } from '../ui/StatusBadge'
 import { useToast } from '../../context/ToastContext'
 import { pedirTexto } from '../../context/ConfirmContext'
 import { fmtDate } from '../../utils/helpers'
+import { usePropuestas, type Propuestas } from '../../hooks/useOrgSettings'
 import './ChangeRolloutPanel.css'
 
 /** Fase que se manda al crear el plan (`RolloutPhaseIn` en endpoints/service_desk/change_rollout.py). */
@@ -67,23 +68,36 @@ function etiqueta(t: T, prefijo: string, valor: string) {
   return t(`changerollout.${prefijo}_${valor}`, valor)
 }
 
+/** Rampa canaria y minutos de la empresa (`usePropuestas`). */
+type Canario = Pick<Propuestas, 'change_canary_ramp_pct' | 'change_canary_minutes'>
+
+/**
+ * % y minutos de cada fase canaria (19-11-2026: rampa y minutos de la empresa,
+ * `CHANGE_CANARY_*` en Configuración → Service desk; antes 1/5/25/50/100 y
+ * 30/45/60 fijos aquí). La rampa se recorta a n-1 fases (mínimo dos) y se cierra
+ * con un 100 %; la primera fase dura `first`, la última `last` y el resto `step`.
+ */
+export function fasesCanarias(canario: Canario, total: number | string): { pct: number; minutos: number }[] {
+  const n = Math.max(1, Math.min(10, Number(total) || 3))
+  const { first, step, last } = canario.change_canary_minutes
+  const slice = canario.change_canary_ramp_pct.slice(0, Math.max(2, n - 1)).concat([100]).slice(0, n)
+  return slice.map((pct, i) => ({ pct, minutos: i === 0 ? first : i === slice.length - 1 ? last : step }))
+}
+
 /**
  * Fases canónicas según la estrategia y el número de fases. Los nombres se
  * guardan con el plan, así que salen en el idioma de quien lo crea.
  */
-function buildPhases(t: T, strategy: string, total: number | string): FaseNueva[] {
+function buildPhases(t: T, strategy: string, total: number | string, canario: Canario): FaseNueva[] {
   const n = Math.max(1, Math.min(10, Number(total) || 3))
   switch (strategy) {
     case 'canary': {
-      // 1% → 5% → 25% → 50% → 100% (sliced to n)
-      const seed = [1, 5, 25, 50, 100]
-      const ramp = seed.slice(0, Math.max(2, n - 1)).concat([100])
-      const slice = ramp.slice(0, n)
-      return slice.map((pct, i) => ({
+      const fases = fasesCanarias(canario, n)
+      return fases.map(({ pct, minutos }, i) => ({
         name: t('changerollout.fase_canario', { pct }),
-        description: i === 0 ? t('changerollout.canario_inicial') : i === slice.length - 1 ? t('changerollout.despliegue_completo') : t('changerollout.ampliacion', { pct }),
+        description: i === 0 ? t('changerollout.canario_inicial') : i === fases.length - 1 ? t('changerollout.despliegue_completo') : t('changerollout.ampliacion', { pct }),
         target_pct: pct,
-        duration_minutes: i === 0 ? 30 : i === slice.length - 1 ? 60 : 45,
+        duration_minutes: minutos,
         gate_criteria: i === 0 ? [t('changerollout.criterio_sin_errores'), t('changerollout.criterio_latencia')] : [],
       }))
     }
@@ -115,6 +129,7 @@ export default function ChangeRolloutPanel() {
   const t = useAppT() as T
   const toast = useToast()
   const qc = useQueryClient()
+  const canario = usePropuestas()
 
   const [selectedId, setSelectedId] = useState<string | number | null>(null)
   const [showCreate, setShowCreate] = useState<boolean>(false)
@@ -133,7 +148,7 @@ export default function ChangeRolloutPanel() {
 
   const createMutation = useMutation({
     mutationFn: (data: RolloutForm) => {
-      const phases = buildPhases(t, data.strategy, data.phases)
+      const phases = buildPhases(t, data.strategy, data.phases, canario)
       return changeRolloutApi.createPlan(data.change_request_id, {
         title: data.name?.trim() || t('changerollout.plan_x', { estrategia: etiqueta(t, 'estrategia', data.strategy) }),
         rollout_phases: phases,
@@ -204,7 +219,7 @@ export default function ChangeRolloutPanel() {
     rollbackMutation.mutate({ changeId, reason: reason.trim() })
   }
 
-  const vistaPrevia = buildPhases(t, form.strategy, form.phases).map(p => `${p.target_pct}%`).join(' → ')
+  const vistaPrevia = buildPhases(t, form.strategy, form.phases, canario).map(p => `${p.target_pct}%`).join(' → ')
 
   return (
     <Card className="changero-sx1">

@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from app.core import timeutil
 from app.core.codigos_de_error import error as error_con_codigo
-from app.core.deps import require_admin_or_hr, require_any_manager, require_worker
+from app.core.deps import require_worker, requiere_capacidad
 from app.core.responses import APIResponse
 from app.db.session import get_db
 from app.models.user import User
@@ -53,13 +53,13 @@ def leer_config(db: Session = Depends(get_db), current_user: User = Depends(requ
 
 
 @router.put("/config", summary="Guardar la configuración de horas extra")
-def guardar_config(body: ConfigIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_hr)):
+def guardar_config(body: ConfigIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("horas_extra.config"))):
     return APIResponse.ok(data=config.guardar(db, current_user, body.model_dump()))
 
 
 @router.get("/budgets", summary="Presupuestos de horas extra con su consumo")
 def listar_presupuestos(fecha: Optional[date] = None, db: Session = Depends(get_db),
-                        current_user: User = Depends(require_any_manager)):
+                        current_user: User = Depends(requiere_capacidad("horas_extra.gestionar"))):
     f = fecha or timeutil.today()
     from app.models.project import Project
     nombres = dict(db.query(Project.id, Project.name).all())
@@ -70,20 +70,20 @@ def listar_presupuestos(fecha: Optional[date] = None, db: Session = Depends(get_
 
 @router.post("/budgets", summary="Crear un presupuesto de horas extra")
 def crear_presupuesto(body: PresupuestoIn, db: Session = Depends(get_db),
-                      current_user: User = Depends(require_admin_or_hr)):
+                      current_user: User = Depends(requiere_capacidad("horas_extra.config"))):
     return APIResponse.ok(data=config.presupuesto_dict(config.guardar_presupuesto(db, current_user, body.model_dump())))
 
 
 @router.put("/budgets/{presupuesto_id}", summary="Cambiar un presupuesto de horas extra")
 def cambiar_presupuesto(presupuesto_id: str, body: PresupuestoIn, db: Session = Depends(get_db),
-                        current_user: User = Depends(require_admin_or_hr)):
+                        current_user: User = Depends(requiere_capacidad("horas_extra.config"))):
     p = config.guardar_presupuesto(db, current_user, body.model_dump(), presupuesto_id)
     return APIResponse.ok(data=config.presupuesto_dict(p))
 
 
 @router.delete("/budgets/{presupuesto_id}", summary="Borrar un presupuesto de horas extra")
 def borrar_presupuesto(presupuesto_id: str, db: Session = Depends(get_db),
-                       current_user: User = Depends(require_admin_or_hr)):
+                       current_user: User = Depends(requiere_capacidad("horas_extra.config"))):
     config.borrar_presupuesto(db, current_user, presupuesto_id)
     return APIResponse.ok(data={"id": presupuesto_id})
 
@@ -120,27 +120,27 @@ def comprobar(fecha: date, horas: float = Query(0, ge=0, le=24), imputation_id: 
 
 @router.get("/summary", summary="Resumen por persona, equipo, departamento o proyecto frente a los límites")
 def resumen(desde: Optional[date] = None, hasta: Optional[date] = None, agrupar: str = "persona",
-            db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+            db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("horas_extra.gestionar"))):
     d, h = _rango(desde, hasta)
     return APIResponse.ok(data=consultas.resumen(db, current_user, d, h, agrupar))
 
 
 @router.get("/unauthorized", summary="Días con horas imputadas fuera de horario sin autorizar")
 def sin_autorizar(desde: Optional[date] = None, hasta: Optional[date] = None, user_id: Optional[str] = None,
-                  db: Session = Depends(get_db), current_user: User = Depends(require_any_manager)):
+                  db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("horas_extra.gestionar"))):
     d, h = _rango(desde, hasta)
     return APIResponse.ok(data=consultas.sin_autorizar(db, current_user, d, h, user_id))
 
 
 @router.get("/payroll", summary="Horas extra aprobadas que se pagan (para nómina)")
 def nomina(desde: Optional[date] = None, hasta: Optional[date] = None, liquidadas: Optional[bool] = None,
-           db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_hr)):
+           db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("horas_extra.config"))):
     d, h = _rango(desde, hasta)
     return APIResponse.ok(data=consultas.nomina(db, d, h, liquidadas))
 
 
 @router.post("/regularize", summary="Crear las declaraciones posteriores de un periodo")
-def regularizar(body: RegularizarIn, db: Session = Depends(get_db), current_user: User = Depends(require_admin_or_hr)):
+def regularizar(body: RegularizarIn, db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("horas_extra.config"))):
     return APIResponse.ok(data=control.regularizar_periodo(db, current_user, body.desde, body.hasta))
 
 
@@ -149,7 +149,7 @@ def listar(desde: Optional[date] = None, hasta: Optional[date] = None, estado: O
            origen: Optional[str] = None, tipo: Optional[str] = None, compensacion: Optional[str] = None,
            user_id: Optional[str] = None, project_id: Optional[str] = None, equipo: Optional[str] = None,
            departamento: Optional[str] = None, db: Session = Depends(get_db),
-           current_user: User = Depends(require_any_manager)):
+           current_user: User = Depends(requiere_capacidad("horas_extra.gestionar"))):
     d, h = _rango(desde, hasta or (desde + timedelta(days=30) if desde else None))
     return APIResponse.ok(data=consultas.listar(db, current_user, {
         "desde": d, "hasta": h, "estado": estado, "origen": origen, "tipo": tipo, "compensacion": compensacion,
@@ -195,6 +195,6 @@ def revisar(peticion_id: str, body: RevisarIn, db: Session = Depends(get_db),
 
 @router.post("/{peticion_id}/settle", summary="Liquidar (pagar) horas extra aprobadas")
 def liquidar(peticion_id: str, body: LiquidarIn, db: Session = Depends(get_db),
-             current_user: User = Depends(require_admin_or_hr)):
+             current_user: User = Depends(requiere_capacidad("horas_extra.config"))):
     p = solicitudes.liquidar(db, current_user, consultas.visible(db, current_user, peticion_id), body.referencia)
     return APIResponse.ok(data=_ficha(db, current_user, p))

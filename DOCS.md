@@ -528,9 +528,9 @@ Variables críticas:
 No hace falta `frontend/.env`: sin `VITE_API_URL` el cliente usa `/api/v1` y el proxy de Vite reenvía `/api` a `http://localhost:8000`. Si se define `VITE_API_URL` (API en otro origen), tiene que terminar en `/api/v1`: axios usa ese valor como base y sin el sufijo las llamadas irían a `/auth/login` y fallarían. `frontend/.env.example` lo explica y deja todo comentado.
 
 ### Pantalla de Configuración del operador (18-11-2026)
-Toda la configuración del operador vive en **Configuración** (`/settings/:seccion`): una sola entrada en el menú, 12 grupos y 47 secciones con navegación lateral y buscador, cada sección visible solo a quien puede usarla (roles alineados con el backend) y cada ajuste en un solo sitio. Los módulos (Ausencias, Horas extra, Service desk) se quedan con lo operativo y un botón «Configurar». Las rutas sueltas de antes (`/rate-cards`, `/issue-types`, `/mfa`, `/ai-hub`…) y `/settings?tab=` redirigen. Moneda, zona, idioma y jornada de General son las claves `DEFAULT_*` (una fuente; migración `185_ajustes_generales_una_fuente`). Detalle: [docs/CONFIGURACION.md](docs/CONFIGURACION.md); estado medido antes de reorganizar: [docs/CONFIGURACION_INVENTARIO.md](docs/CONFIGURACION_INVENTARIO.md).
+Toda la configuración del operador vive en **Configuración** (`/settings/:seccion`): una sola entrada en el menú, 12 grupos y 47 secciones con navegación lateral y buscador, cada sección visible solo a quien puede usarla (roles alineados con el backend) y cada ajuste en un solo sitio. Los módulos (Ausencias, Horas extra, Service desk) se quedan con lo operativo y, desde el 19-11-2026, sin botón «Configurar»: solo un enlace «Ir a Configuración» donde una acción falla por falta de configuración y solo a quien tiene la capacidad de la sección (ver `docs/CONFIGURACION.md`). Las rutas sueltas de antes (`/rate-cards`, `/issue-types`, `/mfa`, `/ai-hub`…) y `/settings?tab=` redirigen. Moneda, zona, idioma y jornada de General son las claves `DEFAULT_*` (una fuente; migración `185_ajustes_generales_una_fuente`). Detalle: [docs/CONFIGURACION.md](docs/CONFIGURACION.md); estado medido antes de reorganizar: [docs/CONFIGURACION_INVENTARIO.md](docs/CONFIGURACION_INVENTARIO.md).
 
-**19-11-2026: más configuración sale de los módulos** (67 secciones). Siete pestañas o tarjetas de configuración global pasan a secciones, cada una con la capacidad que coincide con la guarda del backend y un botón «Configurar» en el módulo: `git` (Integraciones; antes `/git` → Configuración; `proyectos.gobierno`, solo lectura), `m365-informes` (Integraciones; credenciales de Graph del panel Office 365 de la Plataforma de datos; `org.administrar`; no se unifica con `m365`, que son variables de entorno), `cartera` (Proyectos y trabajo; criterios y fases de la entrada a la cartera; `cartera.gestionar`), `ia-asignacion` (IA e idiomas; motor de Asignación IA; `ia.asignacion_config`) y `sd-agente`, `sd-autorresolucion`, `sd-voz` (Service desk; `sd.administrar`). `?tab=config` de `/git`, `/portfolio/intake` y `/semantic-engine` redirige. Se quedan: el portal de cada cliente (dato del cliente) y la pestaña de `/m365` (ya está dentro de Configuración). Los guardados de voz, autorresolución e informes de Microsoft 365 no se auditaban: ahora sí (`sd_voice_config`, `sd_auto_resolution_config`, `bi_o365_config`, sin el secreto). Detalle en [docs/CONFIGURACION.md](docs/CONFIGURACION.md).
+**19-11-2026: más configuración sale de los módulos** (67 secciones). Siete pestañas o tarjetas de configuración global pasan a secciones, cada una con la capacidad que coincide con la guarda del backend y sin botón «Configurar» en el módulo (solo enlaces contextuales «Ir a Configuración» donde falta configurar, con la capacidad de la sección): `git` (Integraciones; antes `/git` → Configuración; `proyectos.gobierno`, solo lectura), `m365-informes` (Integraciones; credenciales de Graph del panel Office 365 de la Plataforma de datos; `org.administrar`; no se unifica con `m365`, que son variables de entorno), `cartera` (Proyectos y trabajo; criterios y fases de la entrada a la cartera; `cartera.gestionar`), `ia-asignacion` (IA e idiomas; motor de Asignación IA; `ia.asignacion_config`) y `sd-agente`, `sd-autorresolucion`, `sd-voz` (Service desk; `sd.administrar`). `?tab=config` de `/git`, `/portfolio/intake` y `/semantic-engine` redirige. Se quedan: el portal de cada cliente (dato del cliente) y la pestaña de `/m365` (ya está dentro de Configuración). Los guardados de voz, autorresolución e informes de Microsoft 365 no se auditaban: ahora sí (`sd_voice_config`, `sd_auto_resolution_config`, `bi_o365_config`, sin el secreto). Detalle en [docs/CONFIGURACION.md](docs/CONFIGURACION.md).
 
 ## 7. Arranque local
 ### Modos de `setup.sh` / `setup.bat`
@@ -1539,6 +1539,81 @@ condiciones de hora, grupos y excepciones.
 Migración `180_turnos_y_ausencias_por_horas`. Tests:
 `tests/test_turnos_y_ausencias_por_horas.py`,
 `frontend/src/__tests__/FormularioDeAusenciaHoras.test.tsx`.
+
+## Proveedores y externalización (19-11-2026, revisión 189)
+
+Diseño completo, inventario y API: [docs/PROVEEDORES_Y_EXTERNALIZACION.md](docs/PROVEEDORES_Y_EXTERNALIZACION.md).
+Servicios: `app/services/proveedores/`. Modelos: `app/models/proveedores.py` y columnas nuevas de
+`subcontractors`, `tasks` y `subcontractor_invoices`. API: `/api/v1/suppliers`.
+
+- **Tipo y modos.** `subcontractors.kind`: `freelance` (persona física: su alta crea en un paso proveedor,
+  persona y usuario; es el recurso) o `company`. Modos combinables: `staff_augmentation` (la empresa no es
+  asignable, sus personas sí), `outsourcing` (asignable como unidad mediante paquetes de trabajo y
+  `tasks.supplier_id`) y `managed_services` (servicios con su cola del service desk y SLA medido).
+- **Reglas de asignación** en un `before_flush` de `Task` (`asignabilidad.py`): asignado y proveedor
+  excluyentes; el freelance se asigna a su persona; sin `outsourcing` no se asigna la empresa; proveedor
+  suspendido o de baja, ni él ni sus personas. Externalizar una tarea es de admin, PM y team lead (403 al
+  resto). La asignación de subcontrata sin persona ya no se crea (422 `proveedor_asignacion_sin_persona`).
+- **Cobro** combinable por contrato (`supplier_pricing_lines`): por recurso (hora/día/mes por perfil),
+  precio cerrado (paquete aceptado), por unidad (ticket, incidente, petición, dispositivo/usuario al mes,
+  llamada, unidades propias), cuota con unidades incluidas y exceso, gastos, bonus; escalados por volumen,
+  mínimo y tope por línea; mínimo comprometido y tope total por contrato; créditos y bonus por SLA.
+  Previsión → estado de cuenta → conciliación con la factura (`PROVEEDORES_TOLERANCIA_CONCILIACION_PCT`) →
+  aprobación con segregación (no aprueba quien cerró el periodo ni quien registró la factura). Lo aprobado
+  que no son horas entra como `subcontrata` en `costes_de_proyecto.partidas_externas` (rentabilidad, EVM,
+  margen); las horas ya estaban en las imputaciones.
+- **GRC de terceros** (`grc.py`): documentos con caducidad (DPA art. 28, NDA, ISO 27001, SOC 2, ENS,
+  seguros…), evaluación de riesgo con próxima revisión, registro de accesos, requisitos para activar un
+  contrato (409 `proveedor_requisitos_grc_pendientes`), suspender y baja completa (contratos, servicios,
+  paquetes, accesos y personas). Aviso diario dentro de `externos-caducidad`. Informe de cumplimiento:
+  `third_party_dpa`, `third_party_documents`, `third_party_reviews`, `third_party_access`. Retención y
+  bloqueo legal: `supplier_documents`, `supplier_access_grants`. RGPD: la copia de datos incluye la ficha de
+  proveedor (`supplier`) y la supresión limpia la ficha de la persona externa y del freelance.
+- **Formación y evaluaciones**: un externo solo entra si su proveedor tiene `training_enabled`
+  (422 `externo_sin_desarrollo_interno`).
+- **Permisos**: capacidades `proveedores.ver` (gestores), `proveedores.gestionar` y `proveedores.config`
+  (admin, PM). Lectura con `require_any_manager`; escritura, finanzas y GRC con `require_admin_or_pm`.
+- **Configuración**: sección `proveedores` (Finanzas) con plantillas de contrato, catálogos
+  `supplier-service-types` y `supplier-billing-units` y los ajustes `PROVEEDORES_*`.
+- **Pantallas**: `/subcontractors` con alta por tipo y ficha por pestañas (`frontend/src/pages/proveedores/`);
+  «Externalizar a» en las tareas (`components/proveedores/ExternalizarTarea.tsx`).
+- **Pruebas**: `tests/test_proveedores_y_externalizacion.py`, `frontend/src/__tests__/proveedores.test.tsx`.
+
+### Revisión 191: portal del proveedor, aprobación por importe y fuentes de medición
+
+Migración `191_proveedores_portal_y_aprobacion` (solo columnas nuevas, idempotente; detalle en
+[docs/PROVEEDORES_Y_EXTERNALIZACION.md §13-§16](docs/PROVEEDORES_Y_EXTERNALIZACION.md)).
+
+- **Portal del proveedor** (`/supplier-portal`, `app/services/proveedores/portal.py`, capacidad
+  `proveedores.portal`, solo rol `subcontractor`): las personas del proveedor que la empresa marca como
+  contacto (`subcontractor_workers.supplier_portal`, en la ficha → Cumplimiento; exige acceso vigente,
+  422 `proveedor_portal_requiere_acceso`) suben informes periódicos, partes de servicio, evidencias de SLA y
+  avances de paquete (con ficheros al almacén de documentos, antivirus y enlace firmado auditado) y ven sus
+  paquetes, servicios con SLA, consumo medido y estados de cuenta. Solo lo de su proveedor (ninguna ruta
+  recibe su id), sin datos internos; sin marca 403 `proveedor_portal_sin_acceso`; acceso caducado o
+  retirado 401; proveedor suspendido, solo lectura. Auditoría de cada informe, adjunto, apertura y consulta
+  de importes (`VIEW_FINANCIAL`); aviso al responsable interno.
+- **Aprobación por importe** con el motor común: tipo `supplier_statement` registrado como los demás
+  (`approval_engine/fuentes.py`, financiero, SoD `invoices`, icono y texto en la bandeja). Con un flujo que
+  encaje (condiciones por importe en la moneda de la empresa, proyecto…), «Aprobar» envía el estado a la
+  bandeja (`pending_approval`); la decisión final lo aprueba (y su factura) o lo deja en disputa; la
+  segregación (ni quien cerró ni quien registró la factura) se comprueba también en la bandeja; disputarlo
+  cancela la solicitud. Sin flujo, aprobación directa como antes.
+- **Fuentes de medición** (`app/services/proveedores/medicion.py`, interfaz `FuenteDeMedicion`): para
+  servicios por `device_month`/`user_month`, `manual`, `cmdb` (cuenta elementos o propietarios en
+  `sd_configuration_items` con filtros y, opcional, software instalado de la CMDB de software; solo lectura;
+  diaria en `externos-caducidad` y con «Medir ahora») o `external` (SIEM/MDM por API
+  `POST /suppliers/services/{sid}/metering/ingest` o importación `POST /suppliers/{id}/metering/import`; los
+  identificadores se cuentan y se descartan). Un consumo por servicio, mes y origen con sus muestras y la
+  agregación elegida (último, máximo, media); un mes cerrado no se toca.
+- **Selectores con datos reales** (`GET /suppliers/references`): presupuesto y centro de coste del contrato,
+  elemento del catálogo del service desk y contrato ALM del servicio, sesión UAT del paquete (validados en el
+  backend: 404 si no existen).
+- **Pantalla**: `/subcontractors` ligada a `proveedores.ver` (antes `finanzas.ver`); sin botón «Configurar»
+  (los avisos de configuración que falta enlazan a `/settings/proveedores` solo a quien tiene
+  `proveedores.config`).
+- **Pruebas**: `tests/test_proveedores_portal_aprobacion_medicion.py`,
+  `frontend/src/__tests__/proveedoresPortalYMedicion.test.ts`.
 
 ## Horas extra y trabajo fuera de horario (18-11-2026, revisión 184)
 
@@ -2567,7 +2642,7 @@ Al guardar (`set_runtime_value`) cada umbral se valida: rango de su métrica (NP
 
 **Cambios de comportamiento con los valores por defecto** (medidos contra el código anterior): cartera y ficha de presupuesto avisan desde 70 % (antes 85) y marcan crítico desde 90 % (antes 100); el panel de proyectos y su puntuación de salud desde 70/90 (antes 80/100); la métrica de coste e informe de proyectos 70/90 (antes 85/100 y 75/90); el panel del portal avisa desde 70 % (antes 75); SLA crítico bajo 75 % en agente (antes 70), métricas (antes 80/95) e informe de gobierno (antes 85); margen del panel financiero 50/30 (antes 30/15); salud de cliente en NPS 60/40 (antes 75/50); CPI crítico bajo 0,85 y bien desde 0,90 (antes 0,8/0,95); riesgo de cambio «alto» desde 50 (antes 55); el aviso de sobrecoste del oráculo desde el 90 % (antes 85); reservas «libre» bajo el 50 % (antes 20); «al límite» en analítica de recursos y escenarios desde 85 % (antes 80); «disponible» en recursos y capacidad bajo 50 % (antes 60); licencias que vencen: crítico a 14 días (antes 7 en el panel de caducidades). Cada empresa puede volver a los anteriores en Semáforos.
 
-**Lo que no se tocó, a propósito.** Las escalas de probabilidad y correlación (`app/core/escalas.py`), las heurísticas que puntúan (pesos del modelo de abandono en `bi_anomaly_service`, nota A-F del informe de cumplimiento y la gravedad de cada hallazgo, plazos de `perf_reminder_service` para ciclos estancados): no son un semáforo sobre una métrica. Plantillas de formulario que no son umbrales (rampa canaria 1/5/25/50/100 y 30/45/60 min en `ChangeRolloutPanel`, 24 meses de retención propuestos en Chat, máximo de 60 días de vacaciones asignados) siguen en su pantalla: hacen falta ajustes propios.
+**Lo que no se tocó, a propósito.** Las escalas de probabilidad y correlación (`app/core/escalas.py`), las heurísticas que puntúan (pesos del modelo de abandono en `bi_anomaly_service`, nota A-F del informe de cumplimiento y la gravedad de cada hallazgo, plazos de `perf_reminder_service` para ciclos estancados): no son un semáforo sobre una métrica. Plantillas de formulario que no son umbrales (rampa canaria 1/5/25/50/100 y 30/45/60 min en `ChangeRolloutPanel`, 24 meses de retención propuestos en Chat, máximo de 60 días de vacaciones asignados) siguen en su pantalla: hacen falta ajustes propios. *Corrección 19-11-2026:* la rampa, la retención propuesta, el máximo de vacaciones y los plazos de `perf_reminder_service` ya son ajustes (ver «Cierre de pendientes: ajustes, textos, guardas por capacidad e informes»); la nota A-F y las gravedades no existen en el informe de cumplimiento (solo estados por control con umbrales `COMPLIANCE_*`).
 
 **GRC.** Los cambios de umbral pasan por `set_runtime_value`: quedan en el registro de cambios de ajustes (actor, IP, valor anterior y nuevo) y sólo los escribe `require_admin`, por empresa. Los umbrales no son datos personales ni sensibles, por eso salen a cualquier sesión (`Audiencia.SESION`) y al portal; no cambian retenciones ni privilegios.
 
@@ -2586,3 +2661,90 @@ silencioso lo resolviera). Si algo falla, sigue el refresco al recibir un 401. A
 cookie se borra. GRC: no cambia la duración de las sesiones (siguen `ACCESS_TOKEN_EXPIRE_MINUTES`
 con el tope `ACCESS_TOKEN_MAX_MINUTES`, y el refresco rota el token como antes); la cookie nueva
 no identifica a nadie. Tests: `tests/test_fin_de_sesion_legible.py`.
+
+## Asistente de reuniones: Teams, Zoom, Meet, bot invitado y grabación propia (19-11-2026)
+
+Diseño, inventario medido, modelo, flujos, permisos y GRC en
+[docs/ASISTENTE_DE_REUNIONES.md](docs/ASISTENTE_DE_REUNIONES.md). En corto: tres vías que acaban en
+la misma reunión con transcripción por hablante y marca de tiempo, resumen, decisiones, riesgos,
+preguntas abiertas y acciones (→ tarea, ticket o acta con un clic), traducida al idioma de cada
+persona (canal de traducción `meetings`), vinculada sola a proyecto y cliente, buscable y
+consultable desde Nexus (`search_meetings`). (1) Recoger al terminar: Teams por Graph (sondeo del
+calendario o suscripción), Zoom por `recording.completed` firmado, Meet por la API de Meet v2.
+(2) Bot invitado por un proveedor configurable (adaptador Recall.ai), apagado por defecto y solo con
+contrato de encargo. (3) Grabar desde el navegador (micrófono o pestaña) por trozos transcritos con
+la factoría STT (externos solo con activación y contrato). (4) Llamadas del chat interno: botón en la llamada, aviso y consentimiento por participante, cada navegador sube su audio (hablantes reales) y al colgar se publica el acta en la conversación. API `/api/v1/meeting-assistant`;
+avisos firmados en `/api/v1/webhooks/meetings/{recall,zoom,teams}/{empresa}`. Capacidades
+`reuniones.usar` (internos), `reuniones.ver_todas` y `reuniones.config` (admin); configuración en
+`/settings/reuniones`. GRC: aviso de grabación obligatorio, consentimiento exigible por empresa,
+visibilidad de asistentes/responsables/jefe de proyecto, retención separada de audio (7 días por
+defecto) y transcripción (365), bloqueo legal (tipo `meetings`), RGPD por persona también como
+hablante, auditoría de escuchas/descargas/borrados, secretos cifrados y 3 controles nuevos en el
+informe de cumplimiento. Migración `188_asistente_de_reuniones`. Tests:
+`tests/test_asistente_de_reuniones.py`.
+
+## CMDB de software, composición y vulnerabilidades (19-11-2026)
+
+Diseño, reparto CMDB/Activos y referencia completa: [docs/CMDB_SOFTWARE_Y_VULNERABILIDADES.md](docs/CMDB_SOFTWARE_Y_VULNERABILIDADES.md).
+
+- **Reparto**: Activos (ALM) = lo que se posee (compra, licencia, contrato, coste); CMDB = lo que se ejecuta, cómo se compone, dónde corre, con qué configuración y qué vulnerabilidades tiene. Vínculos explícitos: `sw_products.alm_vendor_id`, `sw_product_licenses` (producto ↔ licencia), `sw_instances.license_id` / `alm_install_id`, y el `alm_assets.ci_id` de siempre. «Conciliar desde Activos» crea productos e instancias desde las instalaciones de ALM sin duplicar.
+- **Modelo** (migración 190, `app/models/cmdb_software.py`): catálogo (productos con purl/CPE, versiones con fin de soporte y de vida), composición (SBOM: componentes directos y transitivos), instancias en CIs con configuración enmascarada, relaciones, historial de configuración, líneas base, avisos, hallazgos, excepciones, configuración por empresa y ejecuciones de sincronización.
+- **Entradas**: CycloneDX, SPDX, composer.lock, package-lock, yarn.lock, requirements, poetry.lock, Pipfile.lock, pom.xml, go.mod/go.sum, Gemfile.lock, Cargo.lock, NuGet; informes de Trivy/Grype; CSV; inventario del agente de la CMDB (`software_inventory` en el check-in); conexiones de escaneo SSH (Linux: paquetes, procesos a la escucha, versiones y configuración de nginx/Apache/PHP/Java/Node/Python/bases de datos), WinRM (Windows: programas, servicios, IIS) y API de EDR/RMM, programadas y bajo demanda, con credenciales cifradas; varios ficheros o zip (pom.xml con su padre y dependencyManagement; requirements con su lock o pip freeze; sin versión → «posible afectado»); configuraciones nginx/Apache/php.ini/INI/clave=valor. Los secretos nunca se guardan.
+- **Avisos**: OSV, NVD, GitHub Advisories, EPSS, KEV y endoflife.date (todas opcionales, en Configuración, credenciales cifradas) o importación de fichero sin red. Correlación por purl/CPE + rango de versiones; prioridad (CVSS, EPSS, KEV, criticidad, exposición, entorno) y SLA por severidad; triaje, remediación con ticket/problema/cambio/tarea, excepciones con caducidad y aprobación (motor de aprobaciones `vuln_exception` o `software.aprobar`, nunca la propia), verificación automática al reevaluar.
+- **Análisis**: dónde se usa («nginx», «php < 8.2», purl), árbol de dependencias, impacto inverso (software, máquinas, servicios, clientes, responsables), fin de vida, deriva y líneas base, licencias (familias SPDX y conflictos), cuadro de mando, vista por máquina, grafo (el de la CMDB), CSV. El informe de impacto de un cambio añade `software_on_cis`. Nexus: herramienta `search_software_inventory`.
+- **Pantallas**: CMDB → Software, Dónde se usa, Por máquina, Vulnerabilidades; Configuración → Service desk → Software y vulnerabilidades (`/settings/cmdb-software`). Sin botón «Configurar» en el módulo: avisos contextuales con enlace solo para `software.config`.
+- **GRC**: auditoría `sw_*`; capacidades `software.ver`, `software.gestionar`, `software.aprobar`, `software.config`; controles de cumplimiento `sw_critical_vulns_sla`, `sw_eol_production`, `sw_ci_without_owner`, `sw_vuln_exceptions`, `sw_vuln_feed`; retención `sw_config_snapshots` y `sw_findings` (cerrados) con bloqueo legal; SoD `vuln_exception` → módulo `cmdb`.
+- **Trabajo diario** `cmdb_software_diario` (04:20). Tests: `tests/test_cmdb_software.py`, `tests/test_cmdb_software_escaneo.py`, `frontend/src/__tests__/cmdbSoftware.test.ts`. Dependencias: `paramiko`, `pywinrm`.
+
+## Cierre de pendientes: ajustes, textos, guardas por capacidad e informes (19-11-2026)
+
+**Valores de negocio que eran fijos, ahora ajustes por empresa.** Rampa canaria y sus duraciones (`ChangeRolloutPanel`), 24 meses propuestos de retención del chat, máximo de 60 días de vacaciones asignados (antes solo el `max` del input: la API aceptaba cualquier valor) y plazos de `perf_reminder_service` (ventana 7, ciclo sin fecha 30, atascado 45 días y <50 %). Ajustes en vivo: `CHANGE_CANARY_RAMP_PCT`, `CHANGE_CANARY_FIRST/STEP/LAST_MINUTES` (grupo `service_desk`), `CHAT_RETENTION_PROPOSED_MONTHS` (`audit`), `VACATION_MAX_DAYS_ENTITLED` (`locale`), `PERF_REMINDER_WINDOW_DAYS`, `PERF_REMINDER_UNDATED_CYCLE_DAYS`, `PERF_STALLED_CYCLE_DAYS`, `PERF_STALLED_COMPLETION_PCT` (`automations`). Por defecto, el valor de antes. Declarados en `app/core/config_groups/valores_de_negocio_config.py`; validados al guardar en `settings_service/valores_de_negocio.py` (código `ajuste_valor_no_valido`): rampa de 2-10 enteros crecientes que acaba en 100, minutos 5-1440, retención propuesta ≥ `RETENTION_MIN_DAYS` y ≤ el tope del chat, máximo de vacaciones ≥ los días por defecto. Las pantallas los leen en `/settings/org-defaults` → `propuestas` (`usePropuestas()`) y se editan en su sección (Service desk → Escalado y avisos, Seguridad → Chat, Personas → Vacaciones, Config. dinámica → Automatizaciones). RGPD: una política de retención del chat ya no puede quedar por debajo de `RETENTION_MIN_DAYS` (con 0 meses se borraba todo el chat). Las reglas de respaldo de abandono de `bi_anomaly_service` se quedan fijas: son pesos de un modelo, no umbrales de negocio. Tests: `tests/test_valores_de_negocio_2026_11_19.py`, `frontend/src/__tests__/fasesCanarias.test.ts`.
+
+**Textos de salida del service desk y del gobierno de la IA.** Los planes de un cambio (vuelta atrás, pruebas, comunicaciones) y el resumen del informe de impacto guardan, además del texto, sus claves en `_textos` del JSON de `AppSetting` (`change_impact_service/textos.py`); al leer (`plan_guardado`, `pintar_datos`) se pintan en el idioma de quien mira. Los planes guardados antes salen tal cual. Sin migración. `window_label` y `audience` siguen siendo códigos que traduce la interfaz. Playbooks de serie del agente autónomo: nombre y avisos por clave (`autonomo.*`); los escalados llevan `action_clave`. Bloqueos y cupos que escribe el sistema en el idioma del usuario: denegación de herramientas del asistente (`politica.*`, `codigo_de_denegacion`), módulo de IA apagado o límite diario (`ia.*`), bloqueo por gobernanza (`gobernanza.*`, reconocido en cualquier idioma con `es_bloqueo_de_entrada`) y cupo de ausencias lleno sin mensaje propio (`ausencias.cupo_lleno`). Lo que redacta la empresa sale tal cual. Claves en `app/services/textos_de_salida_itsm.py` (es/en/zh), fusionadas en `textos_de_salida.TEXTOS`. Tests: `tests/test_textos_de_salida_itsm_2026_11_19.py`. `resolution_note` del agente y `TicketHistory.new_value`: cerrado después con la migración 192 (ver «Cierre de lo que quedaba abierto», abajo).
+
+**Eventos del asistente de reuniones.** Todos los tipos que escribe el servidor (`linked`, `asked`, `gdpr_erased`, `listen`, `download_audio`…) tienen etiqueta `reuniones.evento.*` en es/en/zh; `tests/test_eventos_de_reunion_con_etiqueta.py` lee los `evento(db, x, "tipo")` del código y exige la etiqueta, para que no vuelva a salir un código en crudo.
+
+**Guardas por capacidad.** La API decide con la misma matriz que la pantalla (`app/core/capacidades.py`): `current_user: User = Depends(requiere_capacidad("x"))` (`app/core/deps.py`). La capacidad se escribe literal (los barridos la leen del código); una desconocida da KeyError al importar. Superadmin pasa siempre; si no, `capacidades.tiene(db, user, x)` (roles base menos módulos cerrados por el rol personalizado). Denegado: 403 `capacidad_requerida` con `params.capacidad` (`err_srv` es/en/zh). Regla: una guarda `require_*` solo se cambia por una capacidad con exactamente los mismos roles, y si la capacidad tiene `modulo`, la ruta tiene que estar bajo un prefijo de ese módulo (lo comprueba `tests/test_capacidades.py`; excepciones en `MODULO_QUE_NO_CUBRE_LA_RUTA`). Migradas: Ajustes (`/settings`; roles, oficinas, numeración y vacaciones de `/advanced-config`), horas extra, asistente de reuniones, competencias, cursos de formación, evaluaciones, configuración de la asignación por IA, ausencias, altas y bajas de equipos, administración y configuración del service desk y proveedores (vía alias `Lector`/`Gestor`/`Configurador`). Dos efectos: el superadmin entra ahora en tipos y estados de `/settings` (la función local no lo dejaba) y el código del 403 pasa de `roles_requeridos` a `capacidad_requerida`. Lo que quedaba pendiente (costes, tarifas, formularios públicos, portal de desarrolladores e importación, licencias y activos, calendarios SLA) se migró después (ver «Cierre de lo que quedaba abierto», abajo). `test_guardas_deniegan` sondea cada `requiere_capacidad` con un rol base que no la tiene. Coste: una consulta más por petición (módulos cerrados) para quien no es admin ni superadmin. Tests: `tests/test_requiere_capacidad.py`.
+
+**Informes de CMDB y del análisis del cambio.** Se retira `VistaDeDatos` (volcado de claves y valores). Cada resultado tiene su informe con el kit de paneles (KpiCard, GaugeCard, BarRow, TablaSimple, Recharts con `useChartTheme`, `useTono`): `components/cmdb/InformesDeCmdb.tsx` (ejecuciones del descubrimiento, salud de la reconciliación, duplicados, deriva, radio de impacto, retirada de un CI) y `components/servicedesk/InformesDelCambio.tsx` (impacto con software de los CIs, matriz de riesgo, vuelta atrás, pruebas, comunicaciones, simulación, flujo del CAB); piezas comunes en `InformesComunes.tsx`; textos en `sd_informes` (es/en/zh). Nunca se enseñan ids internos. **Mi panel:** `.sdp-rejilla` es un contenedor CSS (`container-type: inline-size`) y los anchos de los widgets cambian con `@container` (<880 px: KPIs a media fila, tablas a fila entera; <560 px: todo a fila entera), así se adapta al hueco también con un ticket abierto al lado. Tailwind 3.4 sin plugin: CSS propio en `sdMercado.css`. Tests: `__tests__/InformesCmdbYCambio.test.tsx`, `__tests__/MiPanelWidgets.test.tsx`.
+
+**GRC.** Los ajustes nuevos pasan por `set_runtime_value` y quedan en el registro de cambios de ajustes (`record_change`); los escribe solo admin. La guarda por capacidad no da permisos nuevos (salvo superadmin en tipos y estados de `/settings`). Los textos solo cambian de idioma; los informes enseñan menos que antes. Sin cambios de esquema ni migraciones. El cambio del derecho de vacaciones de una persona se audita desde el cierre de abajo.
+
+## Cierre de lo que quedaba abierto: guardas, textos por clave, 429 de IA, vacaciones y CIs (19-11-2026)
+
+**Guardas por capacidad (las seis que faltaban).** Criterio: nadie gana ni pierde acceso. Cada capacidad tiene los roles exactos de la guarda que sustituye; donde la pantalla y la API tenían roles distintos se desdobla y la de la pantalla no cambia:
+
+| Pantalla (sin cambios) | API (`requiere_capacidad`) | Roles | Antes |
+|---|---|---|---|
+| `costes.config` (admin, RRHH) | `costes.config`, `/user-costs` (12 rutas) | admin, RRHH | `require_admin_or_hr` |
+| `tarifas.config` (admin, PM) | `tarifas.gestionar`, escrituras de `/rate-cards` (9) | gestores | `require_any_manager` |
+| `portal.formularios` (admin, PM) | `portal.formularios`, escrituras de `/forms` (3) | admin, PM | `require_admin_or_pm` |
+| `integraciones.desarrollo` (admin, PM) | `integraciones.desarrollo`, `/developer/apps` (4); `integraciones.importar`, `/billing-reports/import/*` (4) | admin, PM; gestores | `require_admin_or_pm`; `require_any_manager` |
+| `alm.ver` (admin, PM: `/alm`) | `alm.gestionar` (`/alm`, `/alm/uso`: escribir y leer lo económico), `alm.consultar` (catálogos de los selectores), `alm.conexiones` (fuentes de uso) | gestores; internos; admin | `require_any_manager`; `require_internal_user`; `require_admin` |
+| `sd.disenar_flujos` (admin, PM) | `sd.disenar_flujos`, escrituras de `/cmdb/sla-calendars` (6) | admin, PM | `require_admin_or_pm` |
+
+El diseñador de flujos en sí ya estaba en `sd.config` (gestores), como su guarda. `costes.config`, `integraciones.desarrollo` y `portal.formularios` pierden el módulo `settings`: sus rutas no están bajo /settings y con módulo un rol personalizado que cierra Ajustes las habría perdido. La pantalla no cambia para ningún rol: la sección se tapa igual por la ruta `/settings/<sección>` (`puedeVerSeccion` + `blocked_routes`); solo cambia la lista de `/auth/me` de quien tiene Ajustes cerrado (ahora incluye esas tres). Sondas estrictas nuevas en `test_capacidades`: `/user-costs/summary`, `/alm/dashboard`, `/alm/config`, `/alm/uso/conexiones`, `/billing-reports/import/jobs`. El 403 de esas rutas pasa de `roles_requeridos` a `capacidad_requerida`. `test_guardas_deniegan`: neto 0 (mismo rol de sondeo en cada par). Lista de nombres en `frontend/src/permisos/capacidades.ts`. Tests: `tests/test_guardas_por_capacidad_cierre_2026_11_19.py`.
+
+**Textos guardados por clave (migración 192).** `sd_ticket_history.new_value_key/new_value_params` y `sd_autonomous_playbook_executions.resolution_note_key/resolution_note_params`: la fila guarda la clave de `textos_de_salida` y sus datos (JSON); al leer se pinta en el idioma de quien mira (`app/services/textos_guardados.py`: `por_clave`, `en_idioma`, `pintar`; un dato puede ser a su vez un texto por clave, p. ej. el nombre de un playbook de serie). El texto guardado se queda de respaldo: filas de antes, clave desconocida o datos ilegibles salen como se guardaron. Con clave: motivo del agente autónomo (`autonomo.motivo.*`; registro `GET /sd/autonomous/log` en el idioma de quien lo lee), avisos y escalados de los playbooks de serie, resolución con la KB (`historial.autorresuelto_kb`, antes inglés fijo; la resolución del ticket sale en el idioma del ticket o de la empresa), posible duplicado (`historial.posible_duplicado`, antes inglés fijo), aprovisionamiento (`historial.aprovisionado`, antes inglés y con el id del servicio; ahora su nombre) y reapertura tras autorresolución (`historial.reabierto_tras_autorresolucion`; el código `reopened_after_auto_resolve` se mantiene en `new_value`). El historial del detalle del ticket (`ticket_read_service.pintar_historial`) sale en el idioma del operador y en el portal en el del ticket; las columnas internas no salen.
+
+**Planes de cambio guardados antes de las claves.** Un plan sin `_textos` (generado antes del 19-11-2026) se traduce al leer con el servicio de traducción (`app/services/traduccion/servicio.traducir`, canal `ticket`, cache por empresa y tope de gasto de IA) si la empresa lo tiene activo (`TRANSLATION_ENABLED` y `ticket` en `TRANSLATION_CHANNELS`); solo los campos de texto (`action`, `responsible`, `description`, `expected_result`, `channel`, `subject`, `message_template`, `summary`), nunca códigos ni números. **Si no está configurado** (desactivado, canal fuera, sin proveedor, tope agotado o fallo), el plan sale tal cual, en el idioma en que se generó, y nunca falla. En los dos casos la respuesta lleva `textos_anteriores` (`status`: `translated`, `same_language`, `disabled`, `unavailable`, `not_translated`; `reason`) y la pantalla (`AnalisisDelCambio`) avisa y ofrece «Regenerar en el idioma actual» (el mismo «Volver a generar»; desde entonces el plan lleva claves y se lee en cualquier idioma). Lo traducido no se guarda en el plan: queda en la cache de traducción de la empresa.
+
+**429 de la IA con su causa.** Fuera el genérico `ia_uso_no_permitido`. `ia_modulo_desactivado` (`modulo`), `ia_limite_diario` (`n`, `modulo`) desde `rate_limit_service.limite_de_uso` (`/ai/chat`, `/ai/agent`, `/ai/agent/stream`) e `ia_presupuesto_diario_agotado` (`tope`) para el tope de gasto de la empresa (`PresupuestoDeIAAgotado` lleva `codigo` y `params`; el manejador global de `app/main.py` y el evento SSE de NexusAgent los mandan; antes 429 sin código). Textos en `MENSAJES_DEL_OPERADOR` y `err_srv` es/en/zh (fuente: `scripts/codemods/errores_con_codigo/manual.json`). `check_rate_limit` (MCP) sigue devolviendo el texto. Tests: `tests/test_ia_429_con_causa_2026_11_19.py`.
+
+**CI afectado con nombre.** El detalle del cambio (`GET /sd/changes/{id}`, `full`) trae `affected_ci_details` (`id`, `name`, `code`, `ci_type`); el desplegable «CI afectado» de la pestaña Impacto y la lista de la simulación enseñan «nombre (código) · tipo», nunca el id; un CI que ya no existe sale como «CI que ya no está en la CMDB». Tests: `tests/test_textos_por_clave_2026_11_19.py`, `frontend/src/__tests__/AnalisisDelCambioCierre.test.tsx`.
+
+**GRC.** Auditoría: el cambio del derecho de vacaciones de una persona (`PATCH /advanced-config/vacation-balances/{user_id}`) escribe en `audit_logs` (recurso `vacation_balance`: quién, de quién y qué año en `metadata`, `days_entitled` antes y después; sin fila previa, el antes es el de por defecto y `fila_nueva`), en la misma transacción que el cambio; un valor rechazado no deja rastro (`tests/test_auditoria_derecho_vacaciones_2026_11_19.py`). Privilegios: ningún rol gana ni pierde acceso (tabla de arriba). RGPD: las columnas nuevas guardan lo mismo que ya había en el texto (números de ticket o de artículo, confianza, id o nombre del playbook, nombre del servicio); la traducción de planes antiguos sale a un proveedor solo si la empresa tiene la traducción activa en `ticket`, con su glosario y su tope. Retención: la de su fila. Migración: `alembic/versions/192_textos_por_clave_y_cierre.py` (cuatro columnas, idempotente; downgrade las quita y deja el texto guardado); probada en una copia de `clarive.db` con `scripts/migrar.py` (191 → 192, re-aplicada sobre columnas existentes, downgrade y upgrade) y `scripts/comprobar_esquema.py` (esquema completo). Hay que aplicarla en la base real (`python scripts/migrar.py`) antes de usar la app con este código: sin ella, leer el historial de un ticket o el registro del agente falla por columna inexistente.
+
+## Integración final del 19/20-11-2026
+
+- `POST /ai/chat` (montado también en `/ai-chat/ai/chat`) exige `require_internal_user`, igual que
+  `/ai/texto` y la valoración de respuestas: los subcontratistas ya no usan ese chat.
+- Asistente de reuniones: con el bot activado por defecto y sin contrato, el control
+  `meetings_external_processors` del informe de cumplimiento queda en «atención» hasta registrar
+  el contrato de encargado; con contrato, «correcto».
+- Reuniones: corregido que los participantes nuevos no tenían id al crear los segmentos (un «no»
+  de consentimiento no tachaba lo dicho y el RGPD de un hablante externo no encontraba sus frases).
+- CMDB de software: puertos `listen 443 ssl` (espacio delante) y fechas sin zona en el control de
+  sincronización corregidos.
+- Recuentos de guardas: 1304 pares con guarda; exenciones «acotada al propio usuario» 93 y «sin
+  sujeto autenticado» 56 (webhooks firmados de reuniones).

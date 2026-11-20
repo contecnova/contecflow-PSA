@@ -12,12 +12,11 @@
  * aprobaciones es un `EmptyState` (era texto gris suelto).
  *
  * 18-11-2026: la configuración sale del módulo y vive en Configuración
- * (`/settings/sd`). Aquí queda el botón «Configurar» para quien puede tocar
- * algo de ella (admin, PM, jefe de equipo, RRHH: las respuestas rápidas son de
- * cualquier responsable) y `?tab=config[&sub=…]` redirige allí.
+ * (`/settings/sd`). Aquí no hay botón «Configurar» y
+ * `?tab=config[&sub=…]` redirige allí.
  */
 import { useState, useEffect, useRef, lazy, Suspense } from 'react'
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import { Navigate, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { sdApprovalsApi } from '../services/api'
 import type { SdAprobacionPendiente } from '../services/api/tipos-sd'
@@ -25,7 +24,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { useAuth } from '../context/AuthContext'
 import {
   AlertOctagon, ArrowLeft, BookOpen, Bug, ClipboardCheck, GitPullRequestArrow, Inbox, LayoutDashboard,
-  List, ListTodo, MessageSquare, MessagesSquare, PanelRight, Plus, Settings2, TriangleAlert, Wrench,
+  List, ListTodo, MessageSquare, MessagesSquare, PanelRight, Plus, TriangleAlert, Wrench,
 } from 'lucide-react'
 import { Button, EmptyState, Spinner, Tabs, Pulsable, ViewToggle } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
@@ -67,8 +66,6 @@ export default function ServiceDeskPage() {
   const t = useAppT()
   const { puede } = useAuth()
   const esExterno = !puede('sd.completo')
-  const configura = !esExterno && puede('sd.config')
-  const navigate = useNavigate()
   // `?ticket=<id>` abre ese ticket: es a donde llevan los avisos (campana y
   // correo). Se abre en «Todos» porque «Mi cola» solo muestra los asignados a
   // quien mira (ticket_read_service.my_queue_payload).
@@ -161,12 +158,7 @@ export default function ServiceDeskPage() {
         subtitle={t('service_desk.subtitle')}
         exportTargetSelector='[data-export-table="service-desk-export"]'
         exportFilePrefix='service_desk'
-        actions={<>
-          {configura && (
-            <Button variant="secondary" icon={<Settings2 size={14} />} onClick={() => navigate('/settings/sd')}>{t('ajustes.configurar')}</Button>
-          )}
-          <Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('service_desk.new_ticket')}</Button>
-        </>}/>
+        actions={<Button icon={<Plus size={14} />} onClick={() => setShowCreate(true)}>{t('service_desk.new_ticket')}</Button>}/>
 
       <Tabs
         items={TABS}

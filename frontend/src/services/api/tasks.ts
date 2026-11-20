@@ -72,6 +72,10 @@ export interface TaskListItem {
   is_critical?: boolean | null
   baseline_start?: string | null
   baseline_end?: string | null
+  // 19-11-2026 (proveedores): tarea externalizada a un proveedor de outsourcing (excluyente con `assignee_id`).
+  supplier_id?: string | null
+  supplier_work_package_id?: string | null
+  supplier_name?: string | null
 }
 
 /** Filtros de `GET /tasks` (list_tasks en app/api/v1/endpoints/tasks.py). */
@@ -109,6 +113,9 @@ export interface TaskCreatePayload {
   start_date?: string | null
   due_date?: string | null
   issue_type?: string | null
+  /** Externalizada a un proveedor (excluyente con `assignee_id`: 422 si van los dos). */
+  supplier_id?: string | null
+  supplier_work_package_id?: string | null
 }
 
 /** `TaskUpdate` (app/schemas/tasks.py). No admite `project_id`. */
@@ -129,6 +136,9 @@ export interface TaskUpdatePayload {
   progress_pct?: number | null
   constraint_type?: 'snet' | 'mso' | 'fnlt' | 'mfo' | null
   constraint_date?: string | null
+  /** Externalizada a un proveedor (excluyente con `assignee_id`). */
+  supplier_id?: string | null
+  supplier_work_package_id?: string | null
 }
 
 /** `TaskCommentCreate` (app/schemas/tasks.py). */

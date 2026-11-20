@@ -9,7 +9,7 @@ import { cmdbApi } from '../services/api'
 import { Button, Spinner, Modal, Tabs, KpiCard, EmptyState, IconButton, Pulsable, Select, TablaSimple, useErroresDeCampo } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { ArrowDown, ArrowUp, Bot, Box, Database, History, Link2, ListTree, Network, Pencil, Plus, Radar, Shapes, Trash2, X, Zap } from 'lucide-react'
+import { ArrowDown, ArrowUp, Bot, Box, Database, History, Link2, ListTree, Network, Package, Pencil, Plus, Radar, Search, Server, ShieldAlert, Shapes, Trash2, X, Zap } from 'lucide-react'
 import { IconoCi } from '../components/cmdb/iconosCi'
 import DateInput from '../components/ui/DateInput'
 import { useAppT } from '../i18n/AppLangContext'
@@ -20,6 +20,12 @@ import { POLL_LIVE_MS, STALE_DEFAULT_MS, STALE_SHORT_MS } from '../constants/tim
 import { FULL_LIST_SIZE } from '../constants/pagination'
 import './CMDBPage.css'
 import { ClasesPropiasTab, DescubrimientoTab, ImpactoTab } from '../components/cmdb/CmdbMercado'
+// CMDB de software y vulnerabilidades (19-11-2026): cuatro pestañas para quien tiene `software.ver`;
+// se cargan al abrirlas (docs/CMDB_SOFTWARE_Y_VULNERABILIDADES.md).
+const SoftwareTab = lazy(() => import('../components/cmdb/software/SoftwareTabs').then(m => ({ default: m.SoftwareTab })))
+const DondeSeUsaTab = lazy(() => import('../components/cmdb/software/SoftwareTabs').then(m => ({ default: m.DondeSeUsaTab })))
+const PorMaquinaTab = lazy(() => import('../components/cmdb/software/SoftwareTabs').then(m => ({ default: m.PorMaquinaTab })))
+const VulnerabilidadesTab = lazy(() => import('../components/cmdb/software/SoftwareTabs').then(m => ({ default: m.VulnerabilidadesTab })))
 import { cmdbMercadoApi } from '../services/api/serviceDeskMercado'
 // Auditoría 2026-08 (hallazgo 19). Este import era ESTÁTICO, y
 // CMDBTopologyGraph depende de react-plotly.js → plotly.js. Medido sobre el
@@ -684,6 +690,12 @@ export default function CMDBPage(): JSX.Element {
           { id: 'topology', label: t('cmdb.tab_topology'), icon: <Network size={14} /> },
           { id: '3d',       label: t('cmdb.tab_3d'), icon: <Box size={14} /> },
           { id: 'impact',   label: t('sd_mercado.tab_impacto'), icon: <Zap size={14} /> },
+          ...(puede('software.ver') ? [
+            { id: 'software', label: t('sw.tab_software'), icon: <Package size={14} /> },
+            { id: 'where', label: t('sw.tab_donde'), icon: <Search size={14} /> },
+            { id: 'machine', label: t('sw.tab_maquina'), icon: <Server size={14} /> },
+            { id: 'vulns', label: t('sw.tab_vulns'), icon: <ShieldAlert size={14} /> },
+          ] : []),
           // Agentes y clases son de admin en el servidor (revisión 2026-11: pm veía Agentes y recibía 403).
           ...(puede('org.administrar') ? [{ id: 'agents', label: t('cmdb.tab_agents'), icon: <Bot size={14} /> }, { id: 'classes', label: t('cmdb.tab_classes'), icon: <Shapes size={14} /> },
             { id: 'ci_classes', label: t('sd_mercado.tab_clases_propias'), icon: <Shapes size={14} /> }, { id: 'discovery', label: t('sd_mercado.tab_descubrimiento'), icon: <Radar size={14} /> }] : []),
@@ -916,6 +928,14 @@ export default function CMDBPage(): JSX.Element {
       {tab === 'ci_classes' && <ClasesPropiasTab />}
       {tab === 'discovery' && <DescubrimientoTab />}
       {tab === 'impact' && <ImpactoTab />}
+      {puede('software.ver') && ['software', 'where', 'machine', 'vulns'].includes(tab) && (
+        <Suspense fallback={<Spinner />}>
+          {tab === 'software' && <SoftwareTab />}
+          {tab === 'where' && <DondeSeUsaTab />}
+          {tab === 'machine' && <PorMaquinaTab />}
+          {tab === 'vulns' && <VulnerabilidadesTab />}
+        </Suspense>
+      )}
       </div>
     </PageShell>
   )

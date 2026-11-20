@@ -200,11 +200,18 @@ def _peticiones(ev: dict, momento: str) -> list[dict]:
     return [{"cupo": c, "huecos": cupos.huecos_de(c, aus)} for c in _cupos_en(ev, momento)]
 
 
-def _mensaje_de_bloqueo(cupo: Optional[dict]) -> str:
+def _mensaje_de_bloqueo(cupo: Optional[dict], db: Optional[Session] = None, a: Optional[Absence] = None) -> str:
+    """El mensaje de la politica si la empresa lo redacto (tal cual); si no, el
+    del sistema en el idioma de quien pide la ausencia (19-11-2026: antes
+    castellano fijo, y queda guardado en `rejection_reason`)."""
     for r in (cupo or {}).get("si_lleno") or []:
         if r.get("tipo") == "block" and (r.get("mensaje") or "").strip():
             return r["mensaje"]
-    return "No queda plaza en el cupo para esas fechas"
+    from app.services.formato_regional import idioma_de_salida
+    from app.services.textos_de_salida import texto
+    idioma = idioma_de_salida(db, user_id=getattr(a, "user_id", None),
+                              org_id=getattr(a, "organization_id", None)) if db is not None else None
+    return texto("ausencias.cupo_lleno", idioma)
 
 
 def _exigencias(db: Session, a: Absence, tipo, ctx: dict, m: Optional[dict] = None) -> None:
@@ -371,7 +378,7 @@ def _tras_pedir(db: Session, a: Absence, ev: dict, actor) -> None:
     peticiones = _peticiones(ev, "solicitud")
     r = cupos.reservar(db, a.id, a.requested_at, peticiones, a.organization_id) if peticiones else {"resultado": "sin_cupo"}
     if r["resultado"] == "lleno":
-        a.status, a.rejection_reason = AbsenceStatus.rejected, _mensaje_de_bloqueo(r.get("cupo"))[:255]
+        a.status, a.rejection_reason = AbsenceStatus.rejected, _mensaje_de_bloqueo(r.get("cupo"), db, a)[:255]
         evento(db, a, "rechazada", None, motivo=a.rejection_reason, cupo_lleno=r.get("llenos"))
         db.commit()
         raise error_con_codigo(409, "cupo_lleno", detail=a.rejection_reason)
@@ -437,7 +444,7 @@ def aplicar_decision(db: Session, a: Absence, aprobado: bool, actor, nota: Optio
         if peticiones:
             r = cupos.reservar(db, a.id, a.requested_at or _ahora(), peticiones, a.organization_id)
             if r["resultado"] == "lleno":
-                return _rechazar(db, a, actor_id, _mensaje_de_bloqueo(r.get("cupo")))
+                return _rechazar(db, a, actor_id, _mensaje_de_bloqueo(r.get("cupo"), db, a))
             if r["resultado"] == "espera":
                 a.status = AbsenceStatus.waitlisted
                 posicion = cupos.posicion(db, a.id)
@@ -605,7 +612,7 @@ def ampliar(db: Session, usuario, a: Absence, nuevo_fin: date, nota: Optional[st
                   if c.get("tipo") == cupos.TIPO and c.get("clave")]
     r = cupos.reservar(db, a.id, _ahora(), peticiones, a.organization_id) if peticiones else {"resultado": "sin_cupo"}
     if r["resultado"] == "lleno":
-        raise error_con_codigo(409, "cupo_lleno", detail=_mensaje_de_bloqueo(r.get("cupo")))
+        raise error_con_codigo(409, "cupo_lleno", detail=_mensaje_de_bloqueo(r.get("cupo"), db, a))
     a.end_date = nuevo_fin
     _guardar_medidas(a, medidas_finales(evaluar(db, a)))
     espera = r["resultado"] == "espera" or (r["resultado"] == "sin_cupo" and ev["decision"] == "waitlist")

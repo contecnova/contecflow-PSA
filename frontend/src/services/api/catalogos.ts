@@ -10,6 +10,8 @@
 import api from './_core'
 
 export type NombreDeCatalogo = 'project-types' | 'client-industries' | 'expense-categories' | 'project-statuses' | 'task-statuses'
+  // Proveedores (19-11-2026, migración 189): tipos de servicio gestionado y unidades de cobro.
+  | 'supplier-service-types' | 'supplier-billing-units'
 
 export interface ValorDeCatalogo {
   id: string

@@ -499,6 +499,10 @@ class AgentCheckinIn(BaseModel):
     primary_user: Optional[str] = None      # correo de quien usa el equipo
     software: Optional[list[dict]] = None   # [{name, version, publisher, last_used_at}]
     software_complete: Optional[bool] = None  # la lista es todo lo instalado (por defecto, sí)
+    # CMDB de software (19-11-2026): {complete, instances: [{name, version, category, purl, cpe,
+    # install_path, config_path, ports, config | config_text + config_format, components, sbom}]}.
+    # La configuración se enmascara antes de guardarla (`cmdb_software.configuracion`).
+    software_inventory: Optional[dict] = None
 
 
 @router.post("/cmdb/agents/register", summary="Registrar agente on-premise y obtener token (admin)", status_code=201)

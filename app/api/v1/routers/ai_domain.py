@@ -5,7 +5,7 @@ from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
     ai_chat, ai_modules, ai_providers, semantic_engine,
-    ai_governance, ai_suggestions, traduccion,
+    ai_governance, ai_suggestions, traduccion, reuniones,
 )
 
 router = APIRouter()
@@ -17,6 +17,9 @@ router.include_router(semantic_engine.router, prefix="/semantic",      tags=["Se
 router.include_router(ai_governance.router,  prefix="/ai-governance",  tags=["AI Governance"])
 router.include_router(ai_suggestions.router, prefix="/ai/suggestions", tags=["AI Suggestions"])
 router.include_router(traduccion.router,     prefix="/translation",    tags=["Translation"])
+# Asistente de reuniones (19-11-2026, docs/ASISTENTE_DE_REUNIONES.md) y sus avisos firmados.
+router.include_router(reuniones.router,      prefix="/meeting-assistant", tags=["Meeting Assistant"])
+router.include_router(reuniones.router_webhooks, prefix="/webhooks/meetings", tags=["Meeting Assistant"])
 
 # ── Compatibility aliases ─────────────────────────────────────────────────────
 # ai_chat routes embed "/ai/" in their paths (e.g. /ai/agent/history).

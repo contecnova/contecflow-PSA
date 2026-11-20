@@ -86,6 +86,31 @@ def _horas_extra():
     return PeticionDeHorasExtra
 
 
+def _reunion():
+    from app.models.ai_chat import AIMeeting
+    return AIMeeting
+
+
+def _documento_de_proveedor():
+    from app.models.proveedores import SupplierDocument
+    return SupplierDocument
+
+
+def _acceso_de_proveedor():
+    from app.models.proveedores import SupplierAccessGrant
+    return SupplierAccessGrant
+
+
+def _foto_de_configuracion():
+    from app.models.cmdb_software import SoftwareConfigSnapshot
+    return SoftwareConfigSnapshot
+
+
+def _hallazgo():
+    from app.models.cmdb_software import VulnerabilityFinding
+    return VulnerabilityFinding
+
+
 TIPOS: dict[str, Tipo] = {
     # Sólo tickets cerrados, contando desde el cierre.
     "tickets": Tipo(_ticket, lambda M: M.closed_at, lambda M: M.closed_at.isnot(None),
@@ -117,6 +142,22 @@ TIPOS: dict[str, Tipo] = {
     "overtime_requests": Tipo(_horas_extra, lambda M: func.coalesce(M.updated_at, M.created_at),
                               lambda M: M.estado.in_(("aprobada", "rechazada", "cancelada")),
                               ("id", "user_id", "project_id")),
+    # 19-11-2026: reuniones del asistente (transcripción, audio, participantes en
+    # cascada), desde su alta. Su audio y su transcripción tienen además su propia
+    # retención corta (`app/services/reuniones/trabajos.py`), que respeta esto.
+    "meetings": Tipo(_reunion, lambda M: M.created_at, None, ("id", "project_id", "client_id", "created_by")),
+    # Migracion 189: GRC de terceros. Documentos de proveedor caducados (desde la
+    # caducidad) y accesos revocados (desde la revocacion).
+    "supplier_documents": Tipo(_documento_de_proveedor, lambda M: M.expires_at, lambda M: M.expires_at.isnot(None),
+                               ("id", "subcontractor_id", "doc_type")),
+    "supplier_access_grants": Tipo(_acceso_de_proveedor, lambda M: M.revoked_at, lambda M: M.revoked_at.isnot(None),
+                                   ("id", "subcontractor_id", "worker_id")),
+    # Migracion 190: CMDB de software. Fotos de configuración (desde la foto) y
+    # hallazgos cerrados (resueltos o falsos positivos, desde el cierre).
+    "sw_config_snapshots": Tipo(_foto_de_configuracion, lambda M: M.created_at, None, ("id", "instance_id")),
+    "sw_findings": Tipo(_hallazgo, lambda M: M.closed_at,
+                        lambda M: M.status.in_(("resolved", "false_positive")) & M.closed_at.isnot(None),
+                        ("id", "product_id", "instance_id", "vulnerability_id")),
 }
 
 

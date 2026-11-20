@@ -72,6 +72,7 @@ Horas en `DEFAULT_TIMEZONE`. Día de la semana en notación Celery (0 = domingo)
 | `bpmn-timers` | `bpmn_vencer_temporizadores` | cada minuto | fila | Temporizadores BPMN vencidos |
 | `problem-auto-detect` | `problem_auto_detect` | cada hora :05 | organización | Crea Problems por incidentes repetidos |
 | `cmdb-discovery` | `cmdb_discovery_run` | cada 15 min | organización | Discovery de CMDB de los proveedores cuya ventana venció |
+| `cmdb-software-diario` | `cmdb_software_diario` | diario 04:20 | organización | CMDB de software: avisos (si `auto_sync`), reevaluación de hallazgos y SLA, caducidad de excepciones, ticket automático (docs/CMDB_SOFTWARE_Y_VULNERABILIDADES.md) |
 | `change-impact-batch-score` | `change_impact_batch_score` | cada 10 min | organización | Puntúa cambios pendientes de CAB |
 | `routing-outcome-scan` | `routing_outcome_scan` | cada hora :20 | organización | Resultado de asignaciones de tickets cerrados |
 | `predictive-scan` | `predictive_scan` | cada 30 min | organización | Predicciones sobre tickets abiertos |

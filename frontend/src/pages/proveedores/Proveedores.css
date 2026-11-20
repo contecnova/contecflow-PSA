@@ -1,0 +1,41 @@
+/* Proveedores y externalización (19-11-2026): ficha, alta y Configuración. Solo tokens. */
+.prv-insignias { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
+.prv-dato { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.prv-dato-etiqueta { font-size: var(--text-xs); color: var(--text-3); letter-spacing: .04em; }
+.prv-dato-valor { font-size: var(--text-sm); color: var(--text-1); overflow-wrap: anywhere; }
+.prv-datos { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px 18px; }
+.prv-bloque { padding: 16px 18px; }
+.prv-bloque-titulo { display: flex; align-items: center; gap: 8px; font-size: var(--text-base); font-weight: 600; color: var(--text-1); margin-bottom: 10px; }
+.prv-barra { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; justify-content: space-between; margin-bottom: 12px; }
+.prv-barra-acciones { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.prv-cabecera-item { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.prv-titulo-item { font-size: var(--text-base); font-weight: 700; color: var(--text-1); }
+.prv-sub { font-size: var(--text-sm); color: var(--text-2); margin-top: 2px; }
+.prv-lineas { margin-top: 10px; border-top: 1px solid var(--surface-4); padding-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.prv-linea { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; font-size: var(--text-sm); }
+.prv-rejilla { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.prv-rejilla--3 { grid-template-columns: repeat(3, 1fr); }
+.prv-completo { grid-column: 1 / -1; }
+.prv-textarea { width: 100%; min-height: 72px; resize: vertical; }
+.prv-eleccion { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.prv-modos { display: flex; flex-direction: column; gap: 6px; }
+.prv-tramo { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+.prv-tramo > .ui-field { flex: 1 1 110px; min-width: 0; }
+.prv-aviso { padding: 10px 12px; border-radius: var(--radius-md); background: var(--warning-bg); color: var(--text-1); font-size: var(--text-sm); border: 1px solid var(--warning-border); }
+.prv-aviso--peligro { background: var(--danger-bg); border-color: var(--danger-border); }
+.prv-numero { font-variant-numeric: tabular-nums; }
+.prv-numero--neg { color: var(--danger); }
+.prv-numero--pos { color: var(--success); }
+.prv-puntuacion { font-size: var(--text-3xl); font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-1); }
+.prv-dimension { display: grid; grid-template-columns: minmax(120px, 1fr) 3fr auto; gap: 10px; align-items: center; font-size: var(--text-sm); }
+.prv-barra-progreso { height: 8px; border-radius: 4px; background: var(--surface-4); overflow: hidden; }
+.prv-barra-progreso-relleno { height: 100%; width: var(--prv-pct, 0%); background: var(--accent); border-radius: 4px; }
+.prv-barra-progreso-relleno--bajo { background: var(--danger); }
+.prv-barra-progreso-relleno--medio { background: var(--warning); }
+.prv-tareas-seleccion { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.prv-proveedor-en-tarea { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-sm); font-weight: 600; color: var(--text-1); }
+@media (max-width: 720px) {
+  .prv-rejilla, .prv-rejilla--3, .prv-eleccion { grid-template-columns: 1fr; }
+  .prv-dimension { grid-template-columns: 1fr; }
+}
+.prv-mt { margin-top: 12px; }

@@ -23,8 +23,14 @@ from app.services.ai_modules._base import (
     log_action, map_reduce_analysis,
 )
 
-def list_meetings(db: Session, project_id=None):
-    q = db.query(AIMeeting).options(joinedload(AIMeeting.actions))
+def list_meetings(db: Session, project_id=None, user=None):
+    # 19-11-2026: acotado a lo visible (asistente de reuniones); antes cualquiera
+    # con sesión veía todas las reuniones de su empresa.
+    if user is not None:
+        from app.services.reuniones.consultas import visibles
+        q = visibles(db, user).options(joinedload(AIMeeting.actions))
+    else:
+        q = db.query(AIMeeting).options(joinedload(AIMeeting.actions))
     if project_id: q = q.filter(AIMeeting.project_id == project_id)
     meetings = q.order_by(AIMeeting.created_at.desc()).limit(50).all()
     return [{
@@ -111,7 +117,7 @@ def _crear_reunion(db: Session, payload, current_user) -> AIMeeting:
         duration_min=payload.duration_min,
         participants=json.dumps(payload.participants or []),
         transcript=completa[:_TOPE_DE_TRANSCRIPCION],
-        status="processing",
+        status="procesando", origin="transcript",
         created_by=current_user.id,
     )
     # La truncación queda anotada aunque luego se sobrescriba con el resumen:
@@ -171,14 +177,14 @@ def process_meeting(db: Session, payload, current_user) -> dict:
         data = _json_del_modelo(texto)
         if data:
             _guardar_analisis(db, meeting, data, current_user)
-        meeting.status = "done"
+        meeting.status = "lista"
     except Exception as e:
         _log.exception(
             "Meeting assistant processing failed for meeting=%s",
             getattr(meeting, "id", None),
         )
         meeting.summary = f"Error procesando con IA: {str(e)[:100]}"
-        meeting.status = "failed"
+        meeting.status = "error"
 
     latencia = int((time.time() - t0) * 1000)
     log_action(
@@ -232,11 +238,14 @@ def create_tasks_from_meeting(db: Session, meeting_id: str, payload: dict, curre
     db.commit()
     return {"ok": True, "tasks_created": len(created), "tasks": created}
 
-def get_meeting(db: Session, meeting_id: str) -> dict:
-
-    m = db.query(AIMeeting).options(joinedload(AIMeeting.actions)).filter(
-        AIMeeting.id == meeting_id
-    ).first()
+def get_meeting(db: Session, meeting_id: str, user=None) -> dict:
+    if user is not None:   # 19-11-2026: acotado a lo visible
+        from app.services.reuniones.consultas import visibles
+        m = visibles(db, user).filter(AIMeeting.id == meeting_id).first()
+    else:
+        m = db.query(AIMeeting).options(joinedload(AIMeeting.actions)).filter(
+            AIMeeting.id == meeting_id
+        ).first()
     if not m:
         raise ValueError("not_found")
     return {

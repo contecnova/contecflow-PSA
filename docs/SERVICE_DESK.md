@@ -906,3 +906,7 @@ Credenciales nuevas: `slack.bot_token` (cifrada), `whatsapp.template_name` y
   chat del portal (el portal ve los documentos de su ticket).
 - El asistente del portal no ejecuta nada por su cuenta: toda petición pasa por
   la confirmación del cliente.
+
+### CMDB de software y vulnerabilidades (19-11-2026)
+
+Qué software corre en cada CI, con qué está hecho (SBOM), con qué configuración, qué vulnerabilidades le afectan y su remediación: ver [CMDB_SOFTWARE_Y_VULNERABILIDADES.md](CMDB_SOFTWARE_Y_VULNERABILIDADES.md). El análisis de impacto de un cambio incluye `software_on_cis`; un hallazgo abre ticket, problema o cambio sobre los CIs afectados.

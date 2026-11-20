@@ -188,6 +188,59 @@ require_worker = RequireRole(
 )
 
 
+# ── Guardas por capacidad (19-11-2026) ───────────────────────────────────────
+# La matriz de permisos (`app/core/capacidades.py`) decide en la pantalla con
+# capacidades; esta guarda hace que la API decida con LA MISMA, en vez de
+# repetir la lista de roles. Se escribe en la firma, con el nombre literal:
+#
+#     current_user: User = Depends(requiere_capacidad("costes.config"))
+#
+# Literal a propósito: los barridos de tests (`test_guardas_deniegan`,
+# `test_guardas_de_rol`, `test_capacidades`) la leen del código fuente.
+
+class RequiereCapacidad:
+    """Guarda por capacidad: deja pasar a quien `capacidades.tiene(db, user, cap)`.
+
+    - El superadmin pasa siempre (las tiene todas).
+    - Un rol base sin la capacidad recibe 403 `capacidad_requerida`.
+    - Un rol personalizado que cierra el módulo de la capacidad (`modulo`)
+      también: la capacidad desaparece, como en la pantalla.
+    `capacidad` queda como atributo para que los barridos la lean.
+    """
+
+    def __init__(self, capacidad: str):
+        from app.core.capacidades import CAPACIDADES
+        if capacidad not in CAPACIDADES:
+            raise KeyError(f"Capacidad desconocida: {capacidad!r} (ver app/core/capacidades.py)")
+        self.capacidad = capacidad
+
+    def __repr__(self) -> str:
+        return f"requiere_capacidad({self.capacidad!r})"
+
+    def __call__(self, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> User:
+        if getattr(current_user, "is_superadmin", False):
+            return current_user
+        from app.core import capacidades as _capacidades
+        if not _capacidades.tiene(db, current_user, self.capacidad):
+            raise error_http(status.HTTP_403_FORBIDDEN, "capacidad_requerida", capacidad=self.capacidad)
+        return current_user
+
+
+_GUARDAS_POR_CAPACIDAD: dict[str, RequiereCapacidad] = {}
+
+
+def requiere_capacidad(capacidad: str) -> RequiereCapacidad:
+    """La guarda de `capacidad` (KeyError si no está en `CAPACIDADES`).
+
+    Una instancia por capacidad: FastAPI cachea la dependencia en la petición y
+    `app.dependency_overrides[requiere_capacidad("x")]` funciona en los tests.
+    """
+    guarda = _GUARDAS_POR_CAPACIDAD.get(capacidad)
+    if guarda is None:
+        guarda = _GUARDAS_POR_CAPACIDAD[capacidad] = RequiereCapacidad(capacidad)
+    return guarda
+
+
 def get_current_org_id(current_user: User = Depends(get_current_user)) -> Optional[str]:
     """Row-level tenant dependency.
 

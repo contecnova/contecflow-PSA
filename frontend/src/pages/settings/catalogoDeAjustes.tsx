@@ -97,6 +97,7 @@ export const SECCIONES_DE_AJUSTES: SeccionDeAjustes[] = [
   { id: 'users', grupo: 'personas', capacidad: 'personas.config', componente: seccionDe('UsersSection') },
   { id: 'roles', grupo: 'personas', capacidad: ADMIN, componente: seccionDe('RolesSection') },
   { id: 'ausencias', grupo: 'personas', capacidad: 'ausencias.config', envolver: true, componente: pagina(() => import('../../components/ausencias/admin/AdminDeAusencias')) },
+  // 19-11-2026: también el máximo asignable (VACATION_MAX_DAYS_ENTITLED, grupo locale; sólo admin lo edita).
   { id: 'vacations', grupo: 'personas', capacidad: 'personas.config', componente: seccionDe('VacationSection') },
   { id: 'horas-extra', grupo: 'personas', capacidad: 'horas_extra.config', envolver: true, componente: pagina(() => import('../../components/horas-extra/ConfigHorasExtra')) },
 
@@ -112,6 +113,7 @@ export const SECCIONES_DE_AJUSTES: SeccionDeAjustes[] = [
   { id: 'cartera', grupo: 'proyectos', capacidad: 'cartera.gestionar', envolver: true, componente: pagina(() => import('../../components/cartera/ConfigCartera')) },
 
   // Service desk (las escrituras son require_admin salvo las respuestas rápidas, require_any_manager)
+  // 19-11-2026: la rampa y los minutos del despliegue canario (CHANGE_CANARY_*) van en Escalado y avisos (grupo service_desk).
   { id: 'sd', grupo: 'servicedesk', capacidad: 'sd.config', envolver: true, componente: pagina(() => import('../service-desk/ConfigTab')) },
   { id: 'sla-calendars', grupo: 'servicedesk', capacidad: 'sd.disenar_flujos', rutaAntigua: '/sla-calendars', componente: pagina(() => import('../SLACalendarsPage')) },
   { id: 'sd-workflows', grupo: 'servicedesk', capacidad: 'sd.disenar_flujos', enlace: '/sd/workflow-designer' },
@@ -119,10 +121,14 @@ export const SECCIONES_DE_AJUSTES: SeccionDeAjustes[] = [
   { id: 'sd-agente', grupo: 'servicedesk', capacidad: 'sd.administrar', envolver: true, componente: pagina(() => import('../../components/servicedesk/ConfigAgenteAutonomo')) },
   { id: 'sd-autorresolucion', grupo: 'servicedesk', capacidad: 'sd.administrar', envolver: true, componente: pagina(() => import('../../components/servicedesk/ConfigAutoResolucion')) },
   { id: 'sd-voz', grupo: 'servicedesk', capacidad: 'sd.administrar', envolver: true, componente: pagina(() => import('../../components/servicedesk/ConfigAgenteDeVoz')) },
+  // 19-11-2026: CMDB de software y vulnerabilidades (fuentes de avisos, credenciales, plazos, licencias).
+  { id: 'cmdb-software', grupo: 'servicedesk', capacidad: 'software.config', envolver: true, componente: pagina(() => import('../../components/cmdb/software/ConfigSoftware')) },
 
   // Finanzas
   { id: 'rates', grupo: 'finanzas', capacidad: 'tarifas.config', rutaAntigua: '/rate-cards', componente: pagina(() => import('../RateCardsPage')) },
   { id: 'user-costs', grupo: 'finanzas', capacidad: 'costes.config', rutaAntigua: '/user-costs', componente: pagina(() => import('../UserCostsPage')) },
+  // 19-11-2026 (migración 189): plantillas de contrato, tipos de servicio, unidades de cobro y umbrales de proveedores.
+  { id: 'proveedores', grupo: 'finanzas', capacidad: 'proveedores.config', componente: pagina(() => import('../proveedores/ConfigProveedores')) },
 
   // Aprobaciones y políticas (escritura: require_admin en los dos)
   { id: 'approval-workflows', grupo: 'aprobaciones', capacidad: ADMIN, componente: FlujosDeAprobacion },
@@ -135,6 +141,8 @@ export const SECCIONES_DE_AJUSTES: SeccionDeAjustes[] = [
   { id: 'traduccion', grupo: 'ia', capacidad: ADMIN, componente: pagina(() => import('../settings-sections/TraduccionSection')) },
   // 19-11-2026: antes pestaña «Configuración» de /semantic-engine (escritura admin y RRHH).
   { id: 'ia-asignacion', grupo: 'ia', capacidad: 'ia.asignacion_config', envolver: true, componente: pagina(() => import('../../components/asignacion-ia/ConfigMotorSemantico')) },
+  // 19-11-2026: asistente de reuniones (consentimiento, retención, Teams/Zoom/Meet, bot y RGPD por persona).
+  { id: 'reuniones', grupo: 'ia', capacidad: 'reuniones.config', envolver: true, componente: pagina(() => import('../../components/reuniones/ConfigReuniones')) },
 
   // Integraciones
   { id: 'integrations', grupo: 'integraciones', capacidad: ADMIN, componente: seccionDe('IntegrationCredentialsSection') },
@@ -156,6 +164,7 @@ export const SECCIONES_DE_AJUSTES: SeccionDeAjustes[] = [
   { id: 'session', grupo: 'seguridad', capacidad: ADMIN, componente: seccionDe('SessionSecuritySection') },
   { id: 'mfa', grupo: 'seguridad', rutaAntigua: '/mfa', componente: pagina(() => import('../MFAPage')) },
   { id: 'grc', grupo: 'seguridad', capacidad: ADMIN, rutaAntigua: '/grc', componente: pagina(() => import('../GrcPage')) },
+  // 19-11-2026: también los meses de retención propuestos (CHAT_RETENTION_PROPOSED_MONTHS, grupo audit).
   { id: 'chat-admin', grupo: 'seguridad', capacidad: ADMIN, componente: pagina(() => import('../ChatAdminPage')) },
 
   // Portal de clientes
@@ -167,6 +176,7 @@ export const SECCIONES_DE_AJUSTES: SeccionDeAjustes[] = [
   { id: 'metrics', grupo: 'alertas', capacidad: ADMIN, componente: seccionDe('MetricsSection') },
 
   // Sistema
+  // 19-11-2026: los plazos de evaluaciones de desempeño (PERF_*) están en su pestaña Automatizaciones.
   { id: 'runtime-flags', grupo: 'sistema', capacidad: ADMIN, componente: seccionDe('RuntimeFlagsSection') },
   { id: 'log-level', grupo: 'sistema', capacidad: ADMIN, componente: seccionDe('LogLevelSection') },
   { id: 'system-state', grupo: 'sistema', capacidad: ADMIN, componente: seccionDe('SystemStateSection') },

@@ -783,6 +783,16 @@ def run_discovery_for_provider(db: Session, provider: CMDBDiscoveryProvider) -> 
     try:
         config = load_config(provider)
 
+        # CMDB de software (19-11-2026): conexiones de escaneo SSH, WinRM y API
+        # (`sw_*`). Recogen el software de cada equipo, no la nube: su propio camino.
+        if (provider.provider_type or "").startswith("sw_"):
+            from app.services.cmdb_software.escaneos import para_el_descubrimiento
+            stats = para_el_descubrimiento(db, provider)
+            job.status = "partial" if stats["software"].get("errors") else "ok"
+            job.cis_created, job.cis_updated, job.cis_deactivated = stats["created"], stats["updated"], 0
+            job.summary_json = json.dumps(stats["software"], default=str)[:20000]
+            return job
+
         if provider.provider_type == PROVIDER_AWS:
             discovered = discover_aws(config)
         elif provider.provider_type == PROVIDER_K8S:

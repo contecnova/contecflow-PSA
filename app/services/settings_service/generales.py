@@ -213,4 +213,9 @@ def defaults_de_organizacion(db: Session, org_id: Optional[str], audiencia: Audi
     # son sensibles y los pinta cualquier pantalla (useUmbrales()).
     from app.core.umbrales import umbrales_de_empresa
     datos["umbrales"] = umbrales_de_empresa(db, org_id)
+    # 19-11-2026: valores de formulario que eran fijos (rampa canaria, retención
+    # propuesta del chat, máximo de vacaciones); sólo para la plantilla interna.
+    if audiencia >= Audiencia.INTERNA:
+        from app.services.settings_service.valores_de_negocio import propuestas_de_formulario
+        datos["propuestas"] = propuestas_de_formulario(db, org_id)
     return datos

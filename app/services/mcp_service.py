@@ -103,13 +103,14 @@ def herramientas_para(db: Session, user, alcances: Optional[list]) -> list[dict]
     # (`tool_execution.politica`: la guarda y la matriz GRC del endpoint REST
     # equivalente). El endpoint admite a la plantilla interna; cada herramienta
     # recorta después a su rol y a su alcance.
-    from app.services.ai_chat.tool_execution.politica import denegacion
+    # Solo el motivo (sin pintarlo): aqui basta saber si se deniega.
+    from app.services.ai_chat.tool_execution.politica import codigo_de_denegacion
     salida = []
     for h in _herramientas():
         es_escritura = h["name"] in ESCRITURA
         if es_escritura and not escribe:
             continue
-        if denegacion(db, user, h["name"]):
+        if codigo_de_denegacion(db, user, h["name"]):
             continue
         descripcion = h.get("description", "")
         if es_escritura and con_aprobacion:

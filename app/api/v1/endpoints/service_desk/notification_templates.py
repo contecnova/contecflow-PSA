@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import require_admin
+from app.core.deps import requiere_capacidad
 from app.core.responses import APIListResponse, APIResponse
 from app.db.session import get_db
 from app.models.user import User
@@ -25,13 +25,13 @@ class VistaPreviaIn(BaseModel):
 
 
 @router.get("/notification-templates", summary="Avisos del Service Desk y sus textos")
-def listar(db: Session = Depends(get_db), user: User = Depends(require_admin)):
+def listar(db: Session = Depends(get_db), user: User = Depends(requiere_capacidad("sd.administrar"))):
     return APIListResponse.ok(items=svc.listar(db, user.organization_id))
 
 
 @router.put("/notification-templates/{code}/{language}", summary="Personalizar o apagar un aviso")
 def guardar(code: str, language: str, payload: PlantillaIn,
-            db: Session = Depends(get_db), user: User = Depends(require_admin)):
+            db: Session = Depends(get_db), user: User = Depends(requiere_capacidad("sd.administrar"))):
     data = svc.guardar(db, user.organization_id, user.id, code, language,
                        payload.subject, payload.body_html, payload.is_active)
     _commit_or_rollback(db)
@@ -39,12 +39,12 @@ def guardar(code: str, language: str, payload: PlantillaIn,
 
 
 @router.delete("/notification-templates/{code}/{language}", summary="Volver al texto por defecto")
-def restaurar(code: str, language: str, db: Session = Depends(get_db), user: User = Depends(require_admin)):
+def restaurar(code: str, language: str, db: Session = Depends(get_db), user: User = Depends(requiere_capacidad("sd.administrar"))):
     data = svc.restaurar(db, user.organization_id, code, language)
     _commit_or_rollback(db)
     return APIResponse.ok(data=data)
 
 
 @router.post("/notification-templates/preview", summary="Vista previa con datos de ejemplo")
-def vista_previa(payload: VistaPreviaIn, _: User = Depends(require_admin)):
+def vista_previa(payload: VistaPreviaIn, _: User = Depends(requiere_capacidad("sd.administrar"))):
     return APIResponse.ok(data=svc.vista_previa(payload.subject, payload.body_html))

@@ -29,8 +29,8 @@
  *
  * 19-11-2026: la pestaña «Configuración» (saludo, idioma, teclas, palabras
  * clave) vive en Configuración → Service desk → Agente de voz
- * (`/settings/sd-voz`, ConfigAgenteDeVoz.tsx). Aquí quedan las sesiones y el
- * botón «Configurar» para quien tiene `sd.administrar`.
+ * (`/settings/sd-voz`, ConfigAgenteDeVoz.tsx). Aquí quedan solo las sesiones,
+ * sin botón «Configurar».
  */
 import { useState, useMemo, useId } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -39,14 +39,13 @@ import { voiceAgentApi } from '../../services/api'
 import type { SesionDeVoz, TurnoDeVoz } from '../../services/api/tipos-analitica'
 import { useAppT } from '../../i18n/AppLangContext'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
-import { Phone, Mic, PhoneOff, Plus, ExternalLink, Mail, Link2, Send, Settings2, Ticket } from 'lucide-react'
+import { Phone, Mic, PhoneOff, Plus, ExternalLink, Mail, Link2, Send, Ticket } from 'lucide-react'
 import { Card, Button, Pulsable, Select, Spinner, EmptyState, Modal, Section } from '../ui'
 import StatusBadge from '../ui/StatusBadge'
 import type { StatusBadgeKind } from '../ui/StatusBadge'
 import { useToast } from '../../context/ToastContext'
 import { fmtDateTime, formateadorDeFecha } from '../../utils/helpers'
 import { POLL_LIVE_MS } from '../../constants/timings'
-import { useAuth } from '../../context/AuthContext'
 import './VoiceAgentPanel.css'
 
 type VoiceTurn = TurnoDeVoz
@@ -223,7 +222,6 @@ export default function VoiceAgentPanel() {
   const [activeSessionId, setActiveSessionId] = useState<string | number | null>(null)
   const [callerInput, setCallerInput] = useState<string>('')
   const [channel, setChannel] = useState<string>('phone')
-  const configura = useAuth().puede('sd.administrar')
   const [historyFilter, setHistoryFilter] = useState<string>('') // '' | 'active' | 'closed'
   const [detailSession, setDetailSession] = useState<VoiceSession | null>(null)
 
@@ -296,9 +294,6 @@ export default function VoiceAgentPanel() {
         actions={<>
           <StatusBadge kind="success" dot caps={false}>{t('voiceagent.n_activas', { n: activas })}</StatusBadge>
           <StatusBadge kind="neutral" caps={false}>{t('voiceagent.n_cerradas', { n: cerradas })}</StatusBadge>
-          {configura && (
-            <Button size="sm" variant="secondary" icon={<Settings2 size={14} />} onClick={() => navigate('/settings/sd-voz')}>{t('ajustes.configurar')}</Button>
-          )}
         </>}
       >
           <div className="u-stack-16">

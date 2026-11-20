@@ -46,6 +46,9 @@ export type { Asignacion as AsignacionUniversal, EventoAlm, Acta as ActaAlm, Res
 export { gastosApi } from './gastos'
 export { catalogosApi } from './catalogos'  // tipos de proyecto, sectores, categorías de gasto (19-11-2026)
 export type { NombreDeCatalogo, ValorDeCatalogo, ValorDeCatalogoIn } from './catalogos'
+// Proveedores y externalización (19-11-2026): contratos, servicios, paquetes, consumo, GRC de terceros.
+export { proveedoresApi } from './proveedores'
+export type * from './tipos-proveedores'
 export { presupuestosApi } from './presupuestos'
 export { politicasApi } from './politicas'
 export type { ParametrosDeSimulacion } from './politicas'
@@ -124,6 +127,14 @@ export type {
   AuditLogParams,
   AuditLogEntry,
 } from './settings'
+// Asistente de reuniones (19-11-2026): grabación propia, bot, Teams/Zoom/Meet
+export { reunionesApi, ESTADOS_REUNION, ORIGENES_REUNION, ESTADOS_EN_CURSO } from './reuniones'
+export type {
+  EstadoReunion, OrigenReunion, PlataformaImportable, ConectorReuniones, FormatoTranscripcion, MetodoConsentimiento,
+  ReunionResumen, ReunionDetalle, ParticipanteReunion, SegmentoReunion, AccionReunion, EventoReunion, ReunionIn,
+  ParticipanteIn, TrozoDeAudio, TrozoSubido, ResultadoDeBusqueda, PreferenciasReuniones, PreferenciasReunionesLeidas,
+  ConfigReuniones, ConfigReunionesIn, PruebaDeConector, AsistenteDeLlamada,
+} from './reuniones'
 // Proyectos — planificador, hub y vistas (rev. 173)
 export { planificacionApi, dependenciasApi, lineasBaseApi, carteraApi, plantillasApi, iaDeProyectosApi, recursosApi } from './planificacion'
 export type { PlanDelProyecto, NodoDelPlan, Nivelacion, Dependencia, LineaBase, Comparacion, ValorGanado, CurvaS, VistaGuardada, TipoDeVista, Criterio, Fase, Propuesta, Capacidad, PlantillaResumen, EstimacionIa, SaludDelProyecto, Simulacion, CargaPorPersona } from './planificacion'

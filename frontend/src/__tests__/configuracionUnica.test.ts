@@ -99,6 +99,8 @@ describe('configuración que salió de los módulos (19-11-2026)', () => {
     ['sd-voz', 'servicedesk', 'sd.administrar', 'components/servicedesk/VoiceAgentPanel.tsx', 'components/servicedesk/ConfigAgenteDeVoz.tsx'],
     ['sd-autorresolucion', 'servicedesk', 'sd.administrar', 'components/servicedesk/AutoResolutionPanel.tsx', 'components/servicedesk/ConfigAutoResolucion.tsx'],
     ['ia-asignacion', 'ia', 'ia.asignacion_config', 'pages/SemanticEnginePage.tsx', 'components/asignacion-ia/ConfigMotorSemantico.tsx'],
+    // 19-11-2026: asistente de reuniones (nace en Configuración; la pantalla no tiene botón «Configurar»).
+    ['reuniones', 'ia', 'reuniones.config', 'pages/MeetingsAIPage.tsx', 'components/reuniones/ConfigReuniones.tsx'],
   ]
 
   it('cada una es una sección de su grupo, con su capacidad', () => {
@@ -111,14 +113,15 @@ describe('configuración que salió de los módulos (19-11-2026)', () => {
     }
   })
 
-  it('el módulo ya no tiene la pestaña: solo el botón «Configurar» hacia su sección', () => {
-    for (const [id, , capacidad, modulo, seccion] of MOVIDAS) {
+  // 19-11-2026: los módulos no llevan botón «Configurar»; toda la configuración se
+  // hace desde Configuración. Solo hay enlaces contextuales («Ir a Configuración»)
+  // donde una acción no funciona por falta de configuración.
+  it('el módulo ya no tiene la pestaña ni el botón «Configurar»; la sección existe en Configuración', () => {
+    for (const [id, , , modulo, seccion] of MOVIDAS) {
       const src = leer(modulo)
       expect(src, modulo).not.toMatch(/id: '(config|overview)'/)
-      expect(src, modulo).toContain(`'/settings/${id}'`)
-      // Git (19-11-2026): sin botón en la cabecera; «Conectar repositorios» en el estado vacío.
-      expect(src, modulo).toMatch(/\b(t|traducir)\('(ajustes\.configurar|git_integration\.conectar_repositorios)'\)/)
-      expect(src, modulo).toContain(`puede('${capacidad}')`)
+      expect(src, modulo).not.toMatch(/\b(t|traducir)\('ajustes\.configurar'\)/)
+      expect(SECCIONES_DE_AJUSTES.some(s => s.id === id), id).toBe(true)
       // El formulario ya no vive en el módulo.
       expect(leer(seccion).length).toBeGreaterThan(0)
     }

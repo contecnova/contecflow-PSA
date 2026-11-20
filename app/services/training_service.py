@@ -73,6 +73,9 @@ def list_enrollments(
 
 
 def create_enrollment(db: Session, data: dict) -> CourseEnrollment:
+    # Migracion 189: formacion interna para externos solo si su proveedor la activa (422).
+    from app.services.proveedores.asignabilidad import exigir_desarrollo_permitido
+    exigir_desarrollo_permitido(db, data.get("user_id"))
     e = CourseEnrollment(id=str(_uuid.uuid4()), **data)
     db.add(e)
     db.commit()

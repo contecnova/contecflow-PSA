@@ -91,6 +91,10 @@ POLITICAS: dict[str, Politica] = {
     # Sin ruta REST propia: solo existe como acción del agente (`POST /ai/agent`).
     "send_notification":     Politica(_POST, "/ai/agent", require_any_manager),
     "get_git_activity":      Politica(_GET, "/git/pull-requests", None),
+    # Asistente de reuniones (19-11-2026): solo las reuniones visibles (consultas.visibles).
+    "search_meetings":       Politica(_GET, "/meeting-assistant/search", require_internal_user),
+    # CMDB de software (19-11-2026): solo lectura, la guarda de `/cmdb/software/where-used`.
+    "search_software_inventory": Politica(_GET, "/cmdb/software/where-used", require_admin_or_pm),
 }
 
 
@@ -139,22 +143,39 @@ def denegacion_del_portal(db: Session, cliente, herramienta: str) -> Optional[st
     return texto(*motivo) if motivo else None
 
 
-def denegacion(db: Session, user, herramienta: str) -> Optional[str]:
-    """Motivo por el que `user` no puede usar `herramienta`, o None si puede."""
+def codigo_de_denegacion(db: Session, user, herramienta: str) -> Optional[tuple[str, dict]]:
+    """`(clave, datos)` del motivo por el que `user` no puede usar `herramienta`
+    (clave de `textos_de_salida`, `politica.*`), o None si puede (19-11-2026)."""
     politica = POLITICAS.get(herramienta)
     if politica is None:
-        return f"La herramienta '{herramienta}' no tiene política de acceso: no se ejecuta."
+        return "politica.herramienta_sin_politica", {"herramienta": herramienta}
     if getattr(user, "is_superadmin", False):
         return None
     if politica.roles is not None and getattr(user, "role", None) not in politica.roles.roles:
-        return f"Acceso denegado: '{herramienta}' no está disponible para tu rol."
+        return "politica.herramienta_rol", {"herramienta": herramienta}
     from app.core.grc_catalog import action_for, module_for_path
     from app.core.grc_enforce import decidir
     ruta = "/api/v1" + politica.ruta
     modulo, accion = module_for_path(ruta), action_for(politica.metodo, ruta)
     if modulo and accion and decidir(db, user, modulo, accion, getattr(user, "organization_id", None))["denied"]:
-        return f"La política de gobierno de tu organización no permite '{accion}' en '{modulo}'."
+        return "politica.herramienta_grc", {"accion": accion, "modulo": modulo}
     return None
+
+
+def denegacion(db: Session, user, herramienta: str) -> Optional[str]:
+    """Motivo por el que `user` no puede usar `herramienta`, o None si puede.
+
+    19-11-2026: en el idioma de `user` (antes castellano fijo); lo lee el
+    asistente, el cliente MCP y quien mira el registro de herramientas.
+    """
+    motivo = codigo_de_denegacion(db, user, herramienta)
+    if not motivo:
+        return None
+    from app.services.formato_regional import idioma_de_salida
+    from app.services.textos_de_salida import texto
+    idioma = idioma_de_salida(db, user_id=getattr(user, "id", None),
+                              org_id=getattr(user, "organization_id", None))
+    return texto(motivo[0], idioma, **motivo[1])
 
 
 # ── Alcance compartido por las herramientas ───────────────────────────────────

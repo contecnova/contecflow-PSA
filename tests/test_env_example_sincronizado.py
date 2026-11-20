@@ -29,6 +29,8 @@ _FAMILIAS_FUERA = (
     "SEED_", "WHISPER_", "POLICY_",
     # Licencias y hardware (fases 1-3, 16-11-2026): umbrales y plazos por empresa (grupo `licencias_uso`…).
     "ALM_",
+    # Valores de negocio que eran fijos (19-11-2026, `valores_de_negocio.py`): por empresa, en Configuración.
+    "CHANGE_CANARY_", "CHAT_RETENTION_", "PERF_REMINDER_", "PERF_STALLED_",
 )
 
 #: Fuera a propósito, uno a uno.

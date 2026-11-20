@@ -27,7 +27,7 @@ import {
   CheckCircle, CheckCircle2, Info, Trash2,
   Clock as ClockIcon, Users, BarChart3, Sparkles, Layers, Workflow,
   FileText, Receipt, RefreshCw, Flag, ShoppingCart, FileSignature, PiggyBank, ArrowLeftRight, LayoutGrid,
-  Palmtree, Package, ClipboardList, Handshake, GitBranch, UserPlus, Tag, Plug, Laptop, Undo2, Circle, AlarmClockPlus,
+  Palmtree, Package, ClipboardList, Handshake, GitBranch, UserPlus, Tag, Plug, Laptop, Undo2, Circle, AlarmClockPlus, ShieldAlert,
   ArrowLeft, FolderOpen, Pencil, Check, Plus, X, AlertTriangle, Download,
 } from 'lucide-react'
 import { Button, Modal, EmptyState, Tabs, Page, Table, KpiCard, IconButton, StatusBadge, SelectorDePeriodo, Pulsable, Select, TablaSimple, Checkbox, useErroresDeCampo } from '../components/ui'
@@ -74,6 +74,10 @@ const ENTIDADES: Record<string, { icon: ReactNode; color: string }> = {
   license_reclaim: { icon: <Undo2 size={14} />, color: 'var(--warning)' },
   // 18-11-2026: peticiones de horas extra (/overtime).
   overtime: { icon: <AlarmClockPlus size={14} />, color: 'var(--warning)' },
+  // 19-11-2026: excepción de una vulnerabilidad (CMDB de software).
+  vuln_exception: { icon: <ShieldAlert size={14} />, color: 'var(--warning)' },
+  // Migración 191: estado de cuenta / factura de un proveedor, por importe.
+  supplier_statement: { icon: <Handshake size={14} />, color: 'var(--accent)' },
 }
 const ICONO_ENTIDAD_DESCONOCIDA = <Circle size={14} />
 /** Nombre de cada tipo de entidad: `approvals.entity_<tipo>`. */

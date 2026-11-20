@@ -81,7 +81,8 @@ def list_meetings(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return APIListResponse.ok(items=_svc.list_meetings(db, project_id=project_id))
+    # 19-11-2026: solo las reuniones visibles (app/services/reuniones/consultas.py).
+    return APIListResponse.ok(items=_svc.list_meetings(db, project_id=project_id, user=current_user))
 
 
 from app.schemas.ai_modules import MeetingProcessPayload
@@ -110,6 +111,9 @@ def create_tasks_from_meeting(
     current_user: User = Depends(get_current_user),
     _rol: User = Depends(require_internal_user),  # auditoria 2026-09: trabajo diario: la forma de la ruta manda sobre el fichero
 ):
+    # 19-11-2026: solo quien gestiona la reunión (404 si no la ve, 403 si no la gestiona).
+    from app.services.reuniones.consultas import obtener_gestionable
+    obtener_gestionable(db, current_user, meeting_id)
     try:
         return APIResponse.ok(data=_svc.create_tasks_from_meeting(db, meeting_id, payload, current_user))
     except ValueError as e:
@@ -126,7 +130,7 @@ def get_meeting(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return APIResponse.ok(data=_svc.get_meeting(db, meeting_id))
+        return APIResponse.ok(data=_svc.get_meeting(db, meeting_id, user=current_user))
     except ValueError:
         raise HTTPException(404)
 

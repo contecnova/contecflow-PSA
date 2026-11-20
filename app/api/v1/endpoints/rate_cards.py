@@ -21,7 +21,7 @@ from typing import Optional
 from pydantic import BaseModel
 
 from app.db.session import get_db
-from app.core.deps import get_current_user, require_any_manager
+from app.core.deps import get_current_user, requiere_capacidad
 from app.core.abac_enforce import enforce_abac
 from app.core.responses import APIListResponse, APIResponse
 from app.models.user import User
@@ -81,7 +81,7 @@ def list_rate_tables(
 def create_rate_table(
     payload: RateTableIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("tarifas.gestionar")),
 ):
     t = _svc.create_rate_table(db, payload.model_dump(), current_user.organization_id, current_user.is_superadmin)
     return APIResponse.ok(data=_table_out(t, include_entries=True))
@@ -125,7 +125,7 @@ def update_rate_table(
     table_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("tarifas.gestionar")),
 ):
     t = _svc.update_rate_table(db, table_id, payload, current_user.organization_id, current_user.is_superadmin)
     return APIResponse.ok(data=_table_out(t, include_entries=True))
@@ -135,7 +135,7 @@ def update_rate_table(
 def delete_rate_table(
     table_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("tarifas.gestionar")),
 ):
     enforce_abac(db, current_user, "rate_table", table_id, action="delete")
     _svc.delete_rate_table(db, table_id, current_user.organization_id, current_user.is_superadmin)
@@ -148,7 +148,7 @@ def duplicate_rate_table(
     escalation_pct: float = Body(0.0, embed=True),
     new_name: Optional[str] = Body(None, embed=True),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("tarifas.gestionar")),
 ):
     new_table = _svc.duplicate_rate_table(
         db, table_id, escalation_pct, new_name,
@@ -163,7 +163,7 @@ def add_entry(
     table_id: str,
     payload: RateEntryIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("tarifas.gestionar")),
 ):
     e = _svc.add_entry(db, table_id, payload.model_dump(), current_user.organization_id, current_user.is_superadmin)
     return APIResponse.ok(data=_entry_out(e))
@@ -174,7 +174,7 @@ def update_entry(
     table_id: str, entry_id: str,
     payload: dict = Body(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("tarifas.gestionar")),
 ):
     e = _svc.update_entry(db, table_id, entry_id, payload, current_user.organization_id, current_user.is_superadmin)
     return APIResponse.ok(data=_entry_out(e))
@@ -184,7 +184,7 @@ def update_entry(
 def delete_entry(
     table_id: str, entry_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("tarifas.gestionar")),
 ):
     enforce_abac(db, current_user, "rate_entry", entry_id, action="delete")
     _svc.delete_entry(db, table_id, entry_id, current_user.organization_id, current_user.is_superadmin)
@@ -197,7 +197,7 @@ def add_override(
     table_id: str,
     payload: RateOverrideIn,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("tarifas.gestionar")),
 ):
     o = _svc.add_override(db, table_id, payload.model_dump(), current_user.organization_id, current_user.is_superadmin)
     return APIResponse.ok(data=_override_out(o))
@@ -207,7 +207,7 @@ def add_override(
 def delete_override(
     table_id: str, override_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_any_manager),
+    current_user: User = Depends(requiere_capacidad("tarifas.gestionar")),
 ):
     enforce_abac(db, current_user, "rate_override", override_id, action="delete")
     _svc.delete_override(db, table_id, override_id, current_user.organization_id, current_user.is_superadmin)

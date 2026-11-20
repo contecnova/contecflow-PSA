@@ -21,11 +21,24 @@ export const CAPACIDADES = [
   'finanzas.ver',
   'sd.ver', 'sd.completo', 'soporte.panel', 'sd.config', 'sd.administrar', 'sd.gestionar', 'sd.disenar_flujos',
   'cmdb.ver', 'alm.ver',
+  // API de /alm por capacidad (19-11-2026): gestionar (gestores), consultar catálogos (internos), conexiones (admin).
+  'alm.gestionar', 'alm.consultar', 'alm.conexiones',
+  // CMDB de software y vulnerabilidades (19-11-2026): ver, gestionar (catálogo, instancias, triaje),
+  // aprobar (excepciones y líneas base) y configurar (fuentes de avisos, credenciales, plazos).
+  'software.ver', 'software.gestionar', 'software.aprobar', 'software.config',
   'analitica.ver', 'informes.programar', 'alertas.ver', 'exportar.ver', 'exportar.todo', 'exportar.proyectos',
   'datos.plataforma',
   'ia.ver', 'ia.asignacion', 'ia.asignacion_config',
+  // Asistente de reuniones (19-11-2026): usar (internos), ver todas (supervisión) y configurar.
+  'reuniones.usar', 'reuniones.ver_todas', 'reuniones.config',
+  // Proveedores y externalización (19-11-2026): ver (gestores y RRHH), gestionar y configurar (admin/PM).
+  'proveedores.ver', 'proveedores.gestionar', 'proveedores.config',
+  // Portal del proveedor (migración 191): solo externos marcados como contacto del portal de su proveedor.
+  'proveedores.portal',
   'personas.config', 'costes.config', 'proyectos.config', 'tarifas.config', 'integraciones.desarrollo',
   'portal.formularios',
+  // API de tarifas (escribir) e importación masiva: gestores (19-11-2026).
+  'tarifas.gestionar', 'integraciones.importar',
 ] as const
 
 export type Capacidad = typeof CAPACIDADES[number]

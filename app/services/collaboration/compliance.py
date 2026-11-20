@@ -168,7 +168,18 @@ def create_policy(db: Session, user, datos: dict) -> CollaborationRetentionPolic
     ws = get_or_create_workspace(db, user)
     ajustes = get_retention_settings(db, org)
     meses = datos.get("retention_months")
-    if meses is not None and meses > ajustes["max_months"]:
+    # 19-11-2026: sin meses, los propuestos por la empresa (antes 24 fijos en el
+    # esquema y en la pantalla). Y ninguna política por debajo del mínimo de
+    # retención de la empresa (`RETENTION_MIN_DAYS`, el de las demás políticas):
+    # con 0 meses el corte del barrido era «ahora» y se borraba todo el chat.
+    from app.services.settings_service import valores_de_negocio as _vn
+    if meses is None:
+        meses = _vn.retencion_propuesta_del_chat(db, org)
+    minimo = _vn.meses_minimos_de_retencion(db, org)
+    if meses < minimo:
+        raise error(422, "retencion_minimo_dias", detail=f"Mínimo {minimo * DIAS_POR_MES} días (RETENTION_MIN_DAYS)",
+                    dias=minimo * DIAS_POR_MES)
+    if meses > ajustes["max_months"]:
         raise error(422, "retencion_supera_maximo", detail=f"retention_months exceeds tenant max ({ajustes['max_months']})", max=ajustes['max_months'])
 
     fila = CollaborationRetentionPolicy(

@@ -18,7 +18,7 @@ from fastapi import APIRouter, Body, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, require_any_manager
+from app.core.deps import get_current_user, requiere_capacidad
 from app.db.session import get_db
 from app.models.user import User
 from app.core.abac_enforce import enforce_abac
@@ -84,7 +84,7 @@ def list_templates(current_user: User = Depends(get_current_user)):
 
 @router.post("/workflow-designer/validate", summary="Validar grafo de workflow")
 def validate_workflow_graph(
-    graph: dict = Body(...), current_user: User = Depends(require_any_manager)
+    graph: dict = Body(...), current_user: User = Depends(requiere_capacidad("sd.config"))
 ):
     return APIResponse.ok(data=validate_graph(graph))
 
@@ -93,7 +93,7 @@ def validate_workflow_graph(
 def list_blueprints(
     process_type: Optional[str] = Query(None),
     include_archived: bool = Query(False),
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.config")),
 ):
     filas = svc_list_blueprints(
         db, current_user, process_type=process_type, include_archived=include_archived)
@@ -103,7 +103,7 @@ def list_blueprints(
 @router.post("/workflow-designer/blueprints", summary="Crear blueprint de workflow")
 def create_workflow_blueprint(
     payload: BlueprintCreateIn,
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.config")),
 ):
     bp = crear_blueprint_confirmado(
         db, current_user,
@@ -118,7 +118,7 @@ def create_workflow_blueprint(
 @router.get("/workflow-designer/blueprints/{blueprint_id}", summary="Detalle blueprint + versiones")
 def get_blueprint(
     blueprint_id: str,
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.config")),
 ):
     bp = blueprint_propio(db, current_user, blueprint_id)
     versions = [serialize_version(v) for v in bp.versions]
@@ -129,7 +129,7 @@ def get_blueprint(
 def create_blueprint_version(
     blueprint_id: str,
     payload: BlueprintVersionIn,
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.config")),
 ):
     version = anadir_version_confirmada(db, current_user, blueprint_id, payload.graph)
     return APIResponse.ok(data=serialize_version(version))
@@ -139,7 +139,7 @@ def create_blueprint_version(
 def publish_blueprint_version(
     blueprint_id: str,
     version: int,
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.config")),
 ):
     publicar_version_confirmada(db, current_user, blueprint_id, version)
     return APIResponse.ok(data={"ok": True, "blueprint_id": blueprint_id, "published_version": version})
@@ -149,7 +149,7 @@ def publish_blueprint_version(
 def clone_blueprint(
     blueprint_id: str,
     payload: BlueprintCloneIn,
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.config")),
 ):
     bp = clonar_blueprint_confirmado(db, current_user, blueprint_id, payload.name)
     return APIResponse.ok(data=serialize_blueprint(bp))
@@ -158,7 +158,7 @@ def clone_blueprint(
 @router.delete("/workflow-designer/blueprints/{blueprint_id}", summary="Archivar blueprint (soft delete)")
 def delete_blueprint(
     blueprint_id: str,
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.config")),
 ):
     enforce_abac(db, current_user, "sd_workflow_blueprint", blueprint_id, action="delete")
     archivar_blueprint_confirmado(db, current_user, blueprint_id)
@@ -181,7 +181,7 @@ class RunResumeIn(BaseModel):
 def start_run(
     blueprint_id: str,
     payload: RunStartIn,
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.config")),
 ):
     # La guarda de organizacion va antes del motor: ver `iniciar_ejecucion`.
     run = iniciar_ejecucion(
@@ -201,7 +201,7 @@ def list_runs(
     blueprint_id: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
     limit: int = Query(50, le=MAX_TAMANO_DE_PAGINA),
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.config")),
 ):
     filas = svc_list_runs(
         db, current_user, blueprint_id=blueprint_id, status=status, limit=limit)
@@ -211,7 +211,7 @@ def list_runs(
 @router.get("/workflow-designer/runs/{run_id}", summary="Detalle de ejecución + historial")
 def get_run(
     run_id: str,
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.config")),
 ):
     run = run_propio(db, current_user, run_id)
     return APIResponse.ok(data={
@@ -224,7 +224,7 @@ def get_run(
 def resume_run(
     run_id: str,
     payload: RunResumeIn,
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.config")),
 ):
     run = reanudar_ejecucion(db, current_user, run_id, branch=payload.branch, payload=payload.payload)
     return APIResponse.ok(data={
@@ -237,7 +237,7 @@ def resume_run(
 def cancel_run(
     run_id: str,
     reason: Optional[str] = Body(None, embed=True),
-    db: Session = Depends(get_db), current_user: User = Depends(require_any_manager),
+    db: Session = Depends(get_db), current_user: User = Depends(requiere_capacidad("sd.config")),
 ):
     run = cancelar_ejecucion(db, current_user, run_id, reason)
     return APIResponse.ok(data={"ok": True, "run": engine.serialize_run(run)})

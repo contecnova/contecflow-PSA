@@ -206,12 +206,21 @@ def _variables(db: Session, ev: TicketEvent, ticket: Ticket, data: dict, dest: D
         "vendor_name": " · ".join(x for x in (data.get("vendor"), data.get("contract")) if x),
         "comment_author": autor,
         "comment_body": _cuerpo_del_comentario(db, ticket, comentario, dest) if comentario is not None
-        else (data.get("note") or data.get("action") or ""),
+        else (data.get("note") or _accion_en(data, dest.idioma) or ""),
         "resolution": et.get(decision, decision) if decision else (ticket.resolution or ""),
         "sla_due": _fecha(sla_due, org_id, db, dest.idioma),
         "link": _enlace(ticket, dest),
         "org_name": "",
     }
+
+
+def _accion_en(data: dict, idioma) -> str:
+    """La accion de un escalado: por su clave en el idioma de quien la recibe
+    (avisos de los playbooks de serie, 19-11-2026) o el texto guardado."""
+    if data.get("action_clave"):
+        from app.services.textos_de_salida import texto
+        return texto(data["action_clave"], idioma)
+    return data.get("action") or ""
 
 
 def _cuerpo_del_comentario(db: Session, ticket: Ticket, comentario: TicketComment, dest: Destinatario) -> str:

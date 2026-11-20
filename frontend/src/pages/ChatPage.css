@@ -754,6 +754,9 @@ h3.chat-section-btn { margin: 0; }
   color: var(--card-accent);
   letter-spacing: 0.06em;
 }
+/* Acta del asistente de reuniones (19-11-2026) */
+.chat-card--acta { --card-accent: var(--accent); align-items: flex-start; }
+.chat-card--acta .ui-btn { margin-top: 6px; }
 .chat-poll {
   margin-top: 6px;
   padding: 12px 14px;

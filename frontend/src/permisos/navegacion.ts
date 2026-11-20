@@ -36,8 +36,9 @@ export const RUTAS: RutaDeclarada[] = [
   ...con('gastos.ver', ['/expenses']),
   ...con('proyectos.trabajo', [
     '/lessons', '/sprints', '/raci', '/changelog', '/uat', '/gantt', '/epic-gantt', '/epics', '/dependencies',
-    '/meetings-ai',
   ]),
+  // Asistente de reuniones (19-11-2026): antes con `proyectos.trabajo`.
+  ...con('reuniones.usar', ['/meetings-ai']),
   ...con('proyectos.panel', ['/projects-dashboard']),
   ...con('proyectos.gobierno', ['/deliverables', '/changes', '/risks', '/git', '/esign']),
   ...con('equipo.ver', ['/team-dashboard', '/resources/planning', '/alm/altas-y-bajas']),
@@ -45,8 +46,12 @@ export const RUTAS: RutaDeclarada[] = [
   ...con('recursos.prevision', ['/resource-forecast', '/resource-scheduler', '/bpm']),
   ...con('finanzas.ver', [
     '/finance-dashboard', '/clients', '/pipeline', '/contracts', '/invoices', '/milestone-billing', '/profitability',
-    '/revenue', '/budgets', '/subcontractors', '/scenarios', '/nps', '/client-portal',
+    '/revenue', '/budgets', '/scenarios', '/nps', '/client-portal',
   ]),
+  // Proveedores (migración 191): la ficha la ven los gestores (`proveedores.ver`, como
+  // `/api/v1/suppliers`), no solo finanzas; el portal, los externos contacto de su proveedor.
+  ...con('proveedores.ver', ['/subcontractors']),
+  ...con('proveedores.portal', ['/supplier-portal']),
   ...con('soporte.panel', ['/support-dashboard']),
   ...con('sd.ver', ['/service-desk']),
   ...con('sd.disenar_flujos', ['/sd/workflow-designer']),

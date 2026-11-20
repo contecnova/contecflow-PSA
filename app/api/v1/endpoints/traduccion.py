@@ -236,41 +236,49 @@ _TIPO = "^(announcement|catalog_category|catalog_service)$"
 def editor_de_contenido(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)) -> User:
     """Guarda de las versiones de avisos y catalogo: usuario interno y editor
     (admin o revisor). En la firma, para que el 403 se vea desde fuera (el
-    explicador de accesos no lo da por permitido); el servicio lo repite."""
+    explicador de accesos no lo da por permitido); el servicio lo repite.
+    20-11-2026: cada ruta lleva además `require_internal_user` explícito en su
+    firma (`_rol`), para que la guarda de rol se vea en el inventario de
+    `tests/test_guardas_de_rol.py` y en `test_guardas_deniegan.py`."""
     require_internal_user(current_user)
     versiones.exigir_editor(db, current_user)
     return current_user
 
 
 @router.get("/portal-content", summary="Traducción: avisos y catálogo con sus versiones (pantalla de revisión)")
-def resumen_de_contenido(db: Session = Depends(get_db), current_user: User = Depends(editor_de_contenido)):
+def resumen_de_contenido(db: Session = Depends(get_db), current_user: User = Depends(editor_de_contenido),
+        _rol: User = Depends(require_internal_user)):
     return APIResponse.ok(data=versiones.resumen(db, current_user))
 
 
 @router.get("/portal-content/{tipo}/{content_id}", summary="Traducción: versiones de un aviso o elemento del catálogo")
 def versiones_de_contenido(tipo: str = Path(..., pattern=_TIPO), content_id: str = Path(..., max_length=36),
-                           db: Session = Depends(get_db), current_user: User = Depends(editor_de_contenido)):
+                           db: Session = Depends(get_db), current_user: User = Depends(editor_de_contenido),
+        _rol: User = Depends(require_internal_user)):
     return APIResponse.ok(data=versiones.listar(db, current_user, tipo, content_id))
 
 
 @router.post("/portal-content/{tipo}/{content_id}/generate", summary="Traducción: generar versiones (quedan en revisión)")
 def generar_contenido(payload: GenerarIn, tipo: str = Path(..., pattern=_TIPO),
                       content_id: str = Path(..., max_length=36),
-                      db: Session = Depends(get_db), current_user: User = Depends(editor_de_contenido)):
+                      db: Session = Depends(get_db), current_user: User = Depends(editor_de_contenido),
+        _rol: User = Depends(require_internal_user)):
     return APIResponse.ok(data=versiones.generar(db, current_user, tipo, content_id, payload.languages))
 
 
 @router.patch("/portal-content/{tipo}/{content_id}/{language}", summary="Traducción: corregir una versión (vuelve a revisión)")
 def editar_contenido(payload: VersionDeContenidoIn, tipo: str = Path(..., pattern=_TIPO),
                      content_id: str = Path(..., max_length=36), language: str = Path(..., max_length=16),
-                     db: Session = Depends(get_db), current_user: User = Depends(editor_de_contenido)):
+                     db: Session = Depends(get_db), current_user: User = Depends(editor_de_contenido),
+        _rol: User = Depends(require_internal_user)):
     return APIResponse.ok(data=versiones.editar(db, current_user, tipo, content_id, language, payload.fields))
 
 
 @router.post("/portal-content/{tipo}/{content_id}/{language}/review", summary="Traducción: publicar o rechazar una versión")
 def revisar_contenido(payload: RevisionIn, tipo: str = Path(..., pattern=_TIPO),
                       content_id: str = Path(..., max_length=36), language: str = Path(..., max_length=16),
-                      db: Session = Depends(get_db), current_user: User = Depends(editor_de_contenido)):
+                      db: Session = Depends(get_db), current_user: User = Depends(editor_de_contenido),
+        _rol: User = Depends(require_internal_user)):
     return APIResponse.ok(data=versiones.revisar(db, current_user, tipo, content_id, language, payload.publish,
                                                  payload.comment))
 
@@ -278,6 +286,7 @@ def revisar_contenido(payload: RevisionIn, tipo: str = Path(..., pattern=_TIPO),
 @router.delete("/portal-content/{tipo}/{content_id}/{language}", summary="Traducción: borrar una versión")
 def borrar_contenido(tipo: str = Path(..., pattern=_TIPO), content_id: str = Path(..., max_length=36),
                      language: str = Path(..., max_length=16),
-                     db: Session = Depends(get_db), current_user: User = Depends(editor_de_contenido)):
+                     db: Session = Depends(get_db), current_user: User = Depends(editor_de_contenido),
+        _rol: User = Depends(require_internal_user)):
     versiones.borrar(db, current_user, tipo, content_id, language)
     return APIResponse.ok(data={"ok": True})

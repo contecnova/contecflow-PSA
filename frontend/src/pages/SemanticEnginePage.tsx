@@ -15,7 +15,7 @@
  * tiene `ia.asignacion_config`, y `?tab=config` redirige allí.
  */
 import type { CSSProperties } from 'react'
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import { Navigate, useSearchParams } from 'react-router-dom'
 import type { AxiosError } from 'axios'
 import { useState, useEffect, useId } from 'react'
 import { extractErr } from '../utils/helpers'
@@ -29,7 +29,7 @@ import { Button, EmptyState, KpiCard, Modal, Tabs } from '../components/ui'
 import { ENGINE_MODES } from '../components/asignacion-ia/ConfigMotorSemantico'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { AlertTriangle, BarChart3, Brain, CheckCircle2, CheckSquare, FlaskConical, Info, Layers, Pencil, RefreshCw, Settings2, Sparkles, Target, Ticket, UserCheck, Users, Wand2, XCircle, Zap } from 'lucide-react'
+import { AlertTriangle, BarChart3, Brain, CheckCircle2, CheckSquare, FlaskConical, Info, Layers, Pencil, RefreshCw, Sparkles, Target, Ticket, UserCheck, Users, Wand2, XCircle, Zap } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { CLOCK_TICK_MS } from '../constants/timings'
 import './SemanticEnginePage.css'
@@ -198,7 +198,6 @@ export default function SemanticEnginePage() {
   const toast = useToast()
   const qc = useQueryClient()
   const [tab, setTab] = useState('profiles')
-  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [editProfile, setEditProfile] = useState<ProfileRow | null>(null)
   const [opStatus, setOpStatus] = useState<{ type: string; startedAt: number | null }>({ type: 'idle', startedAt: null })
@@ -284,9 +283,6 @@ export default function SemanticEnginePage() {
               </div>
             )}
             {puedeEditar && <>
-            <Button variant="secondary" icon={<Settings2 size={14} />} onClick={() => navigate('/settings/ia-asignacion')}>
-              {traducir('ajustes.configurar')}
-            </Button>
             <Button variant="secondary" icon={<RefreshCw size={14} />} onClick={() => rebuildEmb()} loading={rebuilding}>
               {rebuilding ? traducir('semanticengine.reconstruyendo') : traducir('semanticengine.reconstruir_embeddings')}
             </Button>

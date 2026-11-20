@@ -16,6 +16,14 @@
  *     audio-only automáticamente si la red baja a "poor".
  *   - Subtítulos: pipeline opcional vía collabApi.transcribeChunk (POST /collaboration/calls/{id}/transcribe-chunk)
  *     (envía chunks audio a Whisper si está habilitado).
+ *   - Asistente de reuniones (19-11-2026): botón «Asistente» → aviso obligatorio →
+ *     `/meeting-assistant/calls/{id}/activate`. Con él activo, cada navegador sube
+ *     SU audio por el mismo `transcribe-chunk` (aunque los subtítulos estén
+ *     apagados), salvo que la persona no consienta. Al colgar se analiza y el acta
+ *     llega a la conversación.
+ *   - Arreglo 19-11-2026: antes `recorder.start(5000)`; solo el primer trozo llevaba
+ *     la cabecera WebM y el resto no se transcribía. Ahora se cierra y se abre el
+ *     grabador cada 12 s (`useGrabacionPorTrozos`): cada trozo es un fichero completo.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Ref } from 'react'
@@ -23,7 +31,7 @@ import type { Room, RemoteTrack } from 'livekit-client'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import {
   Mic, MicOff, Video, VideoOff, Monitor, Phone, MessageSquare,
-  Captions, Disc, Users, X, Send, Hand,
+  Captions, Disc, Users, X, Send, Hand, AudioLines,
   type LucideIcon,
 } from 'lucide-react'
 import { collabApi } from '../services/collaborationApi'
@@ -33,6 +41,8 @@ import StatusBadge from '../components/ui/StatusBadge'
 import { CLOCK_TICK_MS } from '../constants/timings'
 import './CallPage.css'
 import { Pulsable } from '../components/ui'
+import { useGrabacionPorTrozos } from '../components/reuniones/grabacionPorTrozos'
+import { BannerDelAsistente, ModalActivarAsistente, useAsistenteEnLlamada } from '../components/reuniones/AsistenteEnLlamada'
 
 type TFn = (moduleOrFullKey: string, keyOrParams?: string | Record<string, unknown>) => string
 
@@ -90,13 +100,16 @@ export default function CallPage(): JSX.Element {
   const [networkQuality, setNetworkQuality] = useState('excellent')
   const [autoFallback, setAutoFallback] = useState(false)
   const [captionLines, setCaptionLines] = useState<CaptionLine[]>([])
+  // La pista local ya existe (sala conectada o getUserMedia hecho): arranca la grabación por trozos.
+  const [audioListo, setAudioListo] = useState(0)
+  const [modalAsistente, setModalAsistente] = useState(false)
+  const asistente = useAsistenteEnLlamada(callId)
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null)
   const localStreamRef = useRef<MediaStream | null>(null)
   const remoteRefs = useRef<Record<string, HTMLVideoElement>>({})  // identity -> HTMLVideoElement
    
   const roomRef = useRef<Room | null>(null)
-  const recorderRef = useRef<MediaRecorder | null>(null)
 
   // ── Timer ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -158,6 +171,7 @@ export default function CallPage(): JSX.Element {
         if (!mounted) return
         if (kind === 'video') await room.localParticipant.setCameraEnabled(true)
         await room.localParticipant.setMicrophoneEnabled(true)
+        setAudioListo(n => n + 1)
 
         // Attach local video
         const localTrack = Array.from(room.localParticipant.videoTrackPublications.values())
@@ -235,6 +249,7 @@ export default function CallPage(): JSX.Element {
         if (!mounted) return
         localStreamRef.current = stream
         if (localVideoRef.current) localVideoRef.current.srcObject = stream
+        setAudioListo(n => n + 1)
       } catch (e) { console.warn('getUserMedia:', e) }
     })()
     return () => {
@@ -254,49 +269,46 @@ export default function CallPage(): JSX.Element {
     if (localStreamRef.current) localStreamRef.current.getVideoTracks().forEach(t => (t.enabled = !cameraOff))
   }, [cameraOff])
 
-  // ── Subtitles via Whisper ──────────────────────────────────────────────────
-  const startCaptions = useCallback(async () => {
-    if (!localStreamRef.current && !roomRef.current) return
+  // ── Subtítulos y asistente de reuniones: audio propio por trozos completos ──
+  const estadoAsistente = asistente.estado
+  const subeParaAsistente = !!estadoAsistente?.active && estadoAsistente.my_consent !== false
+  const captionsRef = useRef(captions)
+  captionsRef.current = captions
+
+  const obtenerAudioPropio = useCallback((): MediaStream | null => {
+    if (roomRef.current) {
+      const pistas = Array.from(roomRef.current.localParticipant.audioTrackPublications.values())
+        .map(p => p.track?.mediaStreamTrack).filter((x): x is MediaStreamTrack => !!x)
+      return pistas.length ? new MediaStream(pistas) : null
+    }
+    return localStreamRef.current ? new MediaStream(localStreamRef.current.getAudioTracks()) : null
+  }, [])
+
+  const subirTrozo = useCallback(async (trozo: Blob) => {
+    if (!callId) return
+    const fd = new FormData()
+    fd.append('audio', trozo, 'chunk.webm')
     try {
-      const stream = roomRef.current
-        ? new MediaStream([
-            ...Array.from(roomRef.current.localParticipant.audioTrackPublications.values())
-               
-              .map(p => p.track?.mediaStreamTrack).filter(Boolean),
-          ])
-        : new MediaStream(localStreamRef.current!.getAudioTracks())
-      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' })
-      recorderRef.current = recorder
-      const chunks: Blob[] = []
-      recorder.ondataavailable = async (e) => {
-        if (e.data.size === 0) return
-        chunks.push(e.data)
-        if (chunks.length >= 1) {
-          const blob = new Blob(chunks.splice(0), { type: 'audio/webm' })
-          const fd = new FormData()
-          fd.append('audio', blob, 'chunk.webm')
-          try {
-            const data = await collabApi.transcribeChunk(callId, fd)
-            if (data?.text) {
-              setCaptionLines(prev => [...prev.slice(-5), { name: t('call.you'), text: data.text, ts: Date.now() }])
-              if (roomRef.current) {
-                const enc = new TextEncoder().encode(JSON.stringify({ type: 'caption', text: data.text }))
-                roomRef.current.localParticipant.publishData(enc, { reliable: true })
-              }
-            }
-          } catch { /* noop */ }
+      const data = await collabApi.transcribeChunk(callId, fd)
+      // Los subtítulos solo se pintan (y se mandan a la sala) si están activados.
+      if (data?.text && captionsRef.current) {
+        setCaptionLines(prev => [...prev.slice(-5), { name: t('call.you'), text: data.text, ts: Date.now() }])
+        if (roomRef.current) {
+          const enc = new TextEncoder().encode(JSON.stringify({ type: 'caption', text: data.text }))
+          roomRef.current.localParticipant.publishData(enc, { reliable: true })
         }
       }
-      recorder.start(5000)  // chunk de 5s
-    } catch (e) { console.warn('captions:', e) }
-    // `t` (traducciones) faltaba: al cambiar de idioma el callback seguía
-    // usando el anterior.
+    } catch { /* noop */ }
+    // `t` (traducciones) faltaba: al cambiar de idioma el callback seguía usando el anterior.
   }, [callId, t])
 
-  useEffect(() => {
-    if (captions) startCaptions()
-    else { try { recorderRef.current?.stop() } catch { /* noop */ } }
-  }, [captions, startCaptions])
+  useGrabacionPorTrozos({
+    activo: captions || subeParaAsistente,
+    obtenerStream: obtenerAudioPropio,
+    onTrozo: trozo => { void subirTrozo(trozo) },
+    duracionMs: 12_000,
+    clave: audioListo,
+  })
 
   const fmtDuration = (s: number) => {
     const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60
@@ -376,6 +388,16 @@ export default function CallPage(): JSX.Element {
         </div>
       </header>
 
+      {estadoAsistente?.active && (
+        <BannerDelAsistente
+          estado={estadoAsistente}
+          onConsentir={si => asistente.consentir.mutate(si)}
+          onParar={() => asistente.parar.mutate()}
+          consintiendo={asistente.consentir.isPending}
+          parando={asistente.parar.isPending}
+        />
+      )}
+
       <div className="call-main">
         <div className="call-grid">
           {tilesToShow.map(p => (
@@ -416,6 +438,9 @@ export default function CallPage(): JSX.Element {
         <CtrlBtn icon={Hand} onClick={raiseHand} label={t('call.raise_hand')} />
         <CtrlBtn icon={Captions} active={captions} onClick={() => setCaptions(c => !c)} label={t('call.captions')} />
         <CtrlBtn icon={Disc} active={recording} onClick={toggleRecording} label={t('call.record')} />
+        <CtrlBtn icon={AudioLines} active={!!estadoAsistente?.active}
+          onClick={() => { if (!estadoAsistente?.active) setModalAsistente(true) }}
+          label={estadoAsistente?.active ? t('reuniones.llamada.boton_activo') : t('reuniones.llamada.boton')} />
         <CtrlBtn icon={Users} active={showParticipants} onClick={() => setShowParticipants(p => !p)} label={t('call.participants')} />
         <CtrlBtn icon={MessageSquare} active={showChat} onClick={() => setShowChat(s => !s)} label={t('call.chat')} />
         <Pulsable type="button" onClick={leave} className="call-leave">
@@ -425,6 +450,15 @@ export default function CallPage(): JSX.Element {
           {t('call.end_for_all')}
         </Pulsable>
       </div>
+
+      {modalAsistente && (
+        <ModalActivarAsistente
+          textoAviso={estadoAsistente?.notice_text}
+          cargando={asistente.activar.isPending}
+          onClose={() => setModalAsistente(false)}
+          onActivar={() => asistente.activar.mutate(undefined, { onSuccess: () => setModalAsistente(false) })}
+        />
+      )}
 
       {!isLiveKitReal && (
         <div className="call-dev-warning" role="status">

@@ -542,7 +542,7 @@ def anotar_comentario_de_aprovisionamiento(
 
 def anotar_en_el_historial_del_ticket(
     db: _SesionProv, ticket, autor, *, campo: str,
-    valor_anterior=None, valor_nuevo=None,
+    valor_anterior=None, valor_nuevo=None, clave=None, datos=None,
 ) -> None:
     """Una entrada de historial del ticket, con su organizacion.
 
@@ -558,6 +558,8 @@ def anotar_en_el_historial_del_ticket(
         field_name=campo,
         old_value=valor_anterior,
         new_value=valor_nuevo,
+        # Migracion 192: texto del sistema por clave (se pinta en el idioma de quien mira).
+        new_value_key=clave, new_value_params=datos,
         changed_by_user_id=autor.id,
     ))
 
@@ -676,12 +678,18 @@ def ejecutar_pasos_de_aprovisionamiento(db: _SesionProv, ticket, current_user, s
             steps_done.append({"type": step_type, "status": "error", "error": str(exc)})
 
     if config.get("notify_on_provision"):
+        # Migracion 192: antes en ingles fijo y con el id del servicio; ahora por
+        # clave, con el nombre del servicio, en el idioma de quien mira.
+        from app.services.formato_regional import idioma_de_salida
+        from app.services.textos_guardados import en_idioma, por_clave
+        servicio = getattr(getattr(ticket, "service_item", None), "name", None) or (ticket.number or "")
+        datos_aprov = {"servicio": servicio, "fecha": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")}
+        clave_aprov, params_aprov = por_clave("historial.aprovisionado", **datos_aprov)
         anotar_en_el_historial_del_ticket(
             db, ticket, current_user, campo="provisioning",
-            valor_nuevo=(
-                f"Auto-provisioned via service {service_item_id} "
-                f"at {datetime.now(timezone.utc).isoformat()}"
-            ))
+            valor_nuevo=en_idioma(clave_aprov, idioma_de_salida(db, org_id=ticket.organization_id),
+                                  **datos_aprov)[:500],
+            clave=clave_aprov, datos=params_aprov)
 
     db.commit()
     return steps_done

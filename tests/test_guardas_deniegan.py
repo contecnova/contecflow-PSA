@@ -29,6 +29,7 @@ Se elige, para cada una, un rol que TIENE que quedar fuera:
 | `require_admin`, `_or_pm`, `_or_hr`, `any_manager` | empleado | ninguno de esos conjuntos incluye a `employee` |
 | `require_internal_user` | subcontratado | es el único rol que excluye |
 | `require_superadmin` | admin de tenant | `admin` NO es superadmin: ver el docstring de `require_superadmin` |
+| `requiere_capacidad("x")` | el primer rol base sin `x` (empleado, subcontratado, admin) | lo calcula `rol_de_sondeo` desde `CAPACIDADES` (19-11-2026) |
 
 ## Por qué se puede mandar el cuerpo vacío
 
@@ -59,7 +60,30 @@ SONDA = {
 }
 
 GUARDA = re.compile(r"\b(require_(?:admin_or_pm|admin_or_hr|any_manager|internal_user"
-                    r"|superadmin|admin))\b")
+                    r"|superadmin|admin))\b"
+                    r"|\brequiere_capacidad\(\s*[\"']([\w.]+)[\"']\s*\)")
+
+#: Guardas por capacidad (19-11-2026): `requiere_capacidad("x")` se anota como
+#: `capacidad:x` y se sondea con un rol base que NO tiene `x` en
+#: `app.core.capacidades.CAPACIDADES` (empleado si no la tiene; si no,
+#: subcontratado; si no, admin; y admin para las de nadie, solo superadmin).
+CAPACIDAD = "capacidad:"
+_TOKEN_DE_ROL = (("employee", "empleado"), ("subcontractor", "subcontratado"), ("admin", "admin"))
+
+
+def _guarda(m: re.Match) -> str:
+    return m.group(1) or CAPACIDAD + m.group(2)
+
+
+def rol_de_sondeo(guarda: str):
+    """El token con el que se sondea `guarda` (None si no hay rol que quede fuera)."""
+    if not guarda.startswith(CAPACIDAD):
+        return SONDA.get(guarda)
+    from app.core.capacidades import CAPACIDADES
+    roles = CAPACIDADES[guarda[len(CAPACIDAD):]].roles
+    if not roles:
+        return "admin"
+    return next((token for rol, token in _TOKEN_DE_ROL if rol not in roles), None)
 
 #: Valor con el que se rellena cualquier parámetro de ruta.
 #:
@@ -78,12 +102,12 @@ def _rutas_guardadas():
             continue
         real = _desenvolver(endpoint)
         fuente = _source(endpoint) + _source(real)
-        encontradas = GUARDA.findall(fuente)
-        if not encontradas:
+        primera = GUARDA.search(fuente)
+        if not primera:
             continue
         # Una firma puede llevar varias; se sondea la primera, que es la que
         # FastAPI resuelve antes.
-        guarda = encontradas[0]
+        guarda = _guarda(primera)
         for metodo in sorted(escritoras):
             clave = (metodo, path)
             if clave in vistas:
@@ -180,7 +204,34 @@ RUTAS = _rutas_guardadas()
 # sin subir el numero. Medido: RUTAS da 1149 y es la unica ruta de escritura con
 # guarda nueva en ese commit (`git show ba9ddad9 -- app/api`; la otra ruta nueva
 # de enterprise, GET .../reconciliation, es de lectura y no cuenta).
-RUTAS_ESPERADAS = 1175  # medido 19-11-2026 con RUTAS: +6 catálogos editables por empresa (POST, PATCH y DELETE de /settings/client-industries y /settings/expense-categories, require_admin_or_pm); antes 1169  # medido 18-11-2026 con RUTAS: 1169. Entraron +2 contactos de cliente (POST /clients/{cid}/contacts/{id}/primary y .../portal-access, require_any_manager) y +6 horas extra (PUT /overtime/config, POST/PUT/DELETE /overtime/budgets, POST /overtime/regularize y /overtime/{id}/settle, require_admin_or_hr); el neto medido es +4, así que salieron 4 pares con guarda que no se han identificado uno a uno; antes: 1165  # +1 (canales en tiempo real, rev. 179, medido 17-11-2026 con RUTAS: 1165): POST /sd/channels/conversations/{conv_id}/attachments (enviar un documento del ticket por WhatsApp o el hilo de Slack, require_internal_user + conversacion de la empresa); entro en 079589b3 sin subir el numero. POST /sd/channels/slack/events no cuenta: webhook sin sesion, firmado (exencion en test_guardas_de_rol). GET /sd/channels/tickets/{id}/conversations es de lectura; +10 (turnos y ausencias por horas, rev. 180, medido): jornadas (crear, editar, borrar), asignaciones de jornada (crear, editar, borrar), ficha laboral (PUT), ajustes de saldo (crear, borrar) y recalcular la bolsa de horas, todas require_admin_or_hr; +5 (bloque C 17-11-2026, medido con RUTAS): versiones de avisos y catalogo del portal (POST generate, PATCH, POST review y DELETE /translation/portal-content/{tipo}/{id}[/{idioma}]; editor o revisor en el servicio) y PATCH /sd/announcements/{id} (admin); +1 (terminar asignacion de externo, arriba); -16 (externos como internos, arriba); +20 (ausencias #25, rev. 167, medido): tipos de ausencia y de documento (crear, editar, borrar: admin o RRHH), acceso especial a datos de salud (conceder, retirar: admin), turnos (crear, editar, borrar: admin o RRHH), rotaciones (crear, editar, borrar) y cambios del cuadrante (PUT /absences/roster), dar plaza (responsables), cargar ejemplo (admin), pedir y dispensar documento, ampliar (usuario interno + responsable/RRHH/admin en el servicio); +18 (motor de politicas #26, medido con el diff de RUTAS): 16 en /policies (crear, guardar, borrar o retirar, publicar, nueva version, activar, validar, simular; anadir, editar y quitar regla; crear, editar y borrar tabla, guardar filas, importar) y 2 del disenador grafico de aprobaciones (PUT /approvals/workflows/{id}/diagram y POST .../diagram/check), todas require_admin; +1 (contratos 2026-11): PATCH /epics/wiki/pages/{id}/visibility (admin o PM); +3: PUT y DELETE /integrations-hub/jira/config y POST /integrations-hub/jira/sync (require_admin), entraron en 4aad8fde (hub de Jira a jira_config, revision 161) sin subir el numero; identificadas con git archive de cd383a6c (1044), e7cbeecf (1044) y 4aad8fde (1047) y el diff de RUTAS; ABAC por el prefijo /api/v1/integrations-hub, y las tres por current_user.organization_id (el sync filtra ya sus tareas por organizacion, segunda auditoria 2026-11 #10); -3 neto (segunda auditoria 2026-11): fuera rutas de codigo muerto con guarda (sd capacity_planning 1, sd_reports 3 y rutas sueltas) y entra POST /jira/webhook-secret (admin); -3: fuera el motor antiguo de ingresos (crear regla, calcular periodo, auto-cálculo; un solo motor, el ASC 606); +8: seguir presupuestos (cerrar y reabrir mes, explicar desviación, reprevisión, pedido y su estado, pedir y decidir traspaso); +10: presupuestos a fondo (escenario, comparar; crear, editar y borrar plantilla; abrir y editar campaña) y áreas (crear, editar y borrar, admin o hr); -1: fuera POST /bi/governance/audit/access (escribir eventos de auditoría a mano; ahora los registra el sistema al leer datos de BI); +2: POST /ai/texto del editor en línea (usuario interno; el router de ai_chat está montado dos veces); +1: crear plan de capacidad pasa a require_any_manager (planificaba a cualquiera); -1: fuera las notas internas aparte (/sd/tickets/{id}/internal-comments; las de verdad son comentarios con is_public=False); -2: fuera POST /ai/chat/stream (get_current_user y require_internal_user), que llamaba a Anthropic directo y no usaba nadie; -5: conectores de BI en una sola lista (fuera /bi/intelligence/connectors/* y el catálogo y los personalizados de /bi/platform; entran PATCH, test y fuentes de /bi/etl); -2: fuera la incrustación duplicada de BI (PATCH /bi/platform/embed/settings y POST /bi/platform/embed/token); +6: presupuestos (salen PATCH entry y POST approve; entran editar cabecera, añadir, editar y quitar partida, enviar, decidir, versión nueva y vincular proyecto); +6: gastos (crear, editar y borrar política —admin—; adjuntar y quitar justificante; repartir entre proyectos); +8: lecciones aprendidas (crear, editar, estado, borrar —admin—, valorar, acción, editar acción, recomendaciones para un proyecto que se crea); +2: editar y borrar un borrador de factura (PATCH y DELETE /invoices/{id}, responsables; faltó subirlo en 5d9ab97b); +12: conectores contecmind y contecintelligence (11 de usuario interno, probar de admin); +2: valorar una respuesta del asistente (el router de ai_chat está montado dos veces); +2: guardar y quitar una pregunta validada de Ask-the-Data (admin o PM); +4: retención (guardar política, aplicar) y bloqueo legal (crear, levantar), admin; +1: recargar el almacén analítico (admin); -1: fuera el stub PATCH /documents/{id}/edit
+# 19-11-2026, guardas por capacidad (`requiere_capacidad("x")`, app/core/deps.py):
+# el detector GUARDA reconoce la nueva guarda y `rol_de_sondeo` elige un rol base
+# sin la capacidad. Se migraron 168 pares de escritura (y sus lecturas) de
+# `require_*` a la capacidad del catálogo con EXACTAMENTE los mismos roles; neto
+# 0. Medido importando la app (sin pytest) antes y después sobre el mismo árbol:
+# mismos pares (método, ruta), mismo rol de sondeo en cada uno (diff de RUTAS por
+# par). Ojo: ese árbol ya daba 1246 por trabajo en curso de otros bloques (CMDB de
+# software, proveedores...), que tiene que subir aquí quien lo termine.
+# 19-11-2026 (cierre de guardas por capacidad): costes (/user-costs, 8 pares de
+# escritura), tarifas (/rate-cards, 9), formularios públicos (/forms, 3), portal de
+# desarrolladores (/developer, 4), importación (/billing-reports/import, 2), /alm y
+# /alm/uso (alm.gestionar 48, alm.conexiones 4) y calendarios SLA (/cmdb/sla-calendars,
+# 6) pasan de `require_*` a la capacidad con los mismos roles: neto 0 y mismo rol de
+# sondeo (empleado; subcontratado para `alm.consultar`, que solo guarda lecturas).
+# Medido importando el módulo (sin pytest): 1298 pares con el trabajo en curso de
+# otros bloques; este cierre no cambia el número.
+# 1304 desde 2026-11-20 (medido con RUTAS importando la app): +117 de los bloques
+# nuevos, todas con `requiere_capacidad`: proveedores (/suppliers, 45), portal del
+# proveedor (/supplier-portal, 2), asistente de reuniones (/meeting-assistant, 27) y
+# CMDB de software (/cmdb/software, 43); +2 POST /ai/chat (v1 y /ai-chat), que solo
+# tenía `get_current_user` y pasa a `require_internal_user` como /ai/texto y la
+# valoración; +4 versiones de avisos y catálogo del portal (/translation/portal-content:
+# generate, PATCH, review y DELETE), que ya tenían su guarda `editor_de_contenido`
+# y ahora llevan también `require_internal_user` en la firma, visible aquí. Los
+# webhooks firmados de reuniones (/webhooks/meetings/*) no cuentan: van sin sesión
+# (exención en test_guardas_de_rol). Quedan +6 pares que ya daba el árbol antes de
+# estos bloques (1298 - 117 = 1181 frente a 1175) y que no se han identificado uno a uno.
+RUTAS_ESPERADAS =1304  # antes 1175, medido 19-11-2026 con RUTAS: +6 catálogos editables por empresa (POST, PATCH y DELETE de /settings/client-industries y /settings/expense-categories, require_admin_or_pm); antes 1169  # medido 18-11-2026 con RUTAS: 1169. Entraron +2 contactos de cliente (POST /clients/{cid}/contacts/{id}/primary y .../portal-access, require_any_manager) y +6 horas extra (PUT /overtime/config, POST/PUT/DELETE /overtime/budgets, POST /overtime/regularize y /overtime/{id}/settle, require_admin_or_hr); el neto medido es +4, así que salieron 4 pares con guarda que no se han identificado uno a uno; antes: 1165  # +1 (canales en tiempo real, rev. 179, medido 17-11-2026 con RUTAS: 1165): POST /sd/channels/conversations/{conv_id}/attachments (enviar un documento del ticket por WhatsApp o el hilo de Slack, require_internal_user + conversacion de la empresa); entro en 079589b3 sin subir el numero. POST /sd/channels/slack/events no cuenta: webhook sin sesion, firmado (exencion en test_guardas_de_rol). GET /sd/channels/tickets/{id}/conversations es de lectura; +10 (turnos y ausencias por horas, rev. 180, medido): jornadas (crear, editar, borrar), asignaciones de jornada (crear, editar, borrar), ficha laboral (PUT), ajustes de saldo (crear, borrar) y recalcular la bolsa de horas, todas require_admin_or_hr; +5 (bloque C 17-11-2026, medido con RUTAS): versiones de avisos y catalogo del portal (POST generate, PATCH, POST review y DELETE /translation/portal-content/{tipo}/{id}[/{idioma}]; editor o revisor en el servicio) y PATCH /sd/announcements/{id} (admin); +1 (terminar asignacion de externo, arriba); -16 (externos como internos, arriba); +20 (ausencias #25, rev. 167, medido): tipos de ausencia y de documento (crear, editar, borrar: admin o RRHH), acceso especial a datos de salud (conceder, retirar: admin), turnos (crear, editar, borrar: admin o RRHH), rotaciones (crear, editar, borrar) y cambios del cuadrante (PUT /absences/roster), dar plaza (responsables), cargar ejemplo (admin), pedir y dispensar documento, ampliar (usuario interno + responsable/RRHH/admin en el servicio); +18 (motor de politicas #26, medido con el diff de RUTAS): 16 en /policies (crear, guardar, borrar o retirar, publicar, nueva version, activar, validar, simular; anadir, editar y quitar regla; crear, editar y borrar tabla, guardar filas, importar) y 2 del disenador grafico de aprobaciones (PUT /approvals/workflows/{id}/diagram y POST .../diagram/check), todas require_admin; +1 (contratos 2026-11): PATCH /epics/wiki/pages/{id}/visibility (admin o PM); +3: PUT y DELETE /integrations-hub/jira/config y POST /integrations-hub/jira/sync (require_admin), entraron en 4aad8fde (hub de Jira a jira_config, revision 161) sin subir el numero; identificadas con git archive de cd383a6c (1044), e7cbeecf (1044) y 4aad8fde (1047) y el diff de RUTAS; ABAC por el prefijo /api/v1/integrations-hub, y las tres por current_user.organization_id (el sync filtra ya sus tareas por organizacion, segunda auditoria 2026-11 #10); -3 neto (segunda auditoria 2026-11): fuera rutas de codigo muerto con guarda (sd capacity_planning 1, sd_reports 3 y rutas sueltas) y entra POST /jira/webhook-secret (admin); -3: fuera el motor antiguo de ingresos (crear regla, calcular periodo, auto-cálculo; un solo motor, el ASC 606); +8: seguir presupuestos (cerrar y reabrir mes, explicar desviación, reprevisión, pedido y su estado, pedir y decidir traspaso); +10: presupuestos a fondo (escenario, comparar; crear, editar y borrar plantilla; abrir y editar campaña) y áreas (crear, editar y borrar, admin o hr); -1: fuera POST /bi/governance/audit/access (escribir eventos de auditoría a mano; ahora los registra el sistema al leer datos de BI); +2: POST /ai/texto del editor en línea (usuario interno; el router de ai_chat está montado dos veces); +1: crear plan de capacidad pasa a require_any_manager (planificaba a cualquiera); -1: fuera las notas internas aparte (/sd/tickets/{id}/internal-comments; las de verdad son comentarios con is_public=False); -2: fuera POST /ai/chat/stream (get_current_user y require_internal_user), que llamaba a Anthropic directo y no usaba nadie; -5: conectores de BI en una sola lista (fuera /bi/intelligence/connectors/* y el catálogo y los personalizados de /bi/platform; entran PATCH, test y fuentes de /bi/etl); -2: fuera la incrustación duplicada de BI (PATCH /bi/platform/embed/settings y POST /bi/platform/embed/token); +6: presupuestos (salen PATCH entry y POST approve; entran editar cabecera, añadir, editar y quitar partida, enviar, decidir, versión nueva y vincular proyecto); +6: gastos (crear, editar y borrar política —admin—; adjuntar y quitar justificante; repartir entre proyectos); +8: lecciones aprendidas (crear, editar, estado, borrar —admin—, valorar, acción, editar acción, recomendaciones para un proyecto que se crea); +2: editar y borrar un borrador de factura (PATCH y DELETE /invoices/{id}, responsables; faltó subirlo en 5d9ab97b); +12: conectores contecmind y contecintelligence (11 de usuario interno, probar de admin); +2: valorar una respuesta del asistente (el router de ai_chat está montado dos veces); +2: guardar y quitar una pregunta validada de Ask-the-Data (admin o PM); +4: retención (guardar política, aplicar) y bloqueo legal (crear, levantar), admin; +1: recargar el almacén analítico (admin); -1: fuera el stub PATCH /documents/{id}/edit
 
 
 def test_se_sondean_todas_las_rutas_con_guarda():
@@ -216,12 +267,13 @@ def test_todas_las_guardas_deniegan(client, admin_token, dev_token, sub_token):
 
     for metodo, path, guarda in RUTAS:
         url = re.sub(r"\{[^}]+\}", RELLENO, path)
+        rol = rol_de_sondeo(guarda)
         respuesta = client.request(
             metodo, url, json={},
-            headers={"Authorization": f"Bearer {tokens[SONDA[guarda]]}"})
+            headers={"Authorization": f"Bearer {tokens[rol]}"})
         if respuesta.status_code != 403:
             fallos.append(
-                f"{metodo} {path}  [{guarda}, rol {SONDA[guarda]}]  -> "
+                f"{metodo} {path}  [{guarda}, rol {rol}]  -> "
                 f"{respuesta.status_code}")
 
     assert not fallos, (
@@ -243,7 +295,7 @@ def test_las_sondas_cubren_todas_las_guardas():
     este test lo dice en vez de dejar esa guarda sin comprobar en silencio.
     """
     usadas = {g for _m, _p, g in RUTAS}
-    sin_sonda = sorted(usadas - set(SONDA))
+    sin_sonda = sorted(g for g in usadas if rol_de_sondeo(g) is None)
     assert not sin_sonda, (
         "Estas guardas no tienen rol de sondeo en SONDA, así que nadie comprueba "
         f"que denieguen: {sin_sonda}"

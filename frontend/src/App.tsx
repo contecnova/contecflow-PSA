@@ -68,6 +68,8 @@ const DocumentsPage          = lazy(() => import('./pages/DocumentsPage'))
 const TimerPage              = lazy(() => import('./pages/TimerPage'))
 const GanttPage              = lazy(() => import('./pages/GanttPage'))
 const SubcontractorsPage     = lazy(() => import('./pages/SubcontractorsPage'))
+// Migración 191: portal del proveedor (externos contacto de su proveedor).
+const PortalDelProveedorPage = lazy(() => import('./pages/proveedores/PortalDelProveedor'))
 const WorkflowDesignerPage   = lazy(() => import('./pages/service-desk/WorkflowDesignerPage'))
 const WikiPage               = lazy(() => import('./pages/WikiPage'))
 const EpicsPage              = lazy(() => import('./pages/EpicsPage'))
@@ -579,6 +581,7 @@ function AppRoutes() {
       <Route path="/bi/:section" element={<BiLegacyRedirect />} />
       <Route path="/bi/project/:projectId" element={<BiProjectLegacyRedirect />} />
       <Route path="/subcontractors" element={<ProtectedRoute><Layout><SubcontractorsPage /></Layout></ProtectedRoute>} />
+      <Route path="/supplier-portal" element={<ProtectedRoute><Layout><PortalDelProveedorPage /></Layout></ProtectedRoute>} />
       <Route path="/finance-dashboard"   element={<ProtectedRoute><Layout><SafeFinanceDashboard /></Layout></ProtectedRoute>} />
       <Route path="/team-dashboard"     element={<ProtectedRoute><Layout><SafeTeamDashboard /></Layout></ProtectedRoute>} />
       <Route path="/clients"             element={<ProtectedRoute><Layout><ClientsPage /></Layout></ProtectedRoute>} />
