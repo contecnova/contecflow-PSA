@@ -24,6 +24,7 @@
  * (`textos_anteriores`) avisa de si se ha traducido al abrirlo y ofrece
  * «Regenerar en el idioma actual».
  */
+import { textoDeErrorDelOperador } from '../../utils/errorDelOperador'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -71,7 +72,11 @@ function useNombreDeCi(cambio: CambioMin) {
   }
 }
 
-interface TextosAnteriores { status?: string; reason?: string | null; regenerable?: boolean }
+/** 20-11-2026: `code`/`params` cuando la IA no pudo traducir (p. ej. tope de gasto agotado). */
+interface TextosAnteriores {
+  status?: string; reason?: string | null; regenerable?: boolean
+  code?: string | null; params?: Record<string, unknown> | null
+}
 
 
 export default function AnalisisDelCambio({ cambio }: { cambio: CambioMin }) {
@@ -127,6 +132,10 @@ function Plan({ cambio, clave, leer, generar, pintar }: {
       {anteriores && (
         <div role="status" className="u-text2-xs u-stack-6">
           <span>{t('sd_mercado.textos_anteriores')} {t(anteriores.status === 'translated' ? 'sd_mercado.textos_anteriores_traducido' : 'sd_mercado.textos_anteriores_sin_traducir')}</span>
+          {anteriores.status !== 'translated' && anteriores.code && (
+            // El motivo concreto (tope de gasto de IA agotado, límite diario…) en el idioma de quien mira.
+            <span>{textoDeErrorDelOperador({ response: { data: { code: anteriores.code, params: anteriores.params ?? {} } } })}</span>
+          )}
           <div><Button size="sm" variant="secondary" icon={<RotateCcw size={13} />} onClick={() => gen.mutate()} loading={gen.isPending}>{t('sd_mercado.regenerar_idioma')}</Button></div>
         </div>
       )}
