@@ -42,7 +42,13 @@ TIPOS = ("expense", "timesheet", "leave", "change_request", "invoice", "budget",
          "vuln_exception",
          # Proveedores (migración 191): estado de cuenta / factura del proveedor
          # por importe (`app/services/proveedores/facturacion.py`).
-         "supplier_statement")
+         "supplier_statement",
+         # Flujo de demanda (migración 195): un paso delegado en un flujo del motor
+         # (`app/services/demanda/motor.py`, entity_id = demand_step_states.id).
+         "demand_step",
+         # Clientes internos (rev. 193): cargo interno que excede el presupuesto
+         # de la unidad (`app/services/clientes_internos/cargos.py`).
+         "internal_charge")
 
 
 def abrir(db: Session, tipo: str, entidad_id: str, resumen: str, solicitante_id: str,
@@ -162,6 +168,14 @@ def aplicar(req, decision: str, actor, db: Session) -> None:
             # rechazado, en disputa con la nota de la bandeja.
             from app.services.proveedores.facturacion import aplicar_desde_bandeja as aplicar_estado_de_cuenta
             aplicar_estado_de_cuenta(db, req.entity_id, aprobado, actor, nota)
+        elif req.entity_type == "demand_step":
+            # Flujo de demanda: la decisión de la bandeja es la del paso, con su actor real.
+            from app.services.demanda.motor import aplicar_desde_bandeja as aplicar_paso_de_demanda
+            aplicar_paso_de_demanda(req, decision, actor, db)
+        elif req.entity_type == "internal_charge":
+            # Clientes internos (rev. 193): aprobado, el cargo se emite; rechazado, vuelve a borrador.
+            from app.services.clientes_internos.cargos import aplicar_desde_bandeja as aplicar_cargo
+            aplicar_cargo(db, req.entity_id, aprobado, actor, nota)
         elif req.entity_type == "invoice":
             from app.models.billing_reports import Invoice, InvoiceStatus
             inv = db.query(Invoice).filter(Invoice.id == req.entity_id).first()
@@ -191,6 +205,11 @@ def comprobar_antes(req, decision: str, db: Session, actor=None) -> None:
         # Proveedores (migración 191): no aprueba quien cerró el periodo ni quien registró la factura.
         from app.services.proveedores.facturacion import comprobar_en_bandeja as segregacion_del_estado
         segregacion_del_estado(req, actor, db, decision)
+        return
+    if req.entity_type == "internal_charge":
+        # Clientes internos (rev. 193): no decide quien generó ni quien emitió el cargo.
+        from app.services.clientes_internos.cargos import comprobar_en_bandeja as segregacion_del_cargo
+        segregacion_del_cargo(req, actor, db, decision)
         return
     if decision != "approved" or req.entity_type != "expense":
         return

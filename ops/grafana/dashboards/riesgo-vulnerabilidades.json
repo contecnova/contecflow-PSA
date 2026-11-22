@@ -1,0 +1,525 @@
+{
+  "uid": "contecflow-riesgo",
+  "title": "Contecflow · Riesgo y vulnerabilidades",
+  "description": "Hallazgos de vulnerabilidad abiertos, críticas, SLA de remediación e índice de riesgo por empresa.",
+  "tags": [
+    "contecflow",
+    "riesgo",
+    "vulnerabilidades"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": false,
+  "graphTooltip": 1,
+  "refresh": "1m",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "type": "query",
+        "name": "empresa",
+        "label": "Empresa",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "contecflow-prometheus"
+        },
+        "query": {
+          "query": "label_values(empresa)",
+          "refId": "empresa"
+        },
+        "definition": "label_values(empresa)",
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "sort": 1,
+        "regex": "",
+        "hide": 0,
+        "description": "Slug acotado de la organización (las que pasan de METRICS_TENANT_MAX van en «otras»)."
+      }
+    ]
+  },
+  "annotations": {
+    "list": []
+  },
+  "links": [
+    {
+      "title": "Contecflow",
+      "type": "dashboards",
+      "tags": [
+        "contecflow"
+      ],
+      "asDropdown": true
+    }
+  ],
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Críticas abiertas",
+      "id": 1,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum(contecflow_negocio_vulnerabilidades_abiertas{empresa=~\"$empresa\",severidad=\"critical\"})",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Altas abiertas",
+      "id": 2,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum(contecflow_negocio_vulnerabilidades_abiertas{empresa=~\"$empresa\",severidad=\"high\"})",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "SLA de remediación vencido",
+      "id": 3,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum(contecflow_negocio_sla{empresa=~\"$empresa\",ambito=\"vulnerabilidades\",estado=\"incumplido\"})",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Índice de riesgo (peor)",
+      "id": 4,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "max(contecflow_negocio_indice_riesgo{empresa=~\"$empresa\",tipo=\"bruto\"})",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 40
+              },
+              {
+                "color": "red",
+                "value": 70
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Abiertas por severidad",
+      "id": 5,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (severidad) (contecflow_negocio_vulnerabilidades_abiertas{empresa=~\"$empresa\"})",
+          "legendFormat": "{{severidad}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 15,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "bargauge",
+      "title": "Críticas por empresa",
+      "id": 6,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (empresa) (contecflow_negocio_vulnerabilidades_abiertas{empresa=~\"$empresa\",severidad=\"critical\"})",
+          "legendFormat": "{{empresa}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Índice de riesgo (bruto y aceptado)",
+      "id": 7,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 12
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "contecflow_negocio_indice_riesgo{empresa=~\"$empresa\"}",
+          "legendFormat": "{{empresa}} {{tipo}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "SLA de remediación (en riesgo / vencido)",
+      "id": 8,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 12
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (estado) (contecflow_negocio_sla{empresa=~\"$empresa\",ambito=\"vulnerabilidades\"})",
+          "legendFormat": "{{estado}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    }
+  ]
+}

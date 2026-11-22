@@ -17,8 +17,8 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Briefcase, FileBarChart, Gauge, Globe, Layers, Plus, Receipt, Scale } from 'lucide-react'
-import { Button, Card, EmptyState, Input, KpiCard, Modal, Select, Spinner, TablaSimple, Tabs, useErroresDeCampo } from '../../components/ui'
+import { Briefcase, ClipboardList, FileBarChart, Gauge, Globe, Layers, Plus, Receipt, Scale } from 'lucide-react'
+import { Button, Card, EmptyState, Input, KpiCard, Modal, Select, Spinner, TablaSimple, Tabs, useErroresDeCampo, Textarea } from '../../components/ui'
 import StatusBadge from '../../components/ui/StatusBadge'
 import PageHeader from '../../components/layout/PageHeader'
 import PageShell from '../../components/layout/PageShell'
@@ -32,8 +32,9 @@ import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { TIPOS_DE_INFORME, TONO_CUENTA, TONO_PAQUETE, conRespaldo, mesDe, numeroONull, textoONull } from './logica'
 import { etiquetaDe, useT } from './comunes'
 import { AdjuntosDeInforme } from './PestanaPaquetes'
+import PestanaSolicitudes from './PestanaSolicitudes'
 
-type Pestana = 'reports' | 'packages' | 'services' | 'usage' | 'statements'
+type Pestana = 'reports' | 'packages' | 'services' | 'usage' | 'statements' | 'requests'
 
 /** Destinos válidos de un tipo de informe: avance → paquete; el resto → servicio. */
 export function destinosDeInforme(tipo: TipoDeInforme, paquetes: PaqueteDeTrabajo[], servicios: ServicioDeProveedor[]) {
@@ -93,12 +94,12 @@ function SubirInforme({ paquetes, servicios, onClose }: { paquetes: PaqueteDeTra
         <p className="u-text3-xs">{t(`proveedores.informe_tipo_${f.report_type}_d`)}</p>
         <div className="ui-field">
           <label htmlFor="prv-portal-resumen" className="uiinde-estiloetiqueta">{t('proveedores.resumen')} *</label>
-          <textarea id="prv-portal-resumen" value={f.summary} onChange={set('summary')} className="ds-input prv-textarea" />
+          <Textarea id="prv-portal-resumen" value={f.summary} onChange={set('summary')} inputClassName="prv-textarea" />
           {campos.de('summary') && <div className="u-field-error" role="alert">{campos.de('summary')}</div>}
         </div>
         <div className="ui-field">
           <label htmlFor="prv-portal-riesgos" className="uiinde-estiloetiqueta">{t('proveedores.riesgos')}</label>
-          <textarea id="prv-portal-riesgos" value={f.risks} onChange={set('risks')} className="ds-input prv-textarea" />
+          <Textarea id="prv-portal-riesgos" value={f.risks} onChange={set('risks')} inputClassName="prv-textarea" />
         </div>
         <Input label={t('proveedores.evidencia_enlace')} value={f.enlace} onChange={set('enlace')} placeholder="https://" error={campos.de('attachments')} />
         <div className="ui-field">
@@ -339,6 +340,8 @@ export default function PortalDelProveedor() {
     { id: 'services', label: t('proveedores.tab_servicios'), icon: <Layers size={14} /> },
     { id: 'usage', label: t('proveedores.consumo'), icon: <Receipt size={14} /> },
     { id: 'statements', label: t('proveedores.estados_de_cuenta'), icon: <Scale size={14} /> },
+    // Flujo de demanda (migración 195): pedir y seguir sus solicitudes.
+    { id: 'requests', label: t('demanda.mis_solicitudes'), icon: <ClipboardList size={14} /> },
   ]
   return (
     <PageShell>
@@ -353,6 +356,7 @@ export default function PortalDelProveedor() {
         {tab === 'services' && <Servicios servicios={servicios} />}
         {tab === 'usage' && <Consumo />}
         {tab === 'statements' && <Estados />}
+        {tab === 'requests' && <PestanaSolicitudes />}
       </div>
     </PageShell>
   )

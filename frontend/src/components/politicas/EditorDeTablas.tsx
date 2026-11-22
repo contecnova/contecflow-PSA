@@ -8,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Plus, Save, Table2, Trash2, Upload } from 'lucide-react'
 import { politicasApi } from '../../services/api'
 import type { FilaDeTabla, TablaDeReferencia } from '../../services/api/tipos-politicas'
-import { Button, EmptyState, Spinner, Select, TablaSimple, Pulsable } from '../ui'
+import { Button, EmptyState, Spinner, Select, TablaSimple, Pulsable, Input } from '../ui'
 import DateInput from '../ui/DateInput'
 import { useToast } from '../../context/ToastContext'
 import { confirmar } from '../../context/ConfirmContext'
@@ -143,12 +143,9 @@ function Tabla({ id, onVolver, onCreada }: { id: string | null; onVolver: () => 
                   {filas.map((f, i) => (
                     <tr key={i} aria-invalid={conErrores.has(i) || undefined}>
                       <td><SelectorDePais valor={f.pais} etiqueta={t('pol.pais_fila', { n: i + 1 })} onChange={v => setFila(i, { ...f, pais: v })} /></td>
-                      <td><input className="pol-campo" aria-label={t('pol.ciudad_fila', { n: i + 1 })} value={f.ciudad ?? ''} placeholder={t('pol.cualquiera')}
-                        onChange={e => setFila(i, { ...f, ciudad: e.target.value || null })} /></td>
-                      <td><input className="pol-campo" aria-label={t('pol.categoria_fila', { n: i + 1 })} value={f.categoria ?? ''} placeholder={t('pol.cualquiera')}
-                        list="pol-categorias" onChange={e => setFila(i, { ...f, categoria: e.target.value || null })} /></td>
-                      <td><input type="number" step="0.01" className="pol-campo" aria-label={t('pol.valor_fila', { n: i + 1 })} value={f.valor}
-                        onChange={e => setFila(i, { ...f, valor: Number(e.target.value) })} /></td>
+                      <td><Input aria-label={t('pol.ciudad_fila', { n: i + 1 })} value={f.ciudad ?? ''} placeholder={t('pol.cualquiera')} onChange={e => setFila(i, { ...f, ciudad: e.target.value || null })} inputClassName="pol-campo" /></td>
+                      <td><Input aria-label={t('pol.categoria_fila', { n: i + 1 })} value={f.categoria ?? ''} placeholder={t('pol.cualquiera')} list="pol-categorias" onChange={e => setFila(i, { ...f, categoria: e.target.value || null })} inputClassName="pol-campo" /></td>
+                      <td><Input type="number" step="0.01" aria-label={t('pol.valor_fila', { n: i + 1 })} value={f.valor} onChange={e => setFila(i, { ...f, valor: Number(e.target.value) })} inputClassName="pol-campo" /></td>
                       {esImporte && <td><SelectorDeMoneda valor={f.moneda ?? cab.moneda} opciones={opciones} etiqueta={t('pol.moneda_fila', { n: i + 1 })}
                         onChange={m => setFila(i, { ...f, moneda: m })} /></td>}
                       <td><DateInput className="pol-campo" aria-label={t('pol.desde_fila', { n: i + 1 })} value={f.vigente_desde ?? ''} onChange={e => setFila(i, { ...f, vigente_desde: e.target.value || null })} /></td>

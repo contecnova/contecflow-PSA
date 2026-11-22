@@ -76,6 +76,22 @@ def _actividad():
     return ActivityEvent
 
 
+# Rev. 193: clientes internos (docs/CLIENTES_INTERNOS.md §7).
+def _satisfaccion_interna():
+    from app.models.nps import ClientNPS
+    return ClientNPS
+
+
+def _designacion_interna():
+    from app.models.clientes_internos import InternalClientRole
+    return InternalClientRole
+
+
+def _cargo_interno():
+    from app.models.clientes_internos import InternalCharge
+    return InternalCharge
+
+
 def _contacto_de_cliente():
     from app.models.clients import ClientContact
     return ClientContact
@@ -109,6 +125,26 @@ def _foto_de_configuracion():
 def _hallazgo():
     from app.models.cmdb_software import VulnerabilityFinding
     return VulnerabilityFinding
+
+
+def _foto_de_riesgo():
+    from app.models.cmdb_riesgo import RiskSnapshot
+    return RiskSnapshot
+
+
+def _intento_de_explotacion():
+    from app.models.cmdb_riesgo import ExploitEvent
+    return ExploitEvent
+
+
+def _aviso_de_riesgo():
+    from app.models.cmdb_riesgo import RiskAlertLog
+    return RiskAlertLog
+
+
+def _expediente_de_demanda():
+    from app.models.demanda import DemandRequest
+    return DemandRequest
 
 
 TIPOS: dict[str, Tipo] = {
@@ -158,6 +194,29 @@ TIPOS: dict[str, Tipo] = {
     "sw_findings": Tipo(_hallazgo, lambda M: M.closed_at,
                         lambda M: M.status.in_(("resolved", "false_positive")) & M.closed_at.isnot(None),
                         ("id", "product_id", "instance_id", "vulnerability_id")),
+    # Rev. 193: clientes internos. Valoraciones de empleados en el portal interno
+    # (dato personal, base legal laboral) desde la respuesta; designaciones
+    # (usuario clave, finanzas, delegado) desde su alta; cargos internos (registro
+    # contable) desde la emisión, solo los emitidos, exportados o anulados.
+    "internal_satisfaction": Tipo(_satisfaccion_interna, lambda M: M.created_at,
+                                  lambda M: M.respondent_user_id.isnot(None),
+                                  ("id", "client_id", "respondent_user_id")),
+    "internal_client_roles": Tipo(_designacion_interna, lambda M: M.created_at, None, ("id", "client_id", "user_id")),
+    "internal_charges": Tipo(_cargo_interno, lambda M: func.coalesce(M.issued_at, M.cancelled_at, M.created_at),
+                             lambda M: M.status.in_(("emitido", "exportado", "anulado")),
+                             ("id", "client_id", "period")),
+    # Migracion 194: índice de riesgo. Histórico diario (desde el día; además lo
+    # poda el trabajo diario según `risk_settings.history_days`), intentos de
+    # explotación importados (desde que se vieron) y avisos mandados.
+    "sw_risk_snapshots": Tipo(_foto_de_riesgo, lambda M: M.day, None, ("id", "scope_type", "scope_id")),
+    "sw_exploit_events": Tipo(_intento_de_explotacion, lambda M: M.observed_at, None,
+                              ("id", "ci_id", "vuln_id", "source")),
+    "sw_risk_alert_log": Tipo(_aviso_de_riesgo, lambda M: M.sent_at, None, ("id", "kind")),
+    # Migración 195: expedientes del flujo de demanda cerrados (rechazados, retirados o
+    # ejecutados), desde el cierre; con su log, versiones, documentos y comentarios en cascada.
+    "demand_requests": Tipo(_expediente_de_demanda, lambda M: M.closed_at,
+                            lambda M: M.status.in_(("rejected", "withdrawn", "done")) & M.closed_at.isnot(None),
+                            ("id", "client_id", "project_id", "requester_user_id", "client_user_id")),
 }
 
 

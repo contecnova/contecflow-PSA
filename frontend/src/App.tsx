@@ -70,6 +70,9 @@ const GanttPage              = lazy(() => import('./pages/GanttPage'))
 const SubcontractorsPage     = lazy(() => import('./pages/SubcontractorsPage'))
 // Migración 191: portal del proveedor (externos contacto de su proveedor).
 const PortalDelProveedorPage = lazy(() => import('./pages/proveedores/PortalDelProveedor'))
+// Clientes internos (22-11-2026): gestión y portal «Mi departamento».
+const ClientesInternosPage = lazy(() => import('./pages/internos/ClientesInternosPage'))
+const MiDepartamentoPage = lazy(() => import('./pages/internos/MiDepartamentoPage'))
 const WorkflowDesignerPage   = lazy(() => import('./pages/service-desk/WorkflowDesignerPage'))
 const WikiPage               = lazy(() => import('./pages/WikiPage'))
 const EpicsPage              = lazy(() => import('./pages/EpicsPage'))
@@ -90,6 +93,7 @@ const EVMPage                = lazy(() => import('./pages/EVMPage'))
 const PortfolioPage          = lazy(() => import('./pages/PortfolioPage'))
 // Proyectos — rev. 173: intake de cartera y planificación de recursos
 const CarteraIntakePage      = lazy(() => import('./pages/CarteraIntakePage'))
+const DemandaPage            = lazy(() => import('./pages/DemandaPage'))
 const PlanificacionDeRecursosPage = lazy(() => import('./pages/PlanificacionDeRecursosPage'))
 const GitPage                = lazy(() => import('./pages/GitPage'))
 const SprintChartsPage       = lazy(() => import('./pages/SprintChartsPage'))
@@ -524,6 +528,7 @@ function AppRoutes() {
       <Route path="/evm" element={<ProtectedRoute><Layout><EVMPage /></Layout></ProtectedRoute>} />
       <Route path="/portfolio" element={<ProtectedRoute><Layout><PortfolioPage /></Layout></ProtectedRoute>} />
       <Route path="/portfolio/intake" element={<ProtectedRoute><Layout><CarteraIntakePage /></Layout></ProtectedRoute>} />
+      <Route path="/demand" element={<ProtectedRoute><Layout><DemandaPage /></Layout></ProtectedRoute>} />
       <Route path="/resources/planning" element={<ProtectedRoute><Layout><PlanificacionDeRecursosPage /></Layout></ProtectedRoute>} />
       <Route path="/git" element={<ProtectedRoute><Layout><GitPage /></Layout></ProtectedRoute>} />
       <Route path="/sprint-charts" element={<ProtectedRoute><Layout><SprintChartsPage /></Layout></ProtectedRoute>} />
@@ -582,6 +587,8 @@ function AppRoutes() {
       <Route path="/bi/project/:projectId" element={<BiProjectLegacyRedirect />} />
       <Route path="/subcontractors" element={<ProtectedRoute><Layout><SubcontractorsPage /></Layout></ProtectedRoute>} />
       <Route path="/supplier-portal" element={<ProtectedRoute><Layout><PortalDelProveedorPage /></Layout></ProtectedRoute>} />
+      <Route path="/internal-clients" element={<ProtectedRoute><Layout><ClientesInternosPage /></Layout></ProtectedRoute>} />
+      <Route path="/mi-departamento" element={<ProtectedRoute><Layout><MiDepartamentoPage /></Layout></ProtectedRoute>} />
       <Route path="/finance-dashboard"   element={<ProtectedRoute><Layout><SafeFinanceDashboard /></Layout></ProtectedRoute>} />
       <Route path="/team-dashboard"     element={<ProtectedRoute><Layout><SafeTeamDashboard /></Layout></ProtectedRoute>} />
       <Route path="/clients"             element={<ProtectedRoute><Layout><ClientsPage /></Layout></ProtectedRoute>} />

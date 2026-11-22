@@ -8,7 +8,7 @@ import type { CSSProperties } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { leccionesApi } from '../../services/api'
 import type { Leccion } from '../../services/api'
-import { Button, Modal, Spinner, UserSelect, Select } from '../ui'
+import { Button, Modal, Spinner, UserSelect, Select, Input } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr, fmtDate } from '../../utils/helpers'
@@ -70,7 +70,7 @@ export default function FichaDeLeccion({ id, onClose }: { id: string; onClose: (
               {l.puedo_editar && (
                 <form onSubmit={e => { e.preventDefault(); if (accion.descripcion.trim().length >= 3) nuevaAccion.mutate() }}
                   className="fidele-grid-2">
-                  <input aria-label={t('lec.nueva_accion')} placeholder={t('lec.nueva_accion')} value={accion.descripcion} onChange={e => setAccion(v => ({ ...v, descripcion: e.target.value }))} className="fidele-campo" />
+                  <Input aria-label={t('lec.nueva_accion')} placeholder={t('lec.nueva_accion')} value={accion.descripcion} onChange={e => setAccion(v => ({ ...v, descripcion: e.target.value }))} inputClassName="fidele-campo" />
                   <UserSelect value={accion.responsable_id} onChange={(uid: string) => setAccion(v => ({ ...v, responsable_id: uid }))} placeholder={t('lec.responsable')} />
                   <DateInput aria-label={t('lec.fecha_limite')} value={accion.fecha_limite} onChange={e => setAccion(v => ({ ...v, fecha_limite: e.target.value }))} className="ficha-de-leccion-e6" />
                   <Button size="sm" type="submit" loading={nuevaAccion.isPending}>{t('lec.anadir')}</Button>

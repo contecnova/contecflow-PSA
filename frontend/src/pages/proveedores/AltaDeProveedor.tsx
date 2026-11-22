@@ -11,7 +11,7 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Building2, UserRound } from 'lucide-react'
-import { Button, Checkbox, Input, Modal, Select, useErroresDeCampo } from '../../components/ui'
+import { Button, Checkbox, Input, Modal, Select, useErroresDeCampo, Textarea } from '../../components/ui'
 import { CamposDeExterno, CredencialesDeExterno, cargaDeExterno, externoCompleto, formularioDeExternoInicial } from '../../components/externos/FormularioDeExterno'
 import type { FormDeExterno } from '../../components/externos/FormularioDeExterno'
 import { subcontractorsApi } from '../../services/api'
@@ -156,7 +156,7 @@ export default function AltaDeProveedor({ onClose, onCreado }: { onClose: () => 
           <ModosDeRelacion valor={modos} onChange={setModos} />
           <div className="ui-field">
             <label htmlFor="prv-alta-notas" className="uiinde-estiloetiqueta">{t('subcontractors.notes')}</label>
-            <textarea id="prv-alta-notas" value={empresa.notes} onChange={campoEmpresa('notes')} className="ds-input prv-textarea" />
+            <Textarea id="prv-alta-notas" value={empresa.notes} onChange={campoEmpresa('notes')} inputClassName="prv-textarea" />
           </div>
           <div className="u-actions-8">
             <Button variant="ghost" onClick={() => setTipo(null)}>{t('proveedores.cambiar_tipo')}</Button>

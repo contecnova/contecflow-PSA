@@ -1,0 +1,46 @@
+/* Índice de riesgo y gestión de vulnerabilidades (22-11-2026). Solo variables del tema: claro y oscuro. */
+.swr-ambito { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.swr-ambito > * { min-width: 200px; }
+
+.swr-cabecera { display: grid; grid-template-columns: minmax(220px, 300px) 1fr; gap: 16px; align-items: stretch; }
+@media (max-width: 760px) { .swr-cabecera { grid-template-columns: 1fr; } }
+
+.swr-cifra { display: flex; flex-direction: column; gap: 6px; padding: 16px; border-radius: 12px; background: var(--surface-1); border: 1px solid var(--border); }
+.swr-cifra__valor { font-size: 56px; line-height: 1; font-weight: var(--font-semibold); font-variant-numeric: tabular-nums; }
+.swr-cifra__pie { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: var(--text-xs); color: var(--text-3); }
+
+.swr-tono--critical { color: var(--danger); }
+.swr-tono--high { color: var(--orange); }
+.swr-tono--medium { color: var(--warning); }
+.swr-tono--low { color: var(--success); }
+.swr-fill--critical { background: var(--danger) !important; }
+.swr-fill--high { background: var(--orange) !important; }
+.swr-fill--medium { background: var(--warning) !important; }
+.swr-fill--low { background: var(--success) !important; }
+
+.swr-factores { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.swr-factor { display: grid; grid-template-columns: minmax(140px, 1.2fr) 2fr auto; gap: 10px; align-items: center; font-size: var(--text-sm); }
+.swr-factor__datos { font-size: var(--text-xs); color: var(--text-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) { .swr-factor { grid-template-columns: 1fr; } }
+
+.swr-grafico { width: 100%; min-height: 220px; }
+
+.swr-barra-celda { display: flex; align-items: center; gap: 8px; min-width: 140px; }
+.swr-barra-celda .sdm-bar { flex: 1; }
+
+.swr-superficies { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+.swr-superficie.ui-btn { height: auto; justify-content: flex-start; align-items: flex-start; text-align: left; display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: 10px; background: var(--surface-1); border: 1px solid var(--border); color: var(--text-1); font: inherit; cursor: pointer; }
+.swr-superficie.ui-btn:hover, .swr-superficie.ui-btn:focus-visible { border-color: var(--accent); }
+.swr-superficie.ui-btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-dim); }
+.swr-superficie__n { font-size: var(--text-xl, 20px); font-weight: var(--font-semibold); font-variant-numeric: tabular-nums; }
+
+.swr-columnas { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.swr-pasos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; counter-reset: paso; }
+.swr-paso { display: flex; gap: 12px; padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-1); }
+.swr-paso__n { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-dim); color: var(--accent); font-weight: var(--font-semibold); font-size: var(--text-sm); }
+.swr-paso__acciones { margin: 4px 0 0; padding-left: 18px; font-size: var(--text-sm); color: var(--text-2); }
+.swr-impacto { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.swr-suma { font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.swr-suma--mal { color: var(--danger); font-weight: var(--font-semibold); }
+.swr-paginacion { display: flex; gap: 8px; align-items: center; justify-content: flex-end; font-size: var(--text-xs); color: var(--text-3); }

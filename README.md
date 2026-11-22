@@ -4281,7 +4281,7 @@ Values are cached in-process for **60 s** (`_CACHE_TTL_SECONDS`). A write invali
 
 ### Runtime settings reference
 
-The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **31 groups, 391 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
+The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **31 groups, 392 keys**. "Default" is the code default in `Settings` (`app/core/config.py` plus `config_groups/*`); a `.env` value overrides it. Measured example: the local `.env` sets `ACCESS_TOKEN_EXPIRE_MINUTES=60`.
 
 "Consumer" is what a grep of `app/` found:
 - **rt**: read at runtime through `get_runtime_*`, so a UI change takes effect within 60 s.
@@ -4581,6 +4581,7 @@ The source is `RUNTIME_FLAG_GROUPS` in `app/services/settings_service/`: **31 gr
 | presupuestos | BUDGET_VARIANCE_EXPLAIN_PCT | float | 15.0 | Budgets — a monthly variance per type of this % or more needs an explanation before the month is closed | rt (`presupuestos_seguir`) |
 | presupuestos | BUDGET_VARIANCE_EXPLAIN_MIN_AMOUNT | float | 1000.0 | Budgets — …and of this amount or more (both must be met) | rt (`presupuestos_seguir`) |
 | presupuestos | BUDGET_ALM_LINE_TYPE | str | licencias | Budgets — line type where ALM contracts and licences count as committed | rt (`presupuestos_seguir`) |
+| presupuestos | INTERNAL_IT_ERP_ACCOUNT | str | (empty) | Internal clients — IT ERP account or cost centre credited in internal charge entries; empty or 1-40 letters, digits, space . _ / -; without it the entries CSV is refused (409 `interno_sin_cuenta_ti`) | rt (`clientes_internos.cargos`) |
 | alm | ALM_HANDOVER_ACT_ENABLED | bool | True | Licences and hardware — issue a delivery and return act (signed) when an asset changes hands | rt (`alm_*`) |
 | alm | ALM_HANDOVER_CHECKLIST | str | charger,case,peripherals,no_visible_damage,data_wiped,accounts_removed | Licences and hardware — delivery/return checklist items (CSV of codes) | rt (`alm_*`) |
 | alm | ALM_ACT_ESIGN_PROVIDER | str | manual | Licences and hardware — who signs the acts: manual (in the app), docusign or adobe_sign | rt (`alm_*`) |
@@ -5651,7 +5652,7 @@ Commands: `docker compose up -d` (infra only) · `docker compose --profile s3 up
 1. **Environment (`.env` → `app.core.config.Settings`, pydantic-settings, `extra="ignore"`).** 475 fields (measured 2026-11-16): 244 in `config.py` and 231 in ten mixins under `app/core/config_groups/` (`ai_config` 41, `sla_config` 20, `health_config` 25, `semantic_config` 10, `service_desk_config` 36, `automations_config` 13, `proceso_config` 74, `escalas_config` 5, `empresa_config` 4, `politicas_config` 3). Read once at import, so a change needs a restart. Validators stop the boot on: weak or placeholder `SECRET_KEY`; a `JWT_ALGORITHM` other than HS256/HS384/HS512; an `ENVIRONMENT` outside `{development, test, staging, production}`; placeholder `DEFAULT_USER_PASSWORD`, `CLIENT_PORTAL_SECRET` or `SUPERADMIN_PASSWORD`. In staging/production they also require `WEBHOOK_SECRET`/`INBOUND_EMAIL_SECRET` (≥ 24 characters) and reject localhost in `ALLOWED_ORIGINS`, `FRONTEND_URL`, `BACKEND_URL`, `BASE_URL`, `WEBAUTHN_ORIGIN` and `WEBAUTHN_RP_ID`.
 2. **Runtime settings (DB table `app_settings`, edited in Settings).** `app/services/settings_service/`::RUNTIME_FLAG_GROUPS declares **256 keys in 24 groups** (measured 2026-11-16 in `_catalogo.py`): `sla`, `service_desk`, `automations`, `tenants`, `audit`, `risk`, `health`, `semantic`, `password_policy`, `locale`, `tokens`, `key_rotation`, `ai`, `conectores`, `lecciones`, `gastos`, `politicas`, `presupuestos`, `feature_flags`, `storage`, `security_network`, `ui_branding`, `observability`, `timeouts`. Two keys exist only there and have no `Settings` field: `SLACK_TEAM_ID` and `TEAMS_TENANT_ID` (they link a Slack workspace or Teams tenant to one company). Resolution is **organisation row → global row (`organization_id IS NULL`) → `settings.<KEY>` from env**. Reads are cached in-process for 60 s; writes invalidate locally and across workers via Redis pub/sub (`app/core/settings_pubsub.py`, a no-op without `REDIS_URL`). Not every env variable has a runtime override: only the keys listed there are editable.
 
-#### 4.2 Settings fields (`Settings`, 628)
+#### 4.2 Settings fields (`Settings`, 634)
 
 Defaults are the code defaults, never values from `.env`. Meanings are taken from the field name, its inline comment and the code that reads it; behaviour described in bold was checked in the code that consumes the variable.
 
@@ -5727,6 +5728,11 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `METRICS_ENABLED` | `False` | Register `/metrics` + HTTP instrumentation. |
 | `METRICS_AUTH_TOKEN` | `None` | Bearer for `/metrics` (runtime key with same name takes precedence). |
 | `METRICS_MULTIPROC_DIR` | `None` | Prometheus multiprocess dir (sets PROMETHEUS_MULTIPROC_DIR). |
+| `METRICS_TENANT_LABEL` | `"slug"` | Value of the `empresa` label on metrics: `slug` or `id` of the organization (never personal data). See docs/OBSERVABILIDAD.md. |
+| `METRICS_TENANT_MAX` | `50` | Only the first N organizations (by creation date) get their own `empresa` label; the rest are grouped as `otras` (bounded Prometheus cardinality). |
+| `METRICS_BUSINESS_ENABLED` | `True` | Business metrics per organization (tickets, SLA, projects…) read from the database on each scrape. |
+| `METRICS_BUSINESS_CACHE_SECONDS` | `60` | Cache (s) of the business metrics collector between scrapes. |
+| `CELERY_METRICS_PORT` | `0` | Metrics server port of the Celery worker/beat (0 = off). Internal compose network only, not published on the host. |
 | `FRONTEND_URL` | `'http://localhost:5173'` | Public SPA URL (emails, redirects). |
 | `BACKEND_URL` | `'http://localhost:8000'` | Public API URL (logged docs link). |
 | `PDF_STORAGE_PATH` | `'./storage/pdfs'` | Local dir for generated PDFs. |
@@ -6213,6 +6219,7 @@ Defaults are the code defaults, never values from `.env`. Meanings are taken fro
 | `BUDGET_VARIANCE_EXPLAIN_PCT` | `15.0` | Budgets — a monthly variance per type of this % or more needs an explanation before the month is closed |
 | `BUDGET_VARIANCE_EXPLAIN_MIN_AMOUNT` | `1000.0` | Budgets — …and of this amount or more (both must be met) |
 | `BUDGET_ALM_LINE_TYPE` | `'licencias'` | Budgets — line type where ALM contracts and licences count as committed |
+| `INTERNAL_IT_ERP_ACCOUNT` | `''` | Internal clients (rev. 193): IT ERP account or cost centre credited in internal charge entries. Hot (`presupuestos`); edited in Settings → Finance → Internal clients. |
 | `ALM_HANDOVER_ACT_ENABLED` | `True` | Licences and hardware — issue a delivery and return act (signed) when an asset changes hands |
 | `ALM_HANDOVER_CHECKLIST` | `'charger,case,peripherals,no_visible_damage,data_wiped,accounts_removed'` | Licences and hardware — delivery/return checklist items (CSV of codes) |
 | `ALM_ACT_ESIGN_PROVIDER` | `'manual'` | Licences and hardware — who signs the acts: manual (in the app), docusign or adobe_sign |

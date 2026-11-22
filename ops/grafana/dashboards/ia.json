@@ -1,0 +1,655 @@
+{
+  "uid": "contecflow-ia",
+  "title": "Contecflow · IA",
+  "description": "Uso, tokens, coste estimado y errores de IA por empresa y módulo.",
+  "tags": [
+    "contecflow",
+    "ia"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": false,
+  "graphTooltip": 1,
+  "refresh": "1m",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "type": "query",
+        "name": "empresa",
+        "label": "Empresa",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "contecflow-prometheus"
+        },
+        "query": {
+          "query": "label_values(empresa)",
+          "refId": "empresa"
+        },
+        "definition": "label_values(empresa)",
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "sort": 1,
+        "regex": "",
+        "hide": 0,
+        "description": "Slug acotado de la organización (las que pasan de METRICS_TENANT_MAX van en «otras»)."
+      }
+    ]
+  },
+  "annotations": {
+    "list": []
+  },
+  "links": [
+    {
+      "title": "Contecflow",
+      "type": "dashboards",
+      "tags": [
+        "contecflow"
+      ],
+      "asDropdown": true
+    }
+  ],
+  "panels": [
+    {
+      "type": "row",
+      "title": "Resumen (últimas 24 h, de la base)",
+      "id": 1,
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Llamadas",
+      "id": 2,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 1
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum(contecflow_negocio_ia_peticiones_24h{empresa=~\"$empresa\"})",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Coste USD",
+      "id": 3,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 1
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum(contecflow_negocio_ia_coste_usd_24h{empresa=~\"$empresa\"})",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Tokens",
+      "id": 4,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 1
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum(contecflow_negocio_ia_tokens_24h{empresa=~\"$empresa\"})",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "% con error",
+      "id": 5,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 1
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum(contecflow_negocio_ia_peticiones_24h{empresa=~\"$empresa\",resultado=\"error\"}) / clamp_min(sum(contecflow_negocio_ia_peticiones_24h{empresa=~\"$empresa\"}), 1)",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.05
+              },
+              {
+                "color": "red",
+                "value": 0.2
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      }
+    },
+    {
+      "type": "row",
+      "title": "Por empresa y módulo",
+      "id": 6,
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "panels": []
+    },
+    {
+      "type": "bargauge",
+      "title": "Coste 24 h por empresa",
+      "id": 7,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 6
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (empresa) (contecflow_negocio_ia_coste_usd_24h{empresa=~\"$empresa\"})",
+          "legendFormat": "{{empresa}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true
+      }
+    },
+    {
+      "type": "bargauge",
+      "title": "Coste 24 h por módulo",
+      "id": 8,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (modulo) (contecflow_negocio_ia_coste_usd_24h{empresa=~\"$empresa\"})",
+          "legendFormat": "{{modulo}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Llamadas/s por módulo (en caliente)",
+      "id": 9,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 14
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (modulo) (rate(contecflow_ia_peticiones_total{empresa=~\"$empresa\"}[5m]))",
+          "legendFormat": "{{modulo}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Coste USD/h por empresa (en caliente)",
+      "id": 10,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 14
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (empresa) (rate(contecflow_ia_coste_usd_total{empresa=~\"$empresa\"}[15m])) * 3600",
+          "legendFormat": "{{empresa}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Tokens/s por sentido",
+      "id": 11,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 22
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (sentido) (rate(contecflow_ia_tokens_total{empresa=~\"$empresa\"}[5m]))",
+          "legendFormat": "{{sentido}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Errores de IA por empresa",
+      "id": 12,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 22
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (empresa) (rate(contecflow_ia_peticiones_total{empresa=~\"$empresa\",resultado=\"error\"}[5m]))",
+          "legendFormat": "{{empresa}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Tope diario agotado (llamadas cortadas)",
+      "id": 13,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 30
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (empresa) (increase(contecflow_ia_presupuesto_agotado_total{empresa=~\"$empresa\"}[15m]))",
+          "legendFormat": "{{empresa}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    }
+  ]
+}

@@ -14,7 +14,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { z } from 'zod'
 import { portalApi, portalClientsApi, projectsApi, deliverablesApi, wikiApi, type PathId } from '../services/api'
 import type { Entregable, PortalPeticion, PortalSesionUat, PortalUsuario, VisibilidadDeWiki, WikiPaginaEnArbol } from '../services/api/tipos-alm'
-import { Button, Checkbox, IconButton, Modal, Pulsable, Select, Spinner, EmptyState, Page, KpiCard, Tabs, useErroresDeCampo } from '../components/ui'
+import { Button, Checkbox, IconButton, Modal, Pulsable, Select, Spinner, EmptyState, Page, KpiCard, Tabs, useErroresDeCampo, Input, Textarea } from '../components/ui'
 import Pagination from '../components/ui/Pagination'
 import { SMALL_PAGE_SIZE } from '../constants/pagination'
 import {
@@ -279,9 +279,9 @@ function CreateClientModal({ projectId, onClose }: { projectId: string; onClose:
           <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={form.email} onChange={set('email')} className="cpp-input cpp-input--roomy" {...err('email')} />{msgC('email')}
           {msg('email')}
         </div>
-        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.label_job_title')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.job_title} onChange={set('job_title')} className="cpp-input cpp-input--roomy" placeholder={t('client_portal.label_job_title')} />{msgC('job_title')}</div>
-        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.label_company')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.company} onChange={set('company')} className="cpp-input cpp-input--roomy" />{msgC('company')}</div>
-        <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="cpp-label">{t('client_portal.label_phone')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.phone} onChange={set('phone')} className="cpp-input cpp-input--roomy" />{msgC('phone')}</div>
+        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.label_job_title')}</label><Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.job_title} onChange={set('job_title')} placeholder={t('client_portal.label_job_title')} inputClassName="cpp-input cpp-input--roomy" />{msgC('job_title')}</div>
+        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.label_company')}</label><Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.company} onChange={set('company')} inputClassName="cpp-input cpp-input--roomy" />{msgC('company')}</div>
+        <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="cpp-label">{t('client_portal.label_phone')}</label><Input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.phone} onChange={set('phone')} inputClassName="cpp-input cpp-input--roomy" />{msgC('phone')}</div>
         <div className="u-col-full">
           <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="cpp-label">{t('client_portal.label_password')} *</label>
           <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="password" value={form.password} onChange={set('password')} className="cpp-input cpp-input--roomy" placeholder={t('client_portal.password_placeholder')} {...err('password')} />{msgC('password')}
@@ -380,9 +380,9 @@ function EditClientModal({ client, onClose, onSaved }: { client: ClientePortal; 
           <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={form.email} onChange={set('email')} className="cpp-input" {...err('email')} />{msgB('email')}
           {msg('email')}
         </div>
-        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.label_job_title')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.job_title} onChange={set('job_title')} className="cpp-input" placeholder={t('client_portal.label_job_title')} />{msgB('job_title')}</div>
-        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.label_company')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.company} onChange={set('company')} className="cpp-input" />{msgB('company')}</div>
-        <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="cpp-label">{t('client_portal.label_phone')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.phone} onChange={set('phone')} className="cpp-input" />{msgB('phone')}</div>
+        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.label_job_title')}</label><Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.job_title} onChange={set('job_title')} placeholder={t('client_portal.label_job_title')} inputClassName="cpp-input" />{msgB('job_title')}</div>
+        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.label_company')}</label><Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.company} onChange={set('company')} inputClassName="cpp-input" />{msgB('company')}</div>
+        <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="cpp-label">{t('client_portal.label_phone')}</label><Input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.phone} onChange={set('phone')} inputClassName="cpp-input" />{msgB('phone')}</div>
         <fieldset className="u-col-full cpp-fieldset ds-grupo-opciones">
           <legend className="cpp-label cpp-label--group">{t('client_portal.additional_projects_access')}</legend>
           <div className="cpp-projects-box">
@@ -395,7 +395,7 @@ function EditClientModal({ client, onClose, onSaved }: { client: ClientePortal; 
         </fieldset>
         <div className="u-col-full">
           <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="cpp-label">{t('client_portal.label_password')}</label>
-          <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} type="password" value={form.password} onChange={set('password')} className="cpp-input" placeholder={t('client_portal.password_placeholder')} />{msgB('password')}
+          <Input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} type="password" value={form.password} onChange={set('password')} placeholder={t('client_portal.password_placeholder')} inputClassName="cpp-input" />{msgB('password')}
           <div className="u-hint">{t('client_portal.password_placeholder')}</div>
         </div>
         <fieldset className="u-col-full cpp-fieldset ds-grupo-opciones">
@@ -543,10 +543,10 @@ function CreateUATModal({ projectId, deliverables, onClose }: { projectId: strin
             </Select>{msg('deliverable_id')}
           </div>
         </div>
-        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.uat_label_description')}</label><textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.description} onChange={set('description')} rows={2} className="cpp-input" />{msg('description')}</div>
+        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.uat_label_description')}</label><Textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.description} onChange={set('description')} rows={2} inputClassName="cpp-input" />{msg('description')}</div>
         <div className="u-grid2-12">
-          <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.uat_label_test_env_url')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.test_environment} onChange={set('test_environment')} className="cpp-input" placeholder={t('client_portal.uat_placeholder_test_env_url')} />{msg('test_environment')}</div>
-          <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="cpp-label">{t('client_portal.uat_label_test_credentials')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.test_credentials} onChange={set('test_credentials')} className="cpp-input" placeholder={t('client_portal.uat_placeholder_test_credentials')} />{msg('test_credentials')}</div>
+          <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.uat_label_test_env_url')}</label><Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.test_environment} onChange={set('test_environment')} placeholder={t('client_portal.uat_placeholder_test_env_url')} inputClassName="cpp-input" />{msg('test_environment')}</div>
+          <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="cpp-label">{t('client_portal.uat_label_test_credentials')}</label><Input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.test_credentials} onChange={set('test_credentials')} placeholder={t('client_portal.uat_placeholder_test_credentials')} inputClassName="cpp-input" />{msg('test_credentials')}</div>
           <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="cpp-label">{t('client_portal.uat_label_available_from')}</label><DateInput id={`${idCampo}-6`} value={form.available_from} onChange={set('available_from')} className="cpp-input" {...err('available_from')} />{msg('available_from')}</div>
           <div>
             <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="cpp-label">{t('client_portal.uat_label_deadline')}</label>
@@ -559,9 +559,9 @@ function CreateUATModal({ projectId, deliverables, onClose }: { projectId: strin
           <div className="cpp-subtitle-accent">{t('client_portal.uat_test_cases')}</div>
           {testCases.map((tc, i) => (
             <div key={i} className="cpp-case">
-              <input aria-label={t('client_portal.uat_test_case_title_placeholder', { index: i + 1 })} value={tc.title} onChange={e => setTestCases(tcs => tcs.map((c, j) => j === i ? { ...c, title: e.target.value } : c))} className="cpp-input" placeholder={t('client_portal.uat_test_case_title_placeholder', { index: i + 1 })} />{msg('title')}
-              <input aria-label={t('client_portal.uat_test_case_steps_placeholder')} value={tc.steps} onChange={e => setTestCases(tcs => tcs.map((c, j) => j === i ? { ...c, steps: e.target.value } : c))} className="cpp-input" placeholder={t('client_portal.uat_test_case_steps_placeholder')} />{msg('steps')}
-              <input aria-label={t('client_portal.uat_test_case_expected_placeholder')} value={tc.expected_result} onChange={e => setTestCases(tcs => tcs.map((c, j) => j === i ? { ...c, expected_result: e.target.value } : c))} className="cpp-input" placeholder={t('client_portal.uat_test_case_expected_placeholder')} />{msg('expected_result')}
+              <Input aria-label={t('client_portal.uat_test_case_title_placeholder', { index: i + 1 })} value={tc.title} onChange={e => setTestCases(tcs => tcs.map((c, j) => j === i ? { ...c, title: e.target.value } : c))} placeholder={t('client_portal.uat_test_case_title_placeholder', { index: i + 1 })} inputClassName="cpp-input" />{msg('title')}
+              <Input aria-label={t('client_portal.uat_test_case_steps_placeholder')} value={tc.steps} onChange={e => setTestCases(tcs => tcs.map((c, j) => j === i ? { ...c, steps: e.target.value } : c))} placeholder={t('client_portal.uat_test_case_steps_placeholder')} inputClassName="cpp-input" />{msg('steps')}
+              <Input aria-label={t('client_portal.uat_test_case_expected_placeholder')} value={tc.expected_result} onChange={e => setTestCases(tcs => tcs.map((c, j) => j === i ? { ...c, expected_result: e.target.value } : c))} placeholder={t('client_portal.uat_test_case_expected_placeholder')} inputClassName="cpp-input" />{msg('expected_result')}
               <IconButton onClick={() => setTestCases(tcs => tcs.filter((_, j) => j !== i))} className="cpp-case__remove"
                 ariaLabel={t('clientportalpage.quitar_caso', { index: i + 1 })}><X size={14} aria-hidden="true" /></IconButton>
             </div>
@@ -771,11 +771,11 @@ function FeatureRequestsTab({ projectId }: { projectId: string }) {
       {responding && (
         <Modal open title={`${t('client_portal.fr_modal_title')}: ${responding.title}`} onClose={() => setResponding(null)} width={520}>
           <div className="u-stack-14">
-            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cpp-label">{t('client_portal.fr_label_response')} *</label><textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={responseForm.pm_response} onChange={e => setResponseForm(f => ({ ...f, pm_response: e.target.value }))} rows={3} className="cpp-input" placeholder={t('client_portal.fr_response_placeholder')} /></div>
+            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cpp-label">{t('client_portal.fr_label_response')} *</label><Textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={responseForm.pm_response} onChange={e => setResponseForm(f => ({ ...f, pm_response: e.target.value }))} rows={3} placeholder={t('client_portal.fr_response_placeholder')} inputClassName="cpp-input" /></div>
             <div className="cpp-grid-3">
-              <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cpp-label">{t('client_portal.fr_label_hours')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={responseForm.estimated_hours} onChange={e => setResponseForm(f => ({ ...f, estimated_hours: e.target.value }))} className="cpp-input" placeholder={t('clientportalpage.ejemplo', { valor: 8 })} /></div>
-              <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.fr_label_cost')} ({fmtMoneda.simbolo})</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={responseForm.estimated_cost} onChange={e => setResponseForm(f => ({ ...f, estimated_cost: e.target.value }))} className="cpp-input" placeholder={t('clientportalpage.ejemplo', { valor: 1200 })} /></div>
-              <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.fr_label_weeks')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={responseForm.estimated_delivery_weeks} onChange={e => setResponseForm(f => ({ ...f, estimated_delivery_weeks: e.target.value }))} className="cpp-input" placeholder={t('clientportalpage.ejemplo', { valor: 4 })} /></div>
+              <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cpp-label">{t('client_portal.fr_label_hours')}</label><Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={responseForm.estimated_hours} onChange={e => setResponseForm(f => ({ ...f, estimated_hours: e.target.value }))} placeholder={t('clientportalpage.ejemplo', { valor: 8 })} inputClassName="cpp-input" /></div>
+              <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.fr_label_cost')} ({fmtMoneda.simbolo})</label><Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={responseForm.estimated_cost} onChange={e => setResponseForm(f => ({ ...f, estimated_cost: e.target.value }))} placeholder={t('clientportalpage.ejemplo', { valor: 1200 })} inputClassName="cpp-input" /></div>
+              <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.fr_label_weeks')}</label><Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={responseForm.estimated_delivery_weeks} onChange={e => setResponseForm(f => ({ ...f, estimated_delivery_weeks: e.target.value }))} placeholder={t('clientportalpage.ejemplo', { valor: 4 })} inputClassName="cpp-input" /></div>
             </div>
             <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="cpp-label">{t('client_portal.fr_label_status')}</label>
               <Select suelto placeholder={false} id={`${idCampo}-5`} value={responseForm.status} onChange={e => setResponseForm(f => ({ ...f, status: e.target.value }))} className="cpp-input">
@@ -888,14 +888,14 @@ function DocumentsTab({ projectId }: { projectId: string }) {
       {showAdd && (
         <Modal open title={t('client_portal.docs_modal_title')} onClose={() => setShowAdd(false)} width={480}>
           <div className="u-stack-14">
-            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cpp-label">{t('client_portal.docs_label_title')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={docForm.title} onChange={e => setDocForm(f => ({ ...f, title: e.target.value }))} className="cpp-input" /></div>
+            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="cpp-label">{t('client_portal.docs_label_title')} *</label><Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={docForm.title} onChange={e => setDocForm(f => ({ ...f, title: e.target.value }))} inputClassName="cpp-input" /></div>
             <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="cpp-label">{t('client_portal.docs_label_category')}</label>
               <Select suelto placeholder={false} id={`${idCampo}-2`} value={docForm.category} onChange={e => setDocForm(f => ({ ...f, category: e.target.value }))} className="cpp-input">
                 {Object.entries(CAT_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </Select>
             </div>
-            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.docs_label_file_url')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="url" value={docForm.file_url} onChange={e => setDocForm(f => ({ ...f, file_url: e.target.value }))} className="cpp-input" placeholder="https://..." /></div>
-            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.docs_label_file_name')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={docForm.file_name} onChange={e => setDocForm(f => ({ ...f, file_name: e.target.value }))} className="cpp-input" placeholder={t('client_portal.docs_placeholder_file_name')} /></div>
+            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="cpp-label">{t('client_portal.docs_label_file_url')}</label><Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="url" value={docForm.file_url} onChange={e => setDocForm(f => ({ ...f, file_url: e.target.value }))} placeholder="https://..." inputClassName="cpp-input" /></div>
+            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cpp-label">{t('client_portal.docs_label_file_name')}</label><Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={docForm.file_name} onChange={e => setDocForm(f => ({ ...f, file_name: e.target.value }))} placeholder={t('client_portal.docs_placeholder_file_name')} inputClassName="cpp-input" /></div>
             <Checkbox label={t('client_portal.docs_requires_signature')} checked={docForm.requires_signature} onChange={marcado => setDocForm(f => ({ ...f, requires_signature: marcado }))} />
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowAdd(false)}>{t('common.cancel')}</Button>

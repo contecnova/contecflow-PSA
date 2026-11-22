@@ -11,7 +11,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { biQueryBuilderApi } from '../../services/api'
 import type { ConsultaGuardadaBi, ResultadoDeConsultaBi } from '../../services/api/tipos-bi'
 import { useAppLang } from '../../i18n/AppLangContext'
-import { Button, EmptyState, IconButton, Table, Tabs, Select } from '../ui'
+import { Button, EmptyState, IconButton, Table, Tabs, Select, Input } from '../ui'
 import { FolderOpen, Hammer, Play, Plus, Save, Table2, Trash2, X } from 'lucide-react'
 import { fmtNumber } from '../../utils/helpers'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
@@ -302,8 +302,7 @@ export default function BiQueryBuilderPanel() {
                 </div>
                 <div className="biqubupa-box-4">
                   <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="biqubupa-ls">{traducir('biquerybuilder.limite')}</label>
-                  <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" className="biqubupa-is" value={limit} min={1} max={5000}
-                    onChange={e => setLimit(Number(e.target.value))} />
+                  <Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={limit} min={1} max={5000} onChange={e => setLimit(Number(e.target.value))} inputClassName="biqubupa-is" />
                 </div>
               </div>
 
@@ -311,8 +310,7 @@ export default function BiQueryBuilderPanel() {
               <div className="biqubupa-row-7">
                 <div className="biqubupa-box-5">
                   <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="biqubupa-ls">{traducir('biquerybuilder.nombre_de_la_query_requerido_para_guardar')}</label>
-                  <input id={`${idCampo}-5`} className="biqubupa-is" placeholder={traducir('biquerybuilder.mi_query')} value={queryName}
-                    onChange={e => setQueryName(e.target.value)} />
+                  <Input id={`${idCampo}-5`} placeholder={traducir('biquerybuilder.mi_query')} value={queryName} onChange={e => setQueryName(e.target.value)} inputClassName="biqubupa-is" />
                 </div>
                 <Button variant="secondary" icon={<Save size={14} />} onClick={handleSaveBuilder}
                   disabled={!dataset || !queryName.trim() || saveMut.isPending} loading={saveMut.isPending}>

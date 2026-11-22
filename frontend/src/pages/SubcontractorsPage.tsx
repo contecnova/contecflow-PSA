@@ -31,7 +31,7 @@ import type { SkillDelCatalogo, SubAsignacion, SubConciliacion, SubFactura, SubP
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AlertTriangle, ArrowLeft, Award, Briefcase, Building2, CalendarClock, Clock, Coins, FileText, Gauge, Handshake, HardHat, Layers, LayoutDashboard, Mail, Pencil, Plus, Receipt, Scale, ShieldCheck, Square, Trash2, UserRound, Users, X } from 'lucide-react'
-import { Button, Card, EmptyState, IconButton, KpiCard, Modal, Spinner, useSort, SortableTH, ViewToggle, Tabs, Table, Select, TablaSimple, Checkbox, useErroresDeCampo } from '../components/ui'
+import { Button, Card, EmptyState, IconButton, KpiCard, Modal, Spinner, useSort, SortableTH, ViewToggle, Tabs, Table, Select, TablaSimple, Checkbox, useErroresDeCampo, Input, Textarea } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import { useAppT } from '../i18n/AppLangContext'
@@ -193,7 +193,7 @@ function WorkerModal({ subId, worker, onClose, onSaved }: { subId: string; worke
               </div>
               <div>
                 <label id={`${idCampo}-11-et`} htmlFor={`${idCampo}-11`} className="sub-label">{t('subcontractors.years_experience')}</label>
-                <input id={`${idCampo}-11`} aria-labelledby={`${idCampo}-11-et`} type="number" value={skillForm.years_experience} onChange={e => { campos.limpiar('years_experience'); setSkillForm(f => ({ ...f, years_experience: e.target.value })) }} className="sub-input" min="0" step="0.5" />
+                <Input id={`${idCampo}-11`} aria-labelledby={`${idCampo}-11-et`} type="number" value={skillForm.years_experience} onChange={e => { campos.limpiar('years_experience'); setSkillForm(f => ({ ...f, years_experience: e.target.value })) }} min="0" step="0.5" inputClassName="sub-input" />
               </div>
               <div className="sub-check-row">
                 <Checkbox className="sub-check-label" checked={!!skillForm.certified} onChange={v => { campos.limpiar('certified'); setSkillForm(f => ({ ...f, certified: v })) }}
@@ -736,15 +736,15 @@ function SubDetail({ sub, onBack, onCambio }: { sub: Sub; onBack: () => void; on
             </div>
             <div>
               <label id={`${idCampo}-3-et`} htmlFor={`${idCampo}-3`} className="sub-label">{t('subcontractors.horas_obligatorio')}</label>
-              <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-3-et`} type="number" value={tlForm.hours} onChange={e => setTlForm(f=>({...f,hours:+e.target.value}))} className="sub-input" min="0.5" step="0.5" />
+              <Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-3-et`} type="number" value={tlForm.hours} onChange={e => setTlForm(f=>({...f,hours:+e.target.value}))} min="0.5" step="0.5" inputClassName="sub-input" />
             </div>
             <div>
               <label id={`${idCampo}-a599-et`} htmlFor={`${idCampo}-a599`} className="sub-label">{t('subcontractors.referencia_de_tarea')}</label>
-              <input id={`${idCampo}-a599`} aria-labelledby={`${idCampo}-a599-et`} value={tlForm.task_reference} onChange={e => setTlForm(f=>({...f,task_reference:e.target.value}))} className="sub-input" placeholder={t('subcontractors.referencia_de_tarea')} />
+              <Input id={`${idCampo}-a599`} aria-labelledby={`${idCampo}-a599-et`} value={tlForm.task_reference} onChange={e => setTlForm(f=>({...f,task_reference:e.target.value}))} placeholder={t('subcontractors.referencia_de_tarea')} inputClassName="sub-input" />
             </div>
             <div className="u-col-full">
               <label id={`${idCampo}-tl-desc-et`} htmlFor={`${idCampo}-tl-desc`} className="sub-label">{t('subcontractors.descripcion')}</label>
-              <input id={`${idCampo}-tl-desc`} aria-labelledby={`${idCampo}-tl-desc-et`} value={tlForm.description} onChange={e => setTlForm(f=>({...f,description:e.target.value}))} className="sub-input" placeholder={t('subcontractors.descripcion_del_parte')} />
+              <Input id={`${idCampo}-tl-desc`} aria-labelledby={`${idCampo}-tl-desc-et`} value={tlForm.description} onChange={e => setTlForm(f=>({...f,description:e.target.value}))} placeholder={t('subcontractors.descripcion_del_parte')} inputClassName="sub-input" />
             </div>
           </div>
           <div className="u-actions-8">
@@ -760,7 +760,7 @@ function SubDetail({ sub, onBack, onCambio }: { sub: Sub; onBack: () => void; on
           <div className="sub-form-grid">
             <div>
               <label id={`${idCampo}-a619-et`} htmlFor={`${idCampo}-a619`} className="sub-label">{t('subcontractors.n_factura_obligatorio')}</label>
-              <input id={`${idCampo}-a619`} aria-labelledby={`${idCampo}-a619-et`} value={invForm.invoice_number} onChange={e => setInvForm(f=>({...f,invoice_number:e.target.value}))} className="sub-input" placeholder={t('subcontractors.numero_de_factura')} />
+              <Input id={`${idCampo}-a619`} aria-labelledby={`${idCampo}-a619-et`} value={invForm.invoice_number} onChange={e => setInvForm(f=>({...f,invoice_number:e.target.value}))} placeholder={t('subcontractors.numero_de_factura')} inputClassName="sub-input" />
             </div>
             <div>
               <label id={`${idCampo}-4-et`} htmlFor={`${idCampo}-4`} className="sub-label">{t('subcontractors.fecha_emision')}</label>
@@ -768,11 +768,11 @@ function SubDetail({ sub, onBack, onCambio }: { sub: Sub; onBack: () => void; on
             </div>
             <div>
               <label id={`${idCampo}-5-et`} htmlFor={`${idCampo}-5`} className="sub-label">{t('subcontractors.importe_base_moneda', { moneda: fmtMoneda.simbolo })}</label>
-              <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-5-et`} type="number" value={invForm.amount} onChange={e => setInvForm(f=>({...f,amount:e.target.value}))} className="sub-input" min="0" step="0.01" />
+              <Input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-5-et`} type="number" value={invForm.amount} onChange={e => setInvForm(f=>({...f,amount:e.target.value}))} min="0" step="0.01" inputClassName="sub-input" />
             </div>
             <div>
               <label id={`${idCampo}-6-et`} htmlFor={`${idCampo}-6`} className="sub-label">{t('subcontractors.iva_pct')}</label>
-              <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-6-et`} type="number" value={invForm.tax_pct} onChange={e => { setIvaSubTocado(true); setInvForm(f=>({...f,tax_pct:+e.target.value})) }} className="sub-input" min="0" max="30" />
+              <Input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-6-et`} type="number" value={invForm.tax_pct} onChange={e => { setIvaSubTocado(true); setInvForm(f=>({...f,tax_pct:+e.target.value})) }} min="0" max="30" inputClassName="sub-input" />
             </div>
             {invForm.amount && (
               <div className="sub-total-box">
@@ -781,7 +781,7 @@ function SubDetail({ sub, onBack, onCambio }: { sub: Sub; onBack: () => void; on
             )}
             <div className="u-col-full">
               <label id={`${idCampo}-7-et`} htmlFor={`${idCampo}-7`} className="sub-label">{t('subcontractors.descripcion')}</label>
-              <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-7-et`} value={invForm.description} onChange={e => setInvForm(f=>({...f,description:e.target.value}))} className="sub-input" />
+              <Input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-7-et`} value={invForm.description} onChange={e => setInvForm(f=>({...f,description:e.target.value}))} inputClassName="sub-input" />
             </div>
           </div>
           <div className="u-actions-8">
@@ -825,19 +825,19 @@ function SubDetail({ sub, onBack, onCambio }: { sub: Sub; onBack: () => void; on
             </div>
             <div>
               <label id={`${idCampo}-asa-et`} htmlFor={`${idCampo}-asa`} className="sub-label">{t('externos.dedicacion')}</label>
-              <input id={`${idCampo}-asa`} aria-labelledby={`${idCampo}-asa-et`} type="number" min="0" max="100" step="5" value={asgForm.allocation_pct} onChange={e => setAsgForm(f=>({...f,allocation_pct:e.target.value}))} className="sub-input" />
+              <Input id={`${idCampo}-asa`} aria-labelledby={`${idCampo}-asa-et`} type="number" min="0" max="100" step="5" value={asgForm.allocation_pct} onChange={e => setAsgForm(f=>({...f,allocation_pct:e.target.value}))} inputClassName="sub-input" />
             </div>
             <div>
               <label id={`${idCampo}-a663-et`} htmlFor={`${idCampo}-a663`} className="sub-label">{t('subcontractors.n_pedido_po')}</label>
-              <input id={`${idCampo}-a663`} aria-labelledby={`${idCampo}-a663-et`} value={asgForm.po_number} onChange={e => setAsgForm(f=>({...f,po_number:e.target.value}))} className="sub-input" placeholder={t('subcontractors.numero_de_pedido')} />
+              <Input id={`${idCampo}-a663`} aria-labelledby={`${idCampo}-a663-et`} value={asgForm.po_number} onChange={e => setAsgForm(f=>({...f,po_number:e.target.value}))} placeholder={t('subcontractors.numero_de_pedido')} inputClassName="sub-input" />
             </div>
             <div>
               <label id={`${idCampo}-9-et`} htmlFor={`${idCampo}-9`} className="sub-label">{t('subcontractors.techo_po_moneda', { moneda: fmtMoneda.simbolo })}</label>
-              <input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-9-et`} type="number" value={asgForm.po_amount} onChange={e => setAsgForm(f=>({...f,po_amount:e.target.value}))} className="sub-input" />
+              <Input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-9-et`} type="number" value={asgForm.po_amount} onChange={e => setAsgForm(f=>({...f,po_amount:e.target.value}))} inputClassName="sub-input" />
             </div>
             <div>
               <label id={`${idCampo}-10-et`} htmlFor={`${idCampo}-10`} className="sub-label">{t('subcontractors.horas_contratadas')}</label>
-              <input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-10-et`} type="number" value={asgForm.hours_contracted} onChange={e => setAsgForm(f=>({...f,hours_contracted:e.target.value}))} className="sub-input" />
+              <Input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-10-et`} type="number" value={asgForm.hours_contracted} onChange={e => setAsgForm(f=>({...f,hours_contracted:e.target.value}))} inputClassName="sub-input" />
             </div>
             <div>
               <label id={`${idCampo}-11-et`} htmlFor={`${idCampo}-11`} className="sub-label">{t('subcontractors.fecha_inicio')}</label>
@@ -1053,23 +1053,23 @@ export default function SubcontractorsPage() {
           <div className="sub-form-grid sub-form-grid--mb16">
             <div>
               <label id={`${idCampo}-7-et`} htmlFor={`${idCampo}-7`} className="sub-label">{t('subcontractors.nombre_razon_social')}</label>
-              <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-7-et`} value={editForm.name} onChange={e => setEditForm(f=>({...f,name:e.target.value}))} className="sub-input" />{msgEdit('name')}
+              <Input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-7-et`} value={editForm.name} onChange={e => setEditForm(f=>({...f,name:e.target.value}))} inputClassName="sub-input" />{msgEdit('name')}
             </div>
             <div>
               <label id={`${idCampo}-8-et`} htmlFor={`${idCampo}-8`} className="sub-label">{t('subcontractors.empresa')}</label>
-              <input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-8-et`} value={editForm.company} onChange={e => setEditForm(f=>({...f,company:e.target.value}))} className="sub-input" />{msgEdit('company')}
+              <Input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-8-et`} value={editForm.company} onChange={e => setEditForm(f=>({...f,company:e.target.value}))} inputClassName="sub-input" />{msgEdit('company')}
             </div>
             <div>
               <label id={`${idCampo}-9-et`} htmlFor={`${idCampo}-9`} className="sub-label">{t('subcontractors.email')}</label>
-              <input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-9-et`} type="email" value={editForm.email} onChange={e => setEditForm(f=>({...f,email:e.target.value}))} className="sub-input" />{msgEdit('email')}
+              <Input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-9-et`} type="email" value={editForm.email} onChange={e => setEditForm(f=>({...f,email:e.target.value}))} inputClassName="sub-input" />{msgEdit('email')}
             </div>
             <div>
               <label id={`${idCampo}-10-et`} htmlFor={`${idCampo}-10`} className="sub-label">{t('subcontractors.telefono')}</label>
-              <input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-10-et`} value={editForm.phone} onChange={e => setEditForm(f=>({...f,phone:e.target.value}))} className="sub-input" />{msgEdit('phone')}
+              <Input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-10-et`} value={editForm.phone} onChange={e => setEditForm(f=>({...f,phone:e.target.value}))} inputClassName="sub-input" />{msgEdit('phone')}
             </div>
             <div>
               <label id={`${idCampo}-11-et`} htmlFor={`${idCampo}-11`} className="sub-label">{t('subcontractors.nif_vat')}</label>
-              <input id={`${idCampo}-11`} aria-labelledby={`${idCampo}-11-et`} value={editForm.vat_number} onChange={e => setEditForm(f=>({...f,vat_number:e.target.value}))} className="sub-input" />{msgEdit('vat_number')}
+              <Input id={`${idCampo}-11`} aria-labelledby={`${idCampo}-11-et`} value={editForm.vat_number} onChange={e => setEditForm(f=>({...f,vat_number:e.target.value}))} inputClassName="sub-input" />{msgEdit('vat_number')}
             </div>
             <div>
               <label id={`${idCampo}-12-et`} htmlFor={`${idCampo}-12`} className="sub-label">{t('subcontractors.moneda')}</label>
@@ -1080,7 +1080,7 @@ export default function SubcontractorsPage() {
           </div>
           <div className="u-mb-16">
             <label id={`${idCampo}-13-et`} htmlFor={`${idCampo}-13`} className="sub-label">{t('subcontractors.notes')}</label>
-            <textarea id={`${idCampo}-13`} aria-labelledby={`${idCampo}-13-et`} value={editForm.notes} onChange={e => setEditForm(f=>({...f,notes:e.target.value}))} className="sub-input sub-textarea" />{msgEdit('notes')}
+            <Textarea id={`${idCampo}-13`} aria-labelledby={`${idCampo}-13-et`} value={editForm.notes} onChange={e => setEditForm(f=>({...f,notes:e.target.value}))} inputClassName="sub-input sub-textarea" />{msgEdit('notes')}
           </div>
           <div className="u-actions-8">
             <Button variant="secondary" onClick={() => { setShowEdit(false); setEditTarget(null) }}>{t('common.cancel')}</Button>

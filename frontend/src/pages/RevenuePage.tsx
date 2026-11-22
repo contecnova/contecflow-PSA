@@ -17,7 +17,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { projectsApi, revenueRecognitionApi } from '../services/api'
 import type { CierreAsc606, ContratoAsc606, EntradaAsc606DelDiario, ObligacionAsc606, PanelAsc606 } from '../services/api/tipos-finanzas'
 import type { MetaDeLista } from '../services/api/tipos-plataforma'
-import { Button, Card, KpiCard, Modal, Spinner, EmptyState, Tabs, IconButton, Select, TablaSimple, useErroresDeCampo } from '../components/ui'
+import { Button, Card, KpiCard, Modal, Spinner, EmptyState, Tabs, IconButton, Select, TablaSimple, useErroresDeCampo, Input, Textarea } from '../components/ui'
 import Pagination from '../components/ui/Pagination'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -157,7 +157,7 @@ function ObligationsPanel({ contractId, onClose, currency }: { contractId: strin
           <div className="rev-ob-form">
             <div className="u-grid2-10">
               <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="rev-label">{t('revenue_page.nombre')}</label>
-                <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} className="ds-input" placeholder={t('revenue.ej_fase_1_analisis')} />{msgB('name')}
+                <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder={t('revenue.ej_fase_1_analisis')} />{msgB('name')}
               </div>
               <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="rev-label">{t('revenue.metodo')}</label>
                 <Select suelto placeholder={false} id={`${idCampo}-2`} value={form.method} onChange={e=>setForm(f=>({...f,method:e.target.value}))}>
@@ -166,10 +166,10 @@ function ObligationsPanel({ contractId, onClose, currency }: { contractId: strin
               </div>
             </div>
             <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="rev-label">{t('revenue_page.precio_independiente')}</label>
-              <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.standalone_price} onChange={e=>setForm(f=>({...f,standalone_price:e.target.value}))} className="ds-input" placeholder="0" />{msgB('standalone_price')}
+              <Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.standalone_price} onChange={e=>setForm(f=>({...f,standalone_price:e.target.value}))} placeholder="0" />{msgB('standalone_price')}
             </div>
             <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="rev-label">{t('revenue_page.notas')}</label>
-              <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} rows={2} className="ds-input" />{msgB('notes')}
+              <Textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} rows={2} />{msgB('notes')}
             </div>
             <div className="u-actions-8">
               <Button variant="secondary" onClick={reset}>{t('revenue_page.cancelar')}</Button>
@@ -607,7 +607,7 @@ export default function RevenuePage() {
               </Select>
             </div>
             <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="rev-label">{t('revenue.nombre_del_contrato')}</label>
-              <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={contractForm.name} onChange={e=>setContractForm(f=>({...f,name:e.target.value}))} className="ds-input" placeholder={t('revenue_page.nombre_contrato_ph')} />
+              <Input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={contractForm.name} onChange={e=>setContractForm(f=>({...f,name:e.target.value}))} placeholder={t('revenue_page.nombre_contrato_ph')} />
             </div>
             <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="rev-label">{t('revenue.metodo_de_reconocimiento')}</label>
               <Select suelto placeholder={false} id={`${idCampo}-6`} value={contractForm.method} onChange={e=>setContractForm(f=>({...f,method:e.target.value}))}>
@@ -616,7 +616,7 @@ export default function RevenuePage() {
             </div>
             <div className="u-grid2-12">
               <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="rev-label">{t('revenue.valor_del_contrato_2')}</label>
-                <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} type="number" value={contractForm.contract_value} onChange={e=>setContractForm(f=>({...f,contract_value:e.target.value}))} className="ds-input" placeholder="50000" />
+                <Input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} type="number" value={contractForm.contract_value} onChange={e=>setContractForm(f=>({...f,contract_value:e.target.value}))} placeholder="50000" />
               </div>
               <div><label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="rev-label">{t('revenue_page.moneda')}</label>
                 <Select suelto placeholder={false} id={`${idCampo}-8`} value={contractForm.currency} onChange={e=>setContractForm(f=>({...f,currency:e.target.value}))}>
@@ -630,11 +630,11 @@ export default function RevenuePage() {
             </div>
             {contractForm.method === 'straight_line' && (
               <div><label id={`${idCampo}-et11`} htmlFor={`${idCampo}-11`} className="rev-label">{t('revenue.duracion_meses_alternativa_a_fecha_fin')}</label>
-                <input id={`${idCampo}-11`} aria-labelledby={`${idCampo}-et11`} type="number" value={contractForm.duration_months} onChange={e=>setContractForm(f=>({...f,duration_months:e.target.value}))} className="ds-input" placeholder="12" />
+                <Input id={`${idCampo}-11`} aria-labelledby={`${idCampo}-et11`} type="number" value={contractForm.duration_months} onChange={e=>setContractForm(f=>({...f,duration_months:e.target.value}))} placeholder="12" />
               </div>
             )}
             <div><label id={`${idCampo}-et12`} htmlFor={`${idCampo}-12`} className="rev-label">{t('revenue_page.notas')}</label>
-              <textarea id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} value={contractForm.notes} onChange={e=>setContractForm(f=>({...f,notes:e.target.value}))} rows={2} className="ds-input" />
+              <Textarea id={`${idCampo}-12`} aria-labelledby={`${idCampo}-et12`} value={contractForm.notes} onChange={e=>setContractForm(f=>({...f,notes:e.target.value}))} rows={2} />
             </div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCreateContract(false)}>{t('revenue_page.cancelar')}</Button>
@@ -662,7 +662,7 @@ export default function RevenuePage() {
             </div>
             <div className="u-grid2-12">
               <div><label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} className="rev-label">{t('revenue.ano')}</label>
-                <input id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} type="number" value={closePeriod.year} onChange={e=>setClosePeriod(p=>({...p,year:parseInt(e.target.value)}))} className="ds-input" />
+                <Input id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} type="number" value={closePeriod.year} onChange={e=>setClosePeriod(p=>({...p,year:parseInt(e.target.value)}))} />
               </div>
               <div><label id={`${idCampo}-et14`} htmlFor={`${idCampo}-14`} className="rev-label">{t('revenue_page.mes')}</label>
                 <Select suelto placeholder={false} id={`${idCampo}-14`} value={closePeriod.month} onChange={e=>setClosePeriod(p=>({...p,month:parseInt(e.target.value)}))}>
@@ -676,7 +676,7 @@ export default function RevenuePage() {
               </div>
             )}
             <div><label id={`${idCampo}-et15`} htmlFor={`${idCampo}-15`} className="rev-label">{t('revenue_page.notas_opcional')}</label>
-              <textarea id={`${idCampo}-15`} aria-labelledby={`${idCampo}-et15`} value={closePeriod.notes} onChange={e=>setClosePeriod(p=>({...p,notes:e.target.value}))} rows={2} className="ds-input" />
+              <Textarea id={`${idCampo}-15`} aria-labelledby={`${idCampo}-et15`} value={closePeriod.notes} onChange={e=>setClosePeriod(p=>({...p,notes:e.target.value}))} rows={2} />
             </div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCloseModal(false)}>{t('revenue_page.cancelar')}</Button>

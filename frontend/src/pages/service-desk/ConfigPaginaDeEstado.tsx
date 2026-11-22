@@ -14,7 +14,7 @@ import { useToast } from '../../context/ToastContext'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { Button, Checkbox, EmptyState, Modal, Select, Spinner } from '../../components/ui'
+import { Button, Checkbox, EmptyState, Modal, Select, Spinner, Input, Textarea } from '../../components/ui'
 import { sdStatusPageApi } from '../../services/api'
 import type { SdComponenteDeEstado } from '../../services/api/tipos-sd'
 import './ConfigPaginaDeEstado.css'
@@ -100,8 +100,8 @@ function FormComponente({ pendiente, onCancelar, onGuardar }: { pendiente: boole
   return (
     <div className="u-stack-12">
       <div className="copadees-grid-1">
-        <div><label className="copadees-ls" htmlFor="sp-name">{t('sd_cfg.chg_name')} *</label><input id="sp-name" aria-label={t('sd_cfg.chg_name')} value={f.name} onChange={e => setF({ ...f, name: e.target.value })} className="ds-input" /></div>
-        <div><label className="copadees-ls" htmlFor="sp-group">{t('sd_cfg.sp_group')}</label><input id="sp-group" aria-label={t('sd_cfg.sp_group')} value={f.group_name} onChange={e => setF({ ...f, group_name: e.target.value })} className="ds-input" /></div>
+        <div><label className="copadees-ls" htmlFor="sp-name">{t('sd_cfg.chg_name')} *</label><Input id="sp-name" aria-label={t('sd_cfg.chg_name')} value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></div>
+        <div><label className="copadees-ls" htmlFor="sp-group">{t('sd_cfg.sp_group')}</label><Input id="sp-group" aria-label={t('sd_cfg.sp_group')} value={f.group_name} onChange={e => setF({ ...f, group_name: e.target.value })} /></div>
       </div>
       <Checkbox className="copadees-check" aria-label={t('sd_cfg.sp_public')} checked={!!f.is_public} onChange={v => setF({ ...f, is_public: v })} label={t('sd_cfg.sp_public')} />
       <div className="u-actions-10">
@@ -120,12 +120,12 @@ function FormIncidente({ pendiente, onCancelar, onGuardar }: { pendiente: boolea
   const [mensaje, setMensaje] = useState('')
   return (
     <div className="u-stack-12">
-      <div><label className="copadees-ls" htmlFor="sp-title">{t('sd_cfg.sp_incident_title')} *</label><input id="sp-title" aria-label={t('sd_cfg.sp_incident_title')} value={titulo} onChange={e => setTitulo(e.target.value)} className="ds-input" /></div>
+      <div><label className="copadees-ls" htmlFor="sp-title">{t('sd_cfg.sp_incident_title')} *</label><Input id="sp-title" aria-label={t('sd_cfg.sp_incident_title')} value={titulo} onChange={e => setTitulo(e.target.value)} /></div>
       <div><label className="copadees-ls" htmlFor="sp-impact">{t('sd_cfg.chg_status')}</label>
         <Select suelto placeholder={false} id="sp-impact" aria-label={t('sd_cfg.chg_status')} value={impacto} onChange={e => setImpacto(e.target.value)}>
           {ESTADOS.filter(s => s !== 'operational').map(s => <option key={s} value={s}>{t(`sd_cfg.sp_st_${s}`)}</option>)}
         </Select></div>
-      <div><label className="copadees-ls" htmlFor="sp-msg">{t('sd_cfg.sp_message')}</label><textarea id="sp-msg" aria-label={t('sd_cfg.sp_message')} rows={3} value={mensaje} onChange={e => setMensaje(e.target.value)} className="ds-input copadees-texto" /></div>
+      <div><label className="copadees-ls" htmlFor="sp-msg">{t('sd_cfg.sp_message')}</label><Textarea id="sp-msg" aria-label={t('sd_cfg.sp_message')} rows={3} value={mensaje} onChange={e => setMensaje(e.target.value)} inputClassName="copadees-texto" /></div>
       <div className="u-actions-10">
         <Button variant="secondary" onClick={onCancelar}>{t('common.cancel')}</Button>
         <Button disabled={!titulo.trim() || pendiente} loading={pendiente}

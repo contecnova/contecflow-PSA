@@ -1,0 +1,178 @@
+{
+ "codigos": {
+  "interno_tipo_no_valido": {
+   "es": "Tipo de cliente no válido: {valor}",
+   "en": "Invalid client type: {valor}",
+   "zh": "无效的客户类型：{valor}"
+  },
+  "interno_subtipo_no_valido": {
+   "es": "Tipo de unidad interna no válido: {valor}",
+   "en": "Invalid internal unit type: {valor}",
+   "zh": "无效的内部单位类型：{valor}"
+  },
+  "interno_modo_no_valido": {
+   "es": "Modo financiero no válido: {valor}",
+   "en": "Invalid financial mode: {valor}",
+   "zh": "无效的财务模式：{valor}"
+  },
+  "interno_metodo_no_valido": {
+   "es": "Método de coste no válido: {valor}",
+   "en": "Invalid costing method: {valor}",
+   "zh": "无效的成本计算方法：{valor}"
+  },
+  "interno_intercompania_sin_empresa": {
+   "es": "La intercompañía necesita una empresa del grupo distinta de la propia",
+   "en": "Intercompany needs a group company other than your own",
+   "zh": "公司间结算需要选择本公司以外的集团公司"
+  },
+  "interno_tarifa_obligatoria": {
+   "es": "El método «tarifa interna» necesita una tabla de tarifas",
+   "en": "The «internal rate» method needs a rate table",
+   "zh": "「内部费率」方法需要费率表"
+  },
+  "interno_margen_fuera_de_rango": {
+   "es": "El margen de transferencia va de -100 % a 1000 %",
+   "en": "The transfer markup must be between -100% and 1000%",
+   "zh": "转移加价必须在 -100% 到 1000% 之间"
+  },
+  "interno_no_es_interno": {
+   "es": "Ese cliente no es una unidad interna",
+   "en": "That client is not an internal unit",
+   "zh": "该客户不是内部单位"
+  },
+  "interno_sin_acceso": {
+   "es": "No perteneces a esa unidad interna",
+   "en": "You do not belong to that internal unit",
+   "zh": "您不属于该内部单位"
+  },
+  "interno_sin_permiso_costes": {
+   "es": "Solo el responsable y finanzas de la unidad ven sus costes",
+   "en": "Only the unit owner and finance can see its costs",
+   "zh": "只有单位负责人和财务可以查看其成本"
+  },
+  "interno_solo_responsable": {
+   "es": "Solo el responsable de la unidad puede hacerlo",
+   "en": "Only the unit owner can do this",
+   "zh": "只有单位负责人可以执行此操作"
+  },
+  "interno_papel_no_valido": {
+   "es": "Papel no válido: {valor}",
+   "en": "Invalid role: {valor}",
+   "zh": "无效的角色：{valor}"
+  },
+  "interno_criterio_no_valido": {
+   "es": "Criterio de reparto no válido: {valor}",
+   "en": "Invalid allocation criterion: {valor}",
+   "zh": "无效的分摊标准：{valor}"
+  },
+  "interno_reparto_fijo_no_suma": {
+   "es": "Los porcentajes del reparto fijo deben sumar 100 (suman {suma})",
+   "en": "Fixed allocation percentages must add up to 100 (they add up to {suma})",
+   "zh": "固定分摊百分比之和必须为 100（当前为 {suma}）"
+  },
+  "interno_periodo_no_valido": {
+   "es": "Periodo no válido: usa AAAA-MM",
+   "en": "Invalid period: use YYYY-MM",
+   "zh": "无效的期间：请使用 YYYY-MM"
+  },
+  "interno_cargo_ya_existe": {
+   "es": "Ya hay un cargo vivo de esa unidad y mes: {numero}",
+   "en": "There is already an active charge for that unit and month: {numero}",
+   "zh": "该单位当月已有有效费用单：{numero}"
+  },
+  "interno_cargo_estado": {
+   "es": "No se puede hacer eso con un cargo en estado {estado}",
+   "en": "That cannot be done with a charge in status {estado}",
+   "zh": "状态为 {estado} 的费用单无法执行此操作"
+  },
+  "interno_sod_cargo": {
+   "es": "Segregación de funciones: no aprueba el cargo quien lo generó o lo emitió",
+   "en": "Segregation of duties: whoever generated or issued the charge cannot approve it",
+   "zh": "职责分离：生成或开具费用单的人不能批准它"
+  },
+  "interno_hito_no_pendiente": {
+   "es": "El hito no está pendiente de firma",
+   "en": "The milestone is not awaiting sign-off",
+   "zh": "该里程碑不在待签署状态"
+  },
+  "interno_sod_hito": {
+   "es": "Segregación de funciones: no firma el hito quien pidió su aprobación",
+   "en": "Segregation of duties: whoever requested the milestone approval cannot sign it",
+   "zh": "职责分离：申请里程碑批准的人不能签署它"
+  },
+  "interno_uat_ya_firmada": {
+   "es": "La UAT ya está firmada",
+   "en": "The UAT is already signed",
+   "zh": "该 UAT 已签署"
+  },
+  "interno_resultado_no_valido": {
+   "es": "Resultado no válido: {valor}",
+   "en": "Invalid result: {valor}",
+   "zh": "无效的结果：{valor}"
+  },
+  "interno_puntuacion_fuera_de_rango": {
+   "es": "La puntuación va de {min} a {max}",
+   "en": "The score must be between {min} and {max}",
+   "zh": "评分必须在 {min} 到 {max} 之间"
+  },
+  "interno_ya_valorado": {
+   "es": "Ya has valorado esta unidad este mes",
+   "en": "You have already rated this unit this month",
+   "zh": "您本月已评价过该单位"
+  },
+  "interno_tipo_de_peticion_no_valido": {
+   "es": "Tipo de petición no válido: {valor}",
+   "en": "Invalid request type: {valor}",
+   "zh": "无效的申请类型：{valor}"
+  },
+  "interno_sin_cuenta_ti": {
+   "es": "Falta la cuenta contable de TI de los asientos: configúrala en Configuración → Finanzas → Clientes internos",
+   "en": "The IT ERP account for entries is missing: set it in Settings → Finance → Internal clients",
+   "zh": "缺少分录的 IT ERP 科目：请在 设置 → 财务 → 内部客户 中配置"
+  },
+  "interno_cuenta_erp_no_valida": {
+   "es": "Cuenta ERP no válida: 1-40 letras, cifras, espacio, punto, guion, barra o subrayado",
+   "en": "Invalid ERP account: 1-40 letters, digits, space, dot, hyphen, slash or underscore",
+   "zh": "无效的 ERP 科目：1-40 个字母、数字、空格、点、连字符、斜杠或下划线"
+  }
+ },
+ "que": {
+  "cargo_interno": {
+   "es": "Cargo interno",
+   "en": "Internal charge",
+   "zh": "内部费用单"
+  },
+  "beneficio": {
+   "es": "Beneficio",
+   "en": "Benefit",
+   "zh": "收益"
+  },
+  "accion_de_adopcion": {
+   "es": "Acción de adopción",
+   "en": "Adoption action",
+   "zh": "采用行动"
+  },
+  "servicio_compartido": {
+   "es": "Servicio compartido",
+   "en": "Shared service",
+   "zh": "共享服务"
+  },
+  "designacion": {
+   "es": "Designación",
+   "en": "Designation",
+   "zh": "指定"
+  },
+  "unidad_interna": {
+   "es": "Unidad interna",
+   "en": "Internal unit",
+   "zh": "内部单位"
+  },
+  "uat": {
+   "es": "Sesión de UAT",
+   "en": "UAT session",
+   "zh": "UAT 会话"
+  }
+ },
+ "textos": {},
+ "entidades": {}
+}

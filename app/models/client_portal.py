@@ -188,6 +188,8 @@ class UATSession(Base):
     client_notes = Column(Text, nullable=True)
     client_signed_by = Column(String(36), ForeignKey("client_users.id"), nullable=True, index=True)
     client_signed_at = Column(DateTime(timezone=True), nullable=True)
+    # Rev. 193: en el portal interno firma un empleado (`users`), no un usuario del portal.
+    internal_signed_by = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

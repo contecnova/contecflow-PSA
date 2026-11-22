@@ -7,7 +7,7 @@ import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Eye, Plus, Split, X, UserMinus, Activity } from 'lucide-react'
-import { Button, Drawer, Spinner, Tabs, Pulsable } from '../ui'
+import { Button, Drawer, Spinner, Tabs, Pulsable, Input } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { licensesApi } from '../../services/api'
@@ -182,7 +182,7 @@ export default function FichaLicencia({ licenseId, onClose }: { licenseId: strin
                     <div className="almf-filtros">
                       <div className="almf-filtro">
                         <label className="alm-label" htmlFor="almf-pico">{t('alm.peak_record')}</label>
-                        <input id="almf-pico" type="number" min={0} className="alm-input" value={pico} onChange={e => setPico(e.target.value)} />
+                        <Input id="almf-pico" type="number" min={0} value={pico} onChange={e => setPico(e.target.value)} inputClassName="alm-input" />
                       </div>
                       <Button variant="secondary" disabled={pico === '' || anotarPico.isPending} loading={anotarPico.isPending}
                         onClick={() => anotarPico.mutate()}>{t('common.save')}</Button>

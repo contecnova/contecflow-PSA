@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Coins, PackagePlus, PackageSearch, RefreshCw, RotateCcw, X } from 'lucide-react'
-import { Button, DataTable, EmptyState, KpiCard, Modal, Spinner, Tabs, Select } from '../../../components/ui'
+import { Button, DataTable, EmptyState, KpiCard, Modal, Spinner, Tabs, Select, Input } from '../../../components/ui'
 import type { ColumnaDeTabla } from '../../../components/ui'
 import { pedirTexto } from '../../../context/ConfirmContext'
 import { useToast } from '../../../context/ToastContext'
@@ -33,10 +33,10 @@ function Alta({ c, onClose }: { c: CandidatoNoControlado; onClose: () => void })
       <div className="u-stack-14">
         <div className="u-grid2-12">
           <label className="almu-campo">{t('alm_uso.nombre')}
-            <input className="alm-input" value={p.name} onChange={e => setP({ ...p, name: e.target.value })} />
+            <Input value={p.name} onChange={e => setP({ ...p, name: e.target.value })} inputClassName="alm-input" />
           </label>
           <label className="almu-campo">{t('alm_uso.producto')}
-            <input className="alm-input" value={p.product_name} onChange={e => setP({ ...p, product_name: e.target.value })} />
+            <Input value={p.product_name} onChange={e => setP({ ...p, product_name: e.target.value })} inputClassName="alm-input" />
           </label>
           <label className="almu-campo">{t('alm_uso.metrica')}
             <Select suelto placeholder={false} className="alm-input" value={p.metric} onChange={e => setP({ ...p, metric: e.target.value })}>
@@ -44,10 +44,10 @@ function Alta({ c, onClose }: { c: CandidatoNoControlado; onClose: () => void })
             </Select>
           </label>
           <label className="almu-campo">{t('alm_uso.puestos')}
-            <input className="alm-input" type="number" min={0} value={p.total_seats} onChange={e => setP({ ...p, total_seats: e.target.value })} />
+            <Input type="number" min={0} value={p.total_seats} onChange={e => setP({ ...p, total_seats: e.target.value })} inputClassName="alm-input" />
           </label>
           <label className="almu-campo">{t('alm_uso.coste_anual')}
-            <input className="alm-input" type="number" min={0} step="0.01" value={p.annual_cost} onChange={e => setP({ ...p, annual_cost: e.target.value })} />
+            <Input type="number" min={0} step="0.01" value={p.annual_cost} onChange={e => setP({ ...p, annual_cost: e.target.value })} inputClassName="alm-input" />
           </label>
         </div>
         <div className="u-row-end almu-acciones">

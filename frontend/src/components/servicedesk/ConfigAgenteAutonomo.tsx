@@ -16,7 +16,7 @@ import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { Button, GrupoDeOpciones, Spinner, Switch } from '../ui'
+import { Button, GrupoDeOpciones, Spinner, Switch, Input } from '../ui'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { agenteAutonomoApi } from '../../services/api/serviceDeskMercado'
 import type { ConfigDelAgente } from '../../services/api/serviceDeskMercado'
@@ -53,12 +53,8 @@ export default function ConfigAgenteAutonomo() {
         onChange={m => set({ mode: m as typeof form.mode })}
         opciones={form.modes.map(m => ({ valor: m, titulo: etiquetaCodigo(t, 'sd_mercado.modo', m), ayuda: t(`sd_mercado.modo_desc_${m}`) }))} />
       <div className="sdm-form">
-        <label className="sdm-field"><span>{t('sd_mercado.umbral_resolver')}</span>
-          <input className="ds-input" type="number" min={0} max={1} step={0.05} value={form.resolve_threshold ?? ''}
-            onChange={e => set({ resolve_threshold: e.target.value === '' ? null : Number(e.target.value) })} /></label>
-        <label className="sdm-field"><span>{t('sd_mercado.umbral_sugerir')}</span>
-          <input className="ds-input" type="number" min={0} max={1} step={0.05} value={form.suggest_threshold ?? ''}
-            onChange={e => set({ suggest_threshold: e.target.value === '' ? null : Number(e.target.value) })} /></label>
+        <Input label={t('sd_mercado.umbral_resolver')} type="number" min={0} max={1} step={0.05} value={form.resolve_threshold ?? ''} onChange={e => set({ resolve_threshold: e.target.value === '' ? null : Number(e.target.value) })} />
+        <Input label={t('sd_mercado.umbral_sugerir')} type="number" min={0} max={1} step={0.05} value={form.suggest_threshold ?? ''} onChange={e => set({ suggest_threshold: e.target.value === '' ? null : Number(e.target.value) })} />
       </div>
       <GrupoDeOpciones tipo="checkbox" leyenda={t('sd_mercado.de_serie_titulo')}
         valor={form.builtin_playbooks.filter(id => !form.disabled_playbooks.includes(id))}

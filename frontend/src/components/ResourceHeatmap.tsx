@@ -19,7 +19,7 @@ import { useMemo, useState, type CSSProperties, useId } from 'react'
 import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { projectsApi, usersApi } from '../services/api'
-import { Button, Card, KpiCard, Modal, Select, Spinner, EmptyState, SelectorDePeriodo, RejillaPersonaDia, columnasDeSemanas, useErroresDeCampo } from './ui'
+import { Button, Card, KpiCard, Modal, Select, Spinner, EmptyState, SelectorDePeriodo, RejillaPersonaDia, columnasDeSemanas, useErroresDeCampo, Input } from './ui'
 import type { TonoDeRejilla } from './ui'
 import { usePeriodo } from '../hooks/usePeriodo'
 import { AlertTriangle, ArrowLeft, BatteryLow, CalendarDays, Flame, List, Plus, Trash2, Users } from 'lucide-react'
@@ -205,7 +205,7 @@ function BookingModal({ onClose, prefill }: { onClose: () => void; prefill?: Boo
           </div>
         </div>
         <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="resoheat-ls">{t('aus.nota')}</label>
-          <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.note} onChange={setField('note')} className="ds-input" placeholder={t('resourceheatmap.motivo_de_la_reserva')} />{msg('note')}
+          <Input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.note} onChange={setField('note')} placeholder={t('resourceheatmap.motivo_de_la_reserva')} />{msg('note')}
         </div>
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>

@@ -1,0 +1,18 @@
+# Contecflow PSA — proveedor de dashboards de Grafana (docs/OBSERVABILIDAD.md).
+# Los JSON de ops/grafana/dashboards se cargan en la carpeta «Contecflow».
+# `allowUiUpdates: false`: la fuente de verdad es el repositorio; un cambio hecho
+# en la interfaz no se puede guardar encima (se exporta el JSON y se commitea).
+apiVersion: 1
+
+providers:
+  - name: contecflow
+    orgId: 1
+    folder: Contecflow
+    folderUid: contecflow
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    updateIntervalSeconds: 60
+    options:
+      path: /var/lib/grafana/dashboards/contecflow
+      foldersFromFilesStructure: false

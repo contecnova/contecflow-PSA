@@ -123,6 +123,14 @@ CAPACIDADES: dict[str, Capacidad] = {
     "cambios.gestionar": _c(ADMIN_PM, "Aprobar cambios de proyecto pendientes", "changes",
                             _get("/api/v1/changes/all/pending")),
     "cartera.gestionar": _c(ADMIN_PM, "Gestionar la entrada de propuestas a la cartera"),
+    # Flujo de demanda (migración 195, docs/FLUJO_DE_DEMANDA.md): ver y decidir los pasos
+    # de los que se es responsable (internos), gestionar (comité, ejecución, crear en nombre
+    # de otro) y configurar tipos, flujos y plantillas.
+    "demanda.ver": _c(INTERNOS, "Flujo de demanda: solicitudes y decisiones de las que se es responsable",
+                      sonda=_get("/api/v1/demand/requests", True)),
+    "demanda.gestionar": _c(ADMIN_PM, "Flujo de demanda: agendar comités, ejecutar y crear en nombre de otro"),
+    "demanda.config": _c(ADMIN, "Configurar el flujo de demanda: tipos, flujos, plantillas",
+                         sonda=_get("/api/v1/demand/flows", True)),
     "bpm.editar": _c(ADMIN_PM, "Editar y parar procesos BPM"),
 
     # ── Equipo y personas ────────────────────────────────────────────────────
@@ -169,6 +177,15 @@ CAPACIDADES: dict[str, Capacidad] = {
     # ── Clientes y finanzas ──────────────────────────────────────────────────
     "finanzas.ver": _c(ADMIN_PM, "Clientes, pipeline, contratos, facturación, rentabilidad, presupuestos",
                        sonda=_get("/api/v1/profitability/summary", True)),
+    # Clientes internos (rev. 193, docs/CLIENTES_INTERNOS.md): unidades de la propia
+    # compañía con showback/chargeback. El portal interno acota a las unidades de
+    # cada persona (`clientes_internos.unidades`); dirección y finanzas ven todas.
+    "interno.portal": _c(INTERNOS, "Portal interno: proyectos, UAT, hitos, peticiones, SLA y coste de mis unidades",
+                         sonda=_get("/api/v1/internal-portal/me", True)),
+    "interno.gestionar": _c(ADMIN_PM, "Clientes internos: cuadro de dirección, costes, borradores de cargo, "
+                            "beneficios, adopción y designaciones", sonda=_get("/api/v1/internal-clients/overview", True)),
+    "interno.cargos": _c(ADMIN, "Emitir, exportar y anular cargos internos; servicios compartidos y su reparto",
+                         sonda=_get("/api/v1/internal-clients/shared-costs", True)),
 
     # ── Soporte e ITSM ───────────────────────────────────────────────────────
     "sd.ver": _c(TODOS, "Service desk (el externo, solo sus tickets)", sonda=_get("/api/v1/sd/tickets/my-queue")),

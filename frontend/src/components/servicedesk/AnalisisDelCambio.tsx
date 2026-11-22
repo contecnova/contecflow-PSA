@@ -35,7 +35,7 @@ import { useAuth } from '../../context/AuthContext'
 import { confirmar } from '../../context/ConfirmContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { Button, EmptyState, GrupoDeOpciones, Select, Spinner, StatusBadge, Tabs } from '../ui'
+import { Button, EmptyState, GrupoDeOpciones, Select, Spinner, StatusBadge, Tabs, Input, Textarea } from '../ui'
 import { usersApi } from '../../services/api'
 import { cambiosApi } from '../../services/api/serviceDeskMercado'
 import type { WhatIf } from '../../services/api/serviceDeskMercado'
@@ -198,13 +198,13 @@ function Simulacion({ cambio }: { cambio: CambioMin }) {
     <div className="u-stack-12">
       <div className="u-text2-xs">{t('sd_mercado.simulacion_desc')}</div>
       <div className="sdm-form">
-        <label className="sdm-field"><span>{t('sd_mercado.parada_min')}</span><input className="ds-input" type="number" min={0} value={f.downtime} onChange={e => setF({ ...f, downtime: e.target.value })} /></label>
+        <Input label={t('sd_mercado.parada_min')} type="number" min={0} value={f.downtime} onChange={e => setF({ ...f, downtime: e.target.value })} />
         <label className="sdm-field"><span>{t('sd_mercado.tipo_cambio')}</span>
           <Select suelto placeholder={false} value={f.tipo} onChange={e => setF({ ...f, tipo: e.target.value })}>
             <option value="">{t('sd_mercado.sin_cambiar')}</option>
             {['standard', 'normal', 'emergency'].map(x => <option key={x} value={x}>{etiquetaSd('chg_type', x)}</option>)}
           </Select></label>
-        <label className="sdm-field"><span>{t('sd_mercado.hora_utc')}</span><input className="ds-input" type="number" min={0} max={23} value={f.hora} onChange={e => setF({ ...f, hora: e.target.value })} /></label>
+        <Input label={t('sd_mercado.hora_utc')} type="number" min={0} max={23} value={f.hora} onChange={e => setF({ ...f, hora: e.target.value })} />
         <label className="sdm-field"><span>{t('sd_mercado.dia_semana')}</span>
           <Select suelto placeholder={false} value={f.dia} onChange={e => setF({ ...f, dia: e.target.value })}>
             <option value="">{t('sd_mercado.sin_cambiar')}</option>
@@ -264,7 +264,7 @@ function Aprobacion({ cambio }: { cambio: CambioMin }) {
           <div className="sdm-form">
             <label className="sdm-field"><span>{t('sd_mercado.cuando')}</span><DateInput className="ds-input" withTime value={reunion.cuando} onChange={e => setReunion({ ...reunion, cuando: e.target.value })} /></label>
           </div>
-          <label className="sdm-field"><span>{t('sd_mercado.agenda')}</span><textarea className="ds-input" rows={2} value={reunion.agenda} onChange={e => setReunion({ ...reunion, agenda: e.target.value })} /></label>
+          <Textarea label={t('sd_mercado.agenda')} rows={2} value={reunion.agenda} onChange={e => setReunion({ ...reunion, agenda: e.target.value })} />
           <div className="u-row-end"><Button size="sm" onClick={() => programar.mutate()} loading={programar.isPending} disabled={!reunion.cuando || reunion.agenda.trim().length < 5}>{t('sd_mercado.programar')}</Button></div>
         </div>
       )}
@@ -273,7 +273,7 @@ function Aprobacion({ cambio }: { cambio: CambioMin }) {
         <div className="ds-card sdm-card">
           <div className="sdm-card__head">{t('sd_mercado.aprobacion_directa')}</div>
           <div className="u-text2-xs">{t('sd_mercado.aprobacion_directa_desc')}</div>
-          <label className="sdm-field"><span>{t('sd_mercado.motivo')}</span><textarea className="ds-input" rows={2} value={motivo} onChange={e => setMotivo(e.target.value)} /></label>
+          <Textarea label={t('sd_mercado.motivo')} rows={2} value={motivo} onChange={e => setMotivo(e.target.value)} />
           <div className="u-actions-8">
             <Button size="sm" variant="secondary" onClick={() => directo.mutate(false)} disabled={directo.isPending || !motivo.trim()}>{t('sd_mercado.rechazar')}</Button>
             <Button size="sm" onClick={async () => { if (await confirmar({ message: t('sd_mercado.aprobar_directo_confirmar', { n: cambio.number || '' }) })) directo.mutate(true) }} disabled={directo.isPending}>{t('sd_mercado.aprobar')}</Button>
@@ -287,7 +287,7 @@ function Aprobacion({ cambio }: { cambio: CambioMin }) {
           <GrupoDeOpciones tipo="checkbox" forma="lista" leyenda={t('sd_mercado.aprobadores')} valor={aprobadores}
             onChange={setAprobadores}
             opciones={(usuarios.data ?? []).filter(u => u.id !== cambio.requester_id).map(u => ({ valor: u.id, titulo: u.full_name }))} />
-          <label className="sdm-field"><span>{t('sd_mercado.justificacion')}</span><textarea className="ds-input" rows={2} value={justificacion} onChange={e => setJustificacion(e.target.value)} /></label>
+          <Textarea label={t('sd_mercado.justificacion')} rows={2} value={justificacion} onChange={e => setJustificacion(e.target.value)} />
           <div className="u-row-end"><Button size="sm" icon={<Zap size={13} />} onClick={async () => {
             if (await confirmar({ message: t('sd_mercado.via_rapida_confirmar'), danger: true })) rapida.mutate()
           }} loading={rapida.isPending} disabled={aprobadores.length === 0 || justificacion.trim().length < 10}>{t('sd_mercado.via_rapida_btn')}</Button></div>

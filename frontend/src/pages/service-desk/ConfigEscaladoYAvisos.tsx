@@ -18,7 +18,7 @@ import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { useToast } from '../../context/ToastContext'
 import { useAppT } from '../../i18n/AppLangContext'
-import { Button, Spinner, EmptyState, Modal, StatusBadge, Pulsable, Select, TablaSimple, Checkbox } from '../../components/ui'
+import { Button, Spinner, EmptyState, Modal, StatusBadge, Pulsable, Select, TablaSimple, Checkbox, Input, Textarea } from '../../components/ui'
 import { sdEscalationApi, sdNotificationTemplatesApi, sdGroupsApi, usersApi, type UserListItem } from '../../services/api'
 import type { SdAviso, SdReglaDeEscalado, SdTextoDeAviso, SdVistaPreviaDeAviso } from '../../services/api/tipos-sd'
 import { PRIORITY_LABEL } from './sdUtils'
@@ -202,7 +202,7 @@ function FormularioRegla({ inicial, colas, personas, pendiente, onCancelar, onGu
   return (
     <div className="u-stack-16">
       <div><label className="coesya-ls" htmlFor="esc-name">{t('sd_cfg.esc_name')} *</label>
-        <input id="esc-name" aria-label={t('sd_cfg.esc_name')} value={f.name} onChange={e => set('name', e.target.value)} className="ds-input" /></div>
+        <Input id="esc-name" aria-label={t('sd_cfg.esc_name')} value={f.name} onChange={e => set('name', e.target.value)} /></div>
 
       <div role="group" aria-labelledby="esc-grupo-when" className="ds-card coesya-grupo">
         <div id="esc-grupo-when" className="coesya-ls">{t('sd_cfg.esc_when')}</div>
@@ -211,7 +211,7 @@ function FormularioRegla({ inicial, colas, personas, pendiente, onCancelar, onGu
         </Select>
         {f.trigger === 'idle_hours' && (
           <div><label className="coesya-ls" htmlFor="esc-idle">{t('sd_cfg.esc_idle_hours')}</label>
-            <input id="esc-idle" aria-label={t('sd_cfg.esc_idle_hours')} type="number" min={1} value={f.idle} onChange={e => set('idle', e.target.value)} className="ds-input coesya-corto" /></div>
+            <Input id="esc-idle" aria-label={t('sd_cfg.esc_idle_hours')} type="number" min={1} value={f.idle} onChange={e => set('idle', e.target.value)} inputClassName="coesya-corto" /></div>
         )}
         <div><span className="coesya-ls">{t('sd_cfg.esc_priorities')}</span>
           <div className="u-wrap-6">
@@ -385,11 +385,10 @@ function FormularioAviso({ texto, pendiente, onCancelar, onGuardar, onRestaurar 
     <div className="coesya-grid-1">
       <div className="u-stack-12">
         <div><label className="coesya-ls" htmlFor="ntf-subject">{t('sd_cfg.ntf_subject')}</label>
-          <input id="ntf-subject" aria-label={t('sd_cfg.ntf_subject')} value={subject} onChange={e => setSubject(e.target.value)} className="ds-input" />
+          <Input id="ntf-subject" aria-label={t('sd_cfg.ntf_subject')} value={subject} onChange={e => setSubject(e.target.value)} />
           <div className="u-hint">{t('sd_cfg.ntf_subject_hint')}</div></div>
         <div><label className="coesya-ls" htmlFor="ntf-body">{t('sd_cfg.ntf_body')}</label>
-          <textarea id="ntf-body" aria-label={t('sd_cfg.ntf_body')} ref={cuerpoRef} value={body} onChange={e => setBody(e.target.value)} rows={10}
-            className="ds-input coesya-codigo ds-campo-codigo" /></div>
+          <Textarea id="ntf-body" aria-label={t('sd_cfg.ntf_body')} ref={cuerpoRef} value={body} onChange={e => setBody(e.target.value)} rows={10} inputClassName="coesya-codigo ds-campo-codigo" /></div>
         <div><span className="coesya-ls">{t('sd_cfg.ntf_variables')}</span>
           <div className="u-wrap-6">
             {VARIABLES.map(v => <Chip key={v} activo={false} onClick={() => insertar(v)}>{v}</Chip>)}

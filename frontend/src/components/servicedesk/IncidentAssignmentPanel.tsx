@@ -32,7 +32,7 @@ import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { useChartTheme } from '../../charts/useChartTheme'
 import { BarChart3, CheckCircle2, Sparkles, UserCheck } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { Card, Button, Select, Spinner, EmptyState, Section } from '../ui'
+import { Card, Button, Select, Spinner, EmptyState, Section, Input, Textarea } from '../ui'
 import StatusBadge from '../ui/StatusBadge'
 import { POLL_FREQUENT_MS } from '../../constants/timings'
 import './IncidentAssignmentPanel.css'
@@ -113,15 +113,15 @@ export default function IncidentAssignmentPanel() {
             <div className="ds-eyebrow">{t('incidentassignment.pedir')}</div>
             <div className="ui-field">
               <label htmlFor={`${id}-ticket`} className="campo-etiqueta">{t('incidentassignment.ticket_id')}</label>
-              <input id={`${id}-ticket`} type="text" value={ticketId} onChange={e => setTicketId(e.target.value)} className="campo-form" />
+              <Input id={`${id}-ticket`} type="text" value={ticketId} onChange={e => setTicketId(e.target.value)} inputClassName="campo-form" />
             </div>
             <div className="ui-field">
               <label htmlFor={`${id}-titulo`} className="campo-etiqueta">{t('incidentassignment.titulo_incidencia')}</label>
-              <input id={`${id}-titulo`} type="text" value={ticketTitle} onChange={e => setTicketTitle(e.target.value)} className="campo-form" />
+              <Input id={`${id}-titulo`} type="text" value={ticketTitle} onChange={e => setTicketTitle(e.target.value)} inputClassName="campo-form" />
             </div>
             <div className="ui-field">
               <label htmlFor={`${id}-desc`} className="campo-etiqueta">{t('incidentassignment.descripcion')}</label>
-              <textarea id={`${id}-desc`} value={ticketDescription} onChange={e => setTicketDescription(e.target.value)} rows={2} className="campo-form iap-textarea" />
+              <Textarea id={`${id}-desc`} value={ticketDescription} onChange={e => setTicketDescription(e.target.value)} rows={2} inputClassName="campo-form iap-textarea" />
               <div className="u-text3-xs">{t('incidentassignment.descripcion_hint')}</div>
             </div>
             <div className="iap-fila">

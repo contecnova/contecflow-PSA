@@ -18,7 +18,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { skillsApi, usersApi } from '../services/api'
 import type { SkillDelCatalogo } from '../services/api/tipos-alm'
 import type { CambioDeNivelDeSkill, MatrizDeSkills, PersonaPorSkills, SkillDePersona } from '../services/api/tipos-personas'
-import { Button, Card, KpiCard, Modal, Section, Spinner, EmptyState, Tabs, IconButton, Select, Pulsable, TablaSimple, Checkbox, useErroresDeCampo } from '../components/ui'
+import { Button, Card, KpiCard, Modal, Section, Spinner, EmptyState, Tabs, IconButton, Select, Pulsable, TablaSimple, Checkbox, useErroresDeCampo, Input } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Award, BookOpen, Code2, Grid3x3, HeartHandshake, History, Languages, Layers, Lightbulb, Pencil, Plus, Ruler, Search, Sparkles, Tags, UserRound, Users, Wrench, X } from 'lucide-react'
@@ -270,7 +270,7 @@ function UserSkillModal({ user, onClose }: { user: DomainUser; onClose: () => vo
           </div>
           <div>
             <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={ls}>{t('skills.anos_exp')}</label>
-            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" min="0" max="30" step="0.5" value={form.years_experience} onChange={e => { campos.limpiar('years_experience'); setForm(f => ({ ...f, years_experience: e.target.value })) }} className={fs} placeholder={t('skills.anos_placeholder')} />{msg('years_experience')}
+            <Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" min="0" max="30" step="0.5" value={form.years_experience} onChange={e => { campos.limpiar('years_experience'); setForm(f => ({ ...f, years_experience: e.target.value })) }} placeholder={t('skills.anos_placeholder')} inputClassName="skl-input" />{msg('years_experience')}
           </div>
         </div>
         <div className="skl-add__row">

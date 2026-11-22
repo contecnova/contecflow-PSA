@@ -399,8 +399,8 @@ function SmartMatchTab() {
           </div>
 
           <div className="res-sm__grid">
-            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="res-label">{t('resources_page.horas_necesarias')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={form.hours_needed} onChange={e => setForm(f => ({ ...f, hours_needed: +e.target.value }))} className="ds-input" /></div>
-            <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="res-label">{t('resources_page.tarifa_max')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" value={form.max_hourly_rate} onChange={e => setForm(f => ({ ...f, max_hourly_rate: e.target.value }))} className="ds-input" placeholder={t('resources_page.tarifa_maxima')} /></div>
+            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="res-label">{t('resources_page.horas_necesarias')}</label><Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={form.hours_needed} onChange={e => setForm(f => ({ ...f, hours_needed: +e.target.value }))} /></div>
+            <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="res-label">{t('resources_page.tarifa_max')}</label><Input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" value={form.max_hourly_rate} onChange={e => setForm(f => ({ ...f, max_hourly_rate: e.target.value }))} placeholder={t('resources_page.tarifa_maxima')} /></div>
             <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="res-label">{t('resources_page.inicio')}</label><DateInput id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} className="ds-input" /></div>
             <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="res-label">{t('resources_page.fin')}</label><DateInput id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} className="ds-input" /></div>
           </div>

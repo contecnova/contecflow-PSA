@@ -17,7 +17,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, projectWorkflowsApi } from '../services/api'
 import type { EstadoDelFlujoDeProyecto, FlujoDelProyecto } from '../services/api/tipos-rendimiento'
-import { Button, Spinner, EmptyState, Modal, Select, IconButton, Pulsable, Checkbox, useErroresDeCampo } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, Select, IconButton, Pulsable, Checkbox, useErroresDeCampo, Input } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { FolderOpen, GitBranch, MessageSquare, Pencil, Plus, RotateCcw, Trash2, Workflow, X, Zap } from 'lucide-react'
@@ -90,23 +90,18 @@ function StateForm({ projectId, state, onClose }: { projectId: string; state: Wo
       <div className="u-stack-14">
         <div>
           <label id={`${idCampo}-etnombre`} htmlFor={`${idCampo}-nombre`} className="wf-label">{t('workflows.nombre_del_estado')}</label>
-          <input id={`${idCampo}-nombre`} aria-labelledby={`${idCampo}-etnombre`} className="ds-input" value={form.name}
-            onChange={e => {
+          <Input id={`${idCampo}-nombre`} aria-labelledby={`${idCampo}-etnombre`} value={form.name} onChange={e => {
               const n = e.target.value
               setForm(f => ({ ...f, name: n, value: isEdit ? f.value : n.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') }))
             }} placeholder={t('workflows.nombre_visible_del_estado')} />
         </div>
         <div>
           <label id={`${idCampo}-valor-et`} htmlFor={`${idCampo}-valor`} className="wf-label">{t('workflows.valor_interno')}</label>
-          <input id={`${idCampo}-valor`} aria-labelledby={`${idCampo}-valor-et`} className="ds-input wf-input--mono ds-campo-codigo"
-            value={form.value} disabled={isEdit}
-            onChange={e => set('value')(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
-            placeholder={t('workflows.valor_interno_ph')} />{msgB('value')}
+          <Input id={`${idCampo}-valor`} aria-labelledby={`${idCampo}-valor-et`} value={form.value} disabled={isEdit} onChange={e => set('value')(e.target.value.toLowerCase().replace(/\s+/g, '_'))} placeholder={t('workflows.valor_interno_ph')} inputClassName="wf-input--mono ds-campo-codigo" />{msgB('value')}
         </div>
         <div>
           <label id={`${idCampo}-icono-et`} htmlFor={`${idCampo}-icono`} className="wf-label">{t('workflows.icono_emoji')}</label>
-          <input id={`${idCampo}-icono`} aria-labelledby={`${idCampo}-icono-et`} className="ds-input wf-input--icon"
-            value={form.icon} onChange={e => set('icon')(e.target.value)} />{msgB('icon')}
+          <Input id={`${idCampo}-icono`} aria-labelledby={`${idCampo}-icono-et`} value={form.icon} onChange={e => set('icon')(e.target.value)} inputClassName="wf-input--icon" />{msgB('icon')}
         </div>
         <div>
           <div id={`${idCampo}-color-et`} className="wf-label">{t('workflows.color')}</div>
@@ -184,7 +179,7 @@ function TransitionForm({ projectId, states, onClose }: { projectId: string; sta
         </div>
         <div>
           <label id={`${idCampo}-etetiqueta`} htmlFor={`${idCampo}-etiqueta`} className="wf-label">{t('workflows.etiqueta_de_la_transicion_opcional')}</label>
-          <input id={`${idCampo}-etiqueta`} aria-labelledby={`${idCampo}-etetiqueta`} className="ds-input" value={form.label} onChange={e => set('label')(e.target.value)} placeholder={t('workflows.etiqueta_placeholder')} />{msg('label')}
+          <Input id={`${idCampo}-etiqueta`} aria-labelledby={`${idCampo}-etetiqueta`} value={form.label} onChange={e => set('label')(e.target.value)} placeholder={t('workflows.etiqueta_placeholder')} />{msg('label')}
         </div>
         <div>
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="wf-label">{t('workflows.solo_puede_ejecutarla_este_rol')}</label>

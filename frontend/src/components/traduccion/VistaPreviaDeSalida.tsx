@@ -19,7 +19,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { AlertTriangle, Info, Languages, RefreshCw, X } from 'lucide-react'
-import { Button, Select } from '../ui'
+import { Button, Select, Textarea } from '../ui'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { errorDeTraduccion, motivoDeTraduccion, nombreDeIdioma, useConfigDeTraduccion } from '../../hooks/useTraduccion'
 import { traduccionApi, type VistaPrevia } from '../../services/api/traduccion'
@@ -162,8 +162,7 @@ export default function VistaPreviaDeSalida({ contextType, contextId, texto, onC
           {!noDisponible && vista.status === 'translated' && (
             <div className="trad-salida__campo">
               <label htmlFor={idTexto} className="trad-salida__etiqueta">{t('traduccion_ui.lo_que_recibira')}</label>
-              <textarea id={idTexto} className="ds-input trad-salida__texto" rows={3} lang={vista.target_language ?? undefined}
-                value={editada} onChange={e => setEditada(e.target.value)} aria-invalid={desfasada || !editada.trim()} />
+              <Textarea id={idTexto} rows={3} lang={vista.target_language ?? undefined} value={editada} onChange={e => setEditada(e.target.value)} aria-invalid={desfasada || !editada.trim()} inputClassName="trad-salida__texto" />
               {!editada.trim() && (
                 <div className="trad-aviso" role="note">
                   <AlertTriangle size={12} aria-hidden="true" />

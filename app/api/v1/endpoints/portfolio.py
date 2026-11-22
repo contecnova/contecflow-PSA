@@ -6,7 +6,7 @@ POST   /portfolios/{portfolio_id}/projects
 DELETE /portfolios/{portfolio_id}/projects/{project_id}
 GET    /portfolios/{portfolio_id}/dashboard
 """
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 from pydantic import BaseModel
@@ -155,7 +155,8 @@ def remove_project(portfolio_id: str, project_id: str,
 @router.get("/{portfolio_id}/dashboard",
             summary="Dashboard de cartera — RAG, EVM, hitos")
 def portfolio_dashboard(portfolio_id: str, db: Session = Depends(get_db),
-                        cu: User = Depends(get_current_user)):
+                        cu: User = Depends(get_current_user),
+                        client_kind: Optional[str] = Query(None, pattern="^(externo|interno)$")):
     """
     Returns a full portfolio dashboard:
     - Per-project health (RAG), EVM snapshot, upcoming milestones
@@ -166,6 +167,8 @@ def portfolio_dashboard(portfolio_id: str, db: Session = Depends(get_db),
     if not port:
         raise error_http(404, "no_encontrado", detail="Cartera no encontrada", que="cartera")
 
+    from app.services.clientes_internos.unidades import del_tipo as _del_tipo, ids_de_clientes_internos
+    _internos = ids_de_clientes_internos(db) if client_kind else set()
     projects_data = []
     total_budget  = 0.0
     total_ac      = 0.0
@@ -176,6 +179,9 @@ def portfolio_dashboard(portfolio_id: str, db: Session = Depends(get_db),
             continue
         proj = pp.project
         if not proj:
+            continue
+        # Rev. 193: filtro externos/internos por el tipo del cliente del proyecto.
+        if client_kind and not _del_tipo(proj.client_id, client_kind, _internos):
             continue
 
         evm = portfolio_service.get_evm_quick(db, proj.id)

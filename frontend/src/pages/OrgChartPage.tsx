@@ -25,7 +25,7 @@ import {
   AlertTriangle, Briefcase, Building2, CalendarOff, ChevronDown, ChevronRight, Clock, CornerDownRight,
   GitBranch, Info, Network, Pencil, Receipt, Search, ShieldCheck, Tag, UserRound,
 } from 'lucide-react'
-import { Button, Card, DataTable, EmptyState, IconButton, Modal, Pulsable, Section, Select, Spinner, Tabs } from '../components/ui'
+import { Button, Card, DataTable, EmptyState, IconButton, Modal, Pulsable, Section, Select, Spinner, Tabs, Input } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import { extractErr } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
@@ -144,8 +144,7 @@ function EditPositionModal({ user, allUsers, onClose, onSaved }: {
 
         <div className="ds-field">
           <label htmlFor={`${idCampo}-1`} className="ds-field__label">{t('pagina_orgc.cargo_puesto')}</label>
-          <input id={`${idCampo}-1`} value={jobTitle} onChange={e => setJobTitle(e.target.value)} className="ds-input"
-            placeholder={t('pagina_orgc.ej_desarrollador_senior')} />
+          <Input id={`${idCampo}-1`} value={jobTitle} onChange={e => setJobTitle(e.target.value)} placeholder={t('pagina_orgc.ej_desarrollador_senior')} />
         </div>
         <div className="ds-field">
           <label htmlFor={`${idCampo}-2`} className="ds-field__label">{t('pagina_orgc.departamento')}</label>
@@ -276,8 +275,7 @@ function ArbolTab({ nodes, allUsers, isAdmin }: {
       <div className="u-stack-14 u-min0">
         <Card>
           <Section title={<Titulo icon={<Search size={15} />}>{t('pagina_orgc.buscar_persona')}</Titulo>}>
-            <input aria-label={t('pagina_orgc.buscar_persona_2')} value={search} onChange={e => setSearch(e.target.value)}
-              placeholder={t('pagina_orgc.buscar_persona_2')} className="ds-input" />
+            <Input aria-label={t('pagina_orgc.buscar_persona_2')} value={search} onChange={e => setSearch(e.target.value)} placeholder={t('pagina_orgc.buscar_persona_2')} />
             {searchResults.length > 0 && (
               <div className="orgc-resultados">
                 {searchResults.map(u => (

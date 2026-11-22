@@ -13,7 +13,7 @@ import { gastosApi, politicasApi, projectsApi } from '../../services/api'
 import type { Gasto } from '../../services/api/tipos-finanzas'
 import ExplicacionDeEntidad from '../politicas/ExplicacionDeEntidad'
 import './gastos-politicas.css'
-import { Button, Modal, Spinner, Pulsable, Select } from '../ui'
+import { Button, Modal, Spinner, Pulsable, Select, Input } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr, localeActivo } from '../../utils/helpers'
@@ -139,8 +139,7 @@ export default function DetalleDeGasto({ gasto, editable, onClose }: { gasto: Ga
                 <option value="">{t('gas.elige_proyecto')}</option>
                 {(proyectos.data ?? []).map(pr => <option key={pr.id} value={pr.id}>{pr.code ? `${pr.code} — ` : ''}{pr.name}</option>)}
               </Select>
-              <input aria-label={t('gas.porcentaje')} type="number" min={0} max={100} step="0.01" disabled={!editable} value={p.percentage}
-                onChange={e => setPartes(v => v.map((x, j) => j === i ? { ...x, percentage: e.target.value } : x))} className="gp-campo" />
+              <Input aria-label={t('gas.porcentaje')} type="number" min={0} max={100} step="0.01" disabled={!editable} value={p.percentage} onChange={e => setPartes(v => v.map((x, j) => j === i ? { ...x, percentage: e.target.value } : x))} inputClassName="gp-campo" />
               <span className="gp-cifra">{dinero(importe * (Number(p.percentage) || 0) / 100)}</span>
               {editable && <Button size="xs" variant="ghost" title={t('gas.quitar')} icon={<Trash2 size={12} />} onClick={() => setPartes(v => v.filter((_, j) => j !== i))}>{''}</Button>}
             </div>

@@ -5,7 +5,7 @@
  */
 import { useEffect, useId, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Button, Modal, GrupoDeOpciones, Select, Checkbox } from '../ui'
+import { Button, Modal, GrupoDeOpciones, Select, Checkbox, Textarea, Input } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { almApi } from '../../services/api/alm'
@@ -65,7 +65,7 @@ export default function CerrarAsignacionModal({ asignacion, onClose }: { asignac
         <p className="alm-hint">{pendiente ? t('alm.cancel_request_hint') : t(`alm.end_${tipo}_hint`)}</p>
         <div>
           <label className="alm-label" htmlFor={`${id}-motivo`}>{t('alm.reason')}{tipo === 'revoked' ? ' *' : ''}</label>
-          <textarea id={`${id}-motivo`} rows={2} className="alm-input" value={motivo} onChange={e => setMotivo(e.target.value)} />
+          <Textarea id={`${id}-motivo`} rows={2} value={motivo} onChange={e => setMotivo(e.target.value)} inputClassName="alm-input" />
         </div>
         {tipo === 'return' && !pendiente && (
           <div className="almf-bloque">
@@ -81,7 +81,7 @@ export default function CerrarAsignacionModal({ asignacion, onClose }: { asignac
               </div>
               <div>
                 <label className="alm-label" htmlFor={`${id}-obs`}>{t('alm.observations')}</label>
-                <input id={`${id}-obs`} className="alm-input" value={observaciones} onChange={e => setObservaciones(e.target.value)} />
+                <Input id={`${id}-obs`} value={observaciones} onChange={e => setObservaciones(e.target.value)} inputClassName="alm-input" />
               </div>
             </div>
             <label className="alm-check-row">

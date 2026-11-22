@@ -29,7 +29,7 @@ import { registerCollabPush } from '../utils/collabPush'
 import { useAppLang } from '../i18n/AppLangContext'
 import { fmtDateTime, fmtNumber, formateadorDeFecha } from '../utils/helpers'
 import useMediaQuery from '../hooks/useMediaQuery'
-import { useDialogo, Button, EmptyState, Tabs, Pulsable, Select } from '../components/ui'
+import { useDialogo, Button, EmptyState, Tabs, Pulsable, Select, Input } from '../components/ui'
 import TextoTraducido from '../components/traduccion/TextoTraducido'
 import { useTraducirBajoDemanda } from '../components/traduccion/useTraducirBajoDemanda'
 import { POLL_DEFAULT_MS, POLL_FREQUENT_MS, POLL_SLOW_MS, PRESENCE_POLL_MS, STALE_1_HOUR_MS, STALE_5_MIN_MS, STALE_DEFAULT_MS, TYPING_IDLE_MS, TYPING_SWEEP_MS } from '../constants/timings'
@@ -403,12 +403,7 @@ function ConversationsList({ narrow = false, activeTab, conversations, teams, ch
       <div className="chat-list__search">
         <div className="chat-search-box">
           <Search size={14} className="chat-search-box__icon" aria-hidden="true" />
-          <input aria-label={traducir('chat.search_placeholder')}
-            type="search"
-            value={filter} onChange={e => setFilter(e.target.value)}
-            placeholder={traducir('chat.search_placeholder')}
-            className="chat-search-box__input"
-          />
+          <Input aria-label={traducir('chat.search_placeholder')} type="search" value={filter} onChange={e => setFilter(e.target.value)} placeholder={traducir('chat.search_placeholder')} inputClassName="chat-search-box__input" />
         </div>
       </div>
 

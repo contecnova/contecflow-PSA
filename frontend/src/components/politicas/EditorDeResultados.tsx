@@ -8,7 +8,7 @@ import type {
   Canal, Destinatario, DominioDePoliticas, ParametroDeResultado, PasoAnadido, Resultado, ResultadoPropio, TipoDeAprobador,
   TipoDeDestinatario, TipoDeResultado,
 } from '../../services/api/tipos-politicas'
-import { Button, Select, Checkbox } from '../ui'
+import { Button, Select, Checkbox, Input } from '../ui'
 import { EntradaDeValor, ListaDeValores, SelectorDeEntidad, useCatalogo, useOpciones, useTextos } from './comun'
 
 /** Un resultado propio del dominio (rev. 167, p. ej. el cupo de ausencias) con los valores por defecto de sus parámetros. */
@@ -101,8 +101,7 @@ function DatosDeResultado({ dominio, r, onChange }: { dominio: DominioDePolitica
         </div>
       )
     case 'tag':
-      return <input className="pol-campo pol-campo--medio" aria-label={t('pol.etiqueta')} value={r.etiqueta ?? ''}
-        onChange={e => onChange({ ...r, etiqueta: e.target.value })} />
+      return <Input aria-label={t('pol.etiqueta')} value={r.etiqueta ?? ''} onChange={e => onChange({ ...r, etiqueta: e.target.value })} inputClassName="pol-campo pol-campo--medio" />
     case 'set_field': {
       const asignables = dominio.campos.filter(c => c.asignable)
       const campo = asignables.find(c => c.clave === r.campo)
@@ -226,7 +225,7 @@ function Parametro({ dominio, propio, p, valor, onChange }: {
       )
     }
     default:
-      return <input className="pol-campo pol-campo--medio" aria-label={etiqueta} value={String(valor ?? '')} onChange={e => onChange(e.target.value)} />
+      return <Input aria-label={etiqueta} value={String(valor ?? '')} onChange={e => onChange(e.target.value)} inputClassName="pol-campo pol-campo--medio" />
   }
 }
 

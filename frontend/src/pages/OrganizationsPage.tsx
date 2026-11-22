@@ -15,7 +15,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { organizationsApi, usersApi } from '../services/api'
 import type { DetalleDeOrganizacion, Organizacion } from '../services/api/tipos-plataforma'
-import { Button, Card, Checkbox, Modal, Select, Spinner, EmptyState, Confirm } from '../components/ui'
+import { Button, Card, Checkbox, Modal, Select, Spinner, EmptyState, Confirm, Input, Textarea } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import { UserSelect } from '../components/ui/EntitySelect'
 import PageHeader from '../components/layout/PageHeader'
@@ -442,7 +442,7 @@ export default function OrganizationsPage() {
               </div>
               <div>
                 <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="ds-field__label">{t('pagina_orgs.nombre_del_admin')}</label>
-                <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.admin_name} onChange={e=>setForm(f=>({...f,admin_name:e.target.value}))} className="ds-input" />
+                <Input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.admin_name} onChange={e=>setForm(f=>({...f,admin_name:e.target.value}))} />
               </div>
             </div>
             <div className="orgs-pista">
@@ -471,7 +471,7 @@ export default function OrganizationsPage() {
                 {editValidation.errors.name && <div className="u-field-error">{errorDeCampo(editValidation.errors.name)}</div>}
               </div>
               {/* El slug no se puede editar */}
-              <div><label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} className="ds-field__label">{t('pagina_orgs.slug')}</label><input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} value={detail?.slug ?? ''} disabled className="ds-input" /></div>
+              <div><label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} className="ds-field__label">{t('pagina_orgs.slug')}</label><Input id={`${idCampo}-10`} aria-labelledby={`${idCampo}-et10`} value={detail?.slug ?? ''} disabled /></div>
             </div>
             <div className="orgs-grid-3">
               <div><label id={`${idCampo}-et11`} htmlFor={`${idCampo}-11`} className="ds-field__label">{t('pagina_orgs.plan')}</label>
@@ -518,7 +518,7 @@ export default function OrganizationsPage() {
             </div>
             <div>
               <label id="motivo_suspension-et" className="ds-field__label" htmlFor="motivo_suspension">{t('pagina_orgs.motivo_2')}</label>
-              <textarea id="motivo_suspension" aria-labelledby="motivo_suspension-et" value={motivo} onChange={e => setMotivo(e.target.value)} rows={3} className="ds-input orgs-textarea" />
+              <Textarea id="motivo_suspension" aria-labelledby="motivo_suspension-et" value={motivo} onChange={e => setMotivo(e.target.value)} rows={3} inputClassName="orgs-textarea" />
             </div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setSuspendiendo(null)}>{t('pagina_orgs.cancelar')}</Button>
@@ -540,7 +540,7 @@ export default function OrganizationsPage() {
             </div>
             <div>
               <label id="motivo_org-et" className="ds-field__label" htmlFor="motivo_org">{t('pagina_orgs.motivo_2')}</label>
-              <textarea id="motivo_org" aria-labelledby="motivo_org-et" value={motivo} onChange={e => setMotivo(e.target.value)} rows={3} className="ds-input orgs-textarea" />
+              <Textarea id="motivo_org" aria-labelledby="motivo_org-et" value={motivo} onChange={e => setMotivo(e.target.value)} rows={3} inputClassName="orgs-textarea" />
             </div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setPidiendoMotivo(null)}>{t('pagina_orgs.cancelar')}</Button>

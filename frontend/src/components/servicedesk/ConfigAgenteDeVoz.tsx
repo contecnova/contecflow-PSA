@@ -16,7 +16,7 @@ import type { ConfigDelAgenteDeVoz } from '../../services/api/tipos-analitica'
 import { useAppT } from '../../i18n/AppLangContext'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { Pencil, Plus, Trash2, X } from 'lucide-react'
-import { Button, IconButton, Select, Spinner } from '../ui'
+import { Button, IconButton, Select, Spinner, Textarea, Input } from '../ui'
 import StatusBadge from '../ui/StatusBadge'
 import type { StatusBadgeKind } from '../ui/StatusBadge'
 import { useToast } from '../../context/ToastContext'
@@ -128,7 +128,7 @@ function ConfigEditor({ config, onSave, saving }: { config: VoiceAgentConfig | u
     <div className="u-stack-16">
       <div className="ui-field">
         <label htmlFor={`${id}-saludo`} className="campo-etiqueta">{t('sd.voice.greeting')}</label>
-        <textarea id={`${id}-saludo`} rows={2} value={draft.greeting} onChange={e => setField('greeting', e.target.value)} className="campo-form vap-textarea" />
+        <Textarea id={`${id}-saludo`} rows={2} value={draft.greeting} onChange={e => setField('greeting', e.target.value)} inputClassName="campo-form vap-textarea" />
       </div>
 
       <div className="vap-dos">
@@ -140,8 +140,7 @@ function ConfigEditor({ config, onSave, saving }: { config: VoiceAgentConfig | u
         </div>
         <div className="ui-field">
           <label htmlFor={`${id}-silencio`} className="campo-etiqueta">{t('voiceagent.silencio_maximo_segundos')}</label>
-          <input id={`${id}-silencio`} type="number" min={1} max={120} value={draft.max_silence_seconds}
-            onChange={e => setField('max_silence_seconds', Number(e.target.value))} className="campo-form" />
+          <Input id={`${id}-silencio`} type="number" min={1} max={120} value={draft.max_silence_seconds} onChange={e => setField('max_silence_seconds', Number(e.target.value))} inputClassName="campo-form" />
         </div>
       </div>
 

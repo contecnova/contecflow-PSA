@@ -7,7 +7,7 @@ import type { ReactNode } from 'react'
 import { useAppLang } from '../../../i18n/AppLangContext'
 import type { Idioma } from '../../../services/api/tipos-ausencias'
 import { COLOR_DATO_POR_DEFECTO } from '../../../constants/theme'
-import { Checkbox } from '../../ui'
+import { Checkbox, Input } from '../../ui'
 import './ausencias-admin.css'
 
 export const IDIOMAS: Idioma[] = ['es', 'en', 'zh']
@@ -83,8 +83,7 @@ export function NombresPorIdioma({ valor, onChange }: {
         {IDIOMAS.map(l => (
           <label key={l} className="ausadm-campo-con-etiqueta">
             <span className="ausadm-ayuda">{ta(`idioma_${l}`)}</span>
-            <input aria-label={ta(`idioma_${l}`)} className="ausadm-campo" value={valor[l] ?? ''} lang={l}
-              onChange={e => onChange({ ...valor, [l]: e.target.value })} />
+            <Input aria-label={ta(`idioma_${l}`)} value={valor[l] ?? ''} lang={l} onChange={e => onChange({ ...valor, [l]: e.target.value })} inputClassName="ausadm-campo" />
           </label>
         ))}
       </div>

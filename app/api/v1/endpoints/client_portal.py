@@ -124,7 +124,9 @@ class FeatureResponseIn(BaseModel):
     estimated_hours: Optional[float] = Field(None, gt=0, lt=10000)
     estimated_cost: Optional[float] = Field(None, ge=0)
     estimated_delivery_weeks: Optional[int] = Field(None, ge=0, le=104)
-    status: str = Field("estimated", pattern="^(estimated|approved|rejected|in_development|done)$")
+    # 22-11-2026 (docs/FLUJO_DE_DEMANDA.md §1.2): sin `approved`. Ese estado es «lo aprobó
+    # el cliente» y solo lo pone el cliente con /decide; el equipo no decide por él.
+    status: str = Field("estimated", pattern="^(estimated|rejected|in_development|done)$")
 
 class ClientApprovalIn(BaseModel):
     approved: bool

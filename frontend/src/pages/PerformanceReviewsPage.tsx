@@ -20,7 +20,7 @@ import { useState, useEffect, useMemo, useId } from 'react'
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
 import { performanceApi, usersApi } from '../services/api'
 import type { Campana360, CicloDeEvaluacion, EvaluacionDeDesempeno, EvaluadoresElegibles, Historico360, KpisDeCiclo, KpisDeDesempeno, PanelDeCampana360, PlanDeDesarrollo, PreguntaDeEvaluacion, RespuestasDeEvaluacion } from '../services/api/tipos-rendimiento'
-import { Button, Checkbox, KpiCard, Modal, Pulsable, Select, Spinner, EmptyState, Page, Tabs, useErroresDeCampo } from '../components/ui'
+import { Button, Checkbox, KpiCard, Modal, Pulsable, Select, Spinner, EmptyState, Page, Tabs, useErroresDeCampo, Textarea, Input } from '../components/ui'
 import {
   Star, Plus, ChevronRight, ChevronDown, Clock, CheckCircle2,
   User, Users as UsersIcon, Crown, ArrowUp, UserPlus, Save, Send,
@@ -253,13 +253,9 @@ function ReviewForm({ review, onClose }: { review: Review; onClose: () => void }
                 </label>
                 {q.hint && <div className="ds-field__hint">{q.hint}</div>}
                 {isLong ? (
-                  <textarea id={`${idCampo}-${q.id}`} aria-labelledby={`${idCampo}-${q.id}-et`} value={answers[q.key] || ''}
-                    onChange={e => setAnswers(s => ({ ...s, [q.key]: e.target.value }))}
-                    rows={3} className="ds-input perf-input" />
+                  <Textarea id={`${idCampo}-${q.id}`} aria-labelledby={`${idCampo}-${q.id}-et`} value={answers[q.key] || ''} onChange={e => setAnswers(s => ({ ...s, [q.key]: e.target.value }))} rows={3} inputClassName="perf-input" />
                 ) : (
-                  <input id={`${idCampo}-${q.id}`} aria-labelledby={`${idCampo}-${q.id}-et`} type="text" value={answers[q.key] || ''}
-                    onChange={e => setAnswers(s => ({ ...s, [q.key]: e.target.value }))}
-                    className="ds-input" />
+                  <Input id={`${idCampo}-${q.id}`} aria-labelledby={`${idCampo}-${q.id}-et`} type="text" value={answers[q.key] || ''} onChange={e => setAnswers(s => ({ ...s, [q.key]: e.target.value }))} />
                 )}
               </div>
             )
@@ -572,19 +568,16 @@ function QuestionEditModal({ question, onClose, onSave }: {
         {!isEdit && (
           <div className="ds-field">
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('pagina_perf.identificador_opcional')}</label>
-            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.key} onChange={e => setForm(f => ({ ...f, key: e.target.value }))}
-              className="ds-input" placeholder={traducir('performancereviews.se_genera_del_titulo_si_lo_dejas')} />
+            <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.key} onChange={e => setForm(f => ({ ...f, key: e.target.value }))} placeholder={traducir('performancereviews.se_genera_del_titulo_si_lo_dejas')} />
           </div>
         )}
         <div className="ds-field">
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">{t('pagina_perf.pregunta')}</label>
-          <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
-            className="ds-input" placeholder={traducir('performancereviews.ej_calidad_del_trabajo')} autoFocus />
+          <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))} placeholder={traducir('performancereviews.ej_calidad_del_trabajo')} autoFocus />
         </div>
         <div className="ds-field">
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ds-field__label">{t('pagina_perf.ayuda_opcional')}</label>
-          <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.hint} onChange={e => setForm(f => ({ ...f, hint: e.target.value }))}
-            className="ds-input" placeholder={traducir('performancereviews.texto_pequeno_de_apoyo_bajo_la_pregunta')} />
+          <Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.hint} onChange={e => setForm(f => ({ ...f, hint: e.target.value }))} placeholder={traducir('performancereviews.texto_pequeno_de_apoyo_bajo_la_pregunta')} />
         </div>
         <div className="performance-reviews-page-e15">
           <div className="ds-field">
@@ -602,15 +595,11 @@ function QuestionEditModal({ question, onClose, onSave }: {
           <div className="performance-reviews-page-e15">
             <div className="ds-field">
               <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="ds-field__label">{traducir('performancereviews.escala_min')}</label>
-              <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" value={form.scale_min}
-                onChange={e => setForm(f => ({ ...f, scale_min: e.target.value }))}
-                className="ds-input" placeholder="1" />
+              <Input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" value={form.scale_min} onChange={e => setForm(f => ({ ...f, scale_min: e.target.value }))} placeholder="1" />
             </div>
             <div className="ds-field">
               <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="ds-field__label">{traducir('performancereviews.escala_max')}</label>
-              <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="number" value={form.scale_max}
-                onChange={e => setForm(f => ({ ...f, scale_max: e.target.value }))}
-                className="ds-input" placeholder={form.kind === 'rating_10' ? '10' : '5'} />
+              <Input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="number" value={form.scale_max} onChange={e => setForm(f => ({ ...f, scale_max: e.target.value }))} placeholder={form.kind === 'rating_10' ? '10' : '5'} />
             </div>
           </div>
         )}
@@ -840,9 +829,7 @@ function New360CampaignModal({ cycle, onClose }: { cycle: Cycle; onClose: () => 
               <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">
                 <Lock size={11} className="perf-box-38" /> {traducir('performancereviews.umbral_de_anonimizacion')}
               </label>
-              <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" min={1} max={20} value={threshold}
-                onChange={e => setThreshold(e.target.value)}
-                className="ds-input perf-input-2" />
+              <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" min={1} max={20} value={threshold} onChange={e => setThreshold(e.target.value)} inputClassName="perf-input-2" />
               <div className="ds-field__hint">
                 {traducir('performancereviews.cuando_un_grupo_pares_upward_tenga_menos')}
               </div>
@@ -1426,8 +1413,7 @@ function NewCycleModal({ existingCycles, onClose }: { existingCycles: Cycle[]; o
       <div className="ds-stack">
         <div className="ds-field">
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('pagina_perf.nombre')}</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => { camposB.limpiar('name'); setForm(f => ({ ...f, name: e.target.value })) }}
-            className="ds-input" placeholder={traducir('performancereviews.ej_evaluacion_q1_2026')} autoFocus />{msgB('name')}
+          <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => { camposB.limpiar('name'); setForm(f => ({ ...f, name: e.target.value })) }} placeholder={traducir('performancereviews.ej_evaluacion_q1_2026')} autoFocus />{msgB('name')}
         </div>
         <div className="performance-reviews-page-e15">
           <div className="ds-field">
@@ -1771,16 +1757,11 @@ function NewDevPlanModal({ subjectId, onClose }: { subjectId?: string; onClose: 
       <div className="ds-stack">
         <div className="ds-field">
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{traducir('performancereviews.titulo')}</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title}
-            onChange={e => { campos.limpiar('title'); setForm(f => ({ ...f, title: e.target.value })) }}
-            className="ds-input" placeholder={traducir('performancereviews.ej_mejora_comunicacion_2026')} autoFocus />{msg('title')}
+          <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e => { campos.limpiar('title'); setForm(f => ({ ...f, title: e.target.value })) }} placeholder={traducir('performancereviews.ej_mejora_comunicacion_2026')} autoFocus />{msg('title')}
         </div>
         <div className="ds-field">
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">{t('pagina_perf.resumen_contexto')}</label>
-          <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.summary}
-            onChange={e => { campos.limpiar('summary'); setForm(f => ({ ...f, summary: e.target.value })) }}
-            rows={3} className="ds-input perf-input"
-            placeholder={traducir('performancereviews.resumen_del_360_y_areas_de_mejora')} />{msg('summary')}
+          <Textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.summary} onChange={e => { campos.limpiar('summary'); setForm(f => ({ ...f, summary: e.target.value })) }} rows={3} placeholder={traducir('performancereviews.resumen_del_360_y_areas_de_mejora')} inputClassName="perf-input" />{msg('summary')}
         </div>
         <div className="performance-reviews-page-e15">
           <div className="ds-field">

@@ -12,7 +12,7 @@ import React, { useState } from 'react';
 import type { CSSProperties } from 'react';
 import PageShell from '../components/layout/PageShell'
 import PageHeader from '../components/layout/PageHeader'
-import { useDialogo, Button, Card, EmptyState, Input, KpiCard, Modal, Select, Spinner, Pulsable, TablaSimple } from '../components/ui'
+import { useDialogo, Button, Card, EmptyState, Input, KpiCard, Modal, Select, Spinner, Pulsable, TablaSimple, Textarea } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import { openConfirmGlobal } from '../context/ConfirmContext'
@@ -34,6 +34,7 @@ import DateInput from '../components/ui/DateInput'
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 import { useTono } from '../hooks/useOrgSettings'
 import { POLL_DEFAULT_MS } from '../constants/timings'
+import FiltroTipoDeCliente, { paramsDeTipo, type TipoDeCliente } from '../components/FiltroTipoDeCliente'
 import './PortfolioPage.css'
 type PortfolioStatus = 'planning' | 'active' | 'archived' | string
 type RagLevel = 'green' | 'yellow' | 'red' | 'grey' | string
@@ -119,7 +120,7 @@ function PortfolioModal({ initial, onClose, onSave }: { initial?: PortfolioItem 
         <Input label={t('portfolio_ui.nombre_obligatorio')} value={form.name} onChange={set('name')} placeholder={t('portfolio.nombre_de_la_cartera')} />
         <div className="ui-field">
           <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-desc`}>{t('portfolio.descripcion')}</label>
-          <textarea className="ds-input pf-textarea" id={`${idCampo}-desc`} rows={3} value={form.description || ''} onChange={set('description')} />
+          <Textarea id={`${idCampo}-desc`} rows={3} value={form.description || ''} onChange={set('description')} inputClassName="pf-textarea" />
         </div>
         <div className="u-grid2-12">
           <Select label={t('portfolio_ui.estado')} value={String(form.status)} onChange={set('status')} options={[
@@ -206,10 +207,12 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
   const qc = useQueryClient();
   const [showAddProject, setShowAddProject] = useState(false);
   const [expandedId, setExpandedId] = useState<string | number | null>(null);
+  // Rev. 193: proyectos de clientes externos o de unidades internas.
+  const [tipoCliente, setTipoCliente] = useState<TipoDeCliente>('');
 
   const { data: dash, isLoading } = useQuery<PortfolioDashboardData>({
-    queryKey: ['portfolio-dashboard', portfolioId],
-    queryFn: () => portfolioApi.dashboard(portfolioId).then(r => r.data),
+    queryKey: ['portfolio-dashboard', portfolioId, tipoCliente],
+    queryFn: () => portfolioApi.dashboard(portfolioId, paramsDeTipo(tipoCliente)).then(r => r.data),
     enabled: !!portfolioId,
     refetchInterval: POLL_DEFAULT_MS,
   });
@@ -239,6 +242,7 @@ function PortfolioDashboard({ portfolioId, onClose }: { portfolioId: string | nu
               </div>
             </div>
             <div className="u-row-center-8">
+              <FiltroTipoDeCliente value={tipoCliente} onChange={setTipoCliente} />
               <Button icon={<Plus size={14} />} onClick={() => setShowAddProject(true)}>
                 {t('portfolio.anadir_proyecto')}
               </Button>

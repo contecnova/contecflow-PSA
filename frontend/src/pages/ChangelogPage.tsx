@@ -6,7 +6,7 @@ import { useState, useId, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import api, { projectsApi } from '../services/api'
-import { Spinner, EmptyState, Button, Modal, Tabs, IconButton, Select, useErroresDeCampo } from '../components/ui'
+import { Spinner, EmptyState, Button, Modal, Tabs, IconButton, Select, useErroresDeCampo, Input, Textarea } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Bug, Flag, Plus, ScrollText, Sparkles, Trash2, TriangleAlert, Wand2, Zap, type LucideIcon } from 'lucide-react'
@@ -157,7 +157,7 @@ function ManualEntryModal({ projectId, onClose, onSaved }: { projectId: string; 
       <div className="chl-grid3">
         <div>
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="chl-label">{t('changelog.version_tag')}</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.version_tag} onChange={e => { setForm(f => ({ ...f, version_tag: e.target.value })); validation.clearFieldError('version_tag') }} className="chl-input" aria-invalid={!!validation.errors.version_tag} placeholder={t('changelog.version_tag_ph')} />{msg('version_tag')}
+          <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.version_tag} onChange={e => { setForm(f => ({ ...f, version_tag: e.target.value })); validation.clearFieldError('version_tag') }} aria-invalid={!!validation.errors.version_tag} placeholder={t('changelog.version_tag_ph')} inputClassName="chl-input" />{msg('version_tag')}
         </div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="chl-label">{t('changelog.date')}</label>
@@ -173,12 +173,12 @@ function ManualEntryModal({ projectId, onClose, onSaved }: { projectId: string; 
       </div>
       <div>
         <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="chl-label">{t('changelog.title_label')}</label>
-        <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.title} onChange={e => { setForm(f => ({ ...f, title: e.target.value })); validation.clearFieldError('title') }} className="chl-input" aria-invalid={!!validation.errors.title} placeholder={t('changelog.title_ph')} />{msg('title')}
+        <Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.title} onChange={e => { setForm(f => ({ ...f, title: e.target.value })); validation.clearFieldError('title') }} aria-invalid={!!validation.errors.title} placeholder={t('changelog.title_ph')} inputClassName="chl-input" />{msg('title')}
         {validation.errors.title && <p className="u-field-error">{validation.errors.title}</p>}
       </div>
       <div>
         <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="chl-label">{t('changelog.description')}</label>
-        <textarea id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.description} onChange={e => { setForm(f => ({ ...f, description: e.target.value })); validation.clearFieldError('description') }} rows={3} className="chl-input" aria-invalid={!!validation.errors.description} placeholder={t('changelog.description_ph')} />{msg('description')}
+        <Textarea id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.description} onChange={e => { setForm(f => ({ ...f, description: e.target.value })); validation.clearFieldError('description') }} rows={3} aria-invalid={!!validation.errors.description} placeholder={t('changelog.description_ph')} inputClassName="chl-input" />{msg('description')}
       </div>
       <div className="u-actions-10">
         <Button variant="secondary" onClick={onClose}>{t('changelog.cancel')}</Button>
@@ -219,12 +219,12 @@ function GenerateModal({ projectId, onClose, onSaved }: { projectId: string; onC
       <div className="u-grid2-12">
         <div>
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="chl-label">{t('changelog.period_weeks')}</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="number" value={weeks} onChange={e => { setWeeks(Number(e.target.value)); validation.clearFieldError('weeks') }} min={1} max={52} className="chl-input" aria-invalid={!!validation.errors.weeks} />
+          <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="number" value={weeks} onChange={e => { setWeeks(Number(e.target.value)); validation.clearFieldError('weeks') }} min={1} max={52} aria-invalid={!!validation.errors.weeks} inputClassName="chl-input" />
           {validation.errors.weeks && <p className="u-field-error">{validation.errors.weeks}</p>}
         </div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="chl-label">{t('changelog.version_tag_optional')}</label>
-          <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={versionTag} onChange={e => { setVersionTag(e.target.value); validation.clearFieldError('version_tag') }} className="chl-input" aria-invalid={!!validation.errors.version_tag} placeholder={t('changelog.version_tag_ph')} />
+          <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={versionTag} onChange={e => { setVersionTag(e.target.value); validation.clearFieldError('version_tag') }} aria-invalid={!!validation.errors.version_tag} placeholder={t('changelog.version_tag_ph')} inputClassName="chl-input" />
         </div>
       </div>
       {genResult && genResult.generated > 0 && (

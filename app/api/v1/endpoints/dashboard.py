@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Body
+from fastapi import APIRouter, Depends, Body, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import date
@@ -42,10 +42,12 @@ def get_kpis(
 
 @router.get("/projects-health", response_model=APIListResponse[ProjectHealthItem], summary="Salud de todos los proyectos")
 def projects_health_endpoint(
+    client_kind: Optional[str] = Query(None, pattern="^(externo|interno)$"),  # rev. 193: clientes internos
     db: Session = Depends(get_db),
     current_user: User = Depends(require_any_manager),
 ):
-    items = svc_get_projects_health(db, current_user)
+    from app.services.clientes_internos.unidades import filtrar_por_proyecto
+    items = filtrar_por_proyecto(db, svc_get_projects_health(db, current_user), client_kind)
     return APIListResponse.ok(items=items, total=len(items))
 
 

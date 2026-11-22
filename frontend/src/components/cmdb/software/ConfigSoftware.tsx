@@ -20,9 +20,10 @@ import { useToast } from '../../../context/ToastContext'
 import { fmtDateTime } from '../../../utils/helpers'
 import { cmdbSoftwareApi } from '../../../services/api/cmdbSoftware'
 import type { ConfigSoftware as Config, ConfigSoftwareIn, Severidad } from '../../../services/api/cmdbSoftware'
-import { Button, Section, Select, Spinner, StatusBadge, Switch } from '../../ui'
+import { Button, Section, Select, Spinner, StatusBadge, Switch, Input } from '../../ui'
 import { useErr, useEtiquetaSw } from './comun'
 import { ConexionesDeEscaneo } from './Escaneos'
+import ConfigRiesgo from './riesgo/ConfigRiesgo'
 import '../../servicedesk/sdMercado.css'
 import './software.css'
 
@@ -88,18 +89,12 @@ export default function ConfigSoftware() {
                   </div>
                   <div className="u-text3-xs">{t(`sw.cfg_fuente_${f}_d`)}</div>
                   <div className="sdm-form">
-                    <label className="sdm-field"><span>{t('sw.cfg_direccion')}</span>
-                      <input className="ds-input u-mono" value={url} placeholder={config[`${f}_url_effective` as keyof Config] as string}
-                        onChange={ev => set(`${f}_url` as keyof Borrador, (ev.target.value || null) as never)} /></label>
+                    <Input label={t('sw.cfg_direccion')} value={url} placeholder={config[`${f}_url_effective` as keyof Config] as string} onChange={ev => set(`${f}_url` as keyof Borrador, (ev.target.value || null) as never)} inputClassName="u-mono" />
                     {f === 'nvd' && (
-                      <label className="sdm-field"><span>{t('sw.cfg_clave_nvd')}</span>
-                        <input className="ds-input" type="password" autoComplete="off" value={b.nvd_api_key}
-                          placeholder={config.nvd_api_key_set ? t('sw.cfg_puesta_no_cambia') : t('sw.cfg_opcional')} onChange={ev => set('nvd_api_key', ev.target.value)} /></label>
+                      <Input label={t('sw.cfg_clave_nvd')} type="password" autoComplete="off" value={b.nvd_api_key} placeholder={config.nvd_api_key_set ? t('sw.cfg_puesta_no_cambia') : t('sw.cfg_opcional')} onChange={ev => set('nvd_api_key', ev.target.value)} />
                     )}
                     {f === 'ghsa' && (
-                      <label className="sdm-field"><span>{t('sw.cfg_token_github')}</span>
-                        <input className="ds-input" type="password" autoComplete="off" value={b.ghsa_token}
-                          placeholder={config.ghsa_token_set ? t('sw.cfg_puesta_no_cambia') : t('sw.cfg_obligatorio_github')} onChange={ev => set('ghsa_token', ev.target.value)} /></label>
+                      <Input label={t('sw.cfg_token_github')} type="password" autoComplete="off" value={b.ghsa_token} placeholder={config.ghsa_token_set ? t('sw.cfg_puesta_no_cambia') : t('sw.cfg_obligatorio_github')} onChange={ev => set('ghsa_token', ev.target.value)} />
                     )}
                   </div>
                 </div>
@@ -123,7 +118,7 @@ export default function ConfigSoftware() {
           <div className="sdm-form">
             {(['max_queries', 'timeout_seconds'] as const).map(k => (
               <label key={k} className="sdm-field"><span>{t(`sw.cfg_${k}`)}</span>
-                <input className="ds-input" type="number" min={1} value={b[k] ?? ''} onChange={ev => set(k, Number(ev.target.value) || 0)} /></label>
+                <Input type="number" min={1} value={b[k] ?? ''} onChange={ev => set(k, Number(ev.target.value) || 0)} /></label>
             ))}
           </div>
           <div className="u-text3-xs">{t('sw.ultima_sync')}: {config.last_sync_at ? fmtDateTime(config.last_sync_at) : t('sw.nunca')}{config.last_sync_status ? ` · ${e('ejec', config.last_sync_status)}` : ''}</div>
@@ -134,17 +129,15 @@ export default function ConfigSoftware() {
         <div className="sdm-form">
           {NUMEROS.filter(k => k.startsWith('sla_') || k === 'exception_max_days' || k === 'eol_warning_days').map(k => (
             <label key={k} className="sdm-field"><span>{t(`sw.cfg_${k}`)}</span>
-              <input className="ds-input" type="number" min={1} value={b[k] ?? ''} onChange={ev => set(k, Number(ev.target.value) || 0)} /></label>
+              <Input type="number" min={1} value={b[k] ?? ''} onChange={ev => set(k, Number(ev.target.value) || 0)} /></label>
           ))}
         </div>
       </Section>
 
       <Section title={t('sw.cfg_licencias')} subtitle={t('sw.cfg_licencias_desc')}>
         <div className="sdm-form">
-          <label className="sdm-field"><span>{t('sw.cfg_licencias_permitidas')}</span>
-            <input className="ds-input u-mono" value={b.licenses_allowed ?? ''} placeholder="MIT, Apache-2.0, BSD-3-Clause" onChange={ev => set('licenses_allowed', ev.target.value || null)} /></label>
-          <label className="sdm-field"><span>{t('sw.cfg_licencias_prohibidas')}</span>
-            <input className="ds-input u-mono" value={b.licenses_denied ?? ''} placeholder="AGPL-3.0-only, SSPL-1.0" onChange={ev => set('licenses_denied', ev.target.value || null)} /></label>
+          <Input label={t('sw.cfg_licencias_permitidas')} value={b.licenses_allowed ?? ''} placeholder="MIT, Apache-2.0, BSD-3-Clause" onChange={ev => set('licenses_allowed', ev.target.value || null)} inputClassName="u-mono" />
+          <Input label={t('sw.cfg_licencias_prohibidas')} value={b.licenses_denied ?? ''} placeholder="AGPL-3.0-only, SSPL-1.0" onChange={ev => set('licenses_denied', ev.target.value || null)} inputClassName="u-mono" />
         </div>
       </Section>
 
@@ -160,6 +153,9 @@ export default function ConfigSoftware() {
         <Button variant="secondary" disabled={guardar.isPending} onClick={() => setB(desde(config))}>{t('sw.cfg_descartar')}</Button>
         <Button loading={guardar.isPending} onClick={() => guardar.mutate(b)}>{t('common.save')}</Button>
       </div>
+
+      {/* Índice de riesgo (22-11-2026): se guarda aparte, con su propio botón. */}
+      <ConfigRiesgo />
     </div>
   )
 }

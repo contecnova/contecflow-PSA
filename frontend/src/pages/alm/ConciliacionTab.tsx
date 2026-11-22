@@ -9,7 +9,7 @@
 import { useId, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FileWarning, Link2, Plus, RefreshCw, Trash2, Unlink } from 'lucide-react'
-import { Button, EmptyState, Modal, Section, Spinner, Select, useErroresDeCampo } from '../../components/ui'
+import { Button, EmptyState, Modal, Section, Spinner, Select, useErroresDeCampo, Input, Textarea } from '../../components/ui'
 import Pagination from '../../components/ui/Pagination'
 import DateInput from '../../components/ui/DateInput'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -54,7 +54,7 @@ function NuevaFactura({ factura, onClose }: { factura?: FacturaDeProveedor | nul
     <Modal open onClose={onClose} width={680} title={factura ? t('alm.invoice_edit') : t('alm.invoice_new')}>
       <div className="almf-rejilla-2">
         <div><label className="alm-label" htmlFor={`${id}-n`}>{t('alm.invoice_number')} *</label>
-          <input id={`${id}-n`} className="alm-input" value={f.number} onChange={campo('number')} />{msg('number')}</div>
+          <Input id={`${id}-n`} value={f.number} onChange={campo('number')} inputClassName="alm-input" />{msg('number')}</div>
         <div><label className="alm-label" htmlFor={`${id}-d`}>{t('alm.invoice_date')} *</label>
           <DateInput id={`${id}-d`} className="alm-input" value={f.issue_date} onChange={campo('issue_date')} />{msg('issue_date')}</div>
         <div><label className="alm-label" htmlFor={`${id}-c`}>{t('alm.licenses_label_contract')}</label>
@@ -72,13 +72,13 @@ function NuevaFactura({ factura, onClose }: { factura?: FacturaDeProveedor | nul
         <div><label className="alm-label" htmlFor={`${id}-pt`}>{t('alm.period_to')}</label>
           <DateInput id={`${id}-pt`} className="alm-input" value={f.period_to} onChange={campo('period_to')} />{msg('period_to')}</div>
         <div><label className="alm-label" htmlFor={`${id}-a`}>{t('alm.invoice_amount')} *</label>
-          <input id={`${id}-a`} type="number" min={0} step="0.01" className="alm-input" value={f.amount} onChange={campo('amount')} />{msg('amount')}</div>
+          <Input id={`${id}-a`} type="number" min={0} step="0.01" value={f.amount} onChange={campo('amount')} inputClassName="alm-input" />{msg('amount')}</div>
         <div><label className="alm-label" htmlFor={`${id}-t`}>{t('alm.invoice_tax')}</label>
-          <input id={`${id}-t`} type="number" min={0} step="0.01" className="alm-input" value={f.tax_amount} onChange={campo('tax_amount')} />{msg('tax_amount')}</div>
+          <Input id={`${id}-t`} type="number" min={0} step="0.01" value={f.tax_amount} onChange={campo('tax_amount')} inputClassName="alm-input" />{msg('tax_amount')}</div>
         <div><label className="alm-label" htmlFor={`${id}-cur`}>{t('alm.cost_centers_label_currency')}</label>
-          <input id={`${id}-cur`} maxLength={3} className="alm-input" value={f.currency} onChange={campo('currency')} placeholder={t('alm.currency_from_contract')} />{msg('currency')}</div>
+          <Input id={`${id}-cur`} maxLength={3} value={f.currency} onChange={campo('currency')} placeholder={t('alm.currency_from_contract')} inputClassName="alm-input" />{msg('currency')}</div>
         <div className="almf-col-completa"><label className="alm-label" htmlFor={`${id}-no`}>{t('alm.contracts_label_notes')}</label>
-          <textarea id={`${id}-no`} rows={2} className="alm-input" value={f.notes} onChange={campo('notes')} />{msg('notes')}</div>
+          <Textarea id={`${id}-no`} rows={2} value={f.notes} onChange={campo('notes')} inputClassName="alm-input" />{msg('notes')}</div>
       </div>
       {error && <p className="u-field-error" role="alert">{error}</p>}
       <div className="almf-acciones-modal">
@@ -141,7 +141,7 @@ function AceptarDiscrepancia({ factura, onClose }: { factura: FacturaDeProveedor
   return (
     <Modal open onClose={onClose} width={520} title={t('alm.invoice_accept_title', { number: factura.number })}>
       <label className="alm-label" htmlFor="almf-nota">{t('alm.invoice_accept_note')} *</label>
-      <textarea id="almf-nota" rows={3} className="alm-input" value={nota} onChange={e => setNota(e.target.value)} />
+      <Textarea id="almf-nota" rows={3} value={nota} onChange={e => setNota(e.target.value)} inputClassName="alm-input" />
       {error && <p className="u-field-error" role="alert">{error}</p>}
       <div className="almf-acciones-modal">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>

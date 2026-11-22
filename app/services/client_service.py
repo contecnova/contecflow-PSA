@@ -69,6 +69,7 @@ def list_clients(
     status: "Optional[str]" = None,
     industry: "Optional[str]" = None,
     limit: "Optional[int]" = None,
+    kind: "Optional[str]" = None,
     pagina: "Optional[Paginacion]" = None,
 ) -> Pagina:
     """``limit`` es el parametro antiguo (solo cabeza de la lista); ``pagina``, el comun."""
@@ -85,6 +86,9 @@ def list_clients(
         query = query.filter(Client.status == status)
     if industry:
         query = query.filter(Client.industry == industry)
+    if kind in ("externo", "interno"):
+        # Clientes internos (rev. 193): externos e internos en la misma lista.
+        query = query.filter(Client.kind == kind)
     query = query.filter(Client.is_active == True).order_by(Client.name, Client.id)
     if limit is not None and limit > 0 and (pagina is None or not pagina.pide_pagina):
         pagina = Paginacion(page=1, page_size=min(limit, settings.LIST_MAX_ROWS))
@@ -139,6 +143,8 @@ def create_client_record(data: dict, current_user: User, db: Session) -> dict:
     if current_user.role not in (UserRole.admin, UserRole.pm) and not current_user.is_superadmin:
         raise error(403, "solo_admin_o_pm", detail="Solo admin o PM pueden crear clientes")
     _validar_estado(data)
+    from app.services.clientes_internos import unidades as _internos
+    _internos.validar(data, None, getattr(current_user, "organization_id", None))
 
     with atomic(db):
         c = Client(**{k: v for k, v in campos_asignables(Client, data).items() if v != "" and v is not None})
@@ -153,6 +159,8 @@ def create_client_record(data: dict, current_user: User, db: Session) -> dict:
             sd_without_project=True,
         )
         db.add(cfg)
+        if _internos.es_interno(c):
+            _internos.auditar_cambio(db, current_user, c, {})
     db.refresh(c)
     return get_client_summary(c, db)
 
@@ -188,7 +196,14 @@ def get_client_summary(client, db: Session, recuentos: Optional[dict] = None) ->
         "invoices_count": invoices_count,
         "portal_users_count": portal_users_count,
         "created_at": str(client.created_at),
+        # Clientes internos (rev. 193): tipo, estructura, responsable y finanzas.
+        **_campos_internos(db, client),
     }
+
+
+def _campos_internos(db: Session, client) -> dict:
+    from app.services.clientes_internos import unidades as _internos
+    return _internos.resumen(db, client)
 
 
 # ── Detail serializer ──────────────────────────────────────────────────────────
@@ -443,6 +458,9 @@ def update_client(cid: str, data: dict, current_user: User, db: Session) -> dict
         raise error(403, "solo_admin_o_pm", detail="Solo admin o PM pueden editar clientes")
     _validar_estado(data)
     c = get_scoped_client_or_404(db, current_user, cid)
+    from app.services.clientes_internos import unidades as _internos
+    _internos.validar(data, c, getattr(current_user, "organization_id", None))
+    antes_internos = _internos.foto(c)
     for k, v in data.items():
         if es_asignable(c, k):
             setattr(c, k, v if v != "" else None)
@@ -451,6 +469,7 @@ def update_client(cid: str, data: dict, current_user: User, db: Session) -> dict
         _poner_principal(db, c, data["primary_contact_id"])
     elif any(k in data for k in ("contact_name", "contact_email", "contact_phone", "contact_role")):
         sincronizar_contacto_principal(db, c)
+    _internos.auditar_cambio(db, current_user, c, antes_internos)
     db.commit()
     db.refresh(c)
     return get_client_summary(c, db)

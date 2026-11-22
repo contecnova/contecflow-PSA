@@ -207,10 +207,33 @@ def _clave(v: Vulnerability, oc: dict) -> str:
     return f"{v.id}|{oc['product'].id}|{oc['version'] or ''}|{ctx}"[:300]
 
 
+def fuentes_de(f: VulnerabilityFinding) -> list[str]:
+    """Quién detecta el hallazgo (rev. 194). Sin dato: solo la correlación (hallazgos anteriores)."""
+    if not f.detected_by:
+        return ["correlation"]
+    try:
+        lista = json.loads(f.detected_by)
+    except ValueError:
+        return ["correlation"]
+    return [x for x in lista if isinstance(x, str)] if isinstance(lista, list) else ["correlation"]
+
+
+def poner_fuentes(f: VulnerabilityFinding, fuentes: list[str]) -> None:
+    f.detected_by = json.dumps(sorted(set(fuentes))) if fuentes else json.dumps([])
+
+
 def reevaluar(db: Session, org, usuario=None) -> dict:
-    """Recalcula todos los hallazgos de la empresa. No confirma."""
+    """Recalcula todos los hallazgos de la empresa. No confirma.
+
+    Rev. 194 (índice de riesgo): un control compensatorio activo multiplica la
+    prioridad por ``1 − reducción`` (``score_detail.controls``) sin cerrar el
+    hallazgo; y un hallazgo que ya no ve la correlación pero sigue informado
+    por un tercero (``detected_by``: defender, qualys…) no se cierra.
+    """
+    from app.services.cmdb_software.riesgo.calculo import reducciones_activas
     conf = ajustes.leer(db, org)
     indice = _Indice(db, org)
+    reducciones = reducciones_activas(db, org)
     existentes = {f.finding_key: f for f in _q(db, VulnerabilityFinding, org)}
     momento = ahora()
     vistos: set[str] = set()
@@ -250,6 +273,11 @@ def reevaluar(db: Session, org, usuario=None) -> dict:
                           old_values={"status": "resolved"}, new_values={"status": "open"},
                           metadata={"reason": "reappeared"})
             f.last_seen_at = momento
+            if "correlation" not in fuentes_de(f) or not f.detected_by:
+                poner_fuentes(f, fuentes_de(f) + ["correlation"] if f.detected_by else ["correlation"])
+            if reducciones.get(f.id):
+                puntos = round(puntos * (1 - reducciones[f.id]), 1)
+                detalle = {**detalle, "controls": reducciones[f.id], "score": puntos}
             f.severity = severidad_efectiva(vuln)
             f.priority_score, f.score_detail = puntos, json.dumps(detalle)
             f.environment, f.exposure = oc["environment"], oc["exposure"]
@@ -259,6 +287,12 @@ def reevaluar(db: Session, org, usuario=None) -> dict:
     resueltos = 0
     for clave, f in existentes.items():
         if clave in vistos or f.status not in VIVOS:
+            continue
+        externas = [x for x in fuentes_de(f) if x != "correlation"]
+        if externas:
+            # Lo sigue informando un tercero: no lo cierra la correlación.
+            if "correlation" in fuentes_de(f):
+                poner_fuentes(f, externas)
             continue
         anterior = f.status
         f.status, f.closed_at, f.verified_at = "resolved", momento, momento

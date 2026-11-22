@@ -6,7 +6,7 @@ import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import { clientExtApi, clientsApi, contractsApi, type ClientContact, type Contract, licensesApi, portalApi, wsApi, apiWsUrl } from '../../services/api'
-import { Button, Spinner, EmptyState, Modal, Tabs, IconButton, Select, TablaSimple, Checkbox, useErroresDeCampo } from '../../components/ui'
+import { Button, Spinner, EmptyState, Modal, Tabs, IconButton, Select, TablaSimple, Checkbox, useErroresDeCampo, Input, Textarea } from '../../components/ui'
 import Pagination from '../../components/ui/Pagination'
 import { BadgeWithTooltip } from '../../components/ui/BadgeWithTooltip'
 import { IconFR, IconCR } from '../../components/ui/FRCRIcons'
@@ -319,16 +319,12 @@ export function ContactsTab({ cid }: { cid: string }) {
             <div className="clpata-grid-1">
               <div>
                 <label id={`${idCampo}-pwd-et`} htmlFor={`${idCampo}-pwd`} className="clpata-lbl">{traducir('clicontactos.contrasena')} *</label>
-                <input id={`${idCampo}-pwd`} aria-labelledby={`${idCampo}-pwd-et`} type="password" autoComplete="new-password" value={claves.password}
-                  aria-invalid={claveCorta || camposAcceso.de('password') ? true : undefined}
-                  onChange={e => { camposAcceso.limpiar('password'); setClaves(c => ({ ...c, password: e.target.value })) }} className="clpata-inp" />
+                <Input id={`${idCampo}-pwd`} aria-labelledby={`${idCampo}-pwd-et`} type="password" autoComplete="new-password" value={claves.password} aria-invalid={claveCorta || camposAcceso.de('password') ? true : undefined} onChange={e => { camposAcceso.limpiar('password'); setClaves(c => ({ ...c, password: e.target.value })) }} inputClassName="clpata-inp" />
                 {(camposAcceso.de('password') || claveCorta) && <div className="u-field-error">{camposAcceso.de('password') || traducir('clicontactos.contrasena_minimo')}</div>}
               </div>
               <div>
                 <label id={`${idCampo}-pwd2-et`} htmlFor={`${idCampo}-pwd2`} className="clpata-lbl">{traducir('clicontactos.confirmar_contrasena')} *</label>
-                <input id={`${idCampo}-pwd2`} aria-labelledby={`${idCampo}-pwd2-et`} type="password" autoComplete="new-password" value={claves.confirm}
-                  aria-invalid={noCoinciden ? true : undefined}
-                  onChange={e => setClaves(c => ({ ...c, confirm: e.target.value }))} className="clpata-inp" />
+                <Input id={`${idCampo}-pwd2`} aria-labelledby={`${idCampo}-pwd2-et`} type="password" autoComplete="new-password" value={claves.confirm} aria-invalid={noCoinciden ? true : undefined} onChange={e => setClaves(c => ({ ...c, confirm: e.target.value }))} inputClassName="clpata-inp" />
                 {noCoinciden && <div className="u-field-error">{traducir('clicontactos.contrasenas_no_coinciden')}</div>}
               </div>
             </div>
@@ -347,10 +343,10 @@ export function ContactsTab({ cid }: { cid: string }) {
       {showAdd && (
         <Modal open title={traducir('clients.nuevo_contacto')} onClose={() => setShowAdd(false)} width={500}>
           <div className="clpata-grid-1">
-            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="clpata-lbl">{traducir('clientstabs.nombre_completo')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.full_name} onChange={e => { camposB.limpiar('full_name'); setForm(f => ({ ...f, full_name: e.target.value })) }} className="clpata-inp" />{msgB('full_name')}</div>
-            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="clpata-lbl">{traducir('clicontactos.email_contacto')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={form.email} onChange={e => { camposB.limpiar('email'); setForm(f => ({ ...f, email: e.target.value })) }} className="clpata-inp" />{msgB('email')}</div>
-            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="clpata-lbl">{traducir('clicontactos.telefono_contacto')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.phone} onChange={e => { camposB.limpiar('phone'); setForm(f => ({ ...f, phone: e.target.value })) }} className="clpata-inp" />{msgB('phone')}</div>
-            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="clpata-lbl">{traducir('clientstabs.cargo')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.job_title} onChange={e => { camposB.limpiar('job_title'); setForm(f => ({ ...f, job_title: e.target.value })) }} className="clpata-inp" />{msgB('job_title')}</div>
+            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="clpata-lbl">{traducir('clientstabs.nombre_completo')} *</label><Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.full_name} onChange={e => { camposB.limpiar('full_name'); setForm(f => ({ ...f, full_name: e.target.value })) }} inputClassName="clpata-inp" />{msgB('full_name')}</div>
+            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="clpata-lbl">{traducir('clicontactos.email_contacto')}</label><Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="email" value={form.email} onChange={e => { camposB.limpiar('email'); setForm(f => ({ ...f, email: e.target.value })) }} inputClassName="clpata-inp" />{msgB('email')}</div>
+            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="clpata-lbl">{traducir('clicontactos.telefono_contacto')}</label><Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.phone} onChange={e => { camposB.limpiar('phone'); setForm(f => ({ ...f, phone: e.target.value })) }} inputClassName="clpata-inp" />{msgB('phone')}</div>
+            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="clpata-lbl">{traducir('clientstabs.cargo')}</label><Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.job_title} onChange={e => { camposB.limpiar('job_title'); setForm(f => ({ ...f, job_title: e.target.value })) }} inputClassName="clpata-inp" />{msgB('job_title')}</div>
             <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="clpata-lbl">{traducir('clientstabs.rol')}</label>
               <Select suelto placeholder={false} id={`${idCampo}-5`} value={form.role} onChange={e => { camposB.limpiar('role'); setForm(f => ({ ...f, role: e.target.value })) }} className="clpata-inp">
                 {roles.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
@@ -437,7 +433,7 @@ export function LicensesTab({ cid }: { cid: string }) {
           </div>
           <div className="u-mb-16">
             <label id={`${idCampo}-notas-et`} htmlFor={`${idCampo}-notas`} className="clpata-lbl">{traducir('clientstabs.notas_opcional')}</label>
-            <input id={`${idCampo}-notas`} aria-labelledby={`${idCampo}-notas-et`} value={licNote} onChange={e => setLicNote(e.target.value)} className="clpata-inp" placeholder={traducir('clients.notas_de_la_licencia')} aria-label={traducir('clients.notas_de_la_licencia')} />
+            <Input id={`${idCampo}-notas`} aria-labelledby={`${idCampo}-notas-et`} value={licNote} onChange={e => setLicNote(e.target.value)} placeholder={traducir('clients.notas_de_la_licencia')} aria-label={traducir('clients.notas_de_la_licencia')} inputClassName="clpata-inp" />
           </div>
           <div className="u-actions-8">
             <Button variant="secondary" onClick={() => setShowLink(false)}>{traducir('common.cancel')}</Button>
@@ -783,11 +779,11 @@ export function PortalSolicitudesTab({ cid }: { cid: string; projects?: ClientPr
       {responding && (
         <Modal open title={traducir('clientstabs.responder_a', { titulo: responding.title })} onClose={() => setResponding(null)} width={520}>
           <div className="u-stack-14">
-            <div><label className="clpata-ls">{traducir('clients.respuesta_analisis')}</label><textarea value={responseForm.pm_response} onChange={e => setResponseForm(f => ({ ...f, pm_response: e.target.value }))} rows={3} className="clpata-fs2" placeholder={traducir('clients.respuesta_del_equipo_2')} aria-label={traducir('clients.respuesta_del_equipo_2')} /></div>
+            <div><label className="clpata-ls">{traducir('clients.respuesta_analisis')}</label><Textarea value={responseForm.pm_response} onChange={e => setResponseForm(f => ({ ...f, pm_response: e.target.value }))} rows={3} placeholder={traducir('clients.respuesta_del_equipo_2')} aria-label={traducir('clients.respuesta_del_equipo_2')} inputClassName="clpata-fs2" /></div>
             <div className="clpata-grid-2">
-              <div><label id={`${idCampo}-horas-et`} htmlFor={`${idCampo}-horas`} className="clpata-ls">{traducir('clientstabs.horas_estimadas')}</label><input id={`${idCampo}-horas`} aria-labelledby={`${idCampo}-horas-et`} type="number" value={responseForm.estimated_hours} onChange={e => setResponseForm(f => ({ ...f, estimated_hours: e.target.value }))} className="clpata-fs" placeholder={traducir('clientstabs.horas')} /></div>
-              <div><label id={`${idCampo}-coste-et`} htmlFor={`${idCampo}-coste`} className="clpata-ls">{traducir('clientstabs.coste_estimado')} ({fmtMoneda.simbolo})</label><input id={`${idCampo}-coste`} aria-labelledby={`${idCampo}-coste-et`} type="number" value={responseForm.estimated_cost} onChange={e => setResponseForm(f => ({ ...f, estimated_cost: e.target.value }))} className="clpata-fs" placeholder={traducir('clientstabs.coste')} /></div>
-              <div><label id={`${idCampo}-semanas-et`} htmlFor={`${idCampo}-semanas`} className="clpata-ls">{traducir('clientstabs.semanas_entrega')}</label><input id={`${idCampo}-semanas`} aria-labelledby={`${idCampo}-semanas-et`} type="number" value={responseForm.estimated_delivery_weeks} onChange={e => setResponseForm(f => ({ ...f, estimated_delivery_weeks: e.target.value }))} className="clpata-fs" placeholder={traducir('clientstabs.semanas')} /></div>
+              <div><label id={`${idCampo}-horas-et`} htmlFor={`${idCampo}-horas`} className="clpata-ls">{traducir('clientstabs.horas_estimadas')}</label><Input id={`${idCampo}-horas`} aria-labelledby={`${idCampo}-horas-et`} type="number" value={responseForm.estimated_hours} onChange={e => setResponseForm(f => ({ ...f, estimated_hours: e.target.value }))} placeholder={traducir('clientstabs.horas')} inputClassName="clpata-fs" /></div>
+              <div><label id={`${idCampo}-coste-et`} htmlFor={`${idCampo}-coste`} className="clpata-ls">{traducir('clientstabs.coste_estimado')} ({fmtMoneda.simbolo})</label><Input id={`${idCampo}-coste`} aria-labelledby={`${idCampo}-coste-et`} type="number" value={responseForm.estimated_cost} onChange={e => setResponseForm(f => ({ ...f, estimated_cost: e.target.value }))} placeholder={traducir('clientstabs.coste')} inputClassName="clpata-fs" /></div>
+              <div><label id={`${idCampo}-semanas-et`} htmlFor={`${idCampo}-semanas`} className="clpata-ls">{traducir('clientstabs.semanas_entrega')}</label><Input id={`${idCampo}-semanas`} aria-labelledby={`${idCampo}-semanas-et`} type="number" value={responseForm.estimated_delivery_weeks} onChange={e => setResponseForm(f => ({ ...f, estimated_delivery_weeks: e.target.value }))} placeholder={traducir('clientstabs.semanas')} inputClassName="clpata-fs" /></div>
             </div>
             <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="clpata-ls">{traducir('common.status')}</label>
               <Select suelto placeholder={false} id={`${idCampo}-1`} value={responseForm.status} onChange={e => setResponseForm(f => ({ ...f, status: e.target.value }))} className="clpata-fs">
@@ -1008,7 +1004,7 @@ export function PortalSettingsTab({ cid }: { cid: string }) {
           ))}
           <div className="clpata-sp-2">
             <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="clpata-lbl">{traducir('clients.max_usuarios_de_portal')}</label>
-            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" min={1} max={100} value={maxUsers} onChange={e => setMaxUsers(+e.target.value)} className="clpata-inp" />
+            <Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" min={1} max={100} value={maxUsers} onChange={e => setMaxUsers(+e.target.value)} inputClassName="clpata-inp" />
           </div>
         </div>
 

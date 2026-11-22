@@ -13,7 +13,7 @@ import { PieChart, Plus, Target, CalendarCheck, Wallet, TrendingUp } from 'lucid
 import { presupuestosApi, projectsApi } from '../services/api'
 import type { AmbitoDePresupuesto } from '../services/api'
 import { settingsApi } from '../services/settingsApi'
-import { Button, EmptyState, KpiCard, Modal, Spinner, Tabs, UserSelect, Pulsable, Select, Radio } from '../components/ui'
+import { Button, EmptyState, KpiCard, Modal, Spinner, Tabs, UserSelect, Pulsable, Select, Radio, Input } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { useAppT } from '../i18n/AppLangContext'
@@ -195,7 +195,7 @@ function NuevoPresupuesto({ onClose, onCreado }: { onClose: () => void; onCreado
   return (
     <Modal open onClose={onClose} size="lg" title={t('pres.nuevo')}>
       <div className="u-stack-12">
-        <label><span className="bud-lbl">{t('pres.nombre')}</span><input aria-label={t('pres.nombre')} value={f.name} onChange={set('name')} className="bud-campo" /></label>
+        <label><span className="bud-lbl">{t('pres.nombre')}</span><Input aria-label={t('pres.nombre')} value={f.name} onChange={set('name')} inputClassName="bud-campo" /></label>
         <div className="bud-rejilla">
           <label><span className="bud-lbl">{t('pres.ambito')}</span>
             <Select suelto placeholder={false} aria-label={t('pres.ambito')} value={f.ambito} onChange={set('ambito')} className="bud-campo">
@@ -223,7 +223,7 @@ function NuevoPresupuesto({ onClose, onCreado }: { onClose: () => void; onCreado
               </Select></label>
           )}
           {f.ambito === 'proyecto_previsto' && (
-            <label><span className="bud-lbl">{t('pres.tipo_proyecto')}</span><input aria-label={t('pres.tipo_proyecto')} value={f.tipo_proyecto} onChange={set('tipo_proyecto')} className="bud-campo" /></label>
+            <label><span className="bud-lbl">{t('pres.tipo_proyecto')}</span><Input aria-label={t('pres.tipo_proyecto')} value={f.tipo_proyecto} onChange={set('tipo_proyecto')} inputClassName="bud-campo" /></label>
           )}
         </div>
         <div className="u-text3-xs">{t(`pres.ambito_${f.ambito}_ayuda`)}</div>
@@ -235,8 +235,8 @@ function NuevoPresupuesto({ onClose, onCreado }: { onClose: () => void; onCreado
             <Select suelto placeholder={false} aria-label={t('pres.moneda')} value={f.currency || currency} onChange={set('currency')} className="bud-campo">
               {currencies.map(c => <option key={c} value={c}>{c}</option>)}
             </Select></label>
-          <label><span className="bud-lbl">{t('pres.inflacion')}</span><input aria-label={t('pres.inflacion')} type="number" step="any" value={f.inflacion} onChange={set('inflacion')} className="bud-campo" placeholder="0" /></label>
-          {conTecho && <label><span className="bud-lbl">{t('pres.techo')}</span><input aria-label={t('pres.techo')} type="number" min={0} step="any" value={f.techo} onChange={set('techo')} className="bud-campo" placeholder={t('pres.techo_ayuda')} /></label>}
+          <label><span className="bud-lbl">{t('pres.inflacion')}</span><Input aria-label={t('pres.inflacion')} type="number" step="any" value={f.inflacion} onChange={set('inflacion')} placeholder="0" inputClassName="bud-campo" /></label>
+          {conTecho && <label><span className="bud-lbl">{t('pres.techo')}</span><Input aria-label={t('pres.techo')} type="number" min={0} step="any" value={f.techo} onChange={set('techo')} placeholder={t('pres.techo_ayuda')} inputClassName="bud-campo" /></label>}
           <label><span className="bud-lbl">{t('pres.campana')}</span>
             <Select suelto placeholder={false} aria-label={t('pres.campana')} value={f.campana_id} onChange={set('campana_id')} className="bud-campo">
               <option value="">—</option>
@@ -268,7 +268,7 @@ function NuevoPresupuesto({ onClose, onCreado }: { onClose: () => void; onCreado
               <Select suelto placeholder={false} aria-label={t('pres.base')} value={f.base} onChange={set('base')} className="bud-campo">
                 <option value="plan">{t('pres.base_plan')}</option><option value="real">{t('pres.base_real')}</option>
               </Select>
-              <input aria-label={t('pres.ajuste_pct')} type="number" step="any" value={f.ajuste_pct} onChange={set('ajuste_pct')} className="bud-campo" placeholder={t('pres.ajuste_pct')} />
+              <Input aria-label={t('pres.ajuste_pct')} type="number" step="any" value={f.ajuste_pct} onChange={set('ajuste_pct')} placeholder={t('pres.ajuste_pct')} inputClassName="bud-campo" />
             </div>
           )}
         </fieldset>

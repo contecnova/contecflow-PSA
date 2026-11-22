@@ -26,4 +26,8 @@ Módulos:
   cuadro de mando, vista por máquina, grafo y exportación.
 - `cumplimiento`: controles del informe de cumplimiento.
 - `trabajos`: el trabajo diario.
+- `riesgo/` (rev. 194, 22-11-2026): índice de riesgo por ámbito, histórico,
+  plan de reducción, métricas, superficies, controles compensatorios,
+  intentos de explotación, importación de terceros, informes y avisos
+  (`/cmdb/software/risk/*`; diseño §11).
 """

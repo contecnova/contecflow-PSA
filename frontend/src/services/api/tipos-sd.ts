@@ -328,6 +328,8 @@ export type SdServicioDeCatalogo = {
   fulfillment_tasks?: { id?: string; title: string; group_id: string; assignee_user_id?: string | null; sla_hours?: number | null; stage?: number; description?: string | null }[]
   is_visible_to_clients?: boolean
   default_support_level?: string | null
+  /** Rev. 193 (clientes internos): precio del catálogo interno por petición atendida. Solo vista interna. */
+  internal_price?: number | null
 }
 
 /** catalog_service.list_catalog_payload. */

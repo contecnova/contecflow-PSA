@@ -19,7 +19,7 @@ import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import { extractErr, fmtDate } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { Button, Checkbox, EmptyState, Modal, Select, Spinner, StatusBadge, Tabs } from '../ui'
+import { Button, Checkbox, EmptyState, Modal, Select, Spinner, StatusBadge, Tabs, Input, Textarea } from '../ui'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { ticketsApi } from '../../services/api'
 import { problemasApi } from '../../services/api/serviceDeskMercado'
@@ -101,8 +101,7 @@ function Incidentes({ problema, esAdmin }: { problema: SdProblema; esAdmin: bool
       )}
       {esAdmin && (
         <div className="ds-card sdm-card">
-          <label className="sdm-field"><span>{t('sd_mercado.buscar_incidentes')}</span>
-            <input className="ds-input" value={busqueda} onChange={e => setBusqueda(e.target.value)} /></label>
+          <Input label={t('sd_mercado.buscar_incidentes')} value={busqueda} onChange={e => setBusqueda(e.target.value)} />
           {(resultados.data ?? []).filter(r => !yaVinculados.has(r.id)).map(r => (
             <Checkbox key={r.id} className="u-row-center-8 sdm-wrap" checked={elegidos.includes(r.id)}
               onChange={v => setElegidos(v ? [...elegidos, r.id] : elegidos.filter(x => x !== r.id))}
@@ -138,8 +137,7 @@ function Rca({ problema, esAdmin }: { problema: SdProblema; esAdmin: boolean }) 
       {esAdmin && (
         <div className="ds-card sdm-card">
           <div className="sdm-card__head"><CheckCircle2 size={14} aria-hidden="true" />{t('sd_mercado.rca_aprobar')}</div>
-          <label className="sdm-field"><span>{t('sd_mercado.evidencia')}</span>
-            <textarea className="ds-input" rows={3} value={evidencia} onChange={e => setEvidencia(e.target.value)} /></label>
+          <Textarea label={t('sd_mercado.evidencia')} rows={3} value={evidencia} onChange={e => setEvidencia(e.target.value)} />
           <div className="u-text2-xs">{t('sd_mercado.rca_aprobar_hint')}</div>
           <div className="u-row-end"><Button size="sm" onClick={() => aprobar.mutate()} loading={aprobar.isPending} disabled={!problema.root_cause}>{t('sd_mercado.aprobar')}</Button></div>
         </div>
@@ -215,11 +213,9 @@ function Kedb({ problema, esAdmin }: { problema: SdProblema; esAdmin: boolean })
       </div>
       {esAdmin ? (
         <>
-          <label className="sdm-field"><span>{t('sd_mercado.solucion_temporal')}</span>
-            <textarea className="ds-input" rows={3} value={workaround} onChange={e => setWorkaround(e.target.value)} /></label>
+          <Textarea label={t('sd_mercado.solucion_temporal')} rows={3} value={workaround} onChange={e => setWorkaround(e.target.value)} />
           <div className="sdm-form">
-            <label className="sdm-field"><span>{t('sd_mercado.dias_revision')}</span>
-              <input className="ds-input" type="number" min={7} max={365} value={dias} placeholder={t('sd_mercado.dias_revision_defecto')} onChange={e => setDias(e.target.value)} /></label>
+            <Input label={t('sd_mercado.dias_revision')} type="number" min={7} max={365} value={dias} placeholder={t('sd_mercado.dias_revision_defecto')} onChange={e => setDias(e.target.value)} />
             <Checkbox className="u-row-center-8" checked={!!autoKb} onChange={setAutoKb} label={t('sd_mercado.crear_articulo_kb')} />
           </div>
           <div className="u-actions-8">

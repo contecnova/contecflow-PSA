@@ -1,0 +1,26 @@
+# Contecflow PSA — datasources de Grafana, provisionados (docs/OBSERVABILIDAD.md).
+# Se cargan en cada arranque: lo que se cambie a mano en la interfaz se pierde.
+# El `uid` es fijo porque los paneles de ops/grafana/dashboards lo referencian.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: contecflow-prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: 15s
+      httpMethod: POST
+
+  - name: Alertmanager
+    uid: contecflow-alertmanager
+    type: alertmanager
+    access: proxy
+    url: http://alertmanager:9093
+    editable: false
+    jsonData:
+      implementation: prometheus
+      handleGrafanaManagedAlerts: false

@@ -327,6 +327,8 @@
   flex-direction: column;
   gap: 5px;
 }
+/* Textarea del kit: misma caja que Input, alto libre hacia abajo. */
+.uiinde-box-18.ui-textarea { min-height: 76px; resize: vertical; line-height: 1.45; }
 /* Celda de DataTable. */
 .ui-celda-datos {
   padding: 11px 14px;

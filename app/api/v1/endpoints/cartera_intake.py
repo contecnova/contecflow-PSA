@@ -16,7 +16,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -125,10 +125,11 @@ def update_gate(gate_id: str, payload: FaseIn, db: Session = Depends(get_db),
 
 @router.get("/proposals", summary="Propuestas de la empresa")
 def list_proposals(response: Response, status: Optional[str] = None,
+                   client_kind: Optional[str] = Query(None, pattern="^(externo|interno)$"),
                    pagina: Paginacion = Depends(paginacion), db: Session = Depends(get_db),
                    current_user: User = Depends(get_current_user)):
     lista_fases = svc.fases(db, current_user)
-    resultado = svc.listar(db, current_user, status, pagina).mapear(
+    resultado = svc.listar(db, current_user, status, pagina, client_kind=client_kind).mapear(
         lambda p: svc.propuesta_dict(db, p, lista_fases))
     return lista_paginada(response, resultado)
 

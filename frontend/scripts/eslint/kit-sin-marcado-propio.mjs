@@ -5,6 +5,7 @@
 //   contec/sin-tabla-propia     <table>                        → Tabla / TablaSimple
 //   contec/sin-select-nativo    <select>                       → Select (suelto en barras y celdas)
 //   contec/sin-casilla-suelta   <input type="checkbox|radio">  → Checkbox / Radio / Switch / GrupoDeOpciones
+//   contec/sin-input-nativo    <input> de texto / <textarea>  → Input / Textarea / SearchInput
 //   contec/sin-fieldset-propio  <fieldset> sin ds-grupo-opciones → GrupoDeOpciones
 //
 // Excepciones temporales: la opción `pendientes` ({ 'src/x.tsx': n }) admite
@@ -78,6 +79,8 @@ function crearRegla({ mensaje, detectar }) {
   }
 }
 
+const TIPOS_DE_TEXTO = new Set(['', 'text', 'search', 'email', 'number', 'password', 'url', 'tel'])
+
 export const reglasDelKit = {
   'sin-boton-nativo': crearRegla({
     mensaje: '<button> propio: usa Button (variant primary/secondary/ghost/danger/link), IconButton, Chip, Segmentado o Pulsable del kit (components/ui).',
@@ -94,6 +97,19 @@ export const reglasDelKit = {
   'sin-casilla-suelta': crearRegla({
     mensaje: '<input type="checkbox|radio"> suelto: usa Checkbox, Radio, Switch o GrupoDeOpciones del kit.',
     detectar: (n) => nombre(n) === 'input' && literales(atributo(n, 'type')?.value).some((v) => /^(checkbox|radio)$/.test(v.trim())),
+  }),
+  'sin-input-nativo': crearRegla({
+    mensaje: '<input>/<textarea> nativo de texto: usa Input/Textarea del kit (components/ui) o SearchInput para buscadores; no se pintan campos a mano.',
+    detectar: (n) => {
+      const nom = nombre(n)
+      if (nom === 'textarea') return true
+      if (nom !== 'input') return false
+      const attr = atributo(n, 'type')
+      if (!attr) return true
+      const tipos = literales(attr.value).map((v) => v.trim().toLowerCase())
+      if (tipos.length === 0) return true // type dinámico: se asume texto
+      return tipos.some((v) => TIPOS_DE_TEXTO.has(v))
+    },
   }),
   'sin-fieldset-propio': crearRegla({
     mensaje: '<fieldset> sin la clase ds-grupo-opciones: usa GrupoDeOpciones del kit (o la clase ds-grupo-opciones con su <legend>).',

@@ -173,6 +173,7 @@ class ServiceItemIn(BaseModel):
     fulfillment_tasks: Optional[list[dict]] = Field(None, description="Tareas: [{title, group_id, assignee_user_id?, sla_hours?, stage?, description?}]")
     is_visible_to_clients: bool = Field(True, description="Indica si es visible en el portal de clientes")
     sort_order: int = Field(0, description="Orden de visualización del servicio")
+    internal_price: Optional[float] = Field(None, ge=0, description="Precio del catálogo interno por petición atendida (clientes internos, rev. 193)")
 
 
 class ServiceItemUpdate(BaseModel):
@@ -191,6 +192,7 @@ class ServiceItemUpdate(BaseModel):
     fulfillment_tasks: Optional[list[dict]] = Field(None, description="Tareas: [{title, group_id, assignee_user_id?, sla_hours?, stage?, description?}]")
     is_visible_to_clients: Optional[bool] = Field(None, description="Actualiza la visibilidad para clientes")
     sort_order: Optional[int] = Field(None, description="Nuevo orden de visualización")
+    internal_price: Optional[float] = Field(None, ge=0, description="Precio del catálogo interno por petición atendida")
 
 
 # ── SLA ───────────────────────────────────────────────────────────────────────

@@ -11,7 +11,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowLeft, ArrowUp, CheckCircle, Copy, History, Play, Plus, Power, Save, Trash2 } from 'lucide-react'
 import { politicasApi, usersApi } from '../../services/api'
 import type { AmbitoDePolitica, DocumentoDePolitica, ErrorDeValidacion, Politica, Regla } from '../../services/api/tipos-politicas'
-import { Button, EmptyState, Spinner, Tabs, Pulsable, Checkbox } from '../ui'
+import { Button, EmptyState, Spinner, Tabs, Pulsable, Checkbox, Input } from '../ui'
 import DateInput from '../ui/DateInput'
 import { useToast } from '../../context/ToastContext'
 import { confirmar } from '../../context/ConfirmContext'
@@ -185,7 +185,7 @@ function Definicion({ doc, set, errorDe }: {
           <input className="pol-campo pol-campo--ancho" value={doc.nombre} aria-invalid={errorDe('nombre').length > 0}
             onChange={e => set('nombre', e.target.value)} required /></label>
         <label><span className="pol-etiqueta">{t('pol.prioridad')}</span>
-          <input type="number" className="pol-campo pol-campo--corto" value={doc.prioridad} onChange={e => set('prioridad', Number(e.target.value))} />
+          <Input type="number" value={doc.prioridad} onChange={e => set('prioridad', Number(e.target.value))} inputClassName="pol-campo pol-campo--corto" />
           <span className="pol-ayuda"> {t('pol.prioridad_ayuda')}</span></label>
         <label><span className="pol-etiqueta">{t('pol.vigente_desde')}</span>
           <DateInput className="pol-campo" value={doc.vigente_desde ?? ''} onChange={e => set('vigente_desde', e.target.value || null)} /></label>

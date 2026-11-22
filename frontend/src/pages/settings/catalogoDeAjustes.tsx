@@ -129,10 +129,14 @@ export const SECCIONES_DE_AJUSTES: SeccionDeAjustes[] = [
   { id: 'user-costs', grupo: 'finanzas', capacidad: 'costes.config', rutaAntigua: '/user-costs', componente: pagina(() => import('../UserCostsPage')) },
   // 19-11-2026 (migración 189): plantillas de contrato, tipos de servicio, unidades de cobro y umbrales de proveedores.
   { id: 'proveedores', grupo: 'finanzas', capacidad: 'proveedores.config', componente: pagina(() => import('../proveedores/ConfigProveedores')) },
+  // 22-11-2026: clientes internos — servicios compartidos y criterios de reparto (docs/CLIENTES_INTERNOS.md §4).
+  { id: 'clientes-internos', grupo: 'finanzas', capacidad: 'interno.cargos', componente: pagina(() => import('../internos/ConfigClientesInternos')) },
 
   // Aprobaciones y políticas (escritura: require_admin en los dos)
   { id: 'approval-workflows', grupo: 'aprobaciones', capacidad: ADMIN, componente: FlujosDeAprobacion },
   { id: 'policies', grupo: 'aprobaciones', capacidad: ADMIN, componente: pagina(() => import('../PoliticasPage')) },
+  // 22-11-2026: tipos de solicitud y flujos de demanda (docs/FLUJO_DE_DEMANDA.md).
+  { id: 'demanda', grupo: 'aprobaciones', capacidad: 'demanda.config', envolver: true, componente: pagina(() => import('../../components/demanda/ConfigDemanda')) },
 
   // IA e idiomas
   { id: 'ai-hub', grupo: 'ia', capacidad: ADMIN, rutaAntigua: '/ai-hub', componente: pagina(() => import('../AIHubPage')) },

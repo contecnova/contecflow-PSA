@@ -15,7 +15,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { scenariosApi } from '../services/api'
 import type { EscenarioDetalle, EscenarioResumen, ResultadoDeEscenario } from '../services/api/tipos-finanzas'
-import { Button, Card, KpiCard, Modal, Spinner, EmptyState, Pulsable } from '../components/ui'
+import { Button, Card, KpiCard, Modal, Spinner, EmptyState, Pulsable, Input } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AlertTriangle, CheckCircle2, Clock, Gauge, GitBranch, Lightbulb, MousePointerClick, Play, Plus, Trash2, XCircle } from 'lucide-react'
@@ -190,15 +190,15 @@ export default function ScenariosPage() {
       {showCreate && (
         <Modal open title={t('scenarios.nuevo_escenario_2')} onClose={()=>setShowCreate(false)} width={560}>
           <div className="u-stack-14">
-            <div><label id={`${idCampo}-1-et`} htmlFor={`${idCampo}-1`} className="scn-label">{t('common.name')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-1-et`} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} className="ds-input" /></div>
-            <div><label id={`${idCampo}-2-et`} htmlFor={`${idCampo}-2`} className="scn-label">{t('scenarios.descripcion')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-2-et`} value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} className="ds-input" /></div>
-            <div><label id={`${idCampo}-3-et`} htmlFor={`${idCampo}-3`} className="scn-label">{t('scenarios.horizonte_de_simulacion_semanas')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-3-et`} type="number" min={4} max={52} value={form.horizon_weeks} onChange={e=>setForm(f=>({...f,horizon_weeks:+e.target.value}))} className="ds-input" /></div>
+            <div><label id={`${idCampo}-1-et`} htmlFor={`${idCampo}-1`} className="scn-label">{t('common.name')}</label><Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-1-et`} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} /></div>
+            <div><label id={`${idCampo}-2-et`} htmlFor={`${idCampo}-2`} className="scn-label">{t('scenarios.descripcion')}</label><Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-2-et`} value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} /></div>
+            <div><label id={`${idCampo}-3-et`} htmlFor={`${idCampo}-3`} className="scn-label">{t('scenarios.horizonte_de_simulacion_semanas')}</label><Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-3-et`} type="number" min={4} max={52} value={form.horizon_weeks} onChange={e=>setForm(f=>({...f,horizon_weeks:+e.target.value}))} /></div>
 
             <div className="scn-form-block">
               <div className="scn-form-title">{t('scenarios.anadir_proyectos_hipoteticos')}</div>
               <div className="scn-form-grid">
-                <input aria-label={t('scenarios.nombre_del_proyecto')} placeholder={t('scenarios.nombre_del_proyecto')} value={newProject.name} onChange={e=>setNewProject(p=>({...p,name:e.target.value}))} className="ds-input" />
-                <input aria-label={t('scenarios.total_horas')} type="number" placeholder={t('scenarios.total_horas')} value={newProject.total_hours||''} onChange={e=>setNewProject(p=>({...p,total_hours:+e.target.value}))} className="ds-input" />
+                <Input aria-label={t('scenarios.nombre_del_proyecto')} placeholder={t('scenarios.nombre_del_proyecto')} value={newProject.name} onChange={e=>setNewProject(p=>({...p,name:e.target.value}))} />
+                <Input aria-label={t('scenarios.total_horas')} type="number" placeholder={t('scenarios.total_horas')} value={newProject.total_hours||''} onChange={e=>setNewProject(p=>({...p,total_hours:+e.target.value}))} />
                 <div><label id={`${idCampo}-4-et`} htmlFor={`${idCampo}-4`} className="scn-label">{t('scenarios.inicio')}</label><DateInput id={`${idCampo}-4`} aria-labelledby={`${idCampo}-4-et`} value={newProject.start_date} onChange={e=>setNewProject(p=>({...p,start_date:e.target.value}))} className="ds-input" /></div>
                 <div><label id={`${idCampo}-5-et`} htmlFor={`${idCampo}-5`} className="scn-label">{t('scenarios.fin')}</label><DateInput id={`${idCampo}-5`} aria-labelledby={`${idCampo}-5-et`} value={newProject.end_date} onChange={e=>setNewProject(p=>({...p,end_date:e.target.value}))} className="ds-input" /></div>
               </div>

@@ -15,7 +15,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Activity, FileBarChart, Gauge, Layers, Pencil, Plus, RefreshCw, Square, Upload, X } from 'lucide-react'
-import { Button, Card, Checkbox, EmptyState, IconButton, Input, KpiCard, Modal, Select, Spinner, useErroresDeCampo } from '../../components/ui'
+import { Button, Card, Checkbox, EmptyState, IconButton, Input, KpiCard, Modal, Select, Spinner, useErroresDeCampo, Textarea } from '../../components/ui'
 import StatusBadge from '../../components/ui/StatusBadge'
 import { usePersonasInternas } from '../../components/externos/FormularioDeExterno'
 import { etiquetaDePersona } from '../../components/ui/MarcaExterno'
@@ -177,8 +177,7 @@ function ImportarRecuentos({ sub, servicios, onClose }: { sub: Subcontratista; s
         )}
         <div className="ui-field">
           <label htmlFor="prv-recuentos" className="uiinde-estiloetiqueta">{t('proveedores.recuentos')}</label>
-          <textarea id="prv-recuentos" value={pegado} onChange={e => setPegado(e.target.value)} className="ds-input prv-textarea"
-            placeholder={'service;2026-11-30;250;SIEM'} />
+          <Textarea id="prv-recuentos" value={pegado} onChange={e => setPegado(e.target.value)} placeholder={'service;2026-11-30;250;SIEM'} inputClassName="prv-textarea" />
         </div>
         {malas.length > 0 && <div className="prv-aviso prv-aviso--peligro">{t('proveedores.lineas_no_validas', { lineas: malas.join(', ') })}</div>}
         <div className="u-actions-8">
@@ -277,7 +276,7 @@ function FormularioDeServicio({ sub, servicio, onClose }: { sub: Subcontratista;
         <FuenteDeMedicionCampos fuente={fuente} config={medicion} unidad={f.unit} onFuente={setFuente} onConfig={setMedicion} />
         <div className="ui-field">
           <label htmlFor="prv-servicio-alcance" className="uiinde-estiloetiqueta">{t('proveedores.alcance')}</label>
-          <textarea id="prv-servicio-alcance" value={f.scope} onChange={set('scope')} className="ds-input prv-textarea" />
+          <Textarea id="prv-servicio-alcance" value={f.scope} onChange={set('scope')} inputClassName="prv-textarea" />
         </div>
         <Filas titulo={t('proveedores.kpis')} filas={kpis} onChange={setKpis} nueva={{ key: '', label: '', target: '', unit: '', direction: 'higher' }}
           columnas={[

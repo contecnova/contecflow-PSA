@@ -307,9 +307,19 @@ celery_app.conf.beat_schedule = {
         "task": "app.worker.cmdb_software_diario",
         "schedule": crontab(hour=4, minute=20),
     },
+    # Flujo de demanda (migración 195): avisos de plazo y vencimientos por fase, cada hora.
+    "demanda-plazos": {
+        "task": "app.worker.demanda_plazos",
+        "schedule": crontab(minute=10),
+    },
 }
 
 celery_app.conf.timezone = settings.DEFAULT_TIMEZONE
+
+# Métricas del worker y del beat (22-11-2026, docs/OBSERVABILIDAD.md): tareas,
+# duración y fallos por nombre; servidor /metrics propio con CELERY_METRICS_PORT.
+from app.core import metricas_celery as _metricas_celery  # noqa: E402
+_metricas_celery.instalar()
 
 import logging as _logging
 _worker_logger = _logging.getLogger(__name__)
@@ -862,3 +872,10 @@ def cmdb_software_diario():
     """CMDB de software: sincroniza avisos (auto_sync), reevalúa hallazgos y SLA, caduca excepciones."""
     from app.services.cmdb_software.trabajos import diario
     return _por_organizacion("cmdb_software_diario", diario)
+
+
+@celery_app.task(name="app.worker.demanda_plazos")
+def demanda_plazos():
+    """Flujo de demanda: avisa al acercarse y al vencer el plazo de cada fase (una vez por fase y ronda)."""
+    from app.services.demanda.trabajos import plazos
+    return _por_organizacion("demanda_plazos", plazos)

@@ -25,7 +25,7 @@ import {
   AlertTriangle, ArrowRight, CalendarDays, Check, CheckCircle2, Circle, Clock, Flag, FolderKanban,
   FolderOpen, Inbox, ListTodo, Plus, Receipt, RotateCcw, Send, X, XCircle,
 } from 'lucide-react'
-import { Button, Card, EmptyState, FormField, Input, Modal, Select, Tabs, useErroresDeCampo } from '../components/ui'
+import { Button, Card, EmptyState, FormField, Input, Modal, Select, Tabs, useErroresDeCampo, Textarea } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import DsBadge from '../components/ui/StatusBadge'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
@@ -75,8 +75,7 @@ function RejectModal({ milestone, onClose, onReject }: { milestone: MilestoneIte
         </div>
       )}
       <FormField label={t('milestonebilling.motivo_del_rechazo')}>
-        <textarea value={reason} onChange={e => setReason(e.target.value)} className="mbill-textarea"
-          placeholder={t('milestonebilling.describe_el_motivo_del_rechazo')} />
+        <Textarea value={reason} onChange={e => setReason(e.target.value)} placeholder={t('milestonebilling.describe_el_motivo_del_rechazo')} inputClassName="mbill-textarea" />
       </FormField>
       <div className="mbill-acciones-modal">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -235,7 +234,7 @@ function NewMilestoneModal({ projectId, onClose, onSave }: { projectId: string; 
             onChange={e => { campos.limpiar('billing_pct'); setForm(f => ({ ...f, billing_pct: e.target.value })) }} placeholder={t('milestonebilling.porcentaje_del_contrato')} />
         </div>
         <FormField label={t('milestonebilling.descripcion')}>
-          <textarea value={form.description} onChange={e => { campos.limpiar('description'); setForm(f => ({ ...f, description: e.target.value })) }} className="mbill-textarea" />
+          <Textarea value={form.description} onChange={e => { campos.limpiar('description'); setForm(f => ({ ...f, description: e.target.value })) }} inputClassName="mbill-textarea" />
         </FormField>
         {msg('description')}
       </div>

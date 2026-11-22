@@ -241,3 +241,17 @@ from app.models.cmdb_software import (  # noqa: F401,E402
     Vulnerability, VulnerabilityAffect, VulnerabilityFinding, VulnerabilityException, SoftwareConfig,
     VulnerabilitySyncRun,
 )
+# Índice de riesgo y gestión de vulnerabilidades (rev. 194, 22-11-2026)
+from app.models.cmdb_riesgo import (  # noqa: F401,E402
+    RiskSnapshot, CompensatingControl, ExploitEvent, SavedVulnView, RiskAlertLog,
+)
+# Clientes internos: cargos, repartos, beneficios y adopción (rev. 193, 22-11-2026)
+from app.models.clientes_internos import (  # noqa: F401,E402
+    InternalClientRole, InternalSharedCost, InternalCharge, InternalChargeLine,
+    ProjectBenefit, InternalAdoptionItem,
+)
+# Flujo de demanda configurable (rev. 195, 22-11-2026, docs/FLUJO_DE_DEMANDA.md)
+from app.models.demanda import (  # noqa: F401,E402
+    DemandRequestType, DemandFlow, DemandRequest, DemandStepState, DemandTransition,
+    DemandFieldVersion, DemandDocument, DemandComment,
+)

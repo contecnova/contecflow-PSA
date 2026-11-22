@@ -23,7 +23,7 @@ import { changeRolloutApi } from '../../services/api'
 import type { FaseDeDespliegue, PlanDeDespliegue, SimulacionDeDespliegue } from '../../services/api/tipos-cambios'
 import { useAppT } from '../../i18n/AppLangContext'
 import { GitBranch, ChevronRight, CheckCircle, AlertTriangle, RotateCcw, Play, Plus, Search, Check, X } from 'lucide-react'
-import { Card, Button, Pulsable, Select, Spinner, EmptyState, StatusBadge } from '../ui'
+import { Card, Button, Pulsable, Select, Spinner, EmptyState, StatusBadge, Input } from '../ui'
 import type { StatusBadgeKind } from '../ui/StatusBadge'
 import { useToast } from '../../context/ToastContext'
 import { pedirTexto } from '../../context/ConfirmContext'
@@ -235,13 +235,7 @@ export default function ChangeRolloutPanel() {
 
       <div className="chropa-filtro">
         <label className="chropa-fieldlabel" htmlFor="chropa-filtro">{t('changerollout.filtrar_por_change_request')}</label>
-        <input id="chropa-filtro"
-          type="text"
-          placeholder={t('changerollout.id_cambio')}
-          value={changeRequestFilter}
-          onChange={e => setChangeRequestFilter(e.target.value)}
-          className="ds-input"
-        />
+        <Input id="chropa-filtro" type="text" placeholder={t('changerollout.id_cambio')} value={changeRequestFilter} onChange={e => setChangeRequestFilter(e.target.value)} />
       </div>
 
       {showCreate && (
@@ -255,13 +249,7 @@ export default function ChangeRolloutPanel() {
               onChange={e => setForm(f => ({ ...f, change_request_id: e.target.value }))}
               className="ds-input chropa-col-full"
             />
-            <input aria-label={t('changerollout.nombre_del_plan_opcional')}
-              type="text"
-              placeholder={t('changerollout.nombre_del_plan_opcional')}
-              value={form.name}
-              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              className="ds-input"
-            />
+            <Input aria-label={t('changerollout.nombre_del_plan_opcional')} type="text" placeholder={t('changerollout.nombre_del_plan_opcional')} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
             <Select
               suelto
               placeholder={false}

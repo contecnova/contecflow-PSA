@@ -20,7 +20,7 @@ import {
 } from 'lucide-react'
 import { ausenciasApi } from '../../services/api/ausencias'
 import type { AusenciaServida, PeticionDeAusencia, SaldoDeAusencia, TipoDeAusencia, VistaPreviaDeAusencia } from '../../services/api/tipos-ausencias'
-import { Button, Modal, Spinner, Select, SelectRico, TablaSimple, Checkbox, Segmentado, useErroresDeCampo } from '../ui'
+import { Button, Modal, Spinner, Select, SelectRico, TablaSimple, Checkbox, Segmentado, useErroresDeCampo, Textarea } from '../ui'
 import { CampoFecha } from '../ui/SelectorDeFecha'
 import DateInput from '../ui/DateInput'
 import { UserSelect } from '../ui/EntitySelect'
@@ -177,7 +177,7 @@ export default function FormularioDeAusencia({ abierto, onCerrar, editar }: {
             <ErrorDeCampo texto={campos.de('substitute_id')} />
             </label>
           <label className="aus-campo-con-etiqueta"><span className="aus-etiqueta">{ta('motivo')}</span>
-            <textarea className="aus-campo" rows={2} aria-label={ta('motivo')} value={p.reason ?? ''} onChange={e => poner({ reason: e.target.value })} />
+            <Textarea rows={2} aria-label={ta('motivo')} value={p.reason ?? ''} onChange={e => poner({ reason: e.target.value })} inputClassName="aus-campo" />
             <ErrorDeCampo texto={campos.de('reason')} />
             </label>
           <Adjuntos docs={docs.map(d => ({ id: d.id, nombre: d.nombres?.[lang as 'es'] || d.nombre }))} valor={adjuntos} onChange={setAdjuntos} />

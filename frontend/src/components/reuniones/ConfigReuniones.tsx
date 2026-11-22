@@ -16,7 +16,7 @@ import type { ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bot, Copy, Download, FileLock2, Languages, PlugZap, ShieldCheck, Timer, Trash2, Video } from 'lucide-react'
 import {
-  Button, Confirm, FormField, Input, Section, Segmentado, Select, Spinner, StatusBadge, Switch, UserSelect,
+  Button, Confirm, FormField, Input, Section, Segmentado, Select, Spinner, StatusBadge, Switch, UserSelect, Textarea,
 } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
@@ -148,12 +148,12 @@ export default function ConfigReuniones() {
             label={t('reuniones.config.exigir_consentimiento')} ayuda={t('reuniones.config.exigir_consentimiento_d')} />
           <div className="u-col-full">
             <FormField label={t('reuniones.config.texto_aviso')} hint={t('reuniones.config.texto_aviso_d')}>
-              <textarea className="reu-textarea" rows={3} value={b.consent.notice_text} onChange={e => set('consent', { notice_text: e.target.value })} />
+              <Textarea rows={3} value={b.consent.notice_text} onChange={e => set('consent', { notice_text: e.target.value })} inputClassName="reu-textarea" />
             </FormField>
           </div>
           <div className="u-col-full">
             <FormField label={t('reuniones.config.mensaje_bot')} hint={t('reuniones.config.mensaje_bot_d')}>
-              <textarea className="reu-textarea" rows={3} value={b.consent.bot_message} onChange={e => set('consent', { bot_message: e.target.value })} />
+              <Textarea rows={3} value={b.consent.bot_message} onChange={e => set('consent', { bot_message: e.target.value })} inputClassName="reu-textarea" />
             </FormField>
           </div>
         </div>
@@ -251,8 +251,7 @@ export default function ConfigReuniones() {
             onChange={e => set('meet', { service_account_email: e.target.value })} />
           <div className="u-col-full">
             <FormField label={t('reuniones.config.clave_json')} hint={b.meet.key_set ? t('reuniones.config.secreto_puesto') : t('reuniones.config.clave_json_d')}>
-              <textarea className="reu-textarea reu-secreto" rows={4} autoComplete="off" spellCheck={false}
-                value={s.meet_service_account_key} onChange={e => setSecreto('meet_service_account_key', e.target.value)} />
+              <Textarea rows={4} autoComplete="off" spellCheck={false} value={s.meet_service_account_key} onChange={e => setSecreto('meet_service_account_key', e.target.value)} inputClassName="reu-textarea reu-secreto" />
             </FormField>
           </div>
         </div>

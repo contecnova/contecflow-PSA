@@ -12,7 +12,7 @@ import { useId } from 'react'
 import type { ChangeEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { KeyRound } from 'lucide-react'
-import { Button, Input, Modal, Select, Checkbox } from '../ui'
+import { Button, Input, Modal, Select, Checkbox, Textarea } from '../ui'
 import { esExterno, etiquetaDePersona } from '../ui/MarcaExterno'
 import { usersApi } from '../../services/api'
 import type { PersonaVisible } from '../../services/api/users'
@@ -179,7 +179,7 @@ export function CamposDeExterno({ form, onChange, errores }: CamposDeExternoProp
       </div>
       <div className="ext-full ui-field">
         <label htmlFor={`${idBase}-notas`} className="uiinde-estiloetiqueta">{t('externos.notas')}</label>
-        <textarea id={`${idBase}-notas`} value={form.notes} onChange={campo('notes')} className="ds-input ext-notas" />
+        <Textarea id={`${idBase}-notas`} value={form.notes} onChange={campo('notes')} inputClassName="ext-notas" />
         {errores?.('notes') && <div className="u-field-error" role="alert">{errores('notes')}</div>}
       </div>
     </div>

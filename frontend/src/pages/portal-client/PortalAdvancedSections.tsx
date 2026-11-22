@@ -23,6 +23,7 @@ import { ClientGovernedConversationInbox } from '../../components/portal/Governe
 import { CLIENT_API, useErrorDelPortal, useLang, useClientAuth, useIdiomaDelPortal, useEtiquetaEstado, rellenar } from './portalClientContext'
 import type { ApiError } from '../../services/api'
 import PortalKbArticulo from './PortalKbArticulo'
+import PortalDemandas from './PortalDemandas'
 import { MarcaDeTraduccion, textoDe, type ContenidoTraducido } from './TraduccionAutomatica'
 import {
   PortalPageHeader, PortalCard, PortalSection, PortalEmpty,
@@ -478,7 +479,36 @@ export function PortalUAT() {
 // ════════════════════════════════════════════════════════════════════════════
 // PortalFeatureRequests
 // ════════════════════════════════════════════════════════════════════════════
+/**
+ * «Solicitudes» (22-11-2026): pestañas «Demandas» (flujo de demanda configurable,
+ * PortalDemandas) y «Peticiones de cambio (clásicas)». Si el servidor no
+ * ofrece ningún tipo de demanda al cliente (`GET /portal/demand/types`), solo
+ * se ve lo clásico.
+ */
 export function PortalFeatureRequests() {
+  const t = useLang()
+  const [tab, setTab] = useState<string | null>(null)
+  const { data: tipos, isLoading } = useQuery<{ types?: unknown[] }>({
+    queryKey: ['portal-demand-types'],
+    queryFn: () => CLIENT_API.get('/portal/demand/types').then(r => r.data as { types?: unknown[] }),
+    retry: false,
+  })
+  if (isLoading) return null
+  const hayDemandas = (tipos?.types?.length ?? 0) > 0
+  if (!hayDemandas) return <PortalPeticionesClasicas />
+  const actual = tab ?? 'demandas'
+  return (
+    <div className="u-stack-16">
+      <PortalTabs ariaLabel={t('dem_titulo_seccion')} value={actual} onChange={setTab} tabs={[
+        { id: 'demandas', label: t('dem_tab_demandas') },
+        { id: 'clasicas', label: t('dem_tab_clasicas') },
+      ]} />
+      {actual === 'demandas' ? <PortalDemandas /> : <PortalPeticionesClasicas />}
+    </div>
+  )
+}
+
+function PortalPeticionesClasicas() {
   const traducir = useLang()
   const errorDe = useErrorDelPortal()
   const etiquetaEstado = useEtiquetaEstado()

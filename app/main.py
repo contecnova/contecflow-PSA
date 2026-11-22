@@ -661,6 +661,8 @@ from app.services.ai_provider_service import PresupuestoDeIAAgotado as _Presupue
 @app.exception_handler(_PresupuestoDeIAAgotado)
 async def _presupuesto_de_ia_agotado(_request, exc):
     from fastapi.responses import JSONResponse
+    from app.core.metricas_empresa import anotar_codigo_de_error
+    anotar_codigo_de_error(_request, getattr(exc, "codigo", None) or "ia_presupuesto_diario_agotado")
     # 19-11-2026: con su código (`ia_presupuesto_diario_agotado`) y el tope, para
     # que la pantalla lo diga en el idioma de quien lo lee.
     return JSONResponse(status_code=429, content={
@@ -685,6 +687,9 @@ async def http_exception_sanitizer(_request: Request, exc: HTTPException):
     if getattr(exc, "code", None):
         contenido["code"] = exc.code
         contenido["params"] = getattr(exc, "params", None) or {}
+        # Observabilidad (22-11-2026): el código del catálogo para las métricas de errores.
+        from app.core.metricas_empresa import anotar_codigo_de_error
+        anotar_codigo_de_error(_request, exc.code)
     return JSONResponse(status_code=exc.status_code, content=contenido,
                         headers=getattr(exc, "headers", None))
 

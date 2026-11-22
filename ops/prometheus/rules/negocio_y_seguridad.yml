@@ -1,0 +1,87 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# Contecflow PSA — alertas de negocio, IA y seguridad (por empresa)
+#
+# La etiqueta `empresa` es el slug acotado de la organización (nunca un dato
+# personal; las que pasan del tope METRICS_TENANT_MAX suman en `otras`).
+# Documentación: docs/OBSERVABILIDAD.md §Alertas.
+# ══════════════════════════════════════════════════════════════════════════════
+groups:
+  - name: contecflow-sla
+    rules:
+      - alert: SlaIncumplidoNuevo
+        expr: sum by (empresa, ambito) (delta(contecflow_negocio_sla{estado="incumplido"}[30m])) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Nuevos incumplimientos de SLA en {{ $labels.empresa }} ({{ $labels.ambito }})"
+          description: "{{ $value }} elementos más con el SLA incumplido en 30 min."
+
+      - alert: SlaEnRiesgo
+        expr: sum by (empresa, ambito) (contecflow_negocio_sla{estado="en_riesgo"}) > 0
+        for: 30m
+        labels:
+          severity: info
+        annotations:
+          summary: "Elementos con el SLA en riesgo en {{ $labels.empresa }} ({{ $labels.ambito }})"
+          description: "{{ $value }} elementos abiertos con el SLA en riesgo."
+
+      - alert: VulnerabilidadesCriticasAbiertas
+        expr: sum by (empresa) (contecflow_negocio_vulnerabilidades_abiertas{severidad="critical"}) > 0
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.empresa }} tiene vulnerabilidades críticas abiertas"
+          description: "{{ $value }} hallazgos críticos sin cerrar."
+
+      - alert: IndiceDeRiesgoAlto
+        expr: contecflow_negocio_indice_riesgo{tipo="bruto"} >= 70
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Índice de riesgo de {{ $labels.empresa }} en {{ $value }}"
+          description: "Última foto diaria del índice (0-100) por encima de 70."
+
+  - name: contecflow-ia
+    rules:
+      - alert: IaPresupuestoAgotado
+        expr: sum by (empresa) (increase(contecflow_ia_presupuesto_agotado_total[15m])) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.empresa }} ha agotado su tope diario de gasto en IA"
+          description: "Las llamadas a IA se rechazan con 429 hasta las 00:00 UTC (AI_DAILY_BUDGET_USD)."
+
+      - alert: IaErroresAltos
+        expr: |
+          sum by (empresa) (rate(contecflow_ia_peticiones_total{resultado="error"}[15m]))
+            / clamp_min(sum by (empresa) (rate(contecflow_ia_peticiones_total[15m])), 1e-9) > 0.2
+          and sum by (empresa) (rate(contecflow_ia_peticiones_total[15m])) > 0.01
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Más del 20 % de las llamadas a IA de {{ $labels.empresa }} fallan"
+          description: "Tasa de error: {{ $value | humanizePercentage }}. ¿Proveedor caído o cuota agotada?"
+
+  - name: contecflow-seguridad
+    rules:
+      - alert: LoginsFallidosEnRafaga
+        expr: sum by (empresa) (increase(contecflow_logins_total{resultado=~"fallido|bloqueado"}[10m])) > 20
+        labels:
+          severity: warning
+        annotations:
+          summary: "Ráfaga de logins fallidos en {{ $labels.empresa }}"
+          description: "{{ $value }} intentos fallidos o bloqueados en 10 min. Revisa el SOC (Seguridad → Eventos)."
+
+      - alert: Respuestas401o403Altas
+        expr: |
+          sum by (empresa) (rate(contecflow_http_peticiones_empresa_total{estado=~"401|403"}[10m])) > 1
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "Muchas respuestas 401/403 para {{ $labels.empresa }}"
+          description: "{{ $value }} por segundo durante 10 min: token caducado en una integración o sondeo."

@@ -10,7 +10,7 @@ import { useToast } from '../context/ToastContext';
 import { extractErr } from '../utils/helpers';
 import { Upload, Download, Trash2, Plus, Sparkles, Loader, X, Check, Clock, FileText } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { Button, EmptyState, IconButton, Pulsable, Select } from './ui';
+import { Button, EmptyState, IconButton, Pulsable, Select, Input } from './ui';
 import { useAppT } from '../hooks/useAppT';
 
 import type { DragEvent } from 'react';
@@ -196,12 +196,7 @@ export default function DocumentsPanel({ projectId, taskId, ticketId, _compact =
                   <Upload size={12} className="document-sx3" />{t('documents_panel.click_or_drag')}
                 </span>}
           </Pulsable>
-          <input aria-label={t('documents_panel.title_placeholder')}
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            placeholder={t('documents_panel.title_placeholder')}
-            className="docupane-fs"
-          />
+          <Input aria-label={t('documents_panel.title_placeholder')} value={title} onChange={e => setTitle(e.target.value)} placeholder={t('documents_panel.title_placeholder')} inputClassName="docupane-fs" />
           <Select suelto value={category} onChange={e => setCategory(e.target.value)} className="docupane-fs" placeholder={false}>
             {CATS.map(c => <option key={c} value={c}>{t(CAT_LABEL[c])}</option>)}
           </Select>

@@ -5,7 +5,7 @@ import type { Conversacion, FuenteDeRespuesta } from '../../services/api/tipos-a
 import { useConfirm } from '../../context/ConfirmContext'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { Plus, Trash2, X } from 'lucide-react'
-import { Checkbox, Pulsable } from '../ui'
+import { Checkbox, Pulsable, Textarea } from '../ui'
 import './NexusAssistPanel.css'
 
 const LAST_CONV_KEY = 'nexusassist_last_conversation_id'
@@ -293,8 +293,7 @@ function PieDeRespuesta({ mensaje, pregunta }: { mensaje: ChatMessage; pregunta:
       {abierto && (
         <div className="neaspa-stack-3">
           <div className="u-text3-xs">{t('nexusassist.corregir_ayuda')}</div>
-          <textarea aria-label={t('nexusassist.corregir')} value={respuesta} onChange={e => setRespuesta(e.target.value)} rows={4}
-            className="neaspa-box-11" />
+          <Textarea aria-label={t('nexusassist.corregir')} value={respuesta} onChange={e => setRespuesta(e.target.value)} rows={4} inputClassName="neaspa-box-11" />
           <Checkbox className="neaspa-row-6" label={t('nexusassist.tambien_clientes')} checked={publica} onChange={m => setPublica(m)} />
           {estado === 'denegado' && <div role="alert" className="neaspa-txt-1">{t('nexusassist.correccion_sin_permiso')}</div>}
           {estado === 'error' && <div role="alert" className="neaspa-txt-1">{t('nexusassist.correccion_error')}</div>}

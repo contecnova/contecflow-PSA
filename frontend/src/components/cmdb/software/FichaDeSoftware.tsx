@@ -21,7 +21,7 @@ import { cmdbSoftwareApi } from '../../../services/api/cmdbSoftware'
 import type { SdCi } from '../../../services/api/tipos-sd'
 import type { InstanciaSw, LineaBase, NodoDeArbol, ProductoSw, ProductoSwIn, ReglaDeLineaBase, VersionSw } from '../../../services/api/cmdbSoftware'
 import type { RawEdge, RawNode } from '../CMDBTopologyGraph'
-import { Button, Checkbox, DateInput, EmptyState, IconButton, Modal, Section, Select, Spinner, StatusBadge, TablaSimple, Tabs } from '../../ui'
+import { Button, Checkbox, DateInput, EmptyState, IconButton, Modal, Section, Select, Spinner, StatusBadge, TablaSimple, Tabs, Textarea, Input } from '../../ui'
 import { BotonFichero, CicloBadge, ListaKv, Opciones, SeveridadBadge, VersionTexto, useAvisoDeImportacion, useErr, useEtiquetaSw, useMetaSw, valorLegible } from './comun'
 import { TablaHallazgos, TablaInstancias } from './tablas'
 import DetalleDeHallazgo from './DetalleDeHallazgo'
@@ -155,8 +155,7 @@ export function EditarProductoModal({ producto, onClose, onSaved }: { producto: 
     onSuccess: onSaved, onError: err,
   })
   const texto = (k: keyof typeof d, etiqueta: string, ph?: string, mono?: boolean) => (
-    <label className="sdm-field"><span>{etiqueta}</span>
-      <input className={`ds-input${mono ? ' u-mono' : ''}`} value={d[k]} placeholder={ph} onChange={ev => set(k)(ev.target.value)} /></label>
+    <Input label={etiqueta} inputClassName={mono ? 'u-mono' : undefined} value={d[k]} placeholder={ph} onChange={ev => set(k)(ev.target.value)} />
   )
   const lista = (k: keyof typeof d, etiqueta: string, valores: readonly string[] | undefined, catalogo: string, vacio?: string) => (
     <label className="sdm-field"><span>{etiqueta}</span>
@@ -189,8 +188,7 @@ export function EditarProductoModal({ producto, onClose, onSaved }: { producto: 
             </Select></label>
           {texto('repository_url', t('sw.repositorio'), 'https://')}
         </div>
-        <label className="sdm-field"><span>{t('sw.descripcion')}</span>
-          <textarea className="ds-input" rows={3} value={d.description} onChange={ev => set('description')(ev.target.value)} /></label>
+        <Textarea label={t('sw.descripcion')} rows={3} value={d.description} onChange={ev => set('description')(ev.target.value)} />
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button loading={guardar.isPending} disabled={d.name.trim().length < 2} onClick={() => guardar.mutate()}>{t('common.save')}</Button>
@@ -266,14 +264,14 @@ function Versiones({ producto, versiones }: { producto: ProductoSw; versiones: V
         <Modal open onClose={() => setForm(null)} title={form.id ? t('sw.version_editar') : t('sw.version_nueva')}>
           <div className="u-stack-12">
             <div className="sdm-form">
-              <label className="sdm-field"><span>{t('sw.version')}</span><input className="ds-input u-mono" value={form.version} disabled={!!form.id} onChange={ev => setForm({ ...form, version: ev.target.value })} /></label>
-              <label className="sdm-field"><span>{t('sw.rama')}</span><input className="ds-input u-mono" value={form.cycle} placeholder="1.24" onChange={ev => setForm({ ...form, cycle: ev.target.value })} /></label>
+              <Input label={t('sw.version')} value={form.version} disabled={!!form.id} onChange={ev => setForm({ ...form, version: ev.target.value })} inputClassName="u-mono" />
+              <Input label={t('sw.rama')} value={form.cycle} placeholder="1.24" onChange={ev => setForm({ ...form, cycle: ev.target.value })} inputClassName="u-mono" />
               {(['release_date', 'support_end', 'eol_date', 'extended_support_end'] as const).map(k => (
                 <label key={k} className="sdm-field"><span>{t(`sw.f_${k}`)}</span><DateInput className="ds-input" value={form[k]} onChange={ev => setForm({ ...form, [k]: ev.target.value })} /></label>
               ))}
             </div>
             <Checkbox checked={form.is_latest} onChange={v => setForm({ ...form, is_latest: v })} label={t('sw.es_la_ultima')} />
-            <label className="sdm-field"><span>{t('sw.notas')}</span><textarea className="ds-input" rows={2} value={form.notes} onChange={ev => setForm({ ...form, notes: ev.target.value })} /></label>
+            <Textarea label={t('sw.notas')} rows={2} value={form.notes} onChange={ev => setForm({ ...form, notes: ev.target.value })} />
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setForm(null)}>{t('common.cancel')}</Button>
               <Button loading={guardar.isPending} disabled={!form.version.trim()} onClick={() => guardar.mutate(form)}>{t('common.save')}</Button>
@@ -357,16 +355,16 @@ function Composicion({ versiones }: { versiones: VersionSw[] }) {
         <Modal open onClose={() => setNuevo(null)} title={t('sw.componente_nuevo')}>
           <div className="u-stack-12">
             <div className="sdm-form">
-              <label className="sdm-field"><span>{t('sw.col_nombre')}</span><input className="ds-input" value={nuevo.name} onChange={ev => setNuevo({ ...nuevo, name: ev.target.value })} /></label>
-              <label className="sdm-field"><span>{t('sw.version')}</span><input className="ds-input u-mono" value={nuevo.component_version} onChange={ev => setNuevo({ ...nuevo, component_version: ev.target.value })} /></label>
-              <label className="sdm-field"><span>purl</span><input className="ds-input u-mono" value={nuevo.purl} placeholder="pkg:npm/lodash@4.17.21" onChange={ev => setNuevo({ ...nuevo, purl: ev.target.value })} /></label>
+              <Input label={t('sw.col_nombre')} value={nuevo.name} onChange={ev => setNuevo({ ...nuevo, name: ev.target.value })} />
+              <Input label={t('sw.version')} value={nuevo.component_version} onChange={ev => setNuevo({ ...nuevo, component_version: ev.target.value })} inputClassName="u-mono" />
+              <Input label="purl" value={nuevo.purl} placeholder="pkg:npm/lodash@4.17.21" onChange={ev => setNuevo({ ...nuevo, purl: ev.target.value })} inputClassName="u-mono" />
               <label className="sdm-field"><span>{t('sw.relacion')}</span>
                 <Select suelto placeholder={false} value={nuevo.relation} onChange={ev => setNuevo({ ...nuevo, relation: ev.target.value })}>
                   <Opciones valores={meta.data?.component_relations} catalogo="rel_comp" /></Select></label>
               <label className="sdm-field"><span>{t('sw.ambito')}</span>
                 <Select suelto placeholder={false} value={nuevo.scope} onChange={ev => setNuevo({ ...nuevo, scope: ev.target.value })}>
                   <Opciones valores={meta.data?.scopes} catalogo="ambito" /></Select></label>
-              <label className="sdm-field"><span>{t('sw.licencia_spdx')}</span><input className="ds-input u-mono" value={nuevo.license_spdx} onChange={ev => setNuevo({ ...nuevo, license_spdx: ev.target.value })} /></label>
+              <Input label={t('sw.licencia_spdx')} value={nuevo.license_spdx} onChange={ev => setNuevo({ ...nuevo, license_spdx: ev.target.value })} inputClassName="u-mono" />
             </div>
             <Checkbox checked={nuevo.direct} onChange={v => setNuevo({ ...nuevo, direct: v })} label={t('sw.dependencia_directa')} />
             <div className="u-actions-10">
@@ -490,18 +488,18 @@ export function InstanciaModal({ inicial, productId, ciId, onClose, onSaved }: {
                 {(cis.data ?? []).map(c => <option key={c.id} value={c.id}>{c.code ? `${c.code} · ` : ''}{c.name}{c.ip_address ? ` (${c.ip_address})` : ''}</option>)}
               </Select></label>
             <label className="sdm-field"><span>{t('sw.version')}</span>
-              <input className="ds-input u-mono" list="sw-versiones" value={d.version} onChange={ev => set('version')(ev.target.value)} />
+              <Input list="sw-versiones" value={d.version} onChange={ev => set('version')(ev.target.value)} inputClassName="u-mono" />
               <datalist id="sw-versiones">{(versiones.data?.versions ?? []).map(v => <option key={v.id} value={v.version} />)}</datalist></label>
-            <label className="sdm-field"><span>{t('sw.col_nombre')}</span><input className="ds-input" value={d.name} placeholder={t('sw.nombre_instancia_ph')} onChange={ev => set('name')(ev.target.value)} /></label>
+            <Input label={t('sw.col_nombre')} value={d.name} placeholder={t('sw.nombre_instancia_ph')} onChange={ev => set('name')(ev.target.value)} />
             <label className="sdm-field"><span>{t('sw.entorno')}</span>
               <Select suelto placeholder={false} value={d.environment} onChange={ev => set('environment')(ev.target.value)}><Opciones valores={meta.data?.environments} catalogo="entorno" /></Select></label>
             <label className="sdm-field"><span>{t('sw.estado')}</span>
               <Select suelto placeholder={false} value={d.status} onChange={ev => set('status')(ev.target.value)}><Opciones valores={meta.data?.instance_statuses} catalogo="est_inst" /></Select></label>
             <label className="sdm-field"><span>{t('sw.exposicion')}</span>
               <Select suelto placeholder={false} value={d.exposure} onChange={ev => set('exposure')(ev.target.value)}><Opciones valores={meta.data?.exposures} catalogo="expo" /></Select></label>
-            <label className="sdm-field"><span>{t('sw.puertos')}</span><input className="ds-input u-mono" value={d.ports} placeholder="80, 443" onChange={ev => set('ports')(ev.target.value)} /></label>
-            <label className="sdm-field"><span>{t('sw.ruta_instalacion')}</span><input className="ds-input u-mono" value={d.install_path} onChange={ev => set('install_path')(ev.target.value)} /></label>
-            <label className="sdm-field"><span>{t('sw.ruta_configuracion')}</span><input className="ds-input u-mono" value={d.config_path} placeholder="/etc/nginx/nginx.conf" onChange={ev => set('config_path')(ev.target.value)} /></label>
+            <Input label={t('sw.puertos')} value={d.ports} placeholder="80, 443" onChange={ev => set('ports')(ev.target.value)} inputClassName="u-mono" />
+            <Input label={t('sw.ruta_instalacion')} value={d.install_path} onChange={ev => set('install_path')(ev.target.value)} inputClassName="u-mono" />
+            <Input label={t('sw.ruta_configuracion')} value={d.config_path} placeholder="/etc/nginx/nginx.conf" onChange={ev => set('config_path')(ev.target.value)} inputClassName="u-mono" />
           </div>
           <div className="ds-eyebrow">{t('sw.configuracion')}</div>
           <div className="sdm-form">
@@ -511,15 +509,14 @@ export function InstanciaModal({ inicial, productId, ciId, onClose, onSaved }: {
                 {(meta.data?.config_formats ?? []).map(x => <option key={x} value={x}>{e('formato_cfg', x)}</option>)}
               </Select></label>
           </div>
-          <label className="sdm-field"><span>{t('sw.config_texto')}</span>
-            <textarea className="ds-input u-mono" rows={8} value={d.config_text} placeholder={t('sw.config_texto_ph')} onChange={ev => set('config_text')(ev.target.value)} /></label>
+          <Textarea label={t('sw.config_texto')} rows={8} value={d.config_text} placeholder={t('sw.config_texto_ph')} onChange={ev => set('config_text')(ev.target.value)} inputClassName="u-mono" />
           <div className="u-text3-xs">{t('sw.config_ayuda')}</div>
           {inicial?.config && Object.keys(inicial.config).length > 0 && (
             <details className="sw-detalles"><summary>{t('sw.configuracion_actual', { n: Object.keys(inicial.config).length })}</summary>
               <ListaKv filas={Object.entries(inicial.config).map(([k, v]) => [<span key={k} className="u-mono">{k}</span>, <span key={`${k}-v`} className="u-mono">{valorLegible(v)}</span>])} />
             </details>
           )}
-          <label className="sdm-field"><span>{t('sw.notas')}</span><textarea className="ds-input" rows={2} value={d.notes} onChange={ev => set('notes')(ev.target.value)} /></label>
+          <Textarea label={t('sw.notas')} rows={2} value={d.notes} onChange={ev => set('notes')(ev.target.value)} />
           <div className="u-actions-10">
             {inicial && <Button variant="ghost" loading={retirar.isPending} onClick={async () => { if (await confirmar({ message: t('sw.retirar_instancia_confirmar'), danger: true })) retirar.mutate() }}>{t('sw.retirar')}</Button>}
             <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -699,7 +696,7 @@ function LineasBase({ producto, lineas }: { producto: ProductoSw; lineas: LineaB
         <Modal open size="lg" onClose={() => setForm(null)} title={form.id ? t('sw.linea_base_editar') : t('sw.linea_base_nueva')}>
           <div className="u-stack-12">
             <div className="sdm-form">
-              <label className="sdm-field"><span>{t('sw.col_nombre')}</span><input className="ds-input" value={form.name} onChange={ev => setForm({ ...form, name: ev.target.value })} /></label>
+              <Input label={t('sw.col_nombre')} value={form.name} onChange={ev => setForm({ ...form, name: ev.target.value })} />
               <label className="sdm-field"><span>{t('sw.entorno')}</span>
                 <Select suelto placeholder={false} value={form.environment} onChange={ev => setForm({ ...form, environment: ev.target.value })}>
                   <Opciones valores={meta.data?.environments} catalogo="entorno" todos={t('sw.todos')} /></Select></label>
@@ -707,9 +704,9 @@ function LineasBase({ producto, lineas }: { producto: ProductoSw; lineas: LineaB
             <div className="ds-eyebrow">{t('sw.reglas')}</div>
             {form.rules.map((r, i) => (
               <div key={i} className="sw-regla">
-                <input className="ds-input u-mono" aria-label={t('sw.clave')} placeholder={t('sw.clave')} value={r.key} onChange={ev => cambiarRegla(i, { key: ev.target.value })} />
+                <Input aria-label={t('sw.clave')} placeholder={t('sw.clave')} value={r.key} onChange={ev => cambiarRegla(i, { key: ev.target.value })} inputClassName="u-mono" />
                 <Select suelto placeholder={false} aria-label={t('sw.operador')} value={r.op} onChange={ev => cambiarRegla(i, { op: ev.target.value })}><Opciones valores={meta.data?.baseline_ops} catalogo="op" /></Select>
-                <input className="ds-input u-mono" aria-label={t('sw.valor')} placeholder={t('sw.valor')} value={r.value == null ? '' : typeof r.value === 'object' ? JSON.stringify(r.value) : String(r.value)} disabled={r.op === 'present' || r.op === 'absent'} onChange={ev => cambiarRegla(i, { value: ev.target.value })} />
+                <Input aria-label={t('sw.valor')} placeholder={t('sw.valor')} value={r.value == null ? '' : typeof r.value === 'object' ? JSON.stringify(r.value) : String(r.value)} disabled={r.op === 'present' || r.op === 'absent'} onChange={ev => cambiarRegla(i, { value: ev.target.value })} inputClassName="u-mono" />
                 <Select suelto placeholder={false} aria-label={t('sw.severidad')} value={r.severity} onChange={ev => cambiarRegla(i, { severity: ev.target.value })}>
                   {['critical', 'high', 'medium', 'low'].map(s => <option key={s} value={s}>{e('sev', s)}</option>)}</Select>
                 <IconButton ariaLabel={t('sw.quitar_regla')} onClick={() => setForm({ ...form, rules: form.rules.filter((_, j) => j !== i) })}><Trash2 size={14} /></IconButton>

@@ -1,5 +1,11 @@
 # Observability — Prometheus
 
+> **22-11-2026:** the full stack (Prometheus, Alertmanager, Grafana with provisioned dashboards, per-tenant
+> business metrics, Celery metrics, alert rules) is documented in Spanish in `docs/OBSERVABILIDAD.md`. The
+> `tenant_id` label of `contecflow_tickets_created_total` / `contecflow_invoices_created_total` is now the bounded
+> company label (slug, capped by `METRICS_TENANT_MAX`), not the raw id. The compose Prometheus now sends the
+> Bearer token (read from a tmpfs) and ships alert rules; Grafana dashboards now ship in `ops/grafana/`.
+
 Contecflow PSA exposes a Prometheus-compatible `/metrics` endpoint with HTTP RED
 metrics, business-domain counters, scheduled-job durations, ABAC denials and
 outbound API latency. This doc covers activation, scraping, alerting and

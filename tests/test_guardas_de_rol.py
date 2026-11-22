@@ -136,6 +136,23 @@ EXENTAS_REVISADAS = {
     # de la empresa de quien pide; el gasto lo frena el tope diario de IA.
     "POST /api/v1/translation/text": (
         "traducir un texto propio: solo escribe la cache de traducción de la empresa del usuario; tope de gasto de IA"),
+    # Flujo de demanda (22-11-2026, docs/FLUJO_DE_DEMANDA.md §4). Lo usa toda persona
+    # con sesión (empleado, cliente interno, proveedor) para SUS solicitudes: una
+    # guarda de rol dejaría fuera al proveedor. El control es de objeto: `_visible`
+    # da 404 si no eres el solicitante ni tienes `demanda.ver`, y el servicio exige
+    # ser el solicitante (403 `dem_solo_solicitante`) o el responsable del paso.
+    "POST /api/v1/demand/mine": (
+        "alta de la solicitud propia: el solicitante es siempre el usuario de la sesión (se descarta requester_user_id)"),
+    "PATCH /api/v1/demand/requests/{req_id}/fields": (
+        "editar la ficha: expediente visible (_visible, 404) y campo editable por su papel (expediente.editar, 403)"),
+    "POST /api/v1/demand/requests/{req_id}/submit": (
+        "enviar: solo el solicitante o quien la creó / gestiona (expediente.enviar, 403 dem_solo_solicitante)"),
+    "POST /api/v1/demand/requests/{req_id}/withdraw": (
+        "retirar: solo el solicitante (expediente.retirar, 403 dem_solo_solicitante)"),
+    "POST /api/v1/demand/requests/{req_id}/comments": (
+        "comentar un expediente visible (_visible, 404); el solicitante no puede comentar en interno"),
+    "POST /api/v1/demand/requests/{req_id}/documents": (
+        "adjuntar a un expediente visible (_visible, 404); el solicitante no puede subir documentos internos"),
 }
 
 #: Exenciones detectadas automáticamente, por motivo y en su número medido.
@@ -161,7 +178,11 @@ EXENCIONES_ESPERADAS = {
     # PATCH) que no exigía el máximo de usuarios del portal.
     # 21 desde 2026-11-16: +1 POST /portal/collaboration/notifications/{id}/read
     # (campana del portal), acotada al cliente que llama (404 si es de otro).
-    "superficie: portal de cliente": 21,  # +1: valorar una respuesta del chat del portal (2026-11)
+    # 28 desde 2026-11-22 (+7, medido con _clasificar): flujo de demanda en el portal
+    # (docs/FLUJO_DE_DEMANDA.md): POST /portal/demand/requests y, sobre una solicitud
+    # propia, PATCH, /comments, /decide, /documents, /submit y /withdraw, con la sesión
+    # del cliente del portal y acotadas a su cliente (404 si es de otro).
+    "superficie: portal de cliente": 28,  # +1: valorar una respuesta del chat del portal (2026-11)
     # 38 desde 2026-11-02: POST /sd/events/{source} autentica el token de la
     # organizacion y POST /sd/kb/{id}/deflected exige `lector_de_la_kb`
     # (cliente del portal o usuario); el clasificador no reconoce ninguno.

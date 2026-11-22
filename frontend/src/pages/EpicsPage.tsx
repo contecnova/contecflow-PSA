@@ -9,7 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, epicsApi, tasksApi } from '../services/api'
 import type { EpicaDelRoadmap, EpicaSerializada, RoadmapDeEpicas } from '../services/api/tipos-proyectos'
 import { useAuth } from '../context/AuthContext'
-import { Button, Spinner, EmptyState, Modal, KpiCard, Tabs, IconButton, Pulsable, Select, useErroresDeCampo } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, KpiCard, Tabs, IconButton, Pulsable, Select, useErroresDeCampo, Input, Textarea } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { CalendarDays, CalendarRange, FolderKanban, Layers, List, ListChecks, Map as MapIcon, Pencil, Plus, Target, Trash2 } from 'lucide-react'
@@ -102,8 +102,8 @@ function EpicForm({ projectId, epic, onClose }: { projectId: string; epic?: Epic
   return (
     <Modal open onClose={onClose} title={isEdit ? t('epics.edit_epic') : t('epics.new_epic')}>
       <div className="u-stack-14">
-        <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="epics-page-e13">{t('epics.title_label')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="epics-page-e14" value={form.title} onChange={e=>set('title')(e.target.value)} placeholder={t('epics.epic_name')}/>{msg('title')}</div>
-        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="epics-page-e13">{t('common.description')}</label><textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} className="epics-page-e1" value={form.description} onChange={e=>set('description')(e.target.value)}/>{msg('description')}</div>
+        <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="epics-page-e13">{t('epics.title_label')}</label><Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e=>set('title')(e.target.value)} placeholder={t('epics.epic_name')} inputClassName="epics-page-e14" />{msg('title')}</div>
+        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="epics-page-e13">{t('common.description')}</label><Textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description} onChange={e=>set('description')(e.target.value)} inputClassName="epics-page-e1" />{msg('description')}</div>
         <div className="u-grid2-12">
           <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="epics-page-e13">{t('common.status')}</label>
             <Select suelto placeholder={false} id={`${idCampo}-3`} className="epics-page-e14" value={form.status} onChange={e=>set('status')(e.target.value)}>

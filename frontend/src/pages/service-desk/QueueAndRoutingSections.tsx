@@ -18,7 +18,7 @@ import { useToast } from '../../context/ToastContext'
 import { sdRoutingApi, sdGroupsApi, sdSlaPoliciesApi, usersApi, ticketsApi } from '../../services/api'
 import type { SdIncidenteMayor, SdReglaDeEnrutado, SdTicket } from '../../services/api/tipos-sd'
 import type { AxiosResponse } from 'axios'
-import { Button, IconButton, Pulsable, Select, TablaSimple, Spinner, EmptyState, Modal, useSort, SortableTH, ariaSort, useErroresDeCampo } from '../../components/ui'
+import { Button, IconButton, Pulsable, Select, TablaSimple, Spinner, EmptyState, Modal, useSort, SortableTH, ariaSort, useErroresDeCampo, Input, Textarea } from '../../components/ui'
 import StatusBadge from '../../components/ui/StatusBadge'
 import Pagination from '../../components/ui/Pagination'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -137,8 +137,7 @@ export function TicketList({ queueOnly, onSelect }: { queueOnly?: boolean; onSel
       <div className="ds-toolbar sdqr-filters">
         <div className="sdqr-search">
           <Search size={14} aria-hidden className="sdqr-search__icon" />
-          <input placeholder={t('service_desk.search_tickets')} value={search}
-            aria-label={t('service_desk.search_tickets')} onChange={e => setSearch(e.target.value)} className="ds-input sdqr-search__input" />
+          <Input placeholder={t('service_desk.search_tickets')} value={search} aria-label={t('service_desk.search_tickets')} onChange={e => setSearch(e.target.value)} inputClassName="sdqr-search__input" />
         </div>
         <Select suelto placeholder={false} aria-label={t('service_desk.filter_all_priorities')} value={filterPrio} onChange={e => setFilterPrio(e.target.value)} className="sdqr-filter">
           <option value="">{t('service_desk.filter_all_priorities')}</option>
@@ -300,7 +299,7 @@ function DeclareMIModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
       <div className="u-stack-16">
         <div>
           <label id={`${idPrefix}-title-et`} htmlFor={`${idPrefix}-title`} className="campo-etiqueta">{t('service_desk.mi_title_lbl')} *</label>
-          <input id={`${idPrefix}-title`} aria-labelledby={`${idPrefix}-title-et`} value={form.title} onChange={set('title')} className="campo-form" />{msg('title')}
+          <Input id={`${idPrefix}-title`} aria-labelledby={`${idPrefix}-title-et`} value={form.title} onChange={set('title')} inputClassName="campo-form" />{msg('title')}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-severity`} className="campo-etiqueta">{t('service_desk.mi_severity_lbl')}</label>
@@ -311,8 +310,7 @@ function DeclareMIModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
         </div>
         <div>
           <label id={`${idPrefix}-impact-et`} htmlFor={`${idPrefix}-impact`} className="campo-etiqueta">{t('service_desk.mi_impact_lbl')}</label>
-          <textarea id={`${idPrefix}-impact`} aria-labelledby={`${idPrefix}-impact-et`} value={form.impact_statement} onChange={set('impact_statement')} rows={3}
-            className="campo-form sdqr-textarea" />{msg('impact_statement')}
+          <Textarea id={`${idPrefix}-impact`} aria-labelledby={`${idPrefix}-impact-et`} value={form.impact_statement} onChange={set('impact_statement')} rows={3} inputClassName="campo-form sdqr-textarea" />{msg('impact_statement')}
         </div>
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -578,14 +576,12 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
       )
     }
     return (
-      <input id={`${idCampo}-cv-${i}`} aria-labelledby={`${idCampo}-cv-${i}-et`} value={cond.value} onChange={e => upd(e.target.value)} className={IS}
-        placeholder={
+      <Input id={`${idCampo}-cv-${i}`} aria-labelledby={`${idCampo}-cv-${i}-et`} value={cond.value} onChange={e => upd(e.target.value)} placeholder={
           cond.key === 'keyword_in_title' ? t('queueandrouting.ph_keyword') :
           cond.key === 'requester_domain' ? t('queueandrouting.ph_domain') :
           cond.key === 'tag_contains' ? t('queueandrouting.ph_tag') :
           cond.key === 'time_of_day' ? '08:00-17:00' : ''
-        }
-      />
+        } inputClassName="campo-form" />
     )
   }
 
@@ -615,7 +611,7 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
         {Object.entries(PRIORITY_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
       </Select>
     )
-    return <input id={`${idCampo}-av-${i}`} aria-labelledby={`${idCampo}-av-${i}-et`} value={act.value} onChange={e => upd(e.target.value)} className={IS} />
+    return <Input id={`${idCampo}-av-${i}`} aria-labelledby={`${idCampo}-av-${i}-et`} value={act.value} onChange={e => upd(e.target.value)} inputClassName="campo-form" />
   }
 
   const handleSave = () => {
@@ -649,14 +645,11 @@ function NewRoutingRuleModal({ onClose, onSaved, rule }: { onClose: () => void; 
         <div className="sdqr-name-row">
           <div>
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('service_desk.routing_name_lbl')} *</label>
-            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => { camposB.limpiar('name'); setForm(f => ({ ...f, name: e.target.value })) }}
-              className={IS} autoFocus />{msgB('name')}
+            <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => { camposB.limpiar('name'); setForm(f => ({ ...f, name: e.target.value })) }} autoFocus inputClassName="campo-form" />{msgB('name')}
           </div>
           <div>
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('service_desk.routing_order_lbl')}</label>
-            <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={form.priority}
-              onChange={e => { camposB.limpiar('priority'); setForm(f => ({ ...f, priority: e.target.value })) }}
-              className={IS} />{msgB('priority')}
+            <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={form.priority} onChange={e => { camposB.limpiar('priority'); setForm(f => ({ ...f, priority: e.target.value })) }} inputClassName="campo-form" />{msgB('priority')}
           </div>
         </div>
 

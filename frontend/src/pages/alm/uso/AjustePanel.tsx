@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDownRight, Check, Coins, Layers3, Plus, Trash2, X } from 'lucide-react'
-import { Button, DataTable, EmptyState, KpiCard, Modal, Section, Spinner, Select, Checkbox } from '../../../components/ui'
+import { Button, DataTable, EmptyState, KpiCard, Modal, Section, Spinner, Select, Checkbox, Input } from '../../../components/ui'
 import type { ColumnaDeTabla } from '../../../components/ui'
 import { confirmar, pedirTexto } from '../../../context/ConfirmContext'
 import { useToast } from '../../../context/ToastContext'
@@ -65,7 +65,7 @@ function EditorDeRegla({ borrador, onClose }: { borrador: Borrador; onClose: () 
           </div>
         </fieldset>
         <label className="almu-campo">{t('alm_uso.notas')}
-          <input className="alm-input" value={b.notas} onChange={e => setB({ ...b, notas: e.target.value })} />
+          <Input value={b.notas} onChange={e => setB({ ...b, notas: e.target.value })} inputClassName="alm-input" />
         </label>
         <label className="almu-check">
           <Checkbox checked={b.activa} onChange={(_, e) => setB({ ...b, activa: e.target.checked })} />{t('alm_uso.regla_activa')}

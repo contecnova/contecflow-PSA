@@ -25,7 +25,7 @@ import { cmdbSoftwareApi } from '../../../services/api/cmdbSoftware'
 import type { SdCi } from '../../../services/api/tipos-sd'
 import type { InstanciaSw, Severidad } from '../../../services/api/cmdbSoftware'
 import type { RawEdge, RawNode } from '../CMDBTopologyGraph'
-import { Button, Checkbox, EmptyState, KpiCard, Modal, Section, Select, Spinner, StatusBadge, TablaSimple } from '../../ui'
+import { Button, Checkbox, EmptyState, KpiCard, Modal, Section, Select, Spinner, StatusBadge, TablaSimple, Input } from '../../ui'
 import {
   BotonFichero, CicloBadge, EXCEPCION_KIND, ListaKv, ORDEN_SEV, Opciones, PosibleBadge, SeveridadBadge, VersionTexto,
   descargar, useAvisoDeImportacion, useErr, useEtiquetaSw, useMetaSw, valorLegible,
@@ -107,8 +107,7 @@ export function SoftwareTab() {
         </div>}>
         <div className="u-stack-12">
           <div className="sdm-form">
-            <label className="sdm-field"><span>{t('sw.buscar')}</span>
-              <input className="ds-input" value={q} placeholder={t('sw.buscar_ph')} onChange={ev => setQ(ev.target.value)} /></label>
+            <Input label={t('sw.buscar')} value={q} placeholder={t('sw.buscar_ph')} onChange={ev => setQ(ev.target.value)} />
             <label className="sdm-field"><span>{t('sw.categoria')}</span>
               <Select suelto placeholder={false} value={categoria} onChange={ev => setCategoria(ev.target.value)}>
                 <Opciones valores={meta.data?.categories} catalogo="cat" todos={t('sw.todas')} /></Select></label>
@@ -231,8 +230,7 @@ export function DondeSeUsaTab() {
     <div className="u-stack-20">
       <Section title={t('sw.donde_titulo')} subtitle={t('sw.donde_desc')}>
         <form className="sdm-form" onSubmit={buscar}>
-          <label className="sdm-field"><span>{t('sw.buscar')}</span>
-            <input className="ds-input" value={texto} placeholder={t('sw.donde_ph')} onChange={ev => setTexto(ev.target.value)} /></label>
+          <Input label={t('sw.buscar')} value={texto} placeholder={t('sw.donde_ph')} onChange={ev => setTexto(ev.target.value)} />
           <label className="sdm-field"><span>{t('sw.entorno')}</span>
             <Select suelto placeholder={false} value={entorno} onChange={ev => setEntorno(ev.target.value)}>
               <Opciones valores={meta.data?.environments} catalogo="entorno" todos={t('sw.todos')} /></Select></label>
@@ -341,8 +339,7 @@ export function PorMaquinaTab() {
     <div className="u-stack-20">
       <Section title={t('sw.maquina_titulo')} subtitle={t('sw.maquina_desc')}>
         <div className="sdm-form">
-          <label className="sdm-field"><span>{t('sw.filtrar_ci')}</span>
-            <input className="ds-input" value={filtro} onChange={ev => setFiltro(ev.target.value)} placeholder={t('sw.filtrar_ci_ph')} /></label>
+          <Input label={t('sw.filtrar_ci')} value={filtro} onChange={ev => setFiltro(ev.target.value)} placeholder={t('sw.filtrar_ci_ph')} />
           <label className="sdm-field"><span>{t('sw.maquina')}</span>
             <Select suelto placeholder={false} value={ciId} onChange={ev => { setCiId(ev.target.value); setVerGrafo(false) }}>
               <option value="">{t('sw.elige_ci')}</option>
@@ -538,8 +535,7 @@ export function VulnerabilidadesTab() {
         <div className="u-stack-12">
           {gestiona && <div className="u-text3-xs">{t('sw.importar_avisos_ayuda')}</div>}
           <div className="sdm-form">
-            <label className="sdm-field"><span>{t('sw.buscar')}</span>
-              <input className="ds-input" value={q} placeholder={t('sw.hallazgos_ph')} onChange={ev => setQ(ev.target.value)} /></label>
+            <Input label={t('sw.buscar')} value={q} placeholder={t('sw.hallazgos_ph')} onChange={ev => setQ(ev.target.value)} />
             <label className="sdm-field"><span>{t('sw.estado')}</span>
               <Select suelto placeholder={false} value={estado} onChange={ev => setEstado(ev.target.value)}>
                 <option value={ESTADOS_ABIERTOS}>{t('sw.abiertos')}</option>

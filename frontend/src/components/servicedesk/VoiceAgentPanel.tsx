@@ -40,7 +40,7 @@ import type { SesionDeVoz, TurnoDeVoz } from '../../services/api/tipos-analitica
 import { useAppT } from '../../i18n/AppLangContext'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { Phone, Mic, PhoneOff, Plus, ExternalLink, Mail, Link2, Send, Ticket } from 'lucide-react'
-import { Card, Button, Pulsable, Select, Spinner, EmptyState, Modal, Section } from '../ui'
+import { Card, Button, Pulsable, Select, Spinner, EmptyState, Modal, Section, Input } from '../ui'
 import StatusBadge from '../ui/StatusBadge'
 import type { StatusBadgeKind } from '../ui/StatusBadge'
 import { useToast } from '../../context/ToastContext'
@@ -303,8 +303,7 @@ export default function VoiceAgentPanel() {
               <div className="vap-fila">
                 <div className="ui-field vap-fila__campo">
                   <label htmlFor={`${id}-numero`} className="campo-etiqueta">{t('voiceagent.numero_que_llama')}</label>
-                  <input id={`${id}-numero`} type="tel" placeholder="+34 600 000 000" value={callerInput}
-                    onChange={e => setCallerInput(e.target.value)} className="campo-form" />
+                  <Input id={`${id}-numero`} type="tel" placeholder="+34 600 000 000" value={callerInput} onChange={e => setCallerInput(e.target.value)} inputClassName="campo-form" />
                 </div>
                 <div className="ui-field">
                   <label htmlFor={`${id}-canal`} className="campo-etiqueta">{t('voiceagent.canal_lbl')}</label>

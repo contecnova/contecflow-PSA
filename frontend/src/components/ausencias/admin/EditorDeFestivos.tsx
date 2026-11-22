@@ -9,7 +9,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarX2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { ausenciasApi } from '../../../services/api/ausencias'
 import type { Festivo, FestivoIn, TipoDeFestivo } from '../../../services/api/tipos-ausencias'
-import { Button, EmptyState, Modal, Spinner, Select, TablaSimple , useErroresDeCampo } from '../../ui'
+import { Button, EmptyState, Modal, Spinner, Select, TablaSimple , useErroresDeCampo, Input } from '../../ui'
 import DateInput from '../../ui/DateInput'
 import { confirmar } from '../../../context/ConfirmContext'
 import { useToast } from '../../../context/ToastContext'
@@ -120,7 +120,7 @@ function FormularioDeFestivo({ id, inicial, onCerrar }: { id: string | null; ini
         <div className="ausadm-grid-2">
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('nombre')}</span>
-            <input aria-label={ta('nombre')} className="ausadm-campo" required value={d.name} onChange={e => cambiar({ name: e.target.value })} />
+            <Input aria-label={ta('nombre')} required value={d.name} onChange={e => cambiar({ name: e.target.value })} inputClassName="ausadm-campo" />
             <ErrorDeCampo texto={campos.de('name')} />
           </label>
           <label className="ausadm-campo-con-etiqueta">
@@ -145,8 +145,7 @@ function FormularioDeFestivo({ id, inicial, onCerrar }: { id: string | null; ini
         </div>
         <label className="ausadm-campo-con-etiqueta">
           <span className="ausadm-etiqueta">{ta('ambito_opcional')}</span>
-          <input aria-label={ta('ambito_opcional')} className="ausadm-campo" value={d.applies_to ?? ''} aria-describedby="ausadm-festivo-ambito"
-            onChange={e => cambiar({ applies_to: e.target.value || null })} />
+          <Input aria-label={ta('ambito_opcional')} value={d.applies_to ?? ''} aria-describedby="ausadm-festivo-ambito" onChange={e => cambiar({ applies_to: e.target.value || null })} inputClassName="ausadm-campo" />
           <span id="ausadm-festivo-ambito" className="ausadm-ayuda">{ta('festivo_ambito_ayuda')}</span>
           <ErrorDeCampo texto={campos.de('applies_to')} />
         </label>

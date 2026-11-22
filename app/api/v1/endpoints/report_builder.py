@@ -6,7 +6,7 @@ Delegates all logic to app.services.report_builder_service.
 
 from typing import Any, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 

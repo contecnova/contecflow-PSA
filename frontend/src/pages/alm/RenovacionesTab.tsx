@@ -6,7 +6,7 @@
 import { useId, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, RefreshCw } from 'lucide-react'
-import { Button, EmptyState, Modal, SelectorDePeriodo, Spinner, StatusBadge, GrupoDeOpciones } from '../../components/ui'
+import { Button, EmptyState, Modal, SelectorDePeriodo, Spinner, StatusBadge, GrupoDeOpciones, Input, Textarea } from '../../components/ui'
 import { usePeriodo } from '../../hooks/usePeriodo'
 import { codigoDeErrorDePeriodo, SIN_HORA } from '../../utils/periodo'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -81,18 +81,18 @@ function DecisionModal({ r, onClose }: { r: Renovacion; onClose: () => void }) {
           {decision === 'reduce' && r.entity_type === 'license' && (
             <div>
               <label className="alm-label" htmlFor={`${id}-s`}>{t('alm.new_seats')}</label>
-              <input id={`${id}-s`} type="number" min={0} className="alm-input" value={asientos} onChange={e => setAsientos(e.target.value)} />
+              <Input id={`${id}-s`} type="number" min={0} value={asientos} onChange={e => setAsientos(e.target.value)} inputClassName="alm-input" />
             </div>
           )}
           {decision !== 'cancel' && (
             <div>
               <label className="alm-label" htmlFor={`${id}-c`}>{t('alm.new_annual_cost')}</label>
-              <input id={`${id}-c`} type="number" min={0} className="alm-input" value={coste} onChange={e => setCoste(e.target.value)} />
+              <Input id={`${id}-c`} type="number" min={0} value={coste} onChange={e => setCoste(e.target.value)} inputClassName="alm-input" />
             </div>
           )}
           <div className="almf-col-completa">
             <label className="alm-label" htmlFor={`${id}-m`}>{t('alm.reason')}{decision === 'cancel' ? ' *' : ''}</label>
-            <textarea id={`${id}-m`} rows={3} className="alm-input" value={motivo} onChange={e => setMotivo(e.target.value)} />
+            <Textarea id={`${id}-m`} rows={3} value={motivo} onChange={e => setMotivo(e.target.value)} inputClassName="alm-input" />
           </div>
         </div>
         {error && <p className="u-field-error" role="alert">{error}</p>}

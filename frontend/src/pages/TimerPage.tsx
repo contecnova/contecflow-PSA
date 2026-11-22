@@ -15,7 +15,7 @@ import type { Imputacion, SesionDeCronometro } from '../services/api/tipos-perso
 import { useAuth } from '../context/AuthContext'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Button, Card, EmptyState, FormField, Modal, Section, StatusBadge, Table, Select, Checkbox } from '../components/ui'
+import { Button, Card, EmptyState, FormField, Modal, Section, StatusBadge, Table, Select, Checkbox, Textarea } from '../components/ui'
 import { Timer, Play, Pause, Square, Trash2, FolderOpen, History, WifiOff } from 'lucide-react'
 import { useToast } from '../context/ToastContext'
 import { useAppT } from '../i18n/AppLangContext'
@@ -145,9 +145,7 @@ function StopModal({ currentTimer, onClose, onStop, onCancelTimer, pendingAction
       subtitle={<>{traducir('timer.tiempo')}: <strong className="tm-elapsed-inline">{formatTime(elapsed)}</strong></>}>
       <div className="tm-form">
         <FormField label={traducir('timer.descripcion_del_trabajo')}>
-          <textarea value={description} onChange={e => setDescription(e.target.value)}
-            className="ds-input tm-textarea" rows={3}
-            placeholder={traducir('timer.describe_el_trabajo_realizado')} autoFocus />
+          <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} placeholder={traducir('timer.describe_el_trabajo_realizado')} autoFocus inputClassName="tm-textarea" />
         </FormField>
         <FormField label={traducir('timer.tarea_final')} hint={traducir('timer.si_ya_existe_una_imputacion_para_esa')}>
           <Select suelto placeholder={false} value={taskId} onChange={e => setTaskId(e.target.value)}>

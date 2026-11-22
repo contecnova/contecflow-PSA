@@ -10,7 +10,7 @@ import { projectsApi, usersApi, portalApi, templatesApi, taskDependenciesApi, ta
 import type { PlantillaDeProyecto } from '../services/api/tipos-proyectos'
 import type { MemberAddPayload, ProjectCreatePayload, ProjectStatus } from '../services/api'
 import { settingsApi } from '../services/settingsApi'
-import { Badge, LoadBar, Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH, MarcaExterno, etiquetaDePersona, Pulsable, Select, useErroresDeCampo } from '../components/ui'
+import { Badge, LoadBar, Button, Modal, Spinner, EmptyState, ClientSelect, useSort, SortableTH, MarcaExterno, etiquetaDePersona, Pulsable, Select, useErroresDeCampo, Input, Textarea } from '../components/ui'
 import ProjectRiskBadge from '../components/ui/ProjectRiskBadge'
 import { SkeletonProjects } from '../components/ui/Skeletons'
 import PageHeader from '../components/layout/PageHeader'
@@ -403,7 +403,7 @@ function ProjectFormModal({ open, onClose, project = null }: { open: boolean; on
       <div className="u-grid2-14">
         <div className="u-col-full">
           <label className="prj-ls-2" htmlFor={`${idCampo}-nombre`}>{t('proyectos_ui.nombre_req')}</label>
-          <input className="prj-fs-2" id={`${idCampo}-nombre`} value={form.name} onChange={set('name')} placeholder={traducir('projects.nombre_del_proyecto')} aria-label={traducir('projects.nombre_del_proyecto')} />
+          <Input id={`${idCampo}-nombre`} value={form.name} onChange={set('name')} placeholder={traducir('projects.nombre_del_proyecto')} aria-label={traducir('projects.nombre_del_proyecto')} inputClassName="prj-fs-2" />
           {err('name') && <div className="u-field-error">{err('name')}</div>}
         </div>
         <div>
@@ -458,19 +458,19 @@ function ProjectFormModal({ open, onClose, project = null }: { open: boolean; on
         </div>
         <div>
           <label className="prj-ls-2" htmlFor={`${idCampo}-presupuesto`}>{t('proyectos_ui.presupuesto_moneda', { moneda: fmtMoneda.simbolo })}</label>
-          <input className="prj-fs-2" id={`${idCampo}-presupuesto`} type="number" value={form.budget_amount} onChange={set('budget_amount')} placeholder={t('proyectos_ui.presupuesto_total')} aria-label={t('proyectos_ui.presupuesto_total')} />
+          <Input id={`${idCampo}-presupuesto`} type="number" value={form.budget_amount} onChange={set('budget_amount')} placeholder={t('proyectos_ui.presupuesto_total')} aria-label={t('proyectos_ui.presupuesto_total')} inputClassName="prj-fs-2" />
           {err('budget_amount') && <div className="u-field-error">{err('budget_amount')}</div>}
         </div>
         {form.billing_type === 'recurring_retainer' && (
           <>
             <div>
               <label className="prj-ls-2" htmlFor={`${idCampo}-retainer`}>{t('proyectos_ui.retainer_moneda', { moneda: fmtMoneda.simbolo })}</label>
-              <input className="prj-fs-2" id={`${idCampo}-retainer`} type="number" value={form.retainer_amount} onChange={set('retainer_amount')} placeholder={t('proyectos_ui.importe_mensual')} aria-label={t('proyectos_ui.importe_mensual')} />
+              <Input id={`${idCampo}-retainer`} type="number" value={form.retainer_amount} onChange={set('retainer_amount')} placeholder={t('proyectos_ui.importe_mensual')} aria-label={t('proyectos_ui.importe_mensual')} inputClassName="prj-fs-2" />
           {err('retainer_amount') && <div className="u-field-error">{err('retainer_amount')}</div>}
             </div>
             <div>
               <label className="prj-ls-2">{traducir('projects.label_retainer_day')}</label>
-              <input className="prj-fs-2" type="number" min="1" max="28" value={form.retainer_day} onChange={set('retainer_day')} placeholder={traducir('projects.dia_de_corte')} aria-label={traducir('projects.dia_de_corte')} />
+              <Input type="number" min="1" max="28" value={form.retainer_day} onChange={set('retainer_day')} placeholder={traducir('projects.dia_de_corte')} aria-label={traducir('projects.dia_de_corte')} inputClassName="prj-fs-2" />
               {err('retainer_day') && <div className="u-field-error">{err('retainer_day')}</div>}
             </div>
           </>
@@ -487,7 +487,7 @@ function ProjectFormModal({ open, onClose, project = null }: { open: boolean; on
         </div>
         <div className="u-col-full">
           <label className="prj-ls-2">{traducir('projects.label_description')}</label>
-          <textarea className="prj-fs-2 prj-input" value={form.description} onChange={set('description')} rows={3} placeholder={traducir('projects.descripcion_del_proyecto')} aria-label={traducir('projects.descripcion_del_proyecto')} />
+          <Textarea value={form.description} onChange={set('description')} rows={3} placeholder={traducir('projects.descripcion_del_proyecto')} aria-label={traducir('projects.descripcion_del_proyecto')} inputClassName="prj-fs-2 prj-input" />
           {err('description') && <div className="u-field-error">{err('description')}</div>}
         </div>
         {/* Revisión 2026-11: antes de crear, lo que aprendimos en proyectos parecidos. */}
@@ -803,26 +803,25 @@ function ProjectDetailModal({ project, detail, open, onClose, onEdit }: { projec
                         <div className="prj-grid-3">
                           <div>
                             <label className="prj-ls" id={`${idCampo}-${fr.id}-etresp828`} htmlFor={`${idCampo}-${fr.id}-resp828`}>{traducir('proyectos_ui.coste_estimado_moneda', { moneda: fmtMoneda.simbolo })}</label>
-                            <input className="prj-fs" id={`${idCampo}-${fr.id}-resp828`} aria-labelledby={`${idCampo}-${fr.id}-etresp828`} type="number" min="0" value={respondForm.estimated_cost} onChange={e => setRespondForm(f => ({ ...f, estimated_cost: e.target.value }))} placeholder="0" />
+                            <Input id={`${idCampo}-${fr.id}-resp828`} aria-labelledby={`${idCampo}-${fr.id}-etresp828`} type="number" min="0" value={respondForm.estimated_cost} onChange={e => setRespondForm(f => ({ ...f, estimated_cost: e.target.value }))} placeholder="0" inputClassName="prj-fs" />
                           </div>
                           <div>
                             <label className="prj-ls" id={`${idCampo}-${fr.id}-etresp832`} htmlFor={`${idCampo}-${fr.id}-resp832`}>{traducir('proyectos_ui.horas_estimadas')}</label>
-                            <input className="prj-fs" id={`${idCampo}-${fr.id}-resp832`} aria-labelledby={`${idCampo}-${fr.id}-etresp832`} type="number" min="0" value={respondForm.estimated_hours} onChange={e => setRespondForm(f => ({ ...f, estimated_hours: e.target.value }))} placeholder="0" />
+                            <Input id={`${idCampo}-${fr.id}-resp832`} aria-labelledby={`${idCampo}-${fr.id}-etresp832`} type="number" min="0" value={respondForm.estimated_hours} onChange={e => setRespondForm(f => ({ ...f, estimated_hours: e.target.value }))} placeholder="0" inputClassName="prj-fs" />
                           </div>
                           <div>
                             <label className="prj-ls" id={`${idCampo}-${fr.id}-etresp836`} htmlFor={`${idCampo}-${fr.id}-resp836`}>{traducir('proyectos_ui.semanas_entrega')}</label>
-                            <input className="prj-fs" id={`${idCampo}-${fr.id}-resp836`} aria-labelledby={`${idCampo}-${fr.id}-etresp836`} type="number" min="0" max="104" value={respondForm.estimated_delivery_weeks} onChange={e => setRespondForm(f => ({ ...f, estimated_delivery_weeks: e.target.value }))} placeholder="0" />
+                            <Input id={`${idCampo}-${fr.id}-resp836`} aria-labelledby={`${idCampo}-${fr.id}-etresp836`} type="number" min="0" max="104" value={respondForm.estimated_delivery_weeks} onChange={e => setRespondForm(f => ({ ...f, estimated_delivery_weeks: e.target.value }))} placeholder="0" inputClassName="prj-fs" />
                           </div>
                         </div>
                         <div className="u-mb-10">
                           <label className="prj-ls" id={`${idCampo}-${fr.id}-etresp841`} htmlFor={`${idCampo}-${fr.id}-resp841`}>{traducir('projects.mensaje_al_cliente')}</label>
-                          <textarea className="prj-fs prj-input" id={`${idCampo}-${fr.id}-resp841`} aria-labelledby={`${idCampo}-${fr.id}-etresp841`} rows={3} value={respondForm.pm_response} onChange={e => setRespondForm(f => ({ ...f, pm_response: e.target.value }))} placeholder={traducir('projects.explica_la_estimacion_o_razon_del_rechazo')} />
+                          <Textarea id={`${idCampo}-${fr.id}-resp841`} aria-labelledby={`${idCampo}-${fr.id}-etresp841`} rows={3} value={respondForm.pm_response} onChange={e => setRespondForm(f => ({ ...f, pm_response: e.target.value }))} placeholder={traducir('projects.explica_la_estimacion_o_razon_del_rechazo')} inputClassName="prj-fs prj-input" />
                         </div>
                         <div className="u-row-center-10">
                           <label className="prj-label-muted-xs-2" id={`${idCampo}-${fr.id}-etresp845`} htmlFor={`${idCampo}-${fr.id}-resp845`}>{traducir('proyectos_ui.col_estado')}</label>
                           <Select suelto placeholder={false} className="prj-fs prj-input-3" id={`${idCampo}-${fr.id}-resp845`} value={respondForm.status} onChange={e => setRespondForm(f => ({ ...f, status: e.target.value }))}>
                             <option value="estimated">{traducir('proyectos_ui.sol_estimated')}</option>
-                            <option value="approved">{traducir('proyectos_ui.aprobar')}</option>
                             <option value="rejected">{traducir('proyectos_ui.rechazar')}</option>
                             <option value="in_development">{traducir('proyectos_ui.sol_in_development')}</option>
                             <option value="done">{traducir('proyectos_ui.sol_done')}</option>
@@ -938,11 +937,11 @@ function TemplatesTab() {
             <div className="prj-card-muted-2">
               {traducir('projects.esta_plantilla_creara')} <strong className="u-text1">{traducir('proyectos_ui.n_fases', { n: instantiating.phases?.length || 0 })}</strong> {traducir('proyectos_ui.y_aproximadamente')} <strong className="u-text1">{traducir('proyectos_ui.n_tareas', { n: instantiating.phases?.reduce((s: number, p) => s + (p.tasks?.length || 0), 0) || 0 })}</strong> {traducir('projects.automaticamente')}
             </div>
-            <div><label className="prj-ls" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{traducir('projects.nombre_del_proyecto_2')}</label><input className="prj-fs" id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={instForm.name} onChange={e => setInstForm(f=>({...f,name:e.target.value}))} /></div>
+            <div><label className="prj-ls" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{traducir('projects.nombre_del_proyecto_2')}</label><Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={instForm.name} onChange={e => setInstForm(f=>({...f,name:e.target.value}))} inputClassName="prj-fs" /></div>
             <div className="u-grid2-14">
               <div><label className="prj-ls" id={`${idCampo}-etcliente`} htmlFor={`${idCampo}-cliente`}>{traducir('proyectos_ui.cliente')}</label><ClientSelect id={`${idCampo}-cliente`} aria-labelledby={`${idCampo}-etcliente`} value={instForm.client_id||''} onChange={(id, c) => setInstForm(f=>({...f, client_id: id, client_name: c ? c.name : ''}))} placeholder={traducir('projects.selecciona_un_cliente')} className="projects-page-e2" /></div>
               <div><label className="prj-ls" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{traducir('projects.label_start_date')}</label><DateInput id={`${idCampo}-2`} value={instForm.start_date} onChange={e => setInstForm(f=>({...f,start_date:e.target.value}))} className="prj-fs" /></div>
-              <div><label className="prj-ls" id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`}>{traducir('proyectos_ui.presupuesto_moneda', { moneda: fmtMoneda.simbolo })}</label><input className="prj-fs" id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={instForm.budget_amount} onChange={e => setInstForm(f=>({...f,budget_amount:e.target.value}))} /></div>
+              <div><label className="prj-ls" id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`}>{traducir('proyectos_ui.presupuesto_moneda', { moneda: fmtMoneda.simbolo })}</label><Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={instForm.budget_amount} onChange={e => setInstForm(f=>({...f,budget_amount:e.target.value}))} inputClassName="prj-fs" /></div>
               <div><label className="prj-ls" id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`}>{traducir('proyectos_ui.project_manager')}</label>
                 <Select suelto placeholder={false} className="prj-fs" id={`${idCampo}-4`} value={instForm.pm_id||''} onChange={e => setInstForm(f=>({...f,pm_id:e.target.value}))}>
                   <option value="">{traducir('projects.sin_asignar')}</option>
@@ -963,16 +962,16 @@ function TemplatesTab() {
       {showCreate && (
         <Modal open title={traducir('projects.nueva_plantilla_2')} onClose={() => setShowCreate(false)} width={580}>
           <div className="u-stack-14">
-            <div><label className="prj-ls" htmlFor={`${idCampo}-nombre`}>{traducir('proyectos_ui.nombre_req')}</label><input className="prj-fs" id={`${idCampo}-nombre`} value={newTpl.name} onChange={e => setNewTpl(f=>({...f,name:e.target.value}))} placeholder={traducir('projects.nombre_de_la_plantilla')} aria-label={traducir('projects.nombre_de_la_plantilla')} /></div>
-            <div><label className="prj-ls" id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`}>{traducir('projects.label_description')}</label><textarea className="prj-fs prj-input" id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={newTpl.description||''} onChange={e => setNewTpl(f=>({...f,description:e.target.value}))} rows={2} /></div>
+            <div><label className="prj-ls" htmlFor={`${idCampo}-nombre`}>{traducir('proyectos_ui.nombre_req')}</label><Input id={`${idCampo}-nombre`} value={newTpl.name} onChange={e => setNewTpl(f=>({...f,name:e.target.value}))} placeholder={traducir('projects.nombre_de_la_plantilla')} aria-label={traducir('projects.nombre_de_la_plantilla')} inputClassName="prj-fs" /></div>
+            <div><label className="prj-ls" id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`}>{traducir('projects.label_description')}</label><Textarea id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={newTpl.description||''} onChange={e => setNewTpl(f=>({...f,description:e.target.value}))} rows={2} inputClassName="prj-fs prj-input" /></div>
             <div className="prj-grid-5">
               <div><label className="prj-ls" id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`}>{traducir('proyectos_ui.col_tipo')}</label>
                 <Select suelto placeholder={false} className="prj-fs" id={`${idCampo}-6`} value={newTpl.project_type} onChange={e => setNewTpl(f=>({...f,project_type:e.target.value}))}>
                   {['consulting','development','maintenance','rd','internal'].map(t => <option key={t} value={t}>{t}</option>)}
                 </Select>
               </div>
-              <div><label className="prj-ls" id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`}>{traducir('proyectos_ui.semanas_estimadas')}</label><input className="prj-fs" id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} type="number" value={newTpl.estimated_weeks} onChange={e => setNewTpl(f=>({...f,estimated_weeks:+e.target.value}))} /></div>
-              <div><label className="prj-ls" id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`}>{traducir('proyectos_ui.horas_estimadas')}</label><input className="prj-fs" id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} type="number" value={newTpl.estimated_hours||''} onChange={e => setNewTpl(f=>({...f,estimated_hours:+e.target.value}))} /></div>
+              <div><label className="prj-ls" id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`}>{traducir('proyectos_ui.semanas_estimadas')}</label><Input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} type="number" value={newTpl.estimated_weeks} onChange={e => setNewTpl(f=>({...f,estimated_weeks:+e.target.value}))} inputClassName="prj-fs" /></div>
+              <div><label className="prj-ls" id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`}>{traducir('proyectos_ui.horas_estimadas')}</label><Input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} type="number" value={newTpl.estimated_hours||''} onChange={e => setNewTpl(f=>({...f,estimated_hours:+e.target.value}))} inputClassName="prj-fs" /></div>
             </div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setShowCreate(false)}>{traducir('common.cancel')}</Button>
@@ -1110,10 +1109,7 @@ export default function ProjectsPage() {
       <div className="ds-toolbar prj-text-2">
         <div className="prj-box-10">
           <Search size={14} aria-hidden className="prj-icono-buscar" />
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            aria-label={traducir('projects.buscar_proyecto_por_nombre_o_codigo')}
-            placeholder={traducir('projects.buscar_proyecto_por_nombre_o_codigo')}
-            className="ds-input prj-input-4" />
+          <Input value={search} onChange={e => setSearch(e.target.value)} aria-label={traducir('projects.buscar_proyecto_por_nombre_o_codigo')} placeholder={traducir('projects.buscar_proyecto_por_nombre_o_codigo')} inputClassName="prj-input-4" />
         </div>
         <Select suelto placeholder={false} aria-label={traducir('proyectos_ui.filtro_estado')} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
           className="prj-input-5">

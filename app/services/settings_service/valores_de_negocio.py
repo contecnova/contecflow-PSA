@@ -16,6 +16,7 @@ empresa del registro en vivo (`RUNTIME_FLAG_GROUPS`):
 | `PERF_REMINDER_UNDATED_CYCLE_DAYS` | automations | 30 | 1-365 |
 | `PERF_STALLED_CYCLE_DAYS` | automations | 45 | 1-365 |
 | `PERF_STALLED_COMPLETION_PCT` | automations | 50 | 0-100 |
+| `INTERNAL_IT_ERP_ACCOUNT` | presupuestos | (vacío) | vacío o 1-40 letras, cifras, espacio, `.`, `_`, `/`, `-` (rev. 193) |
 
 `set_runtime_value` llama a `validar` antes de guardar (y deja la entrada de
 auditoría de siempre, `settings_audit_service.record_change`). Un error sale
@@ -28,6 +29,7 @@ from __future__ import annotations
 
 import logging
 import math
+import re
 from typing import Any, Optional
 
 from app.core.codigos_de_error import ErrorConCodigo
@@ -55,7 +57,11 @@ RAMPA_MAX_FASES = 10
 
 #: Todas las claves que se validan aquí (`DEFAULT_VACATION_DAYS_PER_YEAR` se
 #: comprueba contra el máximo para que el par no quede desordenado).
-VALIDADOS = frozenset(RANGOS) | {"CHANGE_CANARY_RAMP_PCT", "DEFAULT_VACATION_DAYS_PER_YEAR"}
+VALIDADOS = frozenset(RANGOS) | {"CHANGE_CANARY_RAMP_PCT", "DEFAULT_VACATION_DAYS_PER_YEAR", "INTERNAL_IT_ERP_ACCOUNT"}
+
+#: Cuenta contable o centro del ERP (rev. 193, clientes internos): vacío o 1-40
+#: caracteres de letras, cifras, espacio, punto, guion, barra o subrayado.
+CUENTA_ERP = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 ._/-]{0,39}$")
 
 
 def _no_valido(clave: str, valor: Any, esperado: str) -> ErrorConCodigo:
@@ -102,6 +108,12 @@ def validar(db, clave: str, guardado: str, org_id: Optional[str]) -> str:
 
     if clave == "CHANGE_CANARY_RAMP_PCT":
         return ",".join(str(p) for p in parsear_rampa(guardado))
+
+    if clave == "INTERNAL_IT_ERP_ACCOUNT":
+        texto = str(guardado or "").strip()
+        if texto and not CUENTA_ERP.match(texto):
+            raise _no_valido(clave, guardado, "empty or 1-40 letters, digits, space . _ / -")
+        return texto
 
     if clave == "DEFAULT_VACATION_DAYS_PER_YEAR":
         tope = get_runtime_int(db, "VACATION_MAX_DAYS_ENTITLED", org_id)

@@ -14,7 +14,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Ban, FileCheck2, KeyRound, Pencil, PlayCircle, Plus, ShieldAlert, Trash2, UserX } from 'lucide-react'
-import { Button, Card, Checkbox, IconButton, Input, Modal, Select, Spinner, TablaSimple, useErroresDeCampo } from '../../components/ui'
+import { Button, Card, Checkbox, IconButton, Input, Modal, Select, Spinner, TablaSimple, useErroresDeCampo, Textarea } from '../../components/ui'
 import StatusBadge from '../../components/ui/StatusBadge'
 import { confirmar, pedirTexto } from '../../context/ConfirmContext'
 import { useToast } from '../../context/ToastContext'
@@ -112,7 +112,7 @@ function FormularioDeEvaluacion({ subId, onClose }: { subId: string; onClose: ()
         <Checkbox checked={diligencia} onChange={setDiligencia} label={t('proveedores.due_diligence')} />
         <div className="ui-field">
           <label htmlFor="prv-evaluacion-notas" className="uiinde-estiloetiqueta">{t('subcontractors.notes')}</label>
-          <textarea id="prv-evaluacion-notas" value={notas} onChange={e => setNotas(e.target.value)} className="ds-input prv-textarea" />
+          <Textarea id="prv-evaluacion-notas" value={notas} onChange={e => setNotas(e.target.value)} inputClassName="prv-textarea" />
         </div>
         <div className="u-actions-8">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>

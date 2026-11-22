@@ -6,7 +6,7 @@ import type { CSSProperties, ChangeEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { developerAppsApi, apiUrl, apiUrlAbsoluta } from '../services/api'
 import type { AplicacionOAuth, SecretoRotado } from '../services/api/tipos-plataforma'
-import { Button, Modal, EmptyState, Spinner, StatusBadge, Pulsable, useErroresDeCampo } from '../components/ui'
+import { Button, Modal, EmptyState, Spinner, StatusBadge, Pulsable, useErroresDeCampo, Input, Textarea } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AlertTriangle, AppWindow, Code2, Copy, Plus, RotateCw } from 'lucide-react'
@@ -98,20 +98,19 @@ function AppModal({ app, onClose }: { app?: AplicacionOAuth | null; onClose: () 
       <div className="u-stack-14">
         <div>
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="developer-portal-page-e7">{t('developer.app_name_label')}</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={f.name} onChange={set('name')} className="developer-portal-page-e8" placeholder={t('developer.app_name_placeholder')} />{msg('name')}
+          <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={f.name} onChange={set('name')} placeholder={t('developer.app_name_placeholder')} inputClassName="developer-portal-page-e8" />{msg('name')}
         </div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="developer-portal-page-e7">{t('developer.app_description_label')}</label>
-          <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={f.description} onChange={set('description')} className="developer-portal-page-e2" rows={2} />{msg('description')}
+          <Textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={f.description} onChange={set('description')} rows={2} inputClassName="developer-portal-page-e2" />{msg('description')}
         </div>
         <div>
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="developer-portal-page-e7">{t('developer.app_homepage_label')}</label>
-          <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={f.homepage_url} onChange={set('homepage_url')} className="developer-portal-page-e8" placeholder={t('developer.app_homepage_placeholder')} />{msg('homepage_url')}
+          <Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={f.homepage_url} onChange={set('homepage_url')} placeholder={t('developer.app_homepage_placeholder')} inputClassName="developer-portal-page-e8" />{msg('homepage_url')}
         </div>
         <div>
           <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="developer-portal-page-e7">{t('developer.app_redirect_label')}</label>
-          <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={f.redirect_uris} onChange={set('redirect_uris')} className="ds-codigo developer-portal-page-e3" rows={3}
-            placeholder={t('developer.app_redirect_placeholder')} />{msg('redirect_uris')}
+          <Textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={f.redirect_uris} onChange={set('redirect_uris')} rows={3} placeholder={t('developer.app_redirect_placeholder')} inputClassName="ds-codigo developer-portal-page-e3" />{msg('redirect_uris')}
         </div>
         <div>
           <label className="developer-portal-page-e7">{t('developer.app_scopes_label')}</label>

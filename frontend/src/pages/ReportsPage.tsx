@@ -20,7 +20,7 @@ import api, { analyticsApi, scheduledReportsApi, apiUrl } from '../services/api'
 import type { CatalogoDeMetricas, ConsultaDeMetrica, FilaDeMetrica, OpcionesDeFiltroAnalitico, ResumenDeMetrica } from '../services/api/tipos-analitica'
 import { Card, Button, Spinner, EmptyState, KpiCard, SelectorDePeriodo, Table, Tabs, type ColumnaDeTabla, Select, Pulsable, IconButton, TablaSimple, Checkbox } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
-import { Page } from '../components/ui'
+import { Page, Input } from '../components/ui'
 import {
   BarChart2, Grid3X3, Search, Zap, Pin, Calendar,
   Table as TableIcon, BarChartBig, Clock, Wallet, Coins, CalendarDays, Hexagon, Briefcase, Users,
@@ -677,7 +677,7 @@ function ReportPanel({ initialMetric, initialChart, onSave }: { initialMetric?: 
           {/* Top N */}
           <div>
             <label className="rep-ls" id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`}>{traducir('reportes_ui.top_n')}</label>
-            <input className="ds-input" id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" min={5} max={100} value={topN} onChange={e => setTopN(+e.target.value)} />
+            <Input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" min={5} max={100} value={topN} onChange={e => setTopN(+e.target.value)} />
           </div>
 
           {/* Color */}
@@ -955,8 +955,7 @@ function ScheduledReportsTab() {
           <div className="rep-grid-4">
             <div>
               <label className="rep-ls-2" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>{traducir('reportes_ui.nombre_req')}</label>
-              <input className="ds-input" id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                placeholder={traducir('reports.report_name')} />
+              <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={traducir('reports.report_name')} />
             </div>
             <div>
               <label className="rep-ls-2" id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`}>{traducir('reports.metrica_2')}</label>
@@ -972,8 +971,7 @@ function ScheduledReportsTab() {
             </div>
             <div>
               <label className="rep-ls-2" id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`}>{traducir('reports.destinatarios_emails_separados_por_coma')}</label>
-              <input className="ds-input" id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.recipients} onChange={e => setForm(f => ({ ...f, recipients: e.target.value }))}
-                placeholder={traducir('reportes_ui.emails_ejemplo')} />
+              <Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.recipients} onChange={e => setForm(f => ({ ...f, recipients: e.target.value }))} placeholder={traducir('reportes_ui.emails_ejemplo')} />
             </div>
           </div>
           <Checkbox className="rep-label-sm" checked={!!form.include_pdf}
@@ -1079,11 +1077,7 @@ function PresetsTab({ presets, supportedMetrics, onOpen }: { presets: readonly P
   return (
     <div>
       <div className="u-mb-12">
-        <input className="ds-input" aria-label={traducir('reportes_ui.buscar_plantilla')}
-          value={searchQ}
-          onChange={e => setSearchQ(e.target.value)}
-          placeholder={traducir('reportes_ui.buscar_plantilla')}
-        />
+        <Input aria-label={traducir('reportes_ui.buscar_plantilla')} value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder={traducir('reportes_ui.buscar_plantilla')} />
       </div>
       <div className="rep-row-17">
         {cats.map(c => (

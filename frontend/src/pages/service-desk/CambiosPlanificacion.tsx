@@ -17,7 +17,7 @@ import { useAuth } from '../../context/AuthContext'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { extractErr, fmtDateTime, fmtMonth, formateadorDeFecha } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { Button, EmptyState, IconButton, Modal, Pulsable, Select, Spinner, StatusBadge } from '../../components/ui'
+import { Button, EmptyState, IconButton, Modal, Pulsable, Select, Spinner, StatusBadge, Input, Textarea } from '../../components/ui'
 import type { StatusBadgeKind } from '../../components/ui/StatusBadge'
 import { sdChangePlanningApi } from '../../services/api'
 import type { SdCambioEnCalendario, SdComiteDeCambio, SdCongelacion, SdVersionDeCambios } from '../../services/api/tipos-sd'
@@ -161,12 +161,12 @@ function FormCongelacion({ inicial, pendiente, onCancelar, onGuardar }: { inicia
   const valido = f.name.trim() && f.start && f.end && f.end > f.start
   return (
     <div className="u-stack-12">
-      <div><label className="cambplan-ls" htmlFor="blk-name">{t('sd_cfg.chg_name')} *</label><input id="blk-name" aria-label={t('sd_cfg.chg_name')} value={f.name} onChange={e => setF({ ...f, name: e.target.value })} className="ds-input" /></div>
+      <div><label className="cambplan-ls" htmlFor="blk-name">{t('sd_cfg.chg_name')} *</label><Input id="blk-name" aria-label={t('sd_cfg.chg_name')} value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></div>
       <div className="u-grid2-10">
         <div><label className="cambplan-ls" htmlFor="blk-from">{t('sd_cfg.chg_from')} *</label><DateInput id="blk-from" aria-label={t('sd_cfg.chg_from')} withTime value={f.start} onChange={e => setF({ ...f, start: e.target.value })} className="ds-input" /></div>
         <div><label className="cambplan-ls" htmlFor="blk-to">{t('sd_cfg.chg_to')} *</label><DateInput id="blk-to" aria-label={t('sd_cfg.chg_to')} withTime value={f.end} onChange={e => setF({ ...f, end: e.target.value })} className="ds-input" /></div>
       </div>
-      <div><label className="cambplan-ls" htmlFor="blk-reason">{t('sd_cfg.chg_reason')}</label><textarea id="blk-reason" aria-label={t('sd_cfg.chg_reason')} rows={2} value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} className="ds-input cambplan-textarea" /></div>
+      <div><label className="cambplan-ls" htmlFor="blk-reason">{t('sd_cfg.chg_reason')}</label><Textarea id="blk-reason" aria-label={t('sd_cfg.chg_reason')} rows={2} value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} inputClassName="cambplan-textarea" /></div>
       <div className="u-actions-10">
         <Button variant="secondary" onClick={onCancelar}>{t('common.cancel')}</Button>
         <Button disabled={!valido || pendiente} loading={pendiente}
@@ -234,8 +234,8 @@ function FormVersion({ inicial, pendiente, onCancelar, onGuardar }: { inicial: V
   return (
     <div className="u-stack-12">
       <div className="cambplan-grid-1">
-        <div><label className="cambplan-ls" htmlFor="rel-name">{t('sd_cfg.chg_name')} *</label><input id="rel-name" aria-label={t('sd_cfg.chg_name')} value={f.name} onChange={e => setF({ ...f, name: e.target.value })} className="ds-input" /></div>
-        <div><label className="cambplan-ls" htmlFor="rel-version">{t('sd_cfg.chg_version')}</label><input id="rel-version" aria-label={t('sd_cfg.chg_version')} value={f.version} onChange={e => setF({ ...f, version: e.target.value })} className="ds-input" /></div>
+        <div><label className="cambplan-ls" htmlFor="rel-name">{t('sd_cfg.chg_name')} *</label><Input id="rel-name" aria-label={t('sd_cfg.chg_name')} value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></div>
+        <div><label className="cambplan-ls" htmlFor="rel-version">{t('sd_cfg.chg_version')}</label><Input id="rel-version" aria-label={t('sd_cfg.chg_version')} value={f.version} onChange={e => setF({ ...f, version: e.target.value })} /></div>
       </div>
       <div className="u-grid2-10">
         <div><label className="cambplan-ls" htmlFor="rel-date">{t('sd_cfg.chg_planned_date')}</label><DateInput id="rel-date" aria-label={t('sd_cfg.chg_planned_date')} withTime value={f.date} onChange={e => setF({ ...f, date: e.target.value })} className="ds-input" /></div>
@@ -244,7 +244,7 @@ function FormVersion({ inicial, pendiente, onCancelar, onGuardar }: { inicial: V
             {ESTADOS_VERSION.map(s => <option key={s} value={s}>{t(`sd_cfg.chg_rel_${s}`)}</option>)}
           </Select></div>
       </div>
-      <div><label className="cambplan-ls" htmlFor="rel-notes">{t('changemanagement.notas')}</label><textarea id="rel-notes" aria-label={t('changemanagement.notas')} rows={3} value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} className="ds-input cambplan-textarea" /></div>
+      <div><label className="cambplan-ls" htmlFor="rel-notes">{t('changemanagement.notas')}</label><Textarea id="rel-notes" aria-label={t('changemanagement.notas')} rows={3} value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} inputClassName="cambplan-textarea" /></div>
       <div className="u-actions-10">
         <Button variant="secondary" onClick={onCancelar}>{t('common.cancel')}</Button>
         <Button disabled={!f.name.trim() || pendiente} loading={pendiente}
@@ -291,8 +291,7 @@ export function PanelCab({ changeId }: { changeId: string | number }) {
       ))}
       {puedeVotar && (
         <div className="cambplan-stack-3">
-          <textarea aria-label={t('sd_cfg.chg_vote_note')} placeholder={t('sd_cfg.chg_vote_note')} rows={2} value={nota}
-            onChange={e => setNota(e.target.value)} className="ds-input cambplan-textarea" />
+          <Textarea aria-label={t('sd_cfg.chg_vote_note')} placeholder={t('sd_cfg.chg_vote_note')} rows={2} value={nota} onChange={e => setNota(e.target.value)} inputClassName="cambplan-textarea" />
           <div className="u-row-8">
             <Button onClick={() => votar.mutate(true)} loading={votar.isPending}>{t('sd_cfg.chg_vote_yes')}</Button>
             <Button variant="secondary" disabled={!nota.trim()} onClick={() => votar.mutate(false)}>{t('sd_cfg.chg_vote_no')}</Button>

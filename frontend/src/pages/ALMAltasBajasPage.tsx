@@ -17,7 +17,7 @@ import { Boxes, CalendarClock, ClipboardCheck, KeyRound, Laptop, ListChecks, Pac
 import { almIntegracionApi } from '../services/api/almIntegracion'
 import type { Baja, Devolucion, ElementoDeKit, ItemDeCatalogoAlm, Kit, Peticion, PropuestaDeKit } from '../services/api/almIntegracion'
 import { licensesApi, sdCatalogApi, usersApi } from '../services/api'
-import { Button, DataTable, EmptyState, KpiCard, Modal, Page, Select, Spinner, Tabs, Pulsable, Checkbox, useErroresDeCampo } from '../components/ui'
+import { Button, DataTable, EmptyState, KpiCard, Modal, Page, Select, Spinner, Tabs, Pulsable, Checkbox, useErroresDeCampo, Textarea, Input } from '../components/ui'
 import DateInput from '../components/ui/DateInput'
 import { useAppT } from '../i18n/AppLangContext'
 import { useToast } from '../context/ToastContext'
@@ -147,7 +147,7 @@ function ProgramarBaja({ onClose }: { onClose: () => void }) {
       <label className="almint-campo">{t('almint.col_fecha_baja')}
         <DateInput className="ds-input" value={f.fecha} onChange={e => setF({ ...f, fecha: e.target.value })} />{msgB('fecha')}</label>
       <label className="almint-campo">{t('almint.notas')}
-        <textarea className="ds-input" rows={2} value={f.notas} onChange={e => setF({ ...f, notas: e.target.value })} />{msgB('notas')}</label>
+        <Textarea rows={2} value={f.notas} onChange={e => setF({ ...f, notas: e.target.value })} />{msgB('notas')}</label>
       <div className="almint-acciones almint-acciones--fin">
         <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
         <Button disabled={!f.user_id || !f.fecha} loading={m.isPending} onClick={() => m.mutate()}>{t('almint.programar_baja')}</Button>
@@ -213,11 +213,11 @@ function AccionDeDevolucion({ tipo, d, onClose }: { tipo: 'recibir' | 'perdida';
         <Select label={t('almint.estado_fisico')} value={f.condition} onChange={e => setF({ ...f, condition: e.target.value })}
           options={CONDICIONES.map(c => ({ value: c, label: etiqueta(t, 'condicion', c) }))} />
         <label className="almint-campo">{t('almint.observaciones')}
-          <textarea className="ds-input" rows={3} value={f.observations} onChange={e => setF({ ...f, observations: e.target.value })} /></label>
+          <Textarea rows={3} value={f.observations} onChange={e => setF({ ...f, observations: e.target.value })} /></label>
         <label className="almint-elemento"><span><Checkbox checked={f.a_reparar} onChange={(_, e) => setF({ ...f, a_reparar: e.target.checked })} /> {t('almint.enviar_a_reparar')}</span></label>
         <p className="almint-tenue">{t('almint.recepcion_explicacion')}</p>
       </> : <label className="almint-campo">{t('almint.motivo')}
-        <textarea className="ds-input" rows={3} value={f.motivo} onChange={e => setF({ ...f, motivo: e.target.value })} /></label>}
+        <Textarea rows={3} value={f.motivo} onChange={e => setF({ ...f, motivo: e.target.value })} /></label>}
       <div className="almint-acciones almint-acciones--fin">
         <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
         <Button variant={tipo === 'recibir' ? 'primary' : 'danger'} disabled={tipo === 'perdida' && !f.motivo.trim()} loading={m.isPending} onClick={() => m.mutate()}>{t('common.confirm')}</Button>
@@ -340,15 +340,15 @@ function EditorDeKit({ kit, onClose }: { kit: Kit | null; onClose: () => void })
   return <Modal open onClose={onClose} size="lg" title={kit ? kit.nombre : t('almint.nuevo_kit')} subtitle={t('almint.kit_sub')}>
     <div className="almint-form">
       <label className="almint-campo">{t('almint.col_nombre')}
-        <input className="ds-input" value={f.nombre} onChange={e => setF({ ...f, nombre: e.target.value })} />{msg('nombre')}</label>
+        <Input value={f.nombre} onChange={e => setF({ ...f, nombre: e.target.value })} />{msg('nombre')}</label>
       <div className="almint-fila">
         <Select error={campos.de('criterio')} label={t('almint.col_aplica_a')} value={f.criterio} onChange={e => setF({ ...f, criterio: e.target.value })}
           options={CRITERIOS.map(c => ({ value: c, label: etiqueta(t, 'criterio', c) }))} />
         {f.criterio !== 'todos' && <label className="almint-campo">{t('almint.valor_del_criterio')}
-          <input className="ds-input" value={f.valor} onChange={e => setF({ ...f, valor: e.target.value })} />{msg('valor')}</label>}
+          <Input value={f.valor} onChange={e => setF({ ...f, valor: e.target.value })} />{msg('valor')}</label>}
       </div>
       <label className="almint-campo">{t('common.description')}
-        <textarea className="ds-input" rows={2} value={f.descripcion} onChange={e => setF({ ...f, descripcion: e.target.value })} />{msg('descripcion')}</label>
+        <Textarea rows={2} value={f.descripcion} onChange={e => setF({ ...f, descripcion: e.target.value })} />{msg('descripcion')}</label>
       <h3 className="almint-subtitulo">{t('almint.col_contenido')}</h3>
       {elementos.map((e, i) => <div key={i} className="almint-fila">
         <Select label={t('almint.tipo')} value={e.tipo} onChange={ev => cambiar(i, { tipo: ev.target.value as 'licencia' | 'equipo', license_id: null, asset_type: null })}
@@ -359,7 +359,7 @@ function EditorDeKit({ kit, onClose }: { kit: Kit | null; onClose: () => void })
           : <Select label={t('almint.tipo_de_equipo')} value={e.asset_type ?? ''} onChange={ev => cambiar(i, { asset_type: ev.target.value })}
               options={TIPOS_DE_EQUIPO.map(v => ({ value: v, label: etiqueta(t, 'tipo_equipo', v) }))} />}
         {e.tipo === 'equipo' && <label className="almint-campo">{t('almint.col_cantidad')}
-          <input type="number" min={1} className="ds-input" value={e.cantidad} onChange={ev => cambiar(i, { cantidad: Number(ev.target.value) || 1 })} /></label>}
+          <Input type="number" min={1} value={e.cantidad} onChange={ev => cambiar(i, { cantidad: Number(ev.target.value) || 1 })} /></label>}
         <div className="almint-acciones"><Button size="xs" variant="ghost" icon={<Trash2 size={12} />} onClick={() => setElementos(elementos.filter((_x, j) => j !== i))}>{t('almint.quitar')}</Button></div>
       </div>)}
       <div className="almint-acciones">

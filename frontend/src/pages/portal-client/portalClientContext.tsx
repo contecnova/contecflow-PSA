@@ -14,7 +14,7 @@ import StatusBadge from '../../components/ui/StatusBadge'
 import { useDialogo } from '../../components/ui/useDialogo'
 import { TextosDeInterfazProvider, type TraductorDeCodigos } from '../../components/ui/useTextoUi'
 import { mensajeDeError } from '../../utils/mensajeDeError'
-import { Button, Pulsable } from '../../components/ui'
+import { Button, Pulsable, Input } from '../../components/ui'
 import { Timer, Map as MapIcon, Headphones, FlaskConical, Receipt } from 'lucide-react'
 import './portalClientContext.css'
 
@@ -487,15 +487,11 @@ export function LoginScreen({ _changeLang, _currentLang }: { _changeLang?: (code
           <form onSubmit={e => { e.preventDefault(); handleLogin() }} className="u-stack-14">
             <div>
               <label htmlFor={`${idPrefix}-email`} id={`${idPrefix}-email-etiqueta`} className="poclco-labelstyle">{t('login_email')}</label>
-              <input id={`${idPrefix}-email`} aria-labelledby={`${idPrefix}-email-etiqueta`} type="email" autoComplete="email"
-                value={email} onChange={e => setEmail(e.target.value)}
-                className="poclco-fieldstyle" placeholder={t('login_email_placeholder')} />
+              <Input id={`${idPrefix}-email`} aria-labelledby={`${idPrefix}-email-etiqueta`} type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={t('login_email_placeholder')} inputClassName="poclco-fieldstyle" />
             </div>
             <div>
               <label htmlFor={`${idPrefix}-password`} id={`${idPrefix}-password-etiqueta`} className="poclco-labelstyle">{t('login_password')}</label>
-              <input id={`${idPrefix}-password`} aria-labelledby={`${idPrefix}-password-etiqueta`} type="password" autoComplete="current-password"
-                value={password} onChange={e => setPassword(e.target.value)}
-                className="poclco-fieldstyle" placeholder="••••••••" />
+              <Input id={`${idPrefix}-password`} aria-labelledby={`${idPrefix}-password-etiqueta`} type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" inputClassName="poclco-fieldstyle" />
             </div>
             {error && (
               <div className="poclco-box-14">{error}</div>

@@ -11,7 +11,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, ClipboardCheck, Users } from 'lucide-react'
 import { useAppT } from '../../i18n/AppLangContext'
-import { EmptyState, KpiCard, Pulsable, Spinner, StatusBadge, TablaSimple } from '../ui'
+import { EmptyState, KpiCard, Pulsable, Spinner, StatusBadge, TablaSimple, Input } from '../ui'
 import type { StatusBadgeKind } from '../ui/StatusBadge'
 import Pagination from '../ui/Pagination'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
@@ -41,7 +41,7 @@ export default function PanelDelCab({ onOpen }: { onOpen: (id: string) => void }
         <KpiCard icon={<AlertTriangle size={16} />} label={t('sd_mercado.cab_sin_puntuar')} value={data?.unscored ?? 0} warning={(data?.unscored ?? 0) > 0} />
       </div>
       <div className="pcab-filtros"><label className="sdm-field pcab-campo"><span>{t('sd_mercado.riesgo_minimo')}</span>
-        <input className="ds-input" type="number" min={0} max={100} value={minimo} onChange={e => { setMinimo(Number(e.target.value) || 0); setPage(1) }} /></label></div>
+        <Input type="number" min={0} max={100} value={minimo} onChange={e => { setMinimo(Number(e.target.value) || 0); setPage(1) }} /></label></div>
       {isLoading ? <Spinner /> : items.length === 0 ? <EmptyState icon={<ClipboardCheck size={28} />} title={t('sd_mercado.cab_vacio')} /> : (
         <div className="sdm-table-wrap">
           <TablaSimple claseTabla="u-table">

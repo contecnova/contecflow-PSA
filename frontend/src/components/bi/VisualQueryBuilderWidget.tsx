@@ -3,7 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { biIntelligenceApi } from '../../services/api'
 import type { PlantillaDeConsultaVisual } from '../../services/api/tipos-bi'
 import { useAppT } from '../../i18n/AppLangContext'
-import { Button, IconButton, Table, Select, Pulsable, Checkbox } from '../ui'
+import { Button, IconButton, Table, Select, Pulsable, Checkbox, Input } from '../ui'
 import { Eye, Plus, Save, Trash2, X } from 'lucide-react'
 import { STALE_5_MIN_MS } from '../../constants/timings'
 import { VISUAL_QUERY_ROW_LIMIT } from '../../constants/pagination'
@@ -192,12 +192,7 @@ export default function VisualQueryBuilderWidget() {
         {!!entityDef && (
           <>
             <div className="viqubuwi-grid-2">
-              <input aria-label={t('visual_query_builder.template_placeholder')}
-                value={templateName}
-                onChange={(e) => setTemplateName(e.target.value)}
-                placeholder={t('visual_query_builder.template_placeholder')}
-                className="viqubuwi-box-5"
-              />
+              <Input aria-label={t('visual_query_builder.template_placeholder')} value={templateName} onChange={(e) => setTemplateName(e.target.value)} placeholder={t('visual_query_builder.template_placeholder')} inputClassName="viqubuwi-box-5" />
               <Button
                 variant="secondary"
                 icon={<Save size={14} />}

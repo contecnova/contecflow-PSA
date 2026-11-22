@@ -57,7 +57,10 @@ from app.services.audit import audit_log
 
 logger = logging.getLogger(__name__)
 
-TIPOS = ("sw_ssh", "sw_winrm", "sw_api")
+#: Rev. 194: conexiones de terceros (Trend Vision One, Defender VM, Qualys, Tenable, Rapid7) y
+#: SIEM genérico (intentos de explotación); su lógica está en `riesgo/terceros.py`.
+TIPOS_TERCEROS = ("sw_vm_trendmicro", "sw_vm_defender", "sw_vm_qualys", "sw_vm_tenable", "sw_vm_rapid7", "sw_siem")
+TIPOS = ("sw_ssh", "sw_winrm", "sw_api") + TIPOS_TERCEROS
 #: Claves de configuración por tipo (las secretas, marcadas): las lee la pantalla.
 CAMPOS = {
     "sw_ssh": ("hosts", "port", "username", "password*", "private_key*", "passphrase*", "known_hosts",
@@ -69,7 +72,9 @@ CAMPOS = {
                "name_field", "version_field", "vendor_field", "path_field", "next_path", "max_pages",
                "environment", "create_cis", "timeout"),
 }
-SECRETOS = {k.rstrip("*") for campos in CAMPOS.values() for k in campos if k.endswith("*")}
+from app.services.cmdb_software.riesgo.terceros import CAMPOS as _CAMPOS_TERCEROS  # noqa: E402
+CAMPOS.update(_CAMPOS_TERCEROS)
+SECRETOS ={k.rstrip("*") for campos in CAMPOS.values() for k in campos if k.endswith("*")}
 
 Ejecutor = Callable[[str], tuple[int, str]]
 
@@ -581,6 +586,13 @@ def ejecutar(db: Session, c: CMDBDiscoveryProvider, usuario=None, hosts: Optiona
     from app.services.cmdb.parser import load_config
     from app.services.cmdb_software.correlacion import reevaluar
     from app.services.cmdb_software.importacion import aplicar_inventario
+    if c.provider_type in TIPOS_TERCEROS:
+        from app.services.cmdb_software.riesgo.terceros import ejecutar_conexion
+        r = ejecutar_conexion(db, c, usuario, disparo)
+        audit_log(db, usuario, "SCAN", "sw_scan", c.id, c.name,
+                  metadata={"type": c.provider_type, "hosts": r.get("hosts"), "errors": len(r.get("errors") or []),
+                            "findings_new": r.get("findings_new"), "trigger": disparo})
+        return r
     org = c.organization_id
     conf = load_config(c)
     resumen = {"hosts": 0, "errors": [], "cis_created": 0, "created": 0, "updated": 0, "stopped": 0, "components": 0,
@@ -645,6 +657,9 @@ def para_el_descubrimiento(db: Session, c: CMDBDiscoveryProvider) -> dict:
 def probar(db: Session, c: CMDBDiscoveryProvider) -> dict:
     """Prueba de conexión con el primer equipo (o la primera página de la API), sin guardar nada."""
     from app.services.cmdb.parser import load_config
+    if c.provider_type in TIPOS_TERCEROS:
+        from app.services.cmdb_software.riesgo.terceros import probar_conexion
+        return probar_conexion(c)
     conf = load_config(c)
     try:
         if c.provider_type == "sw_api":

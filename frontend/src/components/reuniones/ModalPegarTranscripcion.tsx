@@ -6,7 +6,7 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Sparkles } from 'lucide-react'
-import { Button, ClientSelect, FormField, Input, Modal, ProjectSelect, Select } from '../ui'
+import { Button, ClientSelect, FormField, Input, Modal, ProjectSelect, Select, Textarea } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
@@ -67,7 +67,7 @@ export default function ModalPegarTranscripcion({ onClose, onCreada }: Props) {
           value={asistentes} onChange={e => setAsistentes(e.target.value)} />
         <div className="u-col-full">
           <FormField label={t('reuniones.pegar.transcripcion')} required hint={t('reuniones.pegar.transcripcion_ayuda')}>
-            <textarea className="reu-textarea" rows={12} value={texto} onChange={e => setTexto(e.target.value)} />
+            <Textarea rows={12} value={texto} onChange={e => setTexto(e.target.value)} inputClassName="reu-textarea" />
           </FormField>
         </div>
         <div className="u-col-full reu-botonera">

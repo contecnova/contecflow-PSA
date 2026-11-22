@@ -12,7 +12,7 @@ import { Boxes, Euro, KeyRound, Laptop, Plus, Users } from 'lucide-react'
 import { almIntegracionApi } from '../../services/api/almIntegracion'
 import type { AsignacionAlm, CosteAgrupado, RecursosDelProyecto } from '../../services/api/almIntegracion'
 import { assetsApi, licensesApi } from '../../services/api'
-import { Button, DataTable, EmptyState, KpiCard, Modal, Section, Select, SelectorDePeriodo, Spinner, useErroresDeCampo } from '../ui'
+import { Button, DataTable, EmptyState, KpiCard, Modal, Section, Select, SelectorDePeriodo, Spinner, useErroresDeCampo, Input, Textarea } from '../ui'
 import { usePeriodo } from '../../hooks/usePeriodo'
 import { SIN_HORA, codigoDeErrorDePeriodo } from '../../utils/periodo'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -167,12 +167,12 @@ function AsignarModal({ projectId, datos, onClose }: { projectId: string; datos:
             options={bolsas.map(b => ({ value: b.id, label: t('almint.bolsa_uso', { usados: b.used_in_pool ?? 0, total: b.quantity }) }))} />}
         <div className="almint-fila">
           {f.recurso === 'license' && f.holder_type === 'project' && <label className="almint-campo">{t('almint.asientos')}
-            <input type="number" min={1} className="ds-input" value={f.quantity} onChange={e => setF({ ...f, quantity: e.target.value })} />{msg('quantity')}</label>}
+            <Input type="number" min={1} value={f.quantity} onChange={e => setF({ ...f, quantity: e.target.value })} />{msg('quantity')}</label>}
           <label className="almint-campo">{f.recurso === 'asset' ? t('almint.devolver_antes_de') : t('almint.hasta')}
             <DateInput className="ds-input" value={f.valid_to} onChange={e => setF({ ...f, valid_to: e.target.value })} />{msg('valid_to')}</label>
         </div>
         <label className="almint-campo">{t('almint.motivo')}
-          <textarea className="ds-input" rows={2} value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} />{msg('reason')}</label>
+          <Textarea rows={2} value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} />{msg('reason')}</label>
         <div className="almint-acciones almint-acciones--fin">
           <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
           <Button disabled={!listo} loading={m.isPending} onClick={() => m.mutate()}>{t('almint.asignar')}</Button>

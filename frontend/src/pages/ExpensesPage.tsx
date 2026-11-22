@@ -16,7 +16,7 @@ import { useToast } from '../context/ToastContext'
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, expensesApi, gastosApi } from '../services/api'
 import type { FiltrosDeGastos, GastoConPoliticas } from '../services/api/gastos'
-import { Button, Modal, Spinner, EmptyState, useSort, SortableTH, SearchInput, FilterSelect, KpiCard, Tabs, IconButton, Pulsable, Select, Checkbox, useErroresDeCampo } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, useSort, SortableTH, SearchInput, FilterSelect, KpiCard, Tabs, IconButton, Pulsable, Select, Checkbox, useErroresDeCampo, Input, Textarea } from '../components/ui'
 import Pagination from '../components/ui/Pagination'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -280,7 +280,7 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
       <div className="u-grid2-14">
         <div className="u-col-full ds-field">
           <label htmlFor={id('desc')} className="ds-field__label">{t('expenses.descripcion')}</label>
-          <input id={id('desc')} value={form.description} onChange={set('description')} className="ds-input" placeholder={t('expenses.descripcion_del_gasto')} />
+          <Input id={id('desc')} value={form.description} onChange={set('description')} placeholder={t('expenses.descripcion_del_gasto')} />
           {msg('description')}
         </div>
         <div className="ds-field">
@@ -300,13 +300,12 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
         </div>
         <div className="ds-field">
           <label htmlFor={id('imp')} className="ds-field__label">{t('expenses.importe_obligatorio')}</label>
-          <input id={id('imp')} type="number" step="0.01" value={form.km ? '' : form.amount} disabled={!!form.km} onChange={set('amount')} className="ds-input"
-            placeholder={form.km ? t('gas.importe_por_km') : t('expenses.amount')} />
+          <Input id={id('imp')} type="number" step="0.01" value={form.km ? '' : form.amount} disabled={!!form.km} onChange={set('amount')} placeholder={form.km ? t('gas.importe_por_km') : t('expenses.amount')} />
           {msg('amount')}
         </div>
         <div className="ds-field">
           <label htmlFor={id('km')} className="ds-field__label">{t('gas.km')}</label>
-          <input id={id('km')} type="number" step="0.1" min={0} value={form.km} onChange={set('km')} className="ds-input" placeholder={t('gas.km_ayuda')} />
+          <Input id={id('km')} type="number" step="0.1" min={0} value={form.km} onChange={set('km')} placeholder={t('gas.km_ayuda')} />
           {msg('km')}
         </div>
         <div className="ds-field">
@@ -331,23 +330,21 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
         </div>
         <div className="ds-field">
           <label htmlFor={id('ciudad')} className="ds-field__label">{t('gas.ciudad')}</label>
-          <input id={id('ciudad')} list={id('ciudades')} value={form.city} onChange={set('city')} className="ds-input" maxLength={120} />
+          <Input id={id('ciudad')} list={id('ciudades')} value={form.city} onChange={set('city')} maxLength={120} />
           {msg('city')}
           <datalist id={id('ciudades')}>{ciudades.map(c => <option key={c} value={c} aria-label={c} />)}</datalist>
         </div>
         {form.category === 'meals' && (
           <div className="ds-field">
             <label htmlFor={id('asis')} className="ds-field__label">{t('gas.asistentes')}</label>
-            <input id={id('asis')} type="number" min={1} step={1} value={form.attendees} onChange={set('attendees')} className="ds-input"
-              aria-describedby={id('asis-ayuda')} />
+            <Input id={id('asis')} type="number" min={1} step={1} value={form.attendees} onChange={set('attendees')} aria-describedby={id('asis-ayuda')} />
           {msg('attendees')}
             <span id={id('asis-ayuda')} className="ds-field__hint">{t('gas.asistentes_ayuda')}</span>
           </div>
         )}
         <div className="ds-field">
           <label htmlFor={id('viaje')} className="ds-field__label">{t('gas.viaje')}</label>
-          <input id={id('viaje')} list={id('viajes')} value={form.trip} onChange={set('trip')} className="ds-input" maxLength={120}
-            aria-describedby={id('viaje-ayuda')} />
+          <Input id={id('viaje')} list={id('viajes')} value={form.trip} onChange={set('trip')} maxLength={120} aria-describedby={id('viaje-ayuda')} />
           {msg('trip')}
           <datalist id={id('viajes')}>{viajes.map(c => <option key={c} value={c} aria-label={c} />)}</datalist>
           <span id={id('viaje-ayuda')} className="ds-field__hint">{t('gas.viaje_ayuda')}</span>
@@ -358,7 +355,7 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
         </div>
         <div className="u-col-full ds-field">
           <label htmlFor={id('notas')} className="ds-field__label">{t('expenses.notas_adicionales')}</label>
-          <textarea id={id('notas')} value={form.notes} onChange={set('notes')} rows={2} className="ds-input exp-textarea" placeholder={t('expenses.notas_adicionales')} />
+          <Textarea id={id('notas')} value={form.notes} onChange={set('notes')} rows={2} placeholder={t('expenses.notas_adicionales')} inputClassName="exp-textarea" />
           {msg('notes')}
         </div>
         <div className="exp-nota">{t('gas.justificantes_en_el_detalle')}</div>
@@ -412,7 +409,7 @@ function ReviewModal({ expense, onClose }: { expense: Expense; onClose: () => vo
       </div>
       <div className="u-mb-16 ds-field">
         <label htmlFor={`${idCampo}-motivo`} className="ds-field__label">{t('expenses.motivo_de_rechazo_si_aplica')}</label>
-        <input id={`${idCampo}-motivo`} value={reason} onChange={e => setReason(e.target.value)} className="ds-input" placeholder={t('expenses.motivo_de_rechazo')} />
+        <Input id={`${idCampo}-motivo`} value={reason} onChange={e => setReason(e.target.value)} placeholder={t('expenses.motivo_de_rechazo')} />
       </div>
       <div className="u-actions-10">
         <Button variant="secondary" onClick={onClose}>{t('expenses.cancelar')}</Button>

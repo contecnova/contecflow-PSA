@@ -19,7 +19,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { tasksApi, projectsApi, customFieldsApi, semanticApi, projectWorkflowsApi, issueTypesApi, sprintsApi, cmdbApi, usersApi } from '../services/api'
 import type { CampoPersonalizado, ConfigDelTablero, EstimacionDeEsfuerzo, FlujoDelProyecto, SugerenciaDeAsignacion, TipoDeIncidencia, ValorDeCampoPersonalizado } from '../services/api/tipos-rendimiento'
 import type { ApiError, ProjectListItem, TaskCreatePayload, TaskUpdatePayload, TaskBulkUpdatePayload, TaskListParams, PersonaVisible, MovementLogEntry } from '../services/api'
-import { Badge, Button, Modal, EmptyState, Avatar, useSort, SortableTH, Tabs, Drawer, Select, Checkbox, Chip, BarraDeFiltros, IconButton, Pulsable, useErroresDeCampo } from '../components/ui'
+import { Badge, Button, Modal, EmptyState, Avatar, useSort, SortableTH, Tabs, Drawer, Select, Checkbox, Chip, BarraDeFiltros, IconButton, Pulsable, useErroresDeCampo, Input } from '../components/ui'
 import { SkeletonTable } from '../components/ui/Skeletons'
 import VistasDeTrabajo, { VISTAS_DE_TRABAJO, type FiltrosDeVistas, type VistaDeTrabajo } from '../components/planificador/VistasDeTrabajo'
 import VirtualList from '../components/ui/VirtualList'
@@ -675,7 +675,7 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
           {/* Título */}
           <div className="u-col-full">
             <label id={`${idCampo}-1-et`} htmlFor={`${idCampo}-1`} className="tsk-label">{t('tasks.title_required')}</label>
-            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-1-et`} value={form.title} onChange={set('title')} className="tsk-input" />
+            <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-1-et`} value={form.title} onChange={set('title')} inputClassName="tsk-input" />
             {msg('title')}
           </div>
 
@@ -758,7 +758,7 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
           {/* Horas + Fechas */}
           <div>
             <label id={`${idCampo}-horas-et`} htmlFor={`${idCampo}-horas`} className="tsk-label">{t('tasks.estimated_hours')}</label>
-            <input id={`${idCampo}-horas`} aria-labelledby={`${idCampo}-horas-et`} type="number" value={form.estimated_hours} onChange={set('estimated_hours')} className="tsk-input" placeholder={t('tasks.estimated_hours')} min="0" step="0.5" />
+            <Input id={`${idCampo}-horas`} aria-labelledby={`${idCampo}-horas-et`} type="number" value={form.estimated_hours} onChange={set('estimated_hours')} placeholder={t('tasks.estimated_hours')} min="0" step="0.5" inputClassName="tsk-input" />
             {msg('estimated_hours')}
           </div>
           <div className="tsk-dates">
@@ -785,8 +785,7 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
           {form.status === 'blocked' && (
             <div className="u-col-full">
               <label id={`${idCampo}-6-et`} htmlFor={`${idCampo}-6`} className="tsk-label">{t('tasks.blocked_reason')}</label>
-              <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-6-et`} value={form.blocked_reason} onChange={set('blocked_reason')} className="tsk-input"
-                placeholder={t('tasks.blocked_reason_placeholder')} />
+              <Input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-6-et`} value={form.blocked_reason} onChange={set('blocked_reason')} placeholder={t('tasks.blocked_reason_placeholder')} inputClassName="tsk-input" />
               {msg('blocked_reason')}
             </div>
           )}
@@ -794,7 +793,7 @@ function TaskDetailModal({ task, open, onClose }: { task: Task | null; open: boo
           {/* Tags */}
           <div className="u-col-full">
             <label id={`${idCampo}-7-et`} htmlFor={`${idCampo}-7`} className="tsk-label">{t('tasks.tags_label')}</label>
-            <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-7-et`} value={form.tags} onChange={set('tags')} className="tsk-input" placeholder={t('tasks.tags_placeholder')} />
+            <Input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-7-et`} value={form.tags} onChange={set('tags')} placeholder={t('tasks.tags_placeholder')} inputClassName="tsk-input" />
             {msg('tags')}
           </div>
 
@@ -1252,9 +1251,7 @@ export default function TasksPage() {
       {!soloProyecto && (
         <div className="tsk-search">
           <Search size={14} aria-hidden className="tsk-search-icon" />
-          <input aria-label={t('tasks.search_placeholder')} ref={buscador} value={search} onChange={e => setSearch(e.target.value)}
-            placeholder={t('tasks.search_placeholder')} aria-keyshortcuts="/"
-            className="ds-input tsk-search-input" />
+          <Input aria-label={t('tasks.search_placeholder')} ref={buscador} value={search} onChange={e => setSearch(e.target.value)} placeholder={t('tasks.search_placeholder')} aria-keyshortcuts="/" inputClassName="tsk-search-input" />
         </div>
       )}
       <Select suelto placeholder={false} aria-label={t('tasks.all_projects')} value={projectFilter} onChange={e => setProjectFilter(e.target.value)}
@@ -1663,7 +1660,7 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
       <div className="u-grid2-14">
         <div className="u-col-full">
           <label id={`${idCampo}-1-et`} htmlFor={`${idCampo}-1`} className="tsk-label tsk-label--lg">{t('tasks.title_required')}</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-1-et`} value={form.title} onChange={set('title')} className="tsk-input tsk-input--lg" placeholder={t('tasks.task_title')} />
+          <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-1-et`} value={form.title} onChange={set('title')} placeholder={t('tasks.task_title')} inputClassName="tsk-input tsk-input--lg" />
           {msg('title')}
         </div>
         <div className="u-col-full">
@@ -1749,7 +1746,7 @@ function CreateTaskModal({ open, onClose, projects }: { open: boolean; onClose: 
         )}
         <div>
           <label id={`${idCampo}-horas-et`} htmlFor={`${idCampo}-horas`} className="tsk-label tsk-label--lg">{t('tasks.estimated_hours')}</label>
-          <input id={`${idCampo}-horas`} aria-labelledby={`${idCampo}-horas-et`} type="number" min="0" step="0.5" value={form.estimated_hours} onChange={set('estimated_hours')} className="tsk-input tsk-input--lg" placeholder={t('tasks.estimated_hours')} />
+          <Input id={`${idCampo}-horas`} aria-labelledby={`${idCampo}-horas-et`} type="number" min="0" step="0.5" value={form.estimated_hours} onChange={set('estimated_hours')} placeholder={t('tasks.estimated_hours')} inputClassName="tsk-input tsk-input--lg" />
           {msg('estimated_hours')}
         </div>
         <div>

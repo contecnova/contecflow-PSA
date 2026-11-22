@@ -1,0 +1,194 @@
+{
+ "codigos": {
+  "dem_accion_no_disponible": {
+   "es": "La acción «{accion}» no está disponible en esta instalación",
+   "en": "The action «{accion}» is not available in this installation",
+   "zh": "此安装中不提供操作「{accion}」"
+  },
+  "dem_accion_sin_solicitante": {
+   "es": "La acción necesita un usuario interno como solicitante",
+   "en": "The action needs an internal user as requester",
+   "zh": "该操作需要内部用户作为申请人"
+  },
+  "dem_alcance_no_permitido": {
+   "es": "Este tipo de solicitud no admite el alcance «{alcance}»",
+   "en": "This request type does not allow the scope «{alcance}»",
+   "zh": "此申请类型不允许范围「{alcance}」"
+  },
+  "dem_bypass_no_permitido": {
+   "es": "Esta fase no permite la vía rápida cuando se superan los umbrales",
+   "en": "This phase does not allow the fast track when thresholds are exceeded",
+   "zh": "超过阈值时此阶段不允许快速通道"
+  },
+  "dem_campo_no_editable": {
+   "es": "No puedes editar el campo «{campo}» en esta fase",
+   "en": "You cannot edit the field «{campo}» in this phase",
+   "zh": "此阶段无法编辑字段「{campo}」"
+  },
+  "dem_campos_obligatorios": {
+   "es": "Faltan campos obligatorios: {campos}",
+   "en": "Required fields are missing: {campos}",
+   "zh": "缺少必填字段：{campos}"
+  },
+  "dem_canal_no_disponible": {
+   "es": "Este tipo de solicitud no se ofrece por este canal ({canal})",
+   "en": "This request type is not offered through this channel ({canal})",
+   "zh": "此渠道（{canal}）不提供此申请类型"
+  },
+  "dem_comentario_vacio": {
+   "es": "El comentario está vacío",
+   "en": "The comment is empty",
+   "zh": "评论为空"
+  },
+  "dem_comite_no_aplica": {
+   "es": "La fase actual no es de comité",
+   "en": "The current phase is not a committee phase",
+   "zh": "当前阶段不是委员会阶段"
+  },
+  "dem_decision_no_permitida": {
+   "es": "La decisión «{decision}» no está permitida en esta fase",
+   "en": "The decision «{decision}» is not allowed in this phase",
+   "zh": "此阶段不允许决定「{decision}」"
+  },
+  "dem_definicion_invalida": {
+   "es": "La definición del flujo tiene {n} errores",
+   "en": "The flow definition has {n} errors",
+   "zh": "流程定义有 {n} 个错误"
+  },
+  "dem_destino_no_valido": {
+   "es": "Fase de destino no válida: {destino}",
+   "en": "Invalid target phase: {destino}",
+   "zh": "目标阶段无效：{destino}"
+  },
+  "dem_documento_no_encontrado": {
+   "es": "Documento no encontrado",
+   "en": "Document not found",
+   "zh": "未找到文档"
+  },
+  "dem_ejecucion_exige_proyecto": {
+   "es": "Esta ejecución necesita un proyecto",
+   "en": "This execution needs a project",
+   "zh": "此执行需要一个项目"
+  },
+  "dem_ejecucion_no_valida": {
+   "es": "Modo de ejecución no permitido por el flujo: {modo}",
+   "en": "Execution mode not allowed by the flow: {modo}",
+   "zh": "流程不允许的执行方式：{modo}"
+  },
+  "dem_estado_no_permite": {
+   "es": "La solicitud está en estado «{estado}» y no admite esta acción",
+   "en": "The request is «{estado}» and does not allow this action",
+   "zh": "申请处于「{estado}」状态，不允许此操作"
+  },
+  "dem_expediente_no_encontrado": {
+   "es": "Solicitud no encontrada",
+   "en": "Request not found",
+   "zh": "未找到申请"
+  },
+  "dem_ficha_bloqueada": {
+   "es": "La ficha está bloqueada: solo puedes añadir comentarios y anexos",
+   "en": "The record is locked: you can only add comments and annexes",
+   "zh": "记录已锁定：只能添加评论和附件"
+  },
+  "dem_flujo_no_encontrado": {
+   "es": "Flujo no encontrado",
+   "en": "Flow not found",
+   "zh": "未找到流程"
+  },
+  "dem_importacion_no_valida": {
+   "es": "El fichero no es una exportación de flujo de demanda",
+   "en": "The file is not a demand flow export",
+   "zh": "该文件不是需求流程导出"
+  },
+  "dem_justificacion_obligatoria": {
+   "es": "La decisión «{decision}» exige una justificación",
+   "en": "The decision «{decision}» requires a justification",
+   "zh": "决定「{decision}」需要理由"
+  },
+  "dem_no_aprobada": {
+   "es": "Solo se ejecuta una solicitud aprobada",
+   "en": "Only an approved request can be executed",
+   "zh": "只能执行已批准的申请"
+  },
+  "dem_no_eres_responsable": {
+   "es": "No eres responsable de este paso",
+   "en": "You are not responsible for this step",
+   "zh": "您不是此步骤的负责人"
+  },
+  "dem_paso_en_bandeja": {
+   "es": "Este paso se decide en la bandeja de aprobaciones",
+   "en": "This step is decided in the approvals inbox",
+   "zh": "此步骤在审批收件箱中决定"
+  },
+  "dem_paso_no_encontrado": {
+   "es": "Paso no encontrado en la fase actual: {paso}",
+   "en": "Step not found in the current phase: {paso}",
+   "zh": "当前阶段未找到步骤：{paso}"
+  },
+  "dem_paso_ya_decidido": {
+   "es": "El paso «{paso}» ya está decidido o aún no le toca",
+   "en": "The step «{paso}» is already decided or not yet active",
+   "zh": "步骤「{paso}」已决定或尚未激活"
+  },
+  "dem_plantilla_no_encontrada": {
+   "es": "Plantilla no encontrada: {plantilla}",
+   "en": "Template not found: {plantilla}",
+   "zh": "未找到模板：{plantilla}"
+  },
+  "dem_sin_acceso_proyecto": {
+   "es": "No tienes acceso a ese proyecto",
+   "en": "You do not have access to that project",
+   "zh": "您无权访问该项目"
+  },
+  "dem_sod_fase_previa": {
+   "es": "Segregación de funciones: ya decidiste en la fase «{fase}»",
+   "en": "Segregation of duties: you already decided in the phase «{fase}»",
+   "zh": "职责分离：您已在阶段「{fase}」中作出决定"
+  },
+  "dem_solo_solicitante": {
+   "es": "Solo quien pidió la solicitud puede hacerlo",
+   "en": "Only the requester can do this",
+   "zh": "只有申请人可以执行此操作"
+  },
+  "dem_tipo_clave_duplicada": {
+   "es": "Ya existe un tipo con la clave «{clave}»",
+   "en": "A type with the key «{clave}» already exists",
+   "zh": "已存在键为「{clave}」的类型"
+  },
+  "dem_tipo_exige_proyecto": {
+   "es": "Este tipo de solicitud exige elegir un proyecto",
+   "en": "This request type requires a project",
+   "zh": "此申请类型需要选择项目"
+  },
+  "dem_tipo_no_encontrado": {
+   "es": "Tipo de solicitud no encontrado o inactivo",
+   "en": "Request type not found or inactive",
+   "zh": "未找到申请类型或已停用"
+  },
+  "dem_tipo_sin_flujo": {
+   "es": "Este tipo de solicitud no tiene un flujo activo",
+   "en": "This request type has no active flow",
+   "zh": "此申请类型没有活动流程"
+  },
+  "dem_valor_no_valido": {
+   "es": "Valor no válido para el campo «{campo}»",
+   "en": "Invalid value for the field «{campo}»",
+   "zh": "字段「{campo}」的值无效"
+  },
+  "dem_ya_ejecutada": {
+   "es": "La solicitud ya está ejecutada",
+   "en": "The request has already been executed",
+   "zh": "申请已执行"
+  },
+  "dem_ya_votaste": {
+   "es": "Ya has votado en este paso",
+   "en": "You have already voted on this step",
+   "zh": "您已在此步骤投票"
+  },
+  "cr_pendiente_de_aprobacion": {
+   "es": "La petición de cambio está pendiente en la bandeja de aprobaciones: se decide allí",
+   "en": "The change request is pending in the approvals inbox: it is decided there",
+   "zh": "变更请求正在审批收件箱中等待：请在那里决定"
+  }
+ }
+}

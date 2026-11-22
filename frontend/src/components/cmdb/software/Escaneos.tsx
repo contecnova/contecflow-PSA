@@ -25,14 +25,16 @@ import { fmtDateTime } from '../../../utils/helpers'
 import { etiquetaCodigo } from '../../../i18n/etiquetaCodigo'
 import { cmdbSoftwareApi } from '../../../services/api/cmdbSoftware'
 import type { ConexionDeEscaneo, ResultadoDeEscaneo, TipoDeConexion } from '../../../services/api/cmdbSoftware'
-import { Button, Checkbox, EmptyState, IconButton, Modal, Section, Select, Spinner, StatusBadge, TablaSimple } from '../../ui'
+import { Button, Checkbox, EmptyState, IconButton, Modal, Section, Select, Spinner, StatusBadge, TablaSimple, Textarea, Input } from '../../ui'
 import { ListaKv, useErr, useEtiquetaSw, useMetaSw } from './comun'
 import '../../servicedesk/sdMercado.css'
 import './software.css'
 
-const TIPOS: TipoDeConexion[] = ['sw_ssh', 'sw_winrm', 'sw_api']
-const BOOLEANOS = new Set(['accept_unknown_host_keys', 'sudo', 'read_configs', 'all_packages', 'create_cis', 'use_ssl', 'verify_ssl', 'include_services'])
-const NUMEROS = new Set(['port', 'timeout', 'max_pages'])
+const TIPOS: TipoDeConexion[] = ['sw_ssh', 'sw_winrm', 'sw_api',
+  // Índice de riesgo (22-11-2026): consolas de vulnerabilidades de terceros e intentos de explotación.
+  'sw_vm_trendmicro', 'sw_vm_defender', 'sw_vm_qualys', 'sw_vm_tenable', 'sw_vm_rapid7', 'sw_siem']
+const BOOLEANOS = new Set(['accept_unknown_host_keys', 'sudo', 'read_configs', 'all_packages', 'create_cis', 'use_ssl', 'verify_ssl', 'include_services', 'complete', 'with_kb'])
+const NUMEROS = new Set(['port', 'timeout', 'max_pages', 'days'])
 const TEXTOS_LARGOS = new Set(['hosts', 'private_key', 'known_hosts'])
 const ENUMERADOS: Record<string, 'transport' | 'environments' | 'exposures'> = { transport: 'transport', environment: 'environments', exposure: 'exposures' }
 const TRANSPORTES = ['ntlm', 'kerberos', 'basic']
@@ -161,8 +163,8 @@ function ConexionModal({ inicial, onClose, onSaved }: { inicial: ConexionDeEscan
       return (
         <label key={k} className="sdm-field"><span>{etiqueta(k)}{puestos.has(k) && <> <StatusBadge kind="success" caps={false}>{t('sw.esc_puesta')}</StatusBadge></>}</span>
           {k === 'private_key'
-            ? <textarea className="ds-input u-mono" rows={4} autoComplete="off" value={secretos[k] ?? ''} placeholder={puestos.has(k) ? t('sw.cfg_puesta_no_cambia') : ''} onChange={ev => setSecretos({ ...secretos, [k]: ev.target.value })} />
-            : <input className="ds-input" type="password" autoComplete="off" value={secretos[k] ?? ''} placeholder={puestos.has(k) ? t('sw.cfg_puesta_no_cambia') : ''} onChange={ev => setSecretos({ ...secretos, [k]: ev.target.value })} />}
+            ? <Textarea rows={4} autoComplete="off" value={secretos[k] ?? ''} placeholder={puestos.has(k) ? t('sw.cfg_puesta_no_cambia') : ''} onChange={ev => setSecretos({ ...secretos, [k]: ev.target.value })} inputClassName="u-mono" />
+            : <Input type="password" autoComplete="off" value={secretos[k] ?? ''} placeholder={puestos.has(k) ? t('sw.cfg_puesta_no_cambia') : ''} onChange={ev => setSecretos({ ...secretos, [k]: ev.target.value })} />}
           {pie}
           {inicial && puestos.has(k) && <span><Button size="xs" variant="ghost" loading={quitar.isPending && quitar.variables === k} onClick={() => quitar.mutate(k)}>{t('sw.cfg_quitar')}</Button></span>}
         </label>
@@ -179,32 +181,31 @@ function ConexionModal({ inicial, onClose, onSaved }: { inicial: ConexionDeEscan
     if (NUMEROS.has(k)) {
       return (
         <label key={k} className="sdm-field"><span>{etiqueta(k)}</span>
-          <input className="ds-input" type="number" min={1} value={config[k] == null ? '' : String(config[k])} onChange={ev => setConfig({ ...config, [k]: ev.target.value === '' ? null : Number(ev.target.value) })} />{pie}</label>
+          <Input type="number" min={1} value={config[k] == null ? '' : String(config[k])} onChange={ev => setConfig({ ...config, [k]: ev.target.value === '' ? null : Number(ev.target.value) })} />{pie}</label>
       )
     }
     if (TEXTOS_LARGOS.has(k)) {
       return (
         <label key={k} className="sdm-field sw-campo-ancho"><span>{etiqueta(k)}</span>
-          <textarea className="ds-input u-mono" rows={k === 'hosts' ? 2 : 3} value={config[k] == null ? '' : Array.isArray(config[k]) ? (config[k] as unknown[]).join(', ') : String(config[k])}
-            onChange={ev => setConfig({ ...config, [k]: ev.target.value })} />{pie}</label>
+          <Textarea rows={k === 'hosts' ? 2 : 3} value={config[k] == null ? '' : Array.isArray(config[k]) ? (config[k] as unknown[]).join(', ') : String(config[k])} onChange={ev => setConfig({ ...config, [k]: ev.target.value })} inputClassName="u-mono" />{pie}</label>
       )
     }
     return (
       <label key={k} className="sdm-field"><span>{etiqueta(k)}</span>
-        <input className="ds-input u-mono" value={config[k] == null ? '' : String(config[k])} onChange={ev => setConfig({ ...config, [k]: ev.target.value })} />{pie}</label>
+        <Input value={config[k] == null ? '' : String(config[k])} onChange={ev => setConfig({ ...config, [k]: ev.target.value })} inputClassName="u-mono" />{pie}</label>
     )
   }
   return (
     <Modal open size="lg" onClose={onClose} title={inicial ? t('sw.esc_editar') : t('sw.esc_nueva')}>
       <div className="u-stack-12">
         <div className="sdm-form">
-          <label className="sdm-field"><span>{t('sw.col_nombre')}</span><input className="ds-input" value={nombre} onChange={ev => setNombre(ev.target.value)} /></label>
+          <Input label={t('sw.col_nombre')} value={nombre} onChange={ev => setNombre(ev.target.value)} />
           <label className="sdm-field"><span>{t('sw.tipo')}</span>
             <Select suelto placeholder={false} value={tipo} disabled={!!inicial} onChange={ev => setTipo(ev.target.value as TipoDeConexion)}>
               {TIPOS.map(x => <option key={x} value={x}>{e('tipo_conexion', x)}</option>)}
             </Select></label>
           <label className="sdm-field"><span>{t('sw.esc_intervalo')}</span>
-            <input className="ds-input" type="number" min={INTERVALO_MIN} value={intervalo} onChange={ev => setIntervalo(Math.max(INTERVALO_MIN, Number(ev.target.value) || INTERVALO_MIN))} />
+            <Input type="number" min={INTERVALO_MIN} value={intervalo} onChange={ev => setIntervalo(Math.max(INTERVALO_MIN, Number(ev.target.value) || INTERVALO_MIN))} />
             <span className="u-text3-xs">{t('sw.esc_intervalo_ayuda')}</span></label>
           <div className="sdm-field"><Checkbox checked={activa} onChange={setActiva} label={t('sw.esc_activa')} /></div>
         </div>

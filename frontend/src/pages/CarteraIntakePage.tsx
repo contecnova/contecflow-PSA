@@ -22,7 +22,7 @@ import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRightCircle, CheckCircle2, FolderPlus, Inbox, Plus, XCircle } from 'lucide-react'
 import Page from '../components/ui/Page'
-import { Button, EmptyState, Input, Modal, Spinner, StatusBadge, Pulsable, Select, TablaSimple, useErroresDeCampo } from '../components/ui'
+import { Button, EmptyState, Input, Modal, Spinner, StatusBadge, Pulsable, Select, TablaSimple, useErroresDeCampo, Textarea } from '../components/ui'
 import { carteraApi, type Propuesta } from '../services/api'
 import { useAppT } from '../i18n/AppLangContext'
 import { useToast } from '../context/ToastContext'
@@ -30,6 +30,7 @@ import { useConfirm } from '../context/ConfirmContext'
 import { useAuth } from '../context/AuthContext'
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 import { extractErr, fmtDate } from '../utils/helpers'
+import FiltroTipoDeCliente, { type TipoDeCliente } from '../components/FiltroTipoDeCliente'
 import '../components/planificador/planificador.css'
 import './CarteraIntakePage.css'
 
@@ -60,8 +61,12 @@ function ListaDePropuestas({ onEditar, onNueva }: { onEditar: (p: Propuesta) => 
   const dinero = useFormatoMoneda()
   const gestiona = useAuth().puede('cartera.gestionar')
   const [estado, setEstado] = useState('')
+  const [tipo, setTipo] = useState<TipoDeCliente>('')
   const [abierta, setAbierta] = useState<string>('')
-  const { data: propuestas = [], isLoading } = useQuery({ queryKey: ['propuestas', estado], queryFn: () => carteraApi.propuestas(estado || undefined) })
+  const { data: propuestas = [], isLoading } = useQuery({
+    queryKey: ['propuestas', estado, tipo],
+    queryFn: () => carteraApi.propuestas(estado || undefined, tipo || undefined),
+  })
   const refrescar = () => qc.invalidateQueries({ queryKey: ['propuestas'] })
   const onError = (e: unknown) => toast.error(extractErr(e, t('cartera.error')))
   const enviar = useMutation({ mutationFn: (id: string) => carteraApi.enviar(id), onSuccess: () => { toast.success(t('cartera.enviada')); refrescar() }, onError })
@@ -83,6 +88,7 @@ function ListaDePropuestas({ onEditar, onNueva }: { onEditar: (p: Propuesta) => 
           <option value="">{t('cartera.todos_los_estados')}</option>
           {Object.keys(KIND).map(k => <option key={k} value={k}>{t(`cartera.estado_${k}`)}</option>)}
         </Select>
+        <FiltroTipoDeCliente className="ds-input cit-filtro" value={tipo} onChange={setTipo} />
       </div>
       {isLoading ? <Spinner /> : propuestas.length === 0 ? (
         <EmptyState icon={<Inbox size={28} />} title={t('cartera.sin_propuestas')} description={t('cartera.sin_propuestas_desc')}
@@ -101,7 +107,10 @@ function ListaDePropuestas({ onEditar, onNueva }: { onEditar: (p: Propuesta) => 
               {propuestas.map(p => (
                 <Fragment key={p.id}>
                   <tr>
-                    <td><Pulsable type="button" className="plan-chip" onClick={() => setAbierta(a => a === p.id ? '' : p.id)}>{p.title}</Pulsable></td>
+                    <td>
+                      <Pulsable type="button" className="plan-chip" onClick={() => setAbierta(a => a === p.id ? '' : p.id)}>{p.title}</Pulsable>
+                      {p.client_name && <div className="plan-muted">{p.client_name}{p.client_kind === 'interno' ? ` · ${t('internos.filtro_internos')}` : ''}</div>}
+                    </td>
                     <td className="plan-num">{p.score ?? '—'}</td>
                     <td><StatusBadge kind={KIND[p.status]}>{t(`cartera.estado_${p.status}`)}</StatusBadge></td>
                     <td>{p.current_gate ? `${p.gate_index + 1}/${p.gates_total} · ${p.current_gate.name}` : p.gates_total ? t('cartera.todas_superadas') : '—'}</td>
@@ -199,7 +208,7 @@ function FormularioDePropuesta({ propuesta, onClose }: { propuesta: Propuesta | 
         </div>
         <div className="ui-field">
           <label className="uiinde-estiloetiqueta" htmlFor="cit-descripcion">{t('cartera.campo_descripcion')}</label>
-          <textarea id="cit-descripcion" className="ds-input plan-textarea" value={f.description} onChange={e => { camposB.limpiar('description'); setF(x => ({ ...x, description: e.target.value })) }} />{msgB('description')}
+          <Textarea id="cit-descripcion" value={f.description} onChange={e => { camposB.limpiar('description'); setF(x => ({ ...x, description: e.target.value })) }} inputClassName="plan-textarea" />{msgB('description')}
         </div>
         <div className="ds-card plan-stack">
           <h3 className="plan-card__titulo">{t('cartera.roles_que_pide')}</h3>

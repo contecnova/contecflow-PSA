@@ -237,12 +237,41 @@ def _avisar_del_cambio_de_estado(fr, cr) -> None:
         logger.warning(f"No se pudo enviar notificación WS: {e}")
 
 
+def _llevar_cr_al_estado_del_equipo(fr, cr, current_user, db: Session) -> None:
+    """La CR enlazada sigue la decisión del EQUIPO, con su actor (22-11-2026).
+
+    Antes `_ESTADO_DE_CR_SEGUN_FR` la ponía aprobada sin pasar por su
+    aprobación. Ahora: con la CR pendiente en la bandeja, iniciar desarrollo o
+    rechazar devuelve 409 (se decide allí); sin solicitud en la bandeja, la
+    revisión la firma quien responde (`reviewed_by`/`approved_by`), nunca el cliente.
+    """
+    from app.services import change_service
+    from app.services.approval_engine import fuentes
+    estado_cr = getattr(cr.status, "value", cr.status)
+    estado_fr = getattr(fr.status, "value", fr.status)
+    if estado_fr in ("in_development", "rejected") and estado_cr in ("submitted", "under_review"):
+        if fuentes.estado(db, "change_request", cr.id) == "pending":
+            raise ErrorConCodigo("cr_pendiente_de_aprobacion")
+        change_service.review_change_request(db, cr, approved=estado_fr == "in_development",
+                                             reviewer_id=current_user.id,
+                                             resolution_notes=getattr(fr, "pm_response", None)
+                                             or "Revisada al responder la solicitud del portal")
+    elif estado_fr == "done" and estado_cr == "approved":
+        cr.status = ChangeRequestStatus.implemented
+        cr.implemented_at = datetime.now(timezone.utc).date()
+
+
 def respond_to_fr(fr_id: str, payload, current_user, db: Session) -> dict:
-    """Responde a una solicitud de funcionalidad del portal de cliente."""
+    """Responde a una solicitud de funcionalidad del portal de cliente (decisión del equipo)."""
+    from app.services.audit import audit_log
     fr = db.query(FeatureRequest).filter(FeatureRequest.id == fr_id).first()
     if not fr:
         raise ErrorConCodigo("solicitud_no_encontrada")
     _acotar_fr_a_la_organizacion(fr, current_user, db)
+    if getattr(payload, "status", None) == "approved":
+        # Solo el cliente aprueba su presupuesto (/decide).
+        raise ErrorConCodigo("solicitud_no_editable")
+    estado_previo = getattr(fr.status, "value", fr.status)
 
     # Presupuestar sin explicar el presupuesto deja al cliente con una cifra y
     # ningún motivo.
@@ -255,9 +284,13 @@ def respond_to_fr(fr_id: str, payload, current_user, db: Session) -> dict:
     cr = None
     if fr.change_request_id:
         cr = db.query(ChangeRequest).filter(ChangeRequest.id == fr.change_request_id).first()
-        if cr and fr.status in _ESTADO_DE_CR_SEGUN_FR:
-            cr.status = _ESTADO_DE_CR_SEGUN_FR[fr.status]
+        if cr:
+            _llevar_cr_al_estado_del_equipo(fr, cr, current_user, db)
 
+    audit_log(db, current_user, "FEATURE_REQUEST_RESPOND", "feature_requests", fr.id, fr.title,
+              old_values={"status": estado_previo},
+              new_values={"status": getattr(fr.status, "value", fr.status), "estimated_cost": fr.estimated_cost},
+              metadata={"actor_kind": "team"})
     db.commit()
     db.refresh(fr)
     _avisar_del_cambio_de_estado(fr, cr)
@@ -281,6 +314,8 @@ def _create_cr_from_fr(fr, db: Session):
     """Create a ChangeRequest mirroring a FeatureRequest and the matching approval request."""
     import uuid
 
+    # 22-11-2026: la CR nace ENVIADA. La aprobación del cliente no es la aprobación
+    # interna de Control de cambios: esa la decide el equipo (bandeja o Cambios).
     cr = ChangeRequest(
         id=str(uuid.uuid4()),
         code=_next_cr_code(fr.project_id, db),
@@ -314,15 +349,13 @@ def _create_cr_from_fr(fr, db: Session):
 
 
 def _apply_client_fr_approval(fr, db: Session) -> None:
-    """Handle FR approval path: ensure CR exists and mark it approved."""
+    """El cliente aprueba su presupuesto: la solicitud queda «aprobada por el cliente» y
+    la CR se crea (o se deja) ENVIADA para la aprobación interna. Antes se ponía
+    aprobada: la decisión del cliente valía como la del equipo (22-11-2026)."""
     fr.status = FeatureRequestStatus.approved
     if not fr.change_request_id:
-        cr = _create_cr_from_fr(fr, db)
-    else:
-        cr = db.query(ChangeRequest).filter(ChangeRequest.id == fr.change_request_id).first()
-    if cr:
-        cr.status = ChangeRequestStatus.approved
-        db.commit()
+        _create_cr_from_fr(fr, db)
+    db.commit()
 
 
 def _apply_client_fr_rejection(fr, db: Session) -> None:
@@ -348,6 +381,11 @@ def client_decide_fr(fr_id: str, payload, current_client, db: Session) -> dict:
     fr.client_approved = payload.approved
     fr.client_approved_at = datetime.now(timezone.utc)
     fr.client_rejection_reason = payload.reason
+    from app.services.audit import audit_log
+    audit_log(db, None, "FEATURE_REQUEST_CLIENT_DECISION", "feature_requests", fr.id, fr.title,
+              new_values={"approved": bool(payload.approved), "reason": payload.reason},
+              metadata={"actor_kind": "client", "client_user_id": current_client.id,
+                        "client_name": getattr(current_client, "full_name", None)})
     if payload.approved:
         _apply_client_fr_approval(fr, db)
     else:

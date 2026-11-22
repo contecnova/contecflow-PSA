@@ -10,7 +10,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Brain, HeartPulse, Sparkles, UserCheck } from 'lucide-react'
 import { iaDeProyectosApi, tasksApi, type EstimacionIa, type Simulacion } from '../../services/api'
 import type { SugerenciaDeAsignacion } from '../../services/api/tipos-rendimiento'
-import { Button, EmptyState, KpiCard, Spinner, TablaSimple } from '../ui'
+import { Button, EmptyState, KpiCard, Spinner, TablaSimple, Input } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
@@ -96,13 +96,13 @@ export default function PanelIaDelProyecto({ projectId }: { projectId: string })
         <h3 className="plan-card__titulo"><Sparkles size={14} />{t('planificador.simulacion')}</h3>
         <div className="plan-form">
           <label>{t('planificador.sim_retraso')}
-            <input type="number" min={0} className="plan-input" value={sim.delay_days} onChange={e => setSim(x => ({ ...x, delay_days: Number(e.target.value) }))} />
+            <Input type="number" min={0} value={sim.delay_days} onChange={e => setSim(x => ({ ...x, delay_days: Number(e.target.value) }))} inputClassName="plan-input" />
           </label>
           <label>{t('planificador.sim_compresion')}
-            <input type="number" min={0} max={90} className="plan-input" value={sim.compress_pct} onChange={e => setSim(x => ({ ...x, compress_pct: Number(e.target.value) }))} />
+            <Input type="number" min={0} max={90} value={sim.compress_pct} onChange={e => setSim(x => ({ ...x, compress_pct: Number(e.target.value) }))} inputClassName="plan-input" />
           </label>
           <label>{t('planificador.sim_refuerzo')}
-            <input type="number" min={0} className="plan-input" value={sim.extra_horas} onChange={e => setSim(x => ({ ...x, extra_horas: Number(e.target.value) }))} />
+            <Input type="number" min={0} value={sim.extra_horas} onChange={e => setSim(x => ({ ...x, extra_horas: Number(e.target.value) }))} inputClassName="plan-input" />
           </label>
         </div>
         <div className="plan-row"><Button size="sm" loading={simular.isPending} onClick={() => simular.mutate()}>{t('planificador.simular')}</Button></div>

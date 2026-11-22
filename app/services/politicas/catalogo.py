@@ -35,6 +35,7 @@ def _cargar_dominios_incluidos() -> None:
     from app.services.politicas.dominios import catalogo  # noqa: F401  (service desk, 16-11-2026)
     from app.services.politicas.dominios import licencias  # noqa: F401  (fase 2 de licencias: recuperación)
     from app.services.politicas.dominios import horas_extra  # noqa: F401  (horas extra, 18-11-2026)
+    from app.services.politicas.dominios import demanda  # noqa: F401  (flujo de demanda, rev. 195)
 
 
 def dominios() -> list[Dominio]:

@@ -6,10 +6,10 @@ import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { cmdbApi } from '../services/api'
-import { Button, Spinner, Modal, Tabs, KpiCard, EmptyState, IconButton, Pulsable, Select, TablaSimple, useErroresDeCampo } from '../components/ui'
+import { Button, Spinner, Modal, Tabs, KpiCard, EmptyState, IconButton, Pulsable, Select, TablaSimple, useErroresDeCampo, Input, Textarea } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { ArrowDown, ArrowUp, Bot, Box, Database, History, Link2, ListTree, Network, Package, Pencil, Plus, Radar, Search, Server, ShieldAlert, Shapes, Trash2, X, Zap } from 'lucide-react'
+import { ArrowDown, ArrowUp, Bot, Box, Database, Gauge, History, Link2, ListTree, Network, Package, Pencil, Plus, Radar, Search, Server, ShieldAlert, Shapes, Trash2, X, Zap } from 'lucide-react'
 import { IconoCi } from '../components/cmdb/iconosCi'
 import DateInput from '../components/ui/DateInput'
 import { useAppT } from '../i18n/AppLangContext'
@@ -26,6 +26,8 @@ const SoftwareTab = lazy(() => import('../components/cmdb/software/SoftwareTabs'
 const DondeSeUsaTab = lazy(() => import('../components/cmdb/software/SoftwareTabs').then(m => ({ default: m.DondeSeUsaTab })))
 const PorMaquinaTab = lazy(() => import('../components/cmdb/software/SoftwareTabs').then(m => ({ default: m.PorMaquinaTab })))
 const VulnerabilidadesTab = lazy(() => import('../components/cmdb/software/SoftwareTabs').then(m => ({ default: m.VulnerabilidadesTab })))
+// Índice de riesgo y gestión de vulnerabilidades (22-11-2026, §11 del mismo documento).
+const RiesgoTab = lazy(() => import('../components/cmdb/software/riesgo/RiesgoTab').then(m => ({ default: m.RiesgoTab })))
 import { cmdbMercadoApi } from '../services/api/serviceDeskMercado'
 // Auditoría 2026-08 (hallazgo 19). Este import era ESTÁTICO, y
 // CMDBTopologyGraph depende de react-plotly.js → plotly.js. Medido sobre el
@@ -160,7 +162,7 @@ function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () => void 
         <div className="cmdb-grid cmdb-grid--wide">
           <div>
             <label id={`${id('name')}-et`} className="cmdb-label" htmlFor={id('name')}>{t('cmdb.ci_name')}</label>
-            <input id={id('name')} aria-labelledby={`${id('name')}-et`} className="cmdb-input" value={form.name} onChange={e => set('name')(e.target.value)} />{msgForm('name')}
+            <Input id={id('name')} aria-labelledby={`${id('name')}-et`} value={form.name} onChange={e => set('name')(e.target.value)} />{msgForm('name')}
           </div>
           <div>
             <label id={`${id('type')}-et`} className="cmdb-label" htmlFor={id('type')}>{t('cmdb.ci_type')}</label>
@@ -199,7 +201,7 @@ function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () => void 
           {(['hostname','ip_address','version'] as const).map(k => (
             <div key={k}>
               <label id={`${id(k)}-et`} className="cmdb-label" htmlFor={id(k)}>{t(`cmdb.f_${k}`)}</label>
-              <input id={id(k)} aria-labelledby={`${id(k)}-et`} className="cmdb-input" value={form[k]} onChange={e => set(k)(e.target.value)} />{msgForm(k)}
+              <Input id={id(k)} aria-labelledby={`${id(k)}-et`} value={form[k]} onChange={e => set(k)(e.target.value)} />{msgForm(k)}
             </div>
           ))}
         </div>
@@ -214,7 +216,7 @@ function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () => void 
                 {c.field_type === 'date'
                   ? <DateInput id={id(c.key)} aria-labelledby={`${id(c.key)}-et`} className="cmdb-input" value={attrs[c.key] ?? ''}
                     onChange={e => setAttrs(a => ({ ...a, [c.key]: e.target.value }))} />
-                  : <input id={id(c.key)} aria-labelledby={`${id(c.key)}-et`} className="cmdb-input" type={c.field_type || 'text'} value={attrs[c.key] ?? ''}
+                  : <Input id={id(c.key)} aria-labelledby={`${id(c.key)}-et`} type={c.field_type || 'text'} value={attrs[c.key] ?? ''}
                     onChange={e => setAttrs(a => ({ ...a, [c.key]: e.target.value }))} />}
               </div>
             ))}
@@ -222,7 +224,7 @@ function CMDBItemForm({ item, onClose }: { item: CI | null; onClose: () => void 
         </div>
         <div>
           <label id={`${id('descr')}-et`} className="cmdb-label" htmlFor={id('descr')}>{t('cmdb.descripcion')}</label>
-          <textarea id={id('descr')} aria-labelledby={`${id('descr')}-et`} className="cmdb-input" value={form.description} onChange={e => set('description')(e.target.value)} />{msgForm('description')}
+          <Textarea id={id('descr')} aria-labelledby={`${id('descr')}-et`} value={form.description} onChange={e => set('description')(e.target.value)} />{msgForm('description')}
         </div>
         <div className="cmdb-form-actions">
           <Button variant="secondary" onClick={onClose}>{t('cmdb.cancel')}</Button>
@@ -449,7 +451,7 @@ function CMDBAgentsTab({ items }: { items: CI[] }) {
         <div className="cmdb-agent-form">
           <div>
             <label id="agent-name-et" className="cmdb-label" htmlFor="agent-name">{t('cmdb.nombre_del_agente')}</label>
-            <input id="agent-name" aria-labelledby="agent-name-et" value={agentName} onChange={e => setAgentName(e.target.value)} className="cmdb-input" placeholder={t('cmdb.agent_name_ph')} />
+            <Input id="agent-name" aria-labelledby="agent-name-et" value={agentName} onChange={e => setAgentName(e.target.value)} placeholder={t('cmdb.agent_name_ph')} />
           </div>
           <div>
             <label className="cmdb-label" htmlFor="agent-os">{t('cmdb.platform')}</label>
@@ -564,10 +566,8 @@ function ClasesTab() {
       {actuales.length === 0 && <div className="u-text2-sm">{t('cmdb.classes_empty')}</div>}
       {actuales.map((f, i) => (
         <div key={i} className="cmdb-class-row">
-          <input aria-label={t('cmdb.classes_key')} className="ds-codigo cmdb-input cmdb-input--mono ds-campo-codigo" value={f.key}
-            onChange={e => cambiar(i, { key: e.target.value })} />
-          <input aria-label={t('cmdb.classes_label')} className="cmdb-input" value={f.label ?? ''} placeholder={etiquetaDeCampo({ ...f, label: null })}
-            onChange={e => cambiar(i, { label: e.target.value })} />
+          <Input aria-label={t('cmdb.classes_key')} value={f.key} onChange={e => cambiar(i, { key: e.target.value })} inputClassName="ds-codigo cmdb-input cmdb-input--mono ds-campo-codigo" />
+          <Input aria-label={t('cmdb.classes_label')} value={f.label ?? ''} placeholder={etiquetaDeCampo({ ...f, label: null })} onChange={e => cambiar(i, { label: e.target.value })} inputClassName="cmdb-input" />
           <Select suelto placeholder={false} aria-label={t('cmdb.classes_type')} className="cmdb-input" value={f.field_type} onChange={e => cambiar(i, { field_type: e.target.value })}>
             {['text', 'number', 'date'].map(ft => <option key={ft} value={ft}>{t(`cmdb.classes_type_${ft}`)}</option>)}
           </Select>
@@ -695,6 +695,7 @@ export default function CMDBPage(): JSX.Element {
             { id: 'where', label: t('sw.tab_donde'), icon: <Search size={14} /> },
             { id: 'machine', label: t('sw.tab_maquina'), icon: <Server size={14} /> },
             { id: 'vulns', label: t('sw.tab_vulns'), icon: <ShieldAlert size={14} /> },
+            { id: 'risk', label: t('swr.tab_riesgo'), icon: <Gauge size={14} /> },
           ] : []),
           // Agentes y clases son de admin en el servidor (revisión 2026-11: pm veía Agentes y recibía 403).
           ...(puede('org.administrar') ? [{ id: 'agents', label: t('cmdb.tab_agents'), icon: <Bot size={14} /> }, { id: 'classes', label: t('cmdb.tab_classes'), icon: <Shapes size={14} /> },
@@ -826,7 +827,7 @@ export default function CMDBPage(): JSX.Element {
         <div className="cmdb-filters">
           <div className="cmdb-filters__q">
             <label id="cmdb-q-et" className="cmdb-label" htmlFor="cmdb-q">{t('cmdb.search')}</label>
-            <input id="cmdb-q" aria-labelledby="cmdb-q-et" value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder={t('cmdb.search_ph')} className="cmdb-input" />
+            <Input id="cmdb-q" aria-labelledby="cmdb-q-et" value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder={t('cmdb.search_ph')} />
           </div>
           <div>
             <label className="cmdb-label" htmlFor="cmdb-type">{t('cmdb.ci_type')}</label>
@@ -928,12 +929,13 @@ export default function CMDBPage(): JSX.Element {
       {tab === 'ci_classes' && <ClasesPropiasTab />}
       {tab === 'discovery' && <DescubrimientoTab />}
       {tab === 'impact' && <ImpactoTab />}
-      {puede('software.ver') && ['software', 'where', 'machine', 'vulns'].includes(tab) && (
+      {puede('software.ver') && ['software', 'where', 'machine', 'vulns', 'risk'].includes(tab) && (
         <Suspense fallback={<Spinner />}>
           {tab === 'software' && <SoftwareTab />}
           {tab === 'where' && <DondeSeUsaTab />}
           {tab === 'machine' && <PorMaquinaTab />}
           {tab === 'vulns' && <VulnerabilidadesTab />}
+          {tab === 'risk' && <RiesgoTab />}
         </Suspense>
       )}
       </div>

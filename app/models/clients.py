@@ -4,7 +4,7 @@ Entidad central que vincula proyectos, oportunidades y portal de acceso externo.
 """
 import uuid
 import enum
-from sqlalchemy import Column, String, Boolean, DateTime, Text, ForeignKey, Enum, Integer
+from sqlalchemy import Column, String, Boolean, DateTime, Text, ForeignKey, Enum, Integer, Float
 from app.models.money import Money
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -78,13 +78,31 @@ class Client(Base):
     currency        = Column(String(3),   default=settings.DEFAULT_CURRENCY)
     sla_policy_id   = Column(String(36), ForeignKey("sd_sla_policies.id"), nullable=True, index=True)
 
+    # Clientes internos (rev. 193, docs/CLIENTES_INTERNOS.md): un solo modelo
+    # con `kind`. Interno = departamento, unidad de negocio, filial o centro de
+    # coste de la propia compañía; no se le factura (salvo intercompañía): se
+    # le informa (showback) o se le carga (chargeback) lo que cuesta.
+    kind          = Column(String(10), nullable=False, default="externo", server_default="externo", index=True)
+    internal_type = Column(String(20), nullable=True)   # departamento | unidad_negocio | filial | centro_coste
+    department_id = Column(String(36), ForeignKey("departments.id", ondelete="SET NULL"), nullable=True, index=True)
+    area_id       = Column(String(36), ForeignKey("areas.id", ondelete="SET NULL"), nullable=True, index=True)
+    cost_center_id = Column(String(36), ForeignKey("alm_cost_centers.id", ondelete="SET NULL"), nullable=True, index=True)
+    group_organization_id = Column(String(36), ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True)  # empresa del grupo (intercompañía)
+    business_owner_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    finance_mode  = Column(String(15), nullable=True)   # showback | chargeback | intercompania
+    cost_method   = Column(String(20), nullable=True)   # horas_coste | tarifa_interna | precio_cerrado | catalogo
+    internal_rate_table_id = Column(String(36), ForeignKey("rate_tables.id", ondelete="SET NULL"), nullable=True)
+    transfer_markup_pct = Column(Float, nullable=True)  # intercompañía: margen del precio de transferencia
+    erp_account   = Column(String(40), nullable=True)   # cuenta / centro del asiento en el ERP
+
     notes      = Column(Text,    nullable=True)
     is_active  = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     created_by = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
 
-    account_manager = relationship("User", foreign_keys=[account_manager_id])  # TODO #56: inverse en User (user.py)
+    account_manager = relationship("User", foreign_keys=[account_manager_id])
+    business_owner  = relationship("User", foreign_keys=[business_owner_id])  # TODO #56: inverse en User (user.py)
     projects        = relationship("Project", back_populates="client",
                                    foreign_keys="Project.client_id")
     contacts        = relationship("ClientContact", back_populates="client",

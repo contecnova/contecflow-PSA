@@ -17,7 +17,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Briefcase, CheckCircle2, ClipboardCheck, FileBarChart, Globe, Link2, ListPlus, Paperclip, Pencil, Play, Plus, Send, X } from 'lucide-react'
-import { Button, Card, Checkbox, EmptyState, Input, Modal, Select, Spinner, useErroresDeCampo } from '../../components/ui'
+import { Button, Card, Checkbox, EmptyState, Input, Modal, Select, Spinner, useErroresDeCampo, Textarea } from '../../components/ui'
 import StatusBadge from '../../components/ui/StatusBadge'
 import { usePersonasInternas } from '../../components/externos/FormularioDeExterno'
 import { etiquetaDePersona } from '../../components/ui/MarcaExterno'
@@ -131,11 +131,11 @@ function FormularioDePaquete({ sub, paquete, onClose }: { sub: Subcontratista; p
         </div>
         <div className="ui-field">
           <label htmlFor="prv-paquete-desc" className="uiinde-estiloetiqueta">{t('subcontractors.descripcion')}</label>
-          <textarea id="prv-paquete-desc" value={f.description} onChange={set('description')} className="ds-input prv-textarea" />
+          <Textarea id="prv-paquete-desc" value={f.description} onChange={set('description')} inputClassName="prv-textarea" />
         </div>
         <div className="ui-field">
           <label htmlFor="prv-paquete-criterios" className="uiinde-estiloetiqueta">{t('proveedores.criterios_aceptacion')}</label>
-          <textarea id="prv-paquete-criterios" value={f.acceptance_criteria} onChange={set('acceptance_criteria')} className="ds-input prv-textarea" />
+          <Textarea id="prv-paquete-criterios" value={f.acceptance_criteria} onChange={set('acceptance_criteria')} inputClassName="prv-textarea" />
         </div>
         <div className="u-actions-8">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -228,12 +228,12 @@ export function FormularioDeInforme({ sub, paqueteId, servicioId, onClose }: { s
         </div>
         <div className="ui-field">
           <label htmlFor="prv-informe-resumen" className="uiinde-estiloetiqueta">{t('proveedores.resumen')} *</label>
-          <textarea id="prv-informe-resumen" value={f.summary} onChange={set('summary')} className="ds-input prv-textarea" />
+          <Textarea id="prv-informe-resumen" value={f.summary} onChange={set('summary')} inputClassName="prv-textarea" />
           {campos.de('summary') && <div className="u-field-error" role="alert">{campos.de('summary')}</div>}
         </div>
         <div className="ui-field">
           <label htmlFor="prv-informe-riesgos" className="uiinde-estiloetiqueta">{t('proveedores.riesgos')}</label>
-          <textarea id="prv-informe-riesgos" value={f.risks} onChange={set('risks')} className="ds-input prv-textarea" />
+          <Textarea id="prv-informe-riesgos" value={f.risks} onChange={set('risks')} inputClassName="prv-textarea" />
         </div>
         <Input label={t('proveedores.evidencia_enlace')} value={f.enlace} onChange={set('enlace')} placeholder="https://" error={campos.de('attachments')} />
         <div className="ui-field">

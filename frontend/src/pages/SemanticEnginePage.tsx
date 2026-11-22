@@ -25,7 +25,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { semanticApi, usersApi } from '../services/api'
 import type { EstadisticasDelMotorSemantico, PerfilSemantico, SugerenciaDeAsignacionDeTicket } from '../services/api/tipos-analitica'
-import { Button, EmptyState, KpiCard, Modal, Tabs } from '../components/ui'
+import { Button, EmptyState, KpiCard, Modal, Tabs, Input } from '../components/ui'
 import { ENGINE_MODES } from '../components/asignacion-ia/ConfigMotorSemantico'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -132,8 +132,7 @@ function TestPanel() {
       <div className="sem-fields">
         <div>
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={ls}>{traducir('semanticengine.titulo')}</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={title} onChange={e => setTitle(e.target.value)} className={fs}
-            placeholder={type === 'ticket' ? traducir('semanticengine.ejemplo_ticket') : traducir('semanticengine.ejemplo_tarea')} />
+          <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={title} onChange={e => setTitle(e.target.value)} placeholder={type === 'ticket' ? traducir('semanticengine.ejemplo_ticket') : traducir('semanticengine.ejemplo_tarea')} inputClassName="sem-input" />
         </div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={ls}>{traducir('semanticengine.descripcion_opcional')}</label>

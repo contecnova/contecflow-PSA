@@ -95,6 +95,11 @@ def get_current_user(
     _modulos.comprobar(db, user, request)
     _permisos.comprobar(db, user, request)
 
+    # Observabilidad (22-11-2026): la empresa de la petición, para las métricas
+    # HTTP por empresa (etiqueta acotada; nunca el usuario).
+    from app.core.metricas_empresa import anotar_empresa_en_peticion
+    anotar_empresa_en_peticion(request, db.info.get("organization_id"))
+
     return user
 
 

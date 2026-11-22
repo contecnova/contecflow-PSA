@@ -39,6 +39,10 @@ export const CAPACIDADES = [
   'portal.formularios',
   // API de tarifas (escribir) e importación masiva: gestores (19-11-2026).
   'tarifas.gestionar', 'integraciones.importar',
+  // Flujo de demanda (22-11-2026): ver expedientes, gestionarlos (decidir, adjuntar, ejecutar) y configurar tipos y flujos.
+  'demanda.ver', 'demanda.gestionar', 'demanda.config',
+  // Clientes internos (22-11-2026): portal de la unidad (internos), gestión (admin, PM) y cargos/servicios compartidos (admin).
+  'interno.portal', 'interno.gestionar', 'interno.cargos',
 ] as const
 
 export type Capacidad = typeof CAPACIDADES[number]

@@ -25,7 +25,7 @@ import { portalClientsApi, settingsApi, type IntegrationProvider, type Integrati
 import { settingsApi as ajustesGeneralesApi, type SettingOut } from '../../services/settingsApi'
 import type { PortalDictionary } from '../../i18n/portalTranslations'
 import { alpha } from '../../constants/theme'
-import { Button, Pulsable, Select, Tabs } from '../../components/ui'
+import { Button, Pulsable, Select, Tabs, Input } from '../../components/ui'
 import { AlertTriangle, BarChart3, Bot, Check, CheckCircle2, Download, FileText, Globe, Languages, Lock, MonitorSmartphone, Package, Phone, Plug, Save, Server, Settings2, ShieldAlert, Wrench, XCircle, Zap } from 'lucide-react'
 import './SettingsAdvancedSections.css'
 
@@ -245,8 +245,7 @@ export function IdiomasSection() {
             </div>
             <div className="u-flex1">
               <div className="u-text2-xs-mb4">{t('settingsadvanced.buscar_clave')}</div>
-              <input value={searchKey} onChange={e => setSearchKey(e.target.value)}
-                placeholder={t('settingsadvanced.buscar_clave_de_traduccion')} aria-label={t('settingsadvanced.buscar_clave_de_traduccion')} className="ds-input seadse-fs" />
+              <Input value={searchKey} onChange={e => setSearchKey(e.target.value)} placeholder={t('settingsadvanced.buscar_clave_de_traduccion')} aria-label={t('settingsadvanced.buscar_clave_de_traduccion')} inputClassName="seadse-fs" />
             </div>
             <div>
               <div className="u-text2-xs-mb4">{t('settingsadvanced.modulo')}</div>
@@ -331,8 +330,7 @@ export function IdiomasSection() {
             </div>
             <div>
               <div className="u-text2-xs-mb4">{t('settingsadvanced.buscar')}</div>
-              <input value={portalSearch} onChange={e => setPortalSearch(e.target.value)}
-                placeholder={t('settingsadvanced.buscar_texto_del_portal')} aria-label={t('settingsadvanced.buscar_texto_del_portal')} className="ds-input seadse-fs4" />
+              <Input value={portalSearch} onChange={e => setPortalSearch(e.target.value)} placeholder={t('settingsadvanced.buscar_texto_del_portal')} aria-label={t('settingsadvanced.buscar_texto_del_portal')} inputClassName="seadse-fs4" />
             </div>
             <div>
               <div className="u-text2-xs-mb4">{t('settingsadvanced.importar_json')}</div>

@@ -26,7 +26,7 @@ import { useAuth } from '../../context/AuthContext'
 import { confirmar } from '../../context/ConfirmContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { Button, Checkbox, EmptyState, KpiCard, Modal, Section, Select, Spinner, StatusBadge, Tabs, useErroresDeCampo } from '../ui'
+import { Button, Checkbox, EmptyState, KpiCard, Modal, Section, Select, Spinner, StatusBadge, Tabs, useErroresDeCampo, Input, Textarea } from '../ui'
 import type { StatusBadgeKind } from '../ui/StatusBadge'
 import Pagination from '../ui/Pagination'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
@@ -224,15 +224,15 @@ function PlaybookModal({ inicial, onClose, onSaved }: { inicial: Playbook | null
     <Modal open size="lg" onClose={onClose} title={inicial ? t('sd_mercado.playbook_editar') : t('sd_mercado.playbook_nuevo')}>
       <div className="u-stack-12">
         <div className="sdm-form">
-          <label className="sdm-field"><span>{t('sd_mercado.nombre')}</span><input className="ds-input" value={nombre} onChange={e => setNombre(e.target.value)} /></label>
+          <Input label={t('sd_mercado.nombre')} value={nombre} onChange={e => setNombre(e.target.value)} />
           <label className="sdm-field"><span>{t('sd_mercado.hasta_prioridad')}</span>
             <Select suelto placeholder={false} value={maxPrioridad} onChange={e => setMaxPrioridad(e.target.value)}>
               {PRIORIDADES.map(p => <option key={p} value={p}>{etiquetaCodigo(t, 'estado', p)}</option>)}
             </Select></label>
         </div>
-        <label className="sdm-field"><span>{t('sd_mercado.descripcion')}</span><input className="ds-input" value={descripcion} onChange={e => setDescripcion(e.target.value)} /></label>
-        <label className="sdm-field"><span>{t('sd_mercado.palabras_hint')}</span><input className="ds-input" value={palabras} onChange={e => setPalabras(e.target.value)} /></label>
-        <label className="sdm-field"><span>{t('sd_mercado.categorias_hint')}</span><input className="ds-input" value={categorias} onChange={e => setCategorias(e.target.value)} /></label>
+        <Input label={t('sd_mercado.descripcion')} value={descripcion} onChange={e => setDescripcion(e.target.value)} />
+        <Input label={t('sd_mercado.palabras_hint')} value={palabras} onChange={e => setPalabras(e.target.value)} />
+        <Input label={t('sd_mercado.categorias_hint')} value={categorias} onChange={e => setCategorias(e.target.value)} />
         <Checkbox className="u-row-center-8" checked={!!resolver} onChange={setResolver} label={t('sd_mercado.puede_resolver')} />
         <div className="ds-eyebrow">{t('sd_mercado.pasos')}</div>
         <div className="sdm-steps">
@@ -242,8 +242,7 @@ function PlaybookModal({ inicial, onClose, onSaved }: { inicial: Playbook | null
                 onChange={e => setPasos(pasos.map((x, j) => j === i ? { ...x, type: e.target.value as PasoDePlaybook['type'] } : x))}>
                 {TIPOS_DE_PASO.map(tp => <option key={tp} value={tp}>{etiquetaCodigo(t, 'sd_mercado.paso', tp)}</option>)}
               </Select>{msg('type')}
-              <textarea className="ds-input" rows={2} aria-label={t('sd_mercado.contenido_paso')} value={p.content}
-                onChange={e => setPasos(pasos.map((x, j) => j === i ? { ...x, content: e.target.value } : x))} />{msg('content')}
+              <Textarea rows={2} aria-label={t('sd_mercado.contenido_paso')} value={p.content} onChange={e => setPasos(pasos.map((x, j) => j === i ? { ...x, content: e.target.value } : x))} />{msg('content')}
               <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} onClick={() => setPasos(pasos.filter((_, j) => j !== i))}>{t('sd_mercado.quitar')}</Button>
             </div>
           ))}

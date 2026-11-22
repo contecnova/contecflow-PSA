@@ -11,7 +11,7 @@ import { useToast } from '../../context/ToastContext'
 import { confirmar } from '../../context/ConfirmContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { Button, Modal, Spinner, StatusBadge } from '../ui'
+import { Button, Modal, Spinner, StatusBadge, Input } from '../ui'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { problemasApi } from '../../services/api/serviceDeskMercado'
 import './sdMercado.css'
@@ -66,16 +66,14 @@ export default function PlantillasRca({ onClose }: { onClose: () => void }) {
         <div className="ds-card sdm-card">
           <div className="sdm-card__head">{t('sd_mercado.plantilla_nueva')}</div>
           <div className="sdm-form">
-            <label className="sdm-field"><span>{t('sd_mercado.nombre')}</span><input className="ds-input" value={nombre} onChange={e => setNombre(e.target.value)} /></label>
-            <label className="sdm-field"><span>{t('sd_mercado.descripcion')}</span><input className="ds-input" value={descripcion} onChange={e => setDescripcion(e.target.value)} /></label>
+            <Input label={t('sd_mercado.nombre')} value={nombre} onChange={e => setNombre(e.target.value)} />
+            <Input label={t('sd_mercado.descripcion')} value={descripcion} onChange={e => setDescripcion(e.target.value)} />
           </div>
           <div className="sdm-steps">
             {pasos.map((p, i) => (
               <div key={i} className="sdm-step">
-                <input className="ds-input" aria-label={t('sd_mercado.paso_titulo')} placeholder={t('sd_mercado.paso_titulo')} value={p.label}
-                  onChange={e => setPasos(pasos.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} />
-                <input className="ds-input" aria-label={t('sd_mercado.paso_pregunta')} placeholder={t('sd_mercado.paso_pregunta')} value={p.prompt}
-                  onChange={e => setPasos(pasos.map((x, j) => j === i ? { ...x, prompt: e.target.value } : x))} />
+                <Input aria-label={t('sd_mercado.paso_titulo')} placeholder={t('sd_mercado.paso_titulo')} value={p.label} onChange={e => setPasos(pasos.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} />
+                <Input aria-label={t('sd_mercado.paso_pregunta')} placeholder={t('sd_mercado.paso_pregunta')} value={p.prompt} onChange={e => setPasos(pasos.map((x, j) => j === i ? { ...x, prompt: e.target.value } : x))} />
                 <Button size="xs" variant="ghost" icon={<Trash2 size={12} />} onClick={() => setPasos(pasos.filter((_, j) => j !== i))}>{t('sd_mercado.quitar')}</Button>
               </div>
             ))}

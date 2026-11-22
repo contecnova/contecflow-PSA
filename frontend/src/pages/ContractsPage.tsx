@@ -6,7 +6,7 @@ import { z } from 'zod'
 import { projectsApi, contractsApi } from '../services/api'
 import type { ContratoDeServicio } from '../services/api/tipos-finanzas'
 import DocumentosDeFicha from '../components/conectores/DocumentosDeFicha'
-import { Button, Modal, Spinner, EmptyState, ClientSelect, KpiCard, useSort, SortableTH, Pulsable, Select, useErroresDeCampo } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, ClientSelect, KpiCard, useSort, SortableTH, Pulsable, Select, useErroresDeCampo, Input, Textarea } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Building2, CalendarClock, ClipboardList, Coins, LayoutGrid, List, Pencil, Plus, ScrollText, Wrench } from 'lucide-react'
@@ -256,12 +256,12 @@ function ContractFormModal({ contract, onClose }: { contract?: Contract | null; 
         </div>
         <div>
           <label htmlFor={`${idCampo}-pago`} className="ctr-label">{t('contracts.condiciones_de_pago')}</label>
-          <input id={`${idCampo}-pago`} value={form.payment_terms} onChange={set('payment_terms')} className="ctr-input" aria-label={t('contracts.condiciones_de_pago')} placeholder={t('contractspage.ph_condiciones_pago')} />
+          <Input id={`${idCampo}-pago`} value={form.payment_terms} onChange={set('payment_terms')} aria-label={t('contracts.condiciones_de_pago')} placeholder={t('contractspage.ph_condiciones_pago')} inputClassName="ctr-input" />
           {msg('payment_terms')}
         </div>
         <div className="u-col-full">
           <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="ctr-label">{t('contractspage.notas')}</label>
-          <textarea id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.notes} onChange={set('notes')} rows={2} className="ctr-input" />
+          <Textarea id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.notes} onChange={set('notes')} rows={2} inputClassName="ctr-input" />
           {msg('notes')}
         </div>
         <div className="ctr-form-actions">

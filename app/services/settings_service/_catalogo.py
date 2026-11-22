@@ -371,6 +371,7 @@ RUNTIME_FLAG_GROUPS: dict[str, list[tuple[str, str, str]]] = {
         ("BUDGET_VARIANCE_EXPLAIN_PCT", "float", "Budgets — a monthly variance per type of this % or more needs an explanation before the month is closed"),
         ("BUDGET_VARIANCE_EXPLAIN_MIN_AMOUNT", "float", "Budgets — …and of this amount or more (both must be met)"),
         ("BUDGET_ALM_LINE_TYPE", "str", "Budgets — line type where ALM contracts and licences count as committed"),
+        ("INTERNAL_IT_ERP_ACCOUNT", "str", "Internal clients — IT ERP account or cost centre credited in internal charge entries (empty: entries are not exported)"),
     ],
     "alm": [
         ("ALM_HANDOVER_ACT_ENABLED", "bool", "Licences and hardware — issue a delivery and return act (signed) when an asset changes hands"),

@@ -12,7 +12,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Plus, Trash2 } from 'lucide-react'
 import { invoicesApi } from '../../services/api'
 import type { Factura, LineaDeFactura } from '../../services/api/tipos-finanzas'
-import { Button, IconButton, Modal, Spinner, StatusBadge, TablaSimple } from '../ui'
+import { Button, IconButton, Modal, Spinner, StatusBadge, TablaSimple, Input, Textarea } from '../ui'
 import DateInput from '../ui/DateInput'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
@@ -88,7 +88,7 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
               {editando
                 ? (c.endsWith('_date')
                   ? <DateInput aria-label={t(`invoices.campo_${c}`)} value={String(form[c] ?? '')} onChange={e => setForm(v => ({ ...v, [c]: e.target.value }))} className="fidefa-campo" />
-                  : <input aria-label={t(`invoices.campo_${c}`)} type="text" value={String(form[c] ?? '')} onChange={e => setForm(v => ({ ...v, [c]: e.target.value }))} className="fidefa-campo" />)
+                  : <Input aria-label={t(`invoices.campo_${c}`)} type="text" value={String(form[c] ?? '')} onChange={e => setForm(v => ({ ...v, [c]: e.target.value }))} inputClassName="fidefa-campo" />)
                 : <div className="u-sm">{c.endsWith('_date') ? fmtDate(f[c] as string) : ((f[c] as string) || '—')}</div>}
             </label>
           ))}
@@ -103,7 +103,7 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
         </div>
         <label>
           <div className="fidefa-etiqueta">{t('invoices.campo_client_address')}</div>
-          {editando ? <textarea aria-label={t('invoices.campo_client_address')} value={String(form.client_address ?? '')} onChange={e => setForm(v => ({ ...v, client_address: e.target.value }))} rows={2} className="fidefa-campo" />
+          {editando ? <Textarea aria-label={t('invoices.campo_client_address')} value={String(form.client_address ?? '')} onChange={e => setForm(v => ({ ...v, client_address: e.target.value }))} rows={2} inputClassName="fidefa-campo" />
             : <div className="fidefa-txt-1">{f.client_address || '—'}</div>}
         </label>
 
@@ -118,7 +118,7 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
             {(editando ? lineas : f.lines || []).map((l, i) => (
               <tr key={i} className="fidefa-box-6">
                 {editando ? (<>
-                  <td className="fidefa-sp-2"><input aria-label={t('invoices.ficha_concepto')} value={l.description} onChange={e => setLineas(v => v.map((x, j) => j === i ? { ...x, description: e.target.value } : x))} className="fidefa-campo" /></td>
+                  <td className="fidefa-sp-2"><Input aria-label={t('invoices.ficha_concepto')} value={l.description} onChange={e => setLineas(v => v.map((x, j) => j === i ? { ...x, description: e.target.value } : x))} inputClassName="fidefa-campo" /></td>
                   {(['quantity', 'unit', 'unit_price', 'discount_pct'] as const).map(k => (
                     <td key={k} className="fidefa-sp-2"><input aria-label={t(`invoices.ficha_${k === 'quantity' ? 'cantidad' : k === 'unit' ? 'unidad' : k === 'unit_price' ? 'precio' : 'descuento'}`)}
                       type={k === 'unit' ? 'text' : 'number'} value={String(l[k] ?? '')} onChange={e => setLineas(v => v.map((x, j) => j === i ? { ...x, [k]: e.target.value } : x))} className="fidefa-campo" /></td>
@@ -153,7 +153,7 @@ export default function FichaDeFactura({ id, onClose, onPdf, onEstado, etiquetaD
         </div>
         <label>
           <div className="fidefa-etiqueta">{t('invoices.campo_notes')}</div>
-          {editando ? <textarea aria-label={t('invoices.campo_notes')} value={String(form.notes ?? '')} onChange={e => setForm(v => ({ ...v, notes: e.target.value }))} rows={2} className="fidefa-campo" />
+          {editando ? <Textarea aria-label={t('invoices.campo_notes')} value={String(form.notes ?? '')} onChange={e => setForm(v => ({ ...v, notes: e.target.value }))} rows={2} inputClassName="fidefa-campo" />
             : <div className="fidefa-txt-4">{f.notes || '—'}</div>}
         </label>
         <div className="fidefa-row-2">

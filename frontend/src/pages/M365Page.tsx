@@ -18,7 +18,7 @@ import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { CalendarDays, CalendarPlus, LayoutGrid, MessageSquare, RefreshCw, Send, Settings, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
-import { Button, Card, Input, Pulsable, Section, Table, Tabs } from '../components/ui'
+import { Button, Card, Input, Pulsable, Section, Table, Tabs, Textarea } from '../components/ui'
 import DsBadge from '../components/ui/StatusBadge'
 import { POLL_FREQUENT_MS } from '../constants/timings'
 import './M365Page.css'
@@ -175,7 +175,7 @@ function TeamsTab() {
             <Input label={t('m365.titulo')} value={title} onChange={e => setTitle(e.target.value)} placeholder={t('m365.titulo_de_la_notificacion')} />
             <div className="ui-field">
               <label htmlFor="m365-mensaje" className="uiinde-estiloetiqueta">{t('pagina_m365.mensaje')}</label>
-              <textarea id="m365-mensaje" value={text} onChange={e => setText(e.target.value)} className="ds-input m365-textarea" rows={3} placeholder={t('m365.texto_del_mensaje')} />
+              <Textarea id="m365-mensaje" value={text} onChange={e => setText(e.target.value)} rows={3} placeholder={t('m365.texto_del_mensaje')} inputClassName="m365-textarea" />
             </div>
             <div className="ui-field">
               <label htmlFor="m365-color" className="uiinde-estiloetiqueta">{t('m365.color_hex_sin')}</label>

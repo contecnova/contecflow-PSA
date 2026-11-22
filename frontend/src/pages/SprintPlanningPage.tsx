@@ -14,7 +14,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, sprintsApi, tasksApi, semanticApi, sprintPlansApi } from '../services/api'
 import type { EstadoDePlanDeSprint, PlanDeSprint, PlanDeSprintGenerado } from '../services/api/tipos-proyectos'
 import type { EstimacionDelBacklog } from '../services/api/tipos-analitica'
-import { Button, Card, EmptyState, IconButton, Modal, Spinner, Select } from '../components/ui'
+import { Button, Card, EmptyState, IconButton, Modal, Spinner, Select, Input } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import PageHeader from '../components/layout/PageHeader'
@@ -110,13 +110,12 @@ function GenerateModal({ projectId, onClose }: { projectId: string; onClose: () 
           <>
             <div>
               <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={ls}>{t('sprint_planning.plan_name')}</label>
-              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className={is} value={form.name} onChange={e => set('name')(e.target.value)} placeholder={traducir('sprintplanning.nombre_del_plan')} />
+              <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => set('name')(e.target.value)} placeholder={traducir('sprintplanning.nombre_del_plan')} inputClassName="spl-input" />
             </div>
             <div className="u-grid2-12">
               <div>
                 <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={ls}>{t('sprint_planning.team_capacity_sp')}</label>
-                <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" className={is} value={form.team_capacity}
-                  onChange={e => set('team_capacity')(+e.target.value)} min={1} />
+                <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="number" value={form.team_capacity} onChange={e => set('team_capacity')(+e.target.value)} min={1} inputClassName="spl-input" />
               </div>
               <div>
                 <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={ls}>{t('sprint_planning.sprint_optional')}</label>

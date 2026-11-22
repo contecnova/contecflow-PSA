@@ -15,7 +15,7 @@ import { useToast } from '../../context/ToastContext'
 import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { Sparkles } from 'lucide-react'
-import { Button, Modal, Select, useErroresDeCampo } from '../../components/ui'
+import { Button, Modal, Select, useErroresDeCampo, Input, Textarea } from '../../components/ui'
 import AIInlineEditor from '../../components/AIInlineEditor'
 import DateInput from '../../components/ui/DateInput'
 import { useFormValidation } from '../../hooks/useFormValidation'
@@ -487,12 +487,12 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
         )}
         <div>
           <label htmlFor={`${idPrefix}-req-name`} className="campo-etiqueta">{traducir('sd_cfg.req_name')}</label>
-          <input id={`${idPrefix}-req-name`} aria-label={traducir('sd_cfg.req_name')} value={solicitante.nombre} onChange={e => { campos.limpiar('requester_name'); setSolicitante(s => ({ ...s, nombre: e.target.value })) }} className="campo-form" />
+          <Input id={`${idPrefix}-req-name`} aria-label={traducir('sd_cfg.req_name')} value={solicitante.nombre} onChange={e => { campos.limpiar('requester_name'); setSolicitante(s => ({ ...s, nombre: e.target.value })) }} inputClassName="campo-form" />
           {campos.de('requester_name') && <div className="u-field-error">{campos.de('requester_name')}</div>}
         </div>
         <div>
           <label htmlFor={`${idPrefix}-req-email`} className="campo-etiqueta">{traducir('sd_cfg.req_email')}</label>
-          <input id={`${idPrefix}-req-email`} aria-label={traducir('sd_cfg.req_email')} type="email" value={solicitante.correo} onChange={e => { campos.limpiar('requester_email'); setSolicitante(s => ({ ...s, correo: e.target.value })) }} className="campo-form" />
+          <Input id={`${idPrefix}-req-email`} aria-label={traducir('sd_cfg.req_email')} type="email" value={solicitante.correo} onChange={e => { campos.limpiar('requester_email'); setSolicitante(s => ({ ...s, correo: e.target.value })) }} inputClassName="campo-form" />
           {campos.de('requester_email') && <div className="u-field-error">{campos.de('requester_email')}</div>}
         </div>
         {!solicitante.correo.trim() && (
@@ -514,12 +514,7 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
             <div className="u-text2-sm">
               {traducir('createticketmodal.pega_csv_con_cabeceras_para_generar_campos')}
             </div>
-            <textarea aria-label={traducir('createticketmodal.pega_csv_con_cabeceras_para_generar_campos')}
-              value={csvText}
-              onChange={(e) => setCsvText(e.target.value)}
-              placeholder={'campo_a,campo_b\nvalor1,valor2'}
-              className="campo-form create-ticket-modal-extenso"
-            />
+            <Textarea aria-label={traducir('createticketmodal.pega_csv_con_cabeceras_para_generar_campos')} value={csvText} onChange={(e) => setCsvText(e.target.value)} placeholder={'campo_a,campo_b\nvalor1,valor2'} inputClassName="campo-form create-ticket-modal-extenso" />
             <div className="crtimo-row-3">
               <div className="u-text3-xs">{traducir('createticketmodal.tambien_puedes_restaurar_snapshots_previos')}</div>
               <Button onClick={() => previewImport.mutate()} disabled={!csvText.trim()} loading={previewImport.isPending}>{traducir('dataplatform.previsualizar')}</Button>
@@ -543,11 +538,11 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
             <div className="crtimo-box-4">
               {generatedFields.map((f, idx) => (
                 <div key={`${f.id}-${idx}`} className="crtimo-grid-5">
-                  <input aria-label={traducir('createticket.etiqueta_campo_n', { n: idx + 1 })} value={f.label || ''} onChange={(e) => {
+                  <Input aria-label={traducir('createticket.etiqueta_campo_n', { n: idx + 1 })} value={f.label || ''} onChange={(e) => {
                     const v = [...generatedFields]
                     v[idx] = { ...v[idx], label: e.target.value }
                     setGeneratedFields(v)
-                  }} className="campo-form" />
+                  }} inputClassName="campo-form" />
                   <Select suelto placeholder={false} aria-label={traducir('createticket.tipo_campo_n', { n: idx + 1 })} value={f.type || 'text'} onChange={(e) => {
                     const v = [...generatedFields]
                     v[idx] = { ...v[idx], type: e.target.value }
@@ -558,11 +553,11 @@ export default function CreateTicketModal({ onClose, onCreated }: ModalProps) {
                     <option value="select">{traducir('createticket.tipo_select')}</option>
                     <option value="date">{traducir('createticket.tipo_date')}</option>
                   </Select>
-                  <input aria-label={traducir('createticket.id_campo_n', { n: idx + 1 })} value={f.id || ''} onChange={(e) => {
+                  <Input aria-label={traducir('createticket.id_campo_n', { n: idx + 1 })} value={f.id || ''} onChange={(e) => {
                     const v = [...generatedFields]
                     v[idx] = { ...v[idx], id: e.target.value }
                     setGeneratedFields(v)
-                  }} className="campo-form" />
+                  }} inputClassName="campo-form" />
                 </div>
               ))}
             </div>

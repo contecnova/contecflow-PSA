@@ -30,6 +30,7 @@ from app.db.seed_parts.v13 import seed_v13
 from app.db.seed_parts.config_versions import seed_v14, seed_v15, seed_v16
 from app.db.seed_parts.itsm import seed_itsm_v2
 from app.db.seed_parts.alm import seed_alm
+from app.db.seed_parts.demanda import seed_demanda  # rev. 195: flujo de demanda
 
 if __name__ == "__main__":
     from app.core.entorno import exigir_entorno_no_productivo
@@ -70,3 +71,4 @@ if __name__ == "__main__":
     seed_v15(db_main)
     seed_v16(db_main)
     db_main.close()
+    seed_demanda()

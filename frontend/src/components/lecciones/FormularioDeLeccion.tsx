@@ -10,7 +10,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Sparkles } from 'lucide-react'
 import { leccionesApi } from '../../services/api'
 import type { Hecho, Leccion } from '../../services/api'
-import { Button, Modal, Spinner, Select, TablaSimple } from '../ui'
+import { Button, Modal, Spinner, Select, TablaSimple, Input, Textarea } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
@@ -99,7 +99,7 @@ export default function FormularioDeLeccion({ origen, leccion, onClose, onGuarda
                 <Sparkles size={13} />{borrador.data.ia ? t('lec.propuesta_ia') : (borrador.data.aviso || t('lec.propuesta_hechos'))}
               </div>
             )}
-            <label><span className="fodele-etiqueta">{t('lec.titulo')}</span><input aria-label={t('lec.titulo')} value={form.titulo} onChange={set('titulo')} className="fodele-campo" maxLength={300} /></label>
+            <label><span className="fodele-etiqueta">{t('lec.titulo')}</span><Input aria-label={t('lec.titulo')} value={form.titulo} onChange={set('titulo')} maxLength={300} inputClassName="fodele-campo" /></label>
             <div className="fodele-grid-1">
               <label><span className="fodele-etiqueta">{t('lec.tipo')}</span>
                 <Select suelto aria-label={t('lec.tipo')} value={form.tipo} onChange={set('tipo')} className="fodele-campo" placeholder={false}>
@@ -114,11 +114,11 @@ export default function FormularioDeLeccion({ origen, leccion, onClose, onGuarda
                   {['baja', 'media', 'alta'].map(s => <option key={s} value={s}>{t(`lec.sev_${s}`)}</option>)}
                 </Select></label>
             </div>
-            <label><span className="fodele-etiqueta">{t('lec.que_paso')}</span><textarea rows={4} aria-label={t('lec.que_paso')} value={form.que_paso} onChange={set('que_paso')} className="fodele-campo" /></label>
-            <label><span className="fodele-etiqueta">{t('lec.causa')}</span><textarea rows={2} aria-label={t('lec.causa')} value={form.causa} onChange={set('causa')} className="fodele-campo" /></label>
-            <label><span className="fodele-etiqueta">{t('lec.impacto')}</span><textarea rows={2} aria-label={t('lec.impacto')} value={form.impacto} onChange={set('impacto')} className="fodele-campo" /></label>
-            <label><span className="fodele-etiqueta">{t('lec.recomendacion')}</span><textarea rows={3} aria-label={t('lec.recomendacion')} value={form.recomendacion} onChange={set('recomendacion')} className="fodele-campo" placeholder={t('lec.recomendacion_ayuda')} /></label>
-            <label><span className="fodele-etiqueta">{t('lec.etiquetas')}</span><input aria-label={t('lec.etiquetas')} value={form.etiquetas} onChange={set('etiquetas')} className="fodele-campo" placeholder="erp, migracion" /></label>
+            <label><span className="fodele-etiqueta">{t('lec.que_paso')}</span><Textarea rows={4} aria-label={t('lec.que_paso')} value={form.que_paso} onChange={set('que_paso')} inputClassName="fodele-campo" /></label>
+            <label><span className="fodele-etiqueta">{t('lec.causa')}</span><Textarea rows={2} aria-label={t('lec.causa')} value={form.causa} onChange={set('causa')} inputClassName="fodele-campo" /></label>
+            <label><span className="fodele-etiqueta">{t('lec.impacto')}</span><Textarea rows={2} aria-label={t('lec.impacto')} value={form.impacto} onChange={set('impacto')} inputClassName="fodele-campo" /></label>
+            <label><span className="fodele-etiqueta">{t('lec.recomendacion')}</span><Textarea rows={3} aria-label={t('lec.recomendacion')} value={form.recomendacion} onChange={set('recomendacion')} placeholder={t('lec.recomendacion_ayuda')} inputClassName="fodele-campo" /></label>
+            <label><span className="fodele-etiqueta">{t('lec.etiquetas')}</span><Input aria-label={t('lec.etiquetas')} value={form.etiquetas} onChange={set('etiquetas')} placeholder="erp, migracion" inputClassName="fodele-campo" /></label>
             <div className="fodele-row-1">
               <Button variant="secondary" onClick={onClose}>{t('lec.cancelar')}</Button>
               <Button variant="secondary" disabled={!listo} loading={guardando} onClick={() => guardar(false)}>{t('lec.guardar_borrador')}</Button>

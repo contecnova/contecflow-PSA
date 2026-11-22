@@ -16,7 +16,7 @@
  */
 import { type CSSProperties, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Button, Modal, Spinner, EmptyState, Table, Select, TablaSimple } from '../../components/ui'
+import { Button, Modal, Spinner, EmptyState, Table, Select, TablaSimple, Textarea } from '../../components/ui'
 import { Inbox, Activity } from 'lucide-react'
 import { bpmnInstancesApi, apiErrorMsg } from '../../services/api'
 import type { InstanciaBpmn, PasoDeBandejaBpmn, PasoDeInstanciaBpmn } from '../../services/api/tipos-documentos'
@@ -81,7 +81,7 @@ function CompleteModal({ step, onClose }: { step: InboxStep; onClose: () => void
           </>
         )}
         <label htmlFor="bpm-vars" id="bpm-vars-etiqueta" className="bprupa-txt-1">{t('bpm.variables_ayuda')}</label>
-        <textarea id="bpm-vars" aria-labelledby="bpm-vars-etiqueta" value={vars} onChange={e => setVars(e.target.value)} rows={4} className="ds-codigo bprupa-fs" placeholder={t('bpm.variables_ejemplo')} />
+        <Textarea id="bpm-vars" aria-labelledby="bpm-vars-etiqueta" value={vars} onChange={e => setVars(e.target.value)} rows={4} placeholder={t('bpm.variables_ejemplo')} inputClassName="ds-codigo bprupa-fs" />
         <div className="u-actions-8">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => mutate()} loading={isPending} disabled={isPending || (esDecision && !salida)}>

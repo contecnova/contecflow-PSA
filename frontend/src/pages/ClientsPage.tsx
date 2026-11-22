@@ -5,7 +5,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { clientsApi, unwrapList, type ClientContact } from '../services/api'
 import type { MetaDeLista } from '../services/api/tipos-plataforma'
-import { Button, Spinner, EmptyState, Modal, Tabs, useSort, SortableTH, Pulsable, Select, useErroresDeCampo } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, Tabs, useSort, SortableTH, Pulsable, Select, useErroresDeCampo, Textarea } from '../components/ui'
 import Pagination from '../components/ui/Pagination'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -25,6 +25,8 @@ import {
 import { ModalEditarContacto } from './clients/ModalEditarContacto'
 import { SelectorContactoPrincipal, datosDeContactoPrincipal, NUEVO_CONTACTO_VACIO, type NuevoContacto } from './clients/SelectorContactoPrincipal'
 import { useCatalogo } from '../hooks/useCatalogo'
+import { CamposInternos } from './clients/CamposInternos'
+import { FORM_INTERNO_VACIO, datosInternos, formInternoDe, sinCamposInternos } from './internos/logica'
 import './ClientsPage.css'
 
 type Traductor = ReturnType<typeof useAppT>
@@ -124,7 +126,10 @@ function crearEsquemaCliente(t: Traductor) {
   })
 }
 
-const FORM_VACIO = { name: '', short_name: '', tax_id: '', phone: '', email: '', website: '', address: '', city: '', country: '', status: 'active', industry: 'other', notes: '' }
+// 22-11-2026 (clientes internos): «Tipo» y campos internos en el mismo formulario (ver pages/internos/logica.ts).
+const FORM_VACIO = { name: '', short_name: '', tax_id: '', phone: '', email: '', website: '', address: '', city: '', country: '', status: 'active', industry: 'other', notes: '', ...FORM_INTERNO_VACIO }
+/** Carga útil del formulario: datos de la empresa + campos internos normalizados (externo → solo `kind`). */
+const cargaDelFormulario = (form: Record<string, string>): Record<string, unknown> => ({ ...sinCamposInternos(form), ...datosInternos(form) })
 
 // Campos de datos de la EMPRESA (alta y edición). El contacto principal va
 // aparte, en SelectorContactoPrincipal.
@@ -186,6 +191,8 @@ export default function ClientsPage(): JSX.Element {
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
   const [statusF, setStatusF] = useState('')
+  // Clientes internos: '' (todos), 'externo' o 'interno' (`GET /clients?kind=`).
+  const [kindF, setKindF] = useState('')
   const [page, setPage] = useState(1)
   const [sortBy, setSortBy] = useState('name')
   const [selected, setSelected] = useState<Client | null>(null)
@@ -210,8 +217,8 @@ export default function ClientsPage(): JSX.Element {
 
   // Lista paginada en el servidor (page/page_size; total en meta.total).
   const { data: paginaClientes, isLoading } = useQuery<{ items: Client[]; total: number }>({
-    queryKey: ['clients', search, statusF, page],
-    queryFn: () => clientsApi.list({ q: search || undefined, status: statusF || undefined, page, page_size: CLIENTS_PAGE_SIZE })
+    queryKey: ['clients', search, statusF, kindF, page],
+    queryFn: () => clientsApi.list({ q: search || undefined, status: statusF || undefined, kind: kindF || undefined, page, page_size: CLIENTS_PAGE_SIZE })
       .then(r => {
         const items = unwrapList(r) as Client[]
         const meta = (r as typeof r & { meta?: MetaDeLista }).meta
@@ -287,18 +294,21 @@ export default function ClientsPage(): JSX.Element {
       address:    txt('address'),
       country:    txt('country'),
       city:       txt('city'),
+      ...formInternoDe(c),
     })
     setContactoElegido(txt('primary_contact_id') || principal?.id || '')
     setContactoNuevo(NUEVO_CONTACTO_VACIO)
     setShowEdit(true)
   }
 
+  // Clientes internos: lenguaje adaptado («Unidad interna», «Coste», «Responsable»).
+  const esInterno = (detail as unknown as { kind?: string } | undefined)?.kind === 'interno' || selected?.kind === 'interno'
   const TABS = [
     { id: 'contacts', label: t('clientspage.tab_contactos'), icon: <Users size={14} /> },
     { id: 'projects', label: t('clientspage.tab_proyectos'), icon: <FolderKanban size={14} /> },
     { id: 'contracts', label: t('clientspage.tab_contratos'), icon: <FileText size={14} /> },
     { id: 'licenses', label: t('clientspage.tab_licencias'), icon: <KeyRound size={14} /> },
-    { id: 'invoices', label: t('clientspage.tab_facturas'), icon: <Receipt size={14} /> },
+    { id: 'invoices', label: esInterno ? t('internos.tab_coste') : t('clientspage.tab_facturas'), icon: <Receipt size={14} /> },
     { id: 'tickets', label: t('clientspage.tab_tickets'), icon: <Ticket size={14} /> },
     { id: 'portal', label: t('clientspage.tab_portal'), icon: <Globe size={14} /> },
   ]
@@ -345,6 +355,13 @@ export default function ClientsPage(): JSX.Element {
             <option value="">{t('clients.todos_los_estados')}</option>
             {statusOptions}
           </Select>
+          <Select suelto placeholder={false} value={kindF} onChange={e => { setKindF(e.target.value); setPage(1) }}
+            aria-label={t('internos.filtrar_tipo')} className="cli-input cli-input--auto"
+            options={[
+              { value: '', label: t('internos.filtro_todos') },
+              { value: 'externo', label: t('internos.filtro_externos') },
+              { value: 'interno', label: t('internos.filtro_internos') },
+            ]} />
           <Select suelto placeholder={false} value={sortBy} onChange={e => setSortBy(e.target.value)}
             aria-label={t('clientspage.ordenar_por')} className="cli-input cli-input--auto">
             <option value="name">{t('clientspage.orden_az')}</option>
@@ -361,6 +378,7 @@ export default function ClientsPage(): JSX.Element {
               className={selected?.id === c.id ? 'cli-card is-selected' : 'cli-card'}>
               <div className="cli-card__head">
                 <div title={c.name} className="cli-card__name">{c.name}</div>
+                {c.kind === 'interno' && <span className="cli-tag cli-tag--accent">{t('internos.unidad_interna')}</span>}
                 <span className="cli-status cli-status--card" style={colorVar(STATUS_COLOR[c.status || ''])}>
                   {statusLabel(c.status)}
                 </span>
@@ -431,7 +449,9 @@ export default function ClientsPage(): JSX.Element {
                   <div className="u-text2-base">
                     {detail?.industry && `${industryLabel(detail.industry)} · `}
                     {detail?.city && `${detail.city}, `}{detail?.country}
-                    {detail?.account_manager_name && ` · ${t('clientspage.account_manager', { name: detail.account_manager_name })}`}
+                    {esInterno
+                      ? ` · ${t('internos.unidad_interna')}${(detail as unknown as { business_owner_name?: string } | undefined)?.business_owner_name ? ` · ${t('internos.responsable_de', { name: (detail as unknown as { business_owner_name?: string }).business_owner_name })}` : ''}`
+                      : detail?.account_manager_name && ` · ${t('clientspage.account_manager', { name: detail.account_manager_name })}`}
                   </div>
                 </div>
                 <div className="cli-detail__actions">
@@ -530,15 +550,16 @@ export default function ClientsPage(): JSX.Element {
           <CamposEmpresa idBase={`${idCampo}-edit`} t={t} form={editClientForm}
             onCampo={(k, v) => { camposEdit.limpiar(k); setEditClientForm(f => ({ ...f, [k]: v })) }}
             errorDe={k => camposEdit.de(k)} opcionesSector={industryOptions} opcionesEstado={statusOptions} />
+          <CamposInternos idBase={`${idCampo}-edit-interno`} form={editClientForm}
+            onCampo={(k, v) => { camposEdit.limpiar(k); setEditClientForm(f => ({ ...f, [k]: v })) }}
+            errorDe={k => camposEdit.de(k)} />
           <SelectorContactoPrincipal idBase={`${idCampo}-edit-contacto`} contactos={contactos}
             valor={contactoElegido} onCambiar={v => { camposEdit.limpiar('primary_contact_id'); setContactoElegido(v) }}
             nuevo={contactoNuevo} onCambiarNuevo={(k, v) => { camposEdit.limpiar(k); setContactoNuevo(n => ({ ...n, [k]: v })) }}
             errorDe={k => camposEdit.de(k)} />
           <div className="u-mb-16">
             <label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="cli-label">{t('clientspage.campo_notas')}</label>
-            <textarea id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} value={editClientForm.notes}
-              onChange={e => { camposEdit.limpiar('notes'); setEditClientForm(f => ({ ...f, notes: e.target.value })) }}
-              className="cli-input" />
+            <Textarea id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} value={editClientForm.notes} onChange={e => { camposEdit.limpiar('notes'); setEditClientForm(f => ({ ...f, notes: e.target.value })) }} inputClassName="cli-input" />
               {camposEdit.de('notes') && <div className="u-field-error">{camposEdit.de('notes')}</div>}
           </div>
           <div className="u-actions-8">
@@ -549,7 +570,7 @@ export default function ClientsPage(): JSX.Element {
               loading={updatingClient}
               disabled={!editClientForm.name || updatingClient}
               onClick={() => selected && updateClient({ id: selected.id, data: {
-                ...editClientForm,
+                ...cargaDelFormulario(editClientForm),
                 // Existente → primary_contact_id; nuevo → contact_* (el servidor lo crea o reutiliza).
                 ...datosDeContactoPrincipal(contactos.length > 0, contactoElegido, contactoNuevo),
               } })}>
@@ -566,7 +587,7 @@ export default function ClientsPage(): JSX.Element {
 
       {/* Modal nuevo cliente */}
       {showCreate && (() => {
-        const datosDelAlta = () => ({ ...newForm, ...datosDeContactoPrincipal(false, '', contactoNuevo) })
+        const datosDelAlta = () => ({ ...cargaDelFormulario(newForm), ...datosDeContactoPrincipal(false, '', contactoNuevo) })
         const submitCreate = () => {
           const result = createValidation.validateForm({ ...newForm, ...contactoNuevo })
           if (!result.success) return
@@ -576,25 +597,26 @@ export default function ClientsPage(): JSX.Element {
         const limpiarError = (key: string) => { createValidation.clearFieldError(key); camposNuevo.limpiar(key) }
         const cerrar = () => { setShowCreate(false); createValidation.setErrors({}) }
         return (
-        <Modal open title={t('clients.new_client')} onClose={cerrar} width={640}>
+        <Modal open title={newForm.kind === 'interno' ? t('internos.nueva_unidad') : t('clients.new_client')} onClose={cerrar} width={640}>
           <CamposEmpresa idBase={`${idCampo}-nuevo`} t={t} form={newForm}
             onCampo={(k, v) => { setNewForm(f => ({ ...f, [k]: v })); limpiarError(k) }}
             errorDe={errTxt} opcionesSector={industryOptions} opcionesEstado={statusOptions} />
+          <CamposInternos idBase={`${idCampo}-nuevo-interno`} form={newForm}
+            onCampo={(k, v) => { setNewForm(f => ({ ...f, [k]: v })); limpiarError(k) }}
+            errorDe={errTxt} />
           <SelectorContactoPrincipal idBase={`${idCampo}-nuevo-contacto`} contactos={[]}
             valor="" onCambiar={() => undefined}
             nuevo={contactoNuevo} onCambiarNuevo={(k, v) => { setContactoNuevo(n => ({ ...n, [k]: v })); limpiarError(k) }}
             errorDe={errTxt} />
           <div className="u-mb-16">
             <label id={`${idCampo}-etnuevo-notas`} htmlFor={`${idCampo}-nuevo-notas`} className="cli-label">{t('clientspage.campo_notas')}</label>
-            <textarea id={`${idCampo}-nuevo-notas`} aria-labelledby={`${idCampo}-etnuevo-notas`} value={newForm.notes}
-              onChange={(e: ChangeEvent<HTMLTextAreaElement>) => { const v = e.target.value; setNewForm(f => ({ ...f, notes: v })); limpiarError('notes') }}
-              className="cli-input" aria-invalid={errTxt('notes') ? true : undefined} />
+            <Textarea id={`${idCampo}-nuevo-notas`} aria-labelledby={`${idCampo}-etnuevo-notas`} value={newForm.notes} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => { const v = e.target.value; setNewForm(f => ({ ...f, notes: v })); limpiarError('notes') }} aria-invalid={errTxt('notes') ? true : undefined} inputClassName="cli-input" />
             {errTxt('notes') && <div className="u-field-error">{errTxt('notes')}</div>}
           </div>
           <div className="u-actions-8">
             <Button variant="secondary" onClick={cerrar}>{t('clientspage.cancelar')}</Button>
             <Button onClick={submitCreate} disabled={creating} loading={creating}>
-              {creating ? t('clientspage.creando') : t('clientspage.crear_cliente')}
+              {creating ? t('clientspage.creando') : newForm.kind === 'interno' ? t('internos.crear_unidad') : t('clientspage.crear_cliente')}
             </Button>
           </div>
         </Modal>

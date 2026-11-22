@@ -241,10 +241,7 @@ function UsersSection() {
       <div className="ds-toolbar set-toolbar">
         <div className="set-search">
           <Search size={14} aria-hidden className="set-search-icon" />
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder={t('settings.buscar_usuario_por_nombre_o_alias')}
-            aria-label={t('settings.buscar_usuario_por_nombre_o_alias')}
-            className="ds-input set-search-input" />
+          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('settings.buscar_usuario_por_nombre_o_alias')} aria-label={t('settings.buscar_usuario_por_nombre_o_alias')} inputClassName="set-search-input" />
         </div>
         <Select suelto placeholder={t('settings.todas_las_organizaciones')} value={orgFilter} onChange={(e) => setOrgFilter(e.target.value)} className="set-org-filter" aria-label={t('settings.filtrar_usuarios_por_organizacion')}>
           {organizations.filter(o => o.is_active !== false).map(o => (
@@ -418,9 +415,9 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
     <Modal open={open} onClose={onClose} title={isEdit ? t('settings_sections.editar_usuario', { nombre: user.full_name }) : t('settings_sections.nuevo_usuario_titulo')} width={580}>
       <form onSubmit={handleSubmit}>
         <div className="u-grid2-14">
-        <div className="u-col-full"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('settings_sections.nombre_completo')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.full_name} onChange={set('full_name')} className="set-input" aria-invalid={!!validation.errors.full_name} />{errField('full_name')}</div>
-        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings_sections.usuario')} *</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.username} onChange={set('username')} className="set-input" aria-invalid={!!validation.errors.username} />{errField('username')}</div>
-        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="set-label">{t('settings_sections.email')} *</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="email" value={form.email} onChange={set('email')} className="set-input" aria-invalid={!!validation.errors.email} />{errField('email')}</div>
+        <div className="u-col-full"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('settings_sections.nombre_completo')} *</label><Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.full_name} onChange={set('full_name')} aria-invalid={!!validation.errors.full_name} inputClassName="set-input" />{errField('full_name')}</div>
+        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings_sections.usuario')} *</label><Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.username} onChange={set('username')} aria-invalid={!!validation.errors.username} inputClassName="set-input" />{errField('username')}</div>
+        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="set-label">{t('settings_sections.email')} *</label><Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="email" value={form.email} onChange={set('email')} aria-invalid={!!validation.errors.email} inputClassName="set-input" />{errField('email')}</div>
         <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="set-label">{t('settings_sections.rol')}</label><Select suelto placeholder={false} id={`${idCampo}-4`} value={form.role} onChange={set('role')} className="set-input" error={!!validation.errors.role}>
           {/* Un externo se da de alta desde su proveedor (Recursos o Subcontratistas): aquí solo se muestra si ya lo es. */}
           {rolesReales.filter(r => r.interno || form.role === r.id).map(r => <option key={r.id} value={r.id}>{r.etiqueta}</option>)}
@@ -431,10 +428,10 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
         <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="set-label">{t('settings_sections.departamento')}</label><Select suelto placeholder={t('settings.sin_departamento')} id={`${idCampo}-6`} value={form.department} onChange={set('department')} className="set-input">
           {departments.filter(d => d.is_active !== false).map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
         </Select>{errField('department')}</div>
-        <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="set-label">{t('settings_sections.cargo')}</label><input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.job_title} onChange={set('job_title')} className="set-input" />{errField('job_title')}</div>
-        <div><label htmlFor={`${idCampo}-grado`} className="set-label">{t('settings_sections.grado')}</label><input id={`${idCampo}-grado`} aria-label={t('settings_sections.grado')} value={form.grade} onChange={set('grade')} maxLength={60} className="set-input" aria-describedby={`${idCampo}-grado-ayuda`} />{errField('grade')}<span id={`${idCampo}-grado-ayuda`} className="u-text3-xs">{t('settings_sections.grado_ayuda')}</span></div>
-        <div><label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="set-label">{t('settings_sections.horas_semanales')}</label><input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} type="number" value={form.weekly_capacity_hours} onChange={set('weekly_capacity_hours')} className="set-input" aria-invalid={!!validation.errors.weekly_capacity_hours} />{errField('weekly_capacity_hours')}</div>
-        <div><label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="set-label">{t('settings_sections.tarifa_hora', { simbolo: fmtMoneda.simbolo })}</label><input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} type="number" value={form.hourly_rate} onChange={set('hourly_rate')} className="set-input" aria-invalid={!!validation.errors.hourly_rate} />{errField('hourly_rate')}</div>
+        <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="set-label">{t('settings_sections.cargo')}</label><Input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.job_title} onChange={set('job_title')} inputClassName="set-input" />{errField('job_title')}</div>
+        <div><label htmlFor={`${idCampo}-grado`} className="set-label">{t('settings_sections.grado')}</label><Input id={`${idCampo}-grado`} aria-label={t('settings_sections.grado')} value={form.grade} onChange={set('grade')} maxLength={60} aria-describedby={`${idCampo}-grado-ayuda`} inputClassName="set-input" />{errField('grade')}<span id={`${idCampo}-grado-ayuda`} className="u-text3-xs">{t('settings_sections.grado_ayuda')}</span></div>
+        <div><label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="set-label">{t('settings_sections.horas_semanales')}</label><Input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} type="number" value={form.weekly_capacity_hours} onChange={set('weekly_capacity_hours')} aria-invalid={!!validation.errors.weekly_capacity_hours} inputClassName="set-input" />{errField('weekly_capacity_hours')}</div>
+        <div><label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="set-label">{t('settings_sections.tarifa_hora', { simbolo: fmtMoneda.simbolo })}</label><Input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} type="number" value={form.hourly_rate} onChange={set('hourly_rate')} aria-invalid={!!validation.errors.hourly_rate} inputClassName="set-input" />{errField('hourly_rate')}</div>
         {esSuperadmin && <>
         <GrupoDeOpciones tipo="checkbox" forma="lista" className="u-col-full set-input--multi"
           leyenda={t('settings.organizaciones_seleccion_multiple')}
@@ -456,7 +453,7 @@ function UserFormModal({ open, onClose, user, onSave, isPending, roles = [], dep
             {timezoneOptions(form.timezone).map(tz => <option key={tz} value={tz}>{tz}</option>)}
           </Select>{errField('timezone')}
         </div>
-        {!isEdit && <div className="u-col-full"><label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} className="set-label">{t('settings.contrasena')}</label><input id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} type="password" value={form.password} onChange={set('password')} className="set-input" aria-invalid={!!validation.errors.password} />{errField('password')}</div>}
+        {!isEdit && <div className="u-col-full"><label id={`${idCampo}-et13`} htmlFor={`${idCampo}-13`} className="set-label">{t('settings.contrasena')}</label><Input id={`${idCampo}-13`} aria-labelledby={`${idCampo}-et13`} type="password" value={form.password} onChange={set('password')} aria-invalid={!!validation.errors.password} inputClassName="set-input" />{errField('password')}</div>}
         <div className="set-form-actions">
           <Button variant="secondary" type="button" onClick={onClose}>{t('common.cancel')}</Button>
           <Button type="submit" disabled={isPending}>
@@ -525,10 +522,10 @@ function RoleFormModal({ role, modules, onClose, onSave }: { role: CustomRole | 
     <Modal open title={role ? t('settings_sections.editar_rol', { nombre: role.name }) : t('settings_sections.nuevo_rol')} onClose={onClose} width={560}>
       <div className="u-stack-14">
         <div className="set-grid-2-1">
-          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('common.name')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="set-input" disabled={role?.is_system} /></div>
+          <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('common.name')} *</label><Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} disabled={role?.is_system} inputClassName="set-input" /></div>
           <div><label id={`${idCampo}-etc613`} htmlFor={`${idCampo}-c613`} className="set-label">{t('settings_sections.color')}</label><div className="u-row-8"><input id={`${idCampo}-c613`} aria-labelledby={`${idCampo}-etc613`} type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.color) ? form.color : COLOR_DATO_POR_DEFECTO} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} className="set-color-input" /><input aria-labelledby={`${idCampo}-etc613`} value={form.color} onChange={e => setForm(f => ({ ...f, color: e.target.value }))} className="set-input set-input--flex" /></div></div>
         </div>
-        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings.descripcion')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="set-input" /></div>
+        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings.descripcion')}</label><Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} inputClassName="set-input" /></div>
         <div role="group" aria-labelledby={`${idCampo}-mods`}>
           <div className="set-row-label">
             <span id={`${idCampo}-mods`} className="set-label">{t('settings.modulos_accesibles')}</span>
@@ -683,7 +680,7 @@ function AlertConfigSection() {
           <div className="u-stack-14">
             <div>
               <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('common.name')}</label>
-              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={ruleForm.name} onChange={setR('name')} className="set-input" placeholder={t('settings.ej_ingresos_por_debajo_del_objetivo')} />
+              <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={ruleForm.name} onChange={setR('name')} placeholder={t('settings.ej_ingresos_por_debajo_del_objetivo')} inputClassName="set-input" />
             </div>
             <div>
               <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings.metrica')}</label>
@@ -701,7 +698,7 @@ function AlertConfigSection() {
               {THRESHOLD_CONDITIONS.includes(ruleForm.condition) && (
                 <div>
                   <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="set-label">{t('settings_sections.umbral')}</label>
-                  <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={ruleForm.threshold} onChange={setR('threshold')} className="set-input" placeholder="0" />
+                  <Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={ruleForm.threshold} onChange={setR('threshold')} placeholder="0" inputClassName="set-input" />
                 </div>
               )}
             </div>
@@ -716,7 +713,7 @@ function AlertConfigSection() {
               </div>
               <div>
                 <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="set-label">{t('settings_sections.cooldown_minutos')}</label>
-                <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="number" value={ruleForm.cooldown_minutes} onChange={setR('cooldown_minutes')} className="set-input" min={5} />
+                <Input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="number" value={ruleForm.cooldown_minutes} onChange={setR('cooldown_minutes')} min={5} inputClassName="set-input" />
               </div>
             </div>
             <div className="u-actions-10 set-mt4">
@@ -776,8 +773,7 @@ function VacationSection() {
               <div className="u-base-600">{b.user_name}</div>
               {b.department && <div className="u-text2-xs">{b.department}</div>}
             </div>
-            <input type="number" aria-label={t('settings_sections.dias_asignados_de', { nombre: b.user_name })} defaultValue={b.days_entitled} min="0" max={maxDias} onBlur={e => updateBalance({ userId: b.user_id, days: +e.target.value })}
-              className="set-threshold set-threshold--full" />
+            <Input type="number" aria-label={t('settings_sections.dias_asignados_de', { nombre: b.user_name })} defaultValue={b.days_entitled} min="0" max={maxDias} onBlur={e => updateBalance({ userId: b.user_id, days: +e.target.value })} inputClassName="set-threshold set-threshold--full" />
           </div>
         ))}
       </div>
@@ -807,9 +803,9 @@ function NumberingSection() {
                 <div className="set-seq-preview">{s.next_preview}</div>
               </div>
               <div className="set-seq-fields">
-                <div><label htmlFor={`${idCampo}-${s.entity}-c1038`} className="set-label set-label--xs">{t('settings_sections.prefijo')}</label><input aria-label={t('settings_sections.prefijo')} id={`${idCampo}-${s.entity}-c1038`} defaultValue={s.prefix} onBlur={e => update({ entity: s.entity, data: { ...s, prefix: e.target.value } })} className="set-input set-input--w70" placeholder={t('settings_sections.prefijo')} /></div>
-                <div><label id={`${idCampo}-${s.entity}-etc1039`} htmlFor={`${idCampo}-${s.entity}-c1039`} className="set-label set-label--xs" title={t('settings_sections.separador')}>{t('settings_sections.sep')}</label><input id={`${idCampo}-${s.entity}-c1039`} aria-labelledby={`${idCampo}-${s.entity}-etc1039`} defaultValue={s.separator} onBlur={e => update({ entity: s.entity, data: { ...s, separator: e.target.value } })} className="set-input set-input--w40" /></div>
-                <div><label id={`${idCampo}-${s.entity}-etc1040`} htmlFor={`${idCampo}-${s.entity}-c1040`} className="set-label set-label--xs">{t('settings.digitos')}</label><input id={`${idCampo}-${s.entity}-c1040`} aria-labelledby={`${idCampo}-${s.entity}-etc1040`} type="number" min="1" max="8" defaultValue={s.padding} onBlur={e => update({ entity: s.entity, data: { ...s, padding: +e.target.value } })} className="set-input set-input--w60" /></div>
+                <div><label htmlFor={`${idCampo}-${s.entity}-c1038`} className="set-label set-label--xs">{t('settings_sections.prefijo')}</label><Input aria-label={t('settings_sections.prefijo')} id={`${idCampo}-${s.entity}-c1038`} defaultValue={s.prefix} onBlur={e => update({ entity: s.entity, data: { ...s, prefix: e.target.value } })} placeholder={t('settings_sections.prefijo')} inputClassName="set-input set-input--w70" /></div>
+                <div><label id={`${idCampo}-${s.entity}-etc1039`} htmlFor={`${idCampo}-${s.entity}-c1039`} className="set-label set-label--xs" title={t('settings_sections.separador')}>{t('settings_sections.sep')}</label><Input id={`${idCampo}-${s.entity}-c1039`} aria-labelledby={`${idCampo}-${s.entity}-etc1039`} defaultValue={s.separator} onBlur={e => update({ entity: s.entity, data: { ...s, separator: e.target.value } })} inputClassName="set-input set-input--w40" /></div>
+                <div><label id={`${idCampo}-${s.entity}-etc1040`} htmlFor={`${idCampo}-${s.entity}-c1040`} className="set-label set-label--xs">{t('settings.digitos')}</label><Input id={`${idCampo}-${s.entity}-c1040`} aria-labelledby={`${idCampo}-${s.entity}-etc1040`} type="number" min="1" max="8" defaultValue={s.padding} onBlur={e => update({ entity: s.entity, data: { ...s, padding: +e.target.value } })} inputClassName="set-input set-input--w60" /></div>
                 <Checkbox className="set-check-muted" label={t('settings.incluir_ano')} checked={!!s.include_year} onChange={m => update({ entity: s.entity, data: { ...s, include_year: m } })} />
               </div>
               <div className="set-shrink0">
@@ -922,8 +918,8 @@ function CustomFieldsSection() {
         <div className="set-add-title">{t('settings.anadir_campo_personalizado')}</div>
         <div className="set-grid-add-field">
           <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('settings_sections.entidad')}</label><Select suelto placeholder={false} id={`${idCampo}-1`} value={form.entity} onChange={e => setForm(f => ({ ...f, entity: e.target.value }))} className="set-input">{CUSTOM_FIELD_ENTITIES.map(e => <option key={e} value={e}>{entityLabel(e)}</option>)}</Select></div>
-          <div><label htmlFor={`${idCampo}-c1150`} className="set-label">{t('common.name')}</label><input aria-label={t('common.name')} id={`${idCampo}-c1150`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value, field_key: e.target.value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') }))} className="set-input" placeholder={t('settings.nombre_del_campo')} /></div>
-          <div><label htmlFor={`${idCampo}-c1151`} className="set-label">{t('settings_sections.clave')}</label><input aria-label={t('settings_sections.clave')} id={`${idCampo}-c1151`} value={form.field_key} onChange={e => setForm(f => ({ ...f, field_key: e.target.value }))} className="set-input" placeholder={t('settings_sections.clave_interna')} /></div>
+          <div><label htmlFor={`${idCampo}-c1150`} className="set-label">{t('common.name')}</label><Input aria-label={t('common.name')} id={`${idCampo}-c1150`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value, field_key: e.target.value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') }))} placeholder={t('settings.nombre_del_campo')} inputClassName="set-input" /></div>
+          <div><label htmlFor={`${idCampo}-c1151`} className="set-label">{t('settings_sections.clave')}</label><Input aria-label={t('settings_sections.clave')} id={`${idCampo}-c1151`} value={form.field_key} onChange={e => setForm(f => ({ ...f, field_key: e.target.value }))} placeholder={t('settings_sections.clave_interna')} inputClassName="set-input" /></div>
           <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings_sections.tipo')}</label><Select suelto placeholder={false} id={`${idCampo}-2`} value={form.field_type} onChange={e => setForm(f => ({ ...f, field_type: e.target.value }))} className="set-input">{Object.keys(FIELD_TYPE_KEYS).map(ty => <option key={ty} value={ty}>{typeLabel(ty)}</option>)}</Select></div>
           <Button onClick={() => { createField(form); setForm({ entity: form.entity, name: '', field_key: '', field_type: 'text', is_required: false, placeholder: '' }) }} disabled={!form.name || !form.field_key}>{t('settings.anadir')}</Button>
         </div>
@@ -961,11 +957,11 @@ function OfficesSection() {
             {editingId === o.id ? (
               <div className="set-edit-panel">
                 <div className="set-fld-name"><label id={`${idCampo}-${o.id}-etc1457`} htmlFor={`${idCampo}-${o.id}-c1457`} className="set-label">{t('common.name')} *</label>
-                  <input id={`${idCampo}-${o.id}-c1457`} aria-labelledby={`${idCampo}-${o.id}-etc1457`} value={editForm.name} onChange={e => setEditForm(f=>({...f,name:e.target.value}))} className="set-input" autoFocus /></div>
+                  <Input id={`${idCampo}-${o.id}-c1457`} aria-labelledby={`${idCampo}-${o.id}-etc1457`} value={editForm.name} onChange={e => setEditForm(f=>({...f,name:e.target.value}))} autoFocus inputClassName="set-input" /></div>
                 <div className="set-fld-sm"><label id={`${idCampo}-${o.id}-etc1459`} htmlFor={`${idCampo}-${o.id}-c1459`} className="set-label">{t('settings.pais')}</label>
-                  <input id={`${idCampo}-${o.id}-c1459`} aria-labelledby={`${idCampo}-${o.id}-etc1459`} value={editForm.country} onChange={e => setEditForm(f=>({...f,country:e.target.value}))} className="set-input" /></div>
+                  <Input id={`${idCampo}-${o.id}-c1459`} aria-labelledby={`${idCampo}-${o.id}-etc1459`} value={editForm.country} onChange={e => setEditForm(f=>({...f,country:e.target.value}))} inputClassName="set-input" /></div>
                 <div className="set-fld-sm"><label id={`${idCampo}-${o.id}-etc1461`} htmlFor={`${idCampo}-${o.id}-c1461`} className="set-label">{t('settings_sections.ciudad')}</label>
-                  <input id={`${idCampo}-${o.id}-c1461`} aria-labelledby={`${idCampo}-${o.id}-etc1461`} value={editForm.city} onChange={e => setEditForm(f=>({...f,city:e.target.value}))} className="set-input" /></div>
+                  <Input id={`${idCampo}-${o.id}-c1461`} aria-labelledby={`${idCampo}-${o.id}-etc1461`} value={editForm.city} onChange={e => setEditForm(f=>({...f,city:e.target.value}))} inputClassName="set-input" /></div>
                 <div className="set-fld-tz"><label id={`${idCampo}-${o.id}-etc1463`} htmlFor={`${idCampo}-${o.id}-c1463`} className="set-label">{t('settings.timezone')}</label>
                   <Select suelto placeholder={false} id={`${idCampo}-${o.id}-c1463`} value={editForm.timezone} onChange={e => setEditForm(f=>({...f,timezone:e.target.value}))} className="set-input">
                     {timezoneOptions(editForm.timezone).map(tz => <option key={tz} value={tz}>{tz}</option>)}
@@ -991,9 +987,9 @@ function OfficesSection() {
         {offices.length === 0 && <EmptyState svgIcon={<Building2 size={36} />} title={t('settings.sin_sedes_registradas')} description={t('settings_sections.sedes_vacio_desc')} />}
       </div>
       <div className="set-add-panel">
-        <div className="set-flex2"><label htmlFor={`${idCampo}-c1491`} className="set-label">{t('common.name')} *</label><input aria-label={t('common.name')} id={`${idCampo}-c1491`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="set-input" placeholder={t('settings.nombre_de_la_sede')} /></div>
-        <div className="u-flex1"><label htmlFor={`${idCampo}-pais`} className="set-label">{t('settings.pais')}</label><input aria-label={t('settings.pais')} id={`${idCampo}-pais`} value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))} className="set-input" placeholder={t('settings.pais')} /></div>
-        <div className="u-flex1"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('settings_sections.ciudad')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} className="set-input" /></div>
+        <div className="set-flex2"><label htmlFor={`${idCampo}-c1491`} className="set-label">{t('common.name')} *</label><Input aria-label={t('common.name')} id={`${idCampo}-c1491`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={t('settings.nombre_de_la_sede')} inputClassName="set-input" /></div>
+        <div className="u-flex1"><label htmlFor={`${idCampo}-pais`} className="set-label">{t('settings.pais')}</label><Input aria-label={t('settings.pais')} id={`${idCampo}-pais`} value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))} placeholder={t('settings.pais')} inputClassName="set-input" /></div>
+        <div className="u-flex1"><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('settings_sections.ciudad')}</label><Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} inputClassName="set-input" /></div>
         <div className="u-flex1"><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings.timezone')}</label><Select suelto placeholder={false} id={`${idCampo}-2`} value={form.timezone} onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))} className="set-input">{timezoneOptions(form.timezone).map(tz => <option key={tz} value={tz}>{tz}</option>)}</Select></div>
         <Button onClick={() => { create(form); setForm({ name: '', country: '', city: '', timezone: defaultTimezone }) }} disabled={!form.name}>{t('settings.anadir')}</Button>
       </div>
@@ -1220,11 +1216,11 @@ function MetricsSection() {
           <div className="u-stack-14">
             <div>
               <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="set-label">{t('common.name')}</label>
-              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.label} onChange={setF('label')} className="set-input" placeholder={t('settings_sections.ej_ratio')} />
+              <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.label} onChange={setF('label')} placeholder={t('settings_sections.ej_ratio')} inputClassName="set-input" />
             </div>
             <div>
               <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="set-label">{t('settings.descripcion_opcional')}</label>
-              <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description} onChange={setF('description')} className="set-input" placeholder={t('settings.para_que_sirve_esta_metrica')} />
+              <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description} onChange={setF('description')} placeholder={t('settings.para_que_sirve_esta_metrica')} inputClassName="set-input" />
             </div>
             <div className="set-formula-box">
               <div className="set-formula-title">{t('settings.formula_a_operador_b_escala')}</div>
@@ -1257,12 +1253,12 @@ function MetricsSection() {
                       {builtinMetrics.filter(m => m.key !== form.operand_a).map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
                     </Select>
                   ) : (
-                    <input id={`${idCampo}-opb`} aria-labelledby={`${idCampo}-etopb`} type="number" value={form.operand_b} onChange={setF('operand_b')} className="set-input" placeholder="0" />
+                    <Input id={`${idCampo}-opb`} aria-labelledby={`${idCampo}-etopb`} type="number" value={form.operand_b} onChange={setF('operand_b')} placeholder="0" inputClassName="set-input" />
                   )}
                 </div>
                 <div>
                   <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="set-label">{t('settings_sections.escala')}</label>
-                  <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="number" value={form.scale} onChange={setF('scale')} className="set-input" placeholder="1" step="any" />
+                  <Input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} type="number" value={form.scale} onChange={setF('scale')} placeholder="1" step="any" inputClassName="set-input" />
                 </div>
               </div>
               {preview && (

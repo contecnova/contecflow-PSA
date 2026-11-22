@@ -9,6 +9,10 @@
 #    ./setup.sh start    → solo arranca, preservando la BD existente
 #    ./setup.sh stop     → para servicios
 #    ./setup.sh update   → actualiza dependencias y esquema (migraciones + comprobación)
+#    ./setup.sh docker [demo|clean] → TODO en Docker: app, API, worker, beat, web,
+#                          Prometheus, Alertmanager, Grafana y exporters
+#    ./setup.sh docker-stop   → para todos los contenedores (conserva los datos)
+#    ./setup.sh docker-status → estado de los contenedores y URLs
 # ============================================================
 
 set -e
@@ -1336,6 +1340,30 @@ stop_background_jobs() {
 }
 
 # ── Stop services ─────────────────────────────────────────────────────────────
+# ── Modo Docker completo (22-11-2026, docs/OBSERVABILIDAD.md) ─────────────────
+# La lógica vive en scripts/docker_stack.py, compartida con setup.bat: así los
+# dos lanzadores hacen exactamente lo mismo. Solo usa la biblioteca estándar, así
+# que vale el Python del sistema si aún no hay .venv.
+docker_stack_python() {
+  resolve_venv_bins 2>/dev/null || true
+  if [ -n "$PY_BIN" ] && [ -x "$PY_BIN" ]; then
+    echo "$PY_BIN"
+  else
+    find_python
+  fi
+}
+
+docker_stack() {
+  cd "$SCRIPT_DIR"
+  local py
+  py="$(docker_stack_python)" || { error "Hace falta Python 3 para el modo Docker"; exit 1; }
+  if [ -z "$py" ]; then
+    error "Hace falta Python 3 para el modo Docker"
+    exit 1
+  fi
+  "$py" scripts/docker_stack.py "$@"
+}
+
 stop_services() {
   log "Parando Contecflow..."
   stop_background_jobs
@@ -1383,10 +1411,24 @@ case "${1:-}" in
   stop)
     stop_services
     ;;
+  docker|docker-start|docker-up)
+    log "Modo: todo en Docker (app + observabilidad)"
+    if detect_docker; then
+      # Mismas garantías que el resto de modos: volúmenes persistentes creados,
+      # nunca borrados (docker_stack.py lo repite, idempotente).
+      ensure_persistent_volumes
+    fi
+    docker_stack arrancar "${2:-}"
+    ;;
+  docker-status)
+    docker_stack estado
+    ;;
   docker-stop)
-    log "Parando infraestructura Docker (Postgres + Redis)..."
+    # Todos los perfiles (infra, app, observabilidad, s3, host-metrics), sin -v:
+    # los datos se conservan.
+    log "Parando todos los contenedores de Contecflow..."
     if detect_docker && [ -f "$SCRIPT_DIR/docker-compose.yml" ]; then
-      docker_compose_cmd down
+      docker_compose_cmd --profile app --profile observability --profile s3 --profile host-metrics down
       log "Docker detenido (datos conservados en volúmenes)"
     else
       warn "Docker no disponible o docker-compose.yml no encontrado"
@@ -1418,7 +1460,9 @@ case "${1:-}" in
     echo "  ./setup.sh start         → solo arranca (BD existente)"
     echo "  ./setup.sh stop          → para la app (Docker sigue activo)"
     echo "  ./setup.sh update        → actualiza dependencias y esquema (migraciones)"
-    echo "  ./setup.sh docker-stop   → para la infraestructura Docker"
+    echo "  ./setup.sh docker [demo|clean] → TODO en Docker (app, Grafana, Prometheus...)"
+    echo "  ./setup.sh docker-status → estado de los contenedores y URLs"
+    echo "  ./setup.sh docker-stop   → para todos los contenedores (conserva datos)"
     echo "  ./setup.sh docker-clean  → para Docker y borra todos los datos"
     exit 1
     ;;

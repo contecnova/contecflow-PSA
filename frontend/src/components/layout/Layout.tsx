@@ -33,7 +33,7 @@ import {
   Timer, Flag, Layers, Shield, Keyboard, BarChart, LayoutGrid,
   Wrench, FolderOpen, ScrollText, ClipboardCheck,
   CalendarRange, Plus, Inbox, Database, MessageSquareText, Lightbulb,
-  Laptop, UserMinus, Globe,
+  Laptop, UserMinus, Globe, ClipboardList, Building, Building2,
 } from 'lucide-react'
 import { ANIMATION_FAST_MS, CLOCK_TICK_MS, DROPDOWN_DELAY_MS, POLL_FAST_MS, STALE_5_MIN_MS, STALE_LIVE_MS } from '../../constants/timings'
 import './Layout.css'
@@ -52,13 +52,14 @@ const ROUTE_LABELS: Record<string, string> = {
   '/epics': 'Epics & Roadmap', '/deliverables': 'Deliverables', '/changes': 'Changes',
   '/risks': 'Risks', '/dependencies': 'Dependencies', '/git': 'Git',
   '/wiki': 'Wiki', '/meetings-ai': 'Meeting Assistant',
-  '/resources': 'Resources', '/resources/planning': 'Resource planning', '/portfolio/intake': 'Portfolio intake', '/capacity': 'Capacity Planning',
+  '/resources': 'Resources', '/resources/planning': 'Resource planning', '/portfolio/intake': 'Portfolio intake', '/demand': 'Demand requests', '/capacity': 'Capacity Planning',
   '/resource-forecast': 'Resource Forecast', '/resource-scheduler': 'Visual Scheduler', '/skills': 'Skills', '/org-chart': 'Org Chart',
   '/okrs': 'OKRs', '/performance-reviews': 'Performance Reviews', '/training': 'Training & Certs',
   '/clients': 'Clients / CRM', '/pipeline': 'Sales Pipeline', '/contracts': 'Contracts',
   '/invoices': 'Invoicing', '/milestone-billing': 'Milestone Billing',
   '/profitability': 'Profitability', '/revenue': 'Revenue Recognition', '/budgets': 'Budgets',
   '/rate-cards': 'Rate Cards', '/subcontractors': 'Subcontractors', '/supplier-portal': 'Supplier portal',
+  '/internal-clients': 'Internal clients', '/mi-departamento': 'My department',
   '/scenarios': 'What-If Scenarios', '/nps': 'NPS & Health',
   '/service-desk': 'Service Desk', '/cmdb': 'CMDB', '/sd/workflow-designer': 'Workflow Designer', '/alm': 'Licenses & Assets',
   '/alm/altas-y-bajas': 'Onboarding & offboarding', '/my-equipment': 'My equipment & licences',
@@ -105,13 +106,14 @@ const ROUTE_SECTION: Record<string, string> = {
   '/gantt': 'Projects', '/epic-gantt': 'Projects', '/epics': 'Projects', '/deliverables': 'Projects',
   '/changes': 'Projects', '/risks': 'Projects', '/dependencies': 'Projects',
   '/git': 'Projects', '/wiki': 'Projects', '/meetings-ai': 'My Work',
-  '/resources': 'Team', '/resources/planning': 'Team', '/portfolio/intake': 'Analytics', '/capacity': 'Team', '/resource-forecast': 'Team', '/resource-scheduler': 'Team',
+  '/resources': 'Team', '/resources/planning': 'Team', '/portfolio/intake': 'Analytics', '/demand': 'Projects', '/capacity': 'Team', '/resource-forecast': 'Team', '/resource-scheduler': 'Team',
   '/skills': 'Team', '/org-chart': 'Team', '/okrs': 'Team',
   '/performance-reviews': 'Team', '/training': 'Team',
   '/clients': 'Finance', '/pipeline': 'Finance', '/contracts': 'Finance',
   '/invoices': 'Finance', '/milestone-billing': 'Finance',
   '/profitability': 'Finance', '/revenue': 'Finance', '/budgets': 'Finance',
   '/rate-cards': 'Finance', '/subcontractors': 'Finance', '/supplier-portal': 'My Work',
+  '/internal-clients': 'Finance', '/mi-departamento': 'My Work',
   '/scenarios': 'Finance', '/nps': 'Finance',
   '/service-desk': 'Support', '/cmdb': 'Support', '/sd/workflow-designer': 'Support', '/alm': 'Support', '/alm/altas-y-bajas': 'Support', '/my-equipment': 'My Work',
   '/sla-calendars': 'Support', '/agent-dashboard': 'Support',
@@ -142,7 +144,7 @@ const ROUTE_SECTION: Record<string, string> = {
 const PATH_NAV_KEY: Record<string, string> = {
   '/work-dashboard': 'work_dashboard', '/projects-dashboard': 'projects_dashboard',
   '/my-equipment': 'my_equipment', '/alm/altas-y-bajas': 'alm_onboarding_offboarding',
-  '/portfolio/intake': 'portfolio_intake', '/resources/planning': 'resource_planning',
+  '/portfolio/intake': 'portfolio_intake', '/demand': 'demand', '/resources/planning': 'resource_planning',
   '/team-dashboard': 'team_dashboard', '/finance-dashboard': 'finance_dashboard',
   '/support-dashboard': 'support_dashboard',
   '/time': 'time', '/imputar': 'log_hours', '/meetings-ai': 'meetings',
@@ -201,6 +203,8 @@ const NAV_GROUPS: NavGroupConfig[] = [
     { to: '/my-equipment',    icon: <Laptop size={SZ} />,       label: 'My equipment & licences' },
     // Migración 191: portal del proveedor (solo externos con `proveedores.portal`).
     { to: '/supplier-portal', icon: <Globe size={SZ} />,        label: 'Supplier portal' },
+    // Clientes internos (22-11-2026): portal de la unidad interna (`interno.portal`).
+    { to: '/mi-departamento', icon: <Building size={SZ} />,     label: 'My department' },
   ]},
   { id: 'proyectos', label: 'Projects', groupKey: 'group_projects', icon: <Folder size={12} />, items: [
     { to: '/projects-dashboard', icon: <LayoutGrid size={SZ} />,  label: 'Salud del portfolio' },
@@ -217,6 +221,8 @@ const NAV_GROUPS: NavGroupConfig[] = [
     { to: '/epics',           icon: <Target size={SZ} />,         label: 'Epics & Roadmap' },
     { to: '/deliverables',    icon: <Package size={SZ} />,        label: 'Deliverables' },
     { to: '/changes',         icon: <ArrowLeftRight size={SZ} />, label: 'Changes' },
+    // 22-11-2026: expedientes del flujo de demanda configurable.
+    { to: '/demand',          icon: <ClipboardList size={SZ} />,  label: 'Demand requests' },
     { to: '/risks',           icon: <AlertTriangle size={SZ} />,  label: 'Risks' },
     { to: '/dependencies',    icon: <Link size={SZ} />,           label: 'Dependencies' },
     { to: '/git',             icon: <GitBranch size={SZ} />,      label: 'Git Integration' },
@@ -246,6 +252,8 @@ const NAV_GROUPS: NavGroupConfig[] = [
     { to: '/revenue',           icon: <DollarSign size={SZ} />,  label: 'Revenue Recognition' },
     { to: '/budgets',           icon: <Briefcase size={SZ} />,   label: 'Budgets' },
     { to: '/subcontractors',    icon: <HardHat size={SZ} />,     label: 'Subcontractors' },
+    // Clientes internos (22-11-2026): cuadro de dirección, cargos y beneficios (`interno.gestionar`).
+    { to: '/internal-clients',  icon: <Building2 size={SZ} />,   label: 'Internal clients' },
     { to: '/scenarios',         icon: <Calculator size={SZ} />,  label: 'What-If Scenarios' },
     { to: '/nps',               icon: <ThumbsUp size={SZ} />,    label: 'NPS & Health' },
   ]},

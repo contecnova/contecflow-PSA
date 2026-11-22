@@ -9,6 +9,8 @@ setlocal EnableDelayedExpansion
 ::   setup.bat start demo^|clean - solo arranca con modo de datos
 ::   setup.bat stop     - para los servicios
 ::   setup.bat update   - actualiza dependencias y esquema (migraciones)
+::   setup.bat docker [demo^|clean] - TODO en Docker (app + Grafana/Prometheus/Alertmanager)
+::   setup.bat docker-status - estado de los contenedores y URLs
 ::   setup.bat docker-stop / docker-clean - para Docker (clean borra volumenes)
 ::   SETUP_INIT_MODE=demo^|clean setup.bat start  - modo no interactivo (CI/CD)
 
@@ -54,6 +56,10 @@ if /I "%CMD%"=="stop"         goto :stop_services
 if /I "%CMD%"=="update"       goto :update_mode
 if /I "%CMD%"=="docker-stop"  goto :docker_stop
 if /I "%CMD%"=="docker-clean" goto :docker_clean
+if /I "%CMD%"=="docker"        goto :docker_full
+if /I "%CMD%"=="docker-start"  goto :docker_full
+if /I "%CMD%"=="docker-up"     goto :docker_full
+if /I "%CMD%"=="docker-status" goto :docker_status
 
 if /I "%CMD%"=="install" set "REQUESTED_MODE="& goto :full_install
 if /I "%CMD%"=="demo"  set "REQUESTED_MODE=demo"
@@ -79,7 +85,10 @@ echo   setup.bat start              -^> solo arranca ^(BD existente^)
 echo   setup.bat start demo^|clean   -^> arranca re-sembrando con ese modo
 echo   setup.bat stop               -^> para la app ^(Docker sigue activo^)
 echo   setup.bat update             -^> actualiza dependencias y esquema (migraciones)
-echo   setup.bat docker-stop        -^> para la infraestructura Docker
+echo   setup.bat docker [demo^|clean] -^> TODO en Docker: app, API, worker, beat, web,
+echo                                   Prometheus, Alertmanager, Grafana y exporters
+echo   setup.bat docker-status      -^> estado de los contenedores y URLs
+echo   setup.bat docker-stop        -^> para todos los contenedores ^(conserva datos^)
 echo   setup.bat docker-clean       -^> para Docker y borra todos los datos
 echo.
 echo   Alias: seed = demo; zero / cero / admin-only = clean
@@ -88,11 +97,48 @@ endlocal
 exit /b 1
 
 :docker_stop
-echo [INFO] Parando infraestructura Docker (Postgres + Redis)...
-call :docker_compose down
+:: Todos los perfiles (infra, app, observabilidad, s3, host-metrics), sin -v:
+:: los datos se conservan. Igual que `./setup.sh docker-stop`.
+echo [INFO] Parando todos los contenedores de Contecflow...
+call :docker_compose --profile app --profile observability --profile s3 --profile host-metrics down
 if errorlevel 1 goto :end
 echo [OK] Docker detenido (datos conservados en volumenes)
 goto :end
+
+:: Modo Docker completo (22-11-2026, docs\OBSERVABILIDAD.md). La logica vive en
+:: scripts\docker_stack.py, compartida con setup.sh: los dos lanzadores hacen lo
+:: mismo (volumenes persistentes creados y nunca borrados, .env completado,
+:: build + up de infra, app y observabilidad, migraciones, espera y URLs).
+:docker_full
+call :docker_stack_python
+if errorlevel 1 goto :error
+"!DS_PY!" "%SCRIPT_DIR%\scripts\docker_stack.py" arrancar %2
+if errorlevel 1 goto :error
+goto :end
+
+:docker_status
+call :docker_stack_python
+if errorlevel 1 goto :error
+"!DS_PY!" "%SCRIPT_DIR%\scripts\docker_stack.py" estado
+goto :end
+
+:: Python para scripts\docker_stack.py: el de .venv si existe; si no, el del
+:: sistema (solo usa la biblioteca estandar).
+:docker_stack_python
+set "DS_PY="
+if exist "%SCRIPT_DIR%\.venv\Scripts\python.exe" set "DS_PY=%SCRIPT_DIR%\.venv\Scripts\python.exe"
+if defined DS_PY exit /b 0
+for %%p in (py python3 python) do (
+    if not defined DS_PY (
+        where %%p >nul 2>&1
+        if not errorlevel 1 (
+            for /f "delims=" %%x in ('%%p -c "import sys; print(sys.executable)" 2^>nul') do if not defined DS_PY set "DS_PY=%%x"
+        )
+    )
+)
+if defined DS_PY exit /b 0
+echo [ERROR] Hace falta Python 3 para el modo Docker ^(https://www.python.org/downloads/^)
+exit /b 1
 
 :docker_clean
 call :get_environment
@@ -695,6 +741,9 @@ set "BACKEND_RUNNER=%TEMP%\contecflow-backend-runner.cmd"
     echo set ENABLE_CELERY_BEAT=1
     echo .venv\Scripts\python -m uvicorn app.main:app --host 0.0.0.0 --port %BACKEND_PORT% --log-level info 1^>"%TEMP%\contecflow-backend.log" 2^>"%TEMP%\contecflow-backend.err.log"
 ) > "%BACKEND_RUNNER%"
+REM (call ) deja errorlevel a 0: si no, el "if errorlevel 1" de abajo hereda el de
+REM cualquier orden anterior y da un falso "No se pudo lanzar" (22-11-2026).
+(call )
 start "Contecflow Backend" /min "%COMSPEC%" /c call "%BACKEND_RUNNER%"
 if errorlevel 1 (
     echo [ERROR] No se pudo lanzar el backend.
@@ -730,7 +779,7 @@ if %BACKEND_ATTEMPTS% GTR 180 (
 )
 curl --silent --fail --connect-timeout 1 --max-time 1 "http://127.0.0.1:%BACKEND_PORT%/health" >nul 2>&1
 if NOT "%ERRORLEVEL%"=="0" (
-    timeout /t 1 /nobreak >nul
+    ping -n 2 127.0.0.1 >nul
     goto :wait_backend
 )
 echo [INFO] Backend listo
@@ -788,6 +837,7 @@ set "FRONTEND_RUNNER=%TEMP%\contecflow-frontend-runner.cmd"
     echo cd /d "%SCRIPT_DIR%\frontend"
     echo npm run dev -- --port %FRONTEND_PORT% 1^>"%TEMP%\contecflow-frontend.log" 2^>"%TEMP%\contecflow-frontend.err.log"
 ) > "%FRONTEND_RUNNER%"
+(call )
 start "Contecflow Frontend" /min "%COMSPEC%" /c call "%FRONTEND_RUNNER%"
 if errorlevel 1 (
     echo [ERROR] No se pudo lanzar el frontend.
@@ -806,7 +856,7 @@ if %FRONTEND_ATTEMPTS% GTR 180 (
 )
 curl --silent --fail --connect-timeout 1 --max-time 1 "http://localhost:%FRONTEND_PORT%" >nul 2>&1
 if NOT "%ERRORLEVEL%"=="0" (
-    timeout /t 1 /nobreak >nul
+    ping -n 2 127.0.0.1 >nul
     goto :wait_frontend
 )
 echo [INFO] Frontend listo
@@ -830,7 +880,7 @@ echo.
 echo   Para parar:  setup.bat stop
 echo.
 
-timeout /t 2 /nobreak >nul
+ping -n 3 127.0.0.1 >nul
 start "" "http://localhost:%FRONTEND_PORT%"
 
 echo Presiona cualquier tecla para cerrar esta ventana...
@@ -886,7 +936,7 @@ if /I "!PORT_STATE!"=="FREE" (
 if !WAIT_COUNT! GEQ %MAX_WAIT% (
     endlocal & exit /b 1
 )
-timeout /t 1 /nobreak >nul
+ping -n 2 127.0.0.1 >nul
 goto :wait_port_free_loop
 
 :: -----------------------------------------------------------------------

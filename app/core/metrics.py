@@ -313,10 +313,32 @@ def _install_metrics_route(app: FastAPI, env_auth_token: Optional[str]) -> None:
             _limpiar_workers_muertos(multiproc_dir)
             registry = CollectorRegistry()
             multiprocess.MultiProcessCollector(registry)
+            # Las métricas de negocio no son de un proceso: las calcula, con caché,
+            # el worker que atiende el scrape (app/core/metricas_negocio.py).
+            if _s.METRICS_BUSINESS_ENABLED:
+                from app.core.metricas_negocio import colector
+                registry.register(colector())
             payload = generate_latest(registry)
         else:
             payload = generate_latest(REGISTRY)
         return Response(content=payload, media_type=CONTENT_TYPE_LATEST)
+
+
+_colector_registrado = False
+
+
+def _registrar_colector_de_negocio() -> None:
+    """En modo de un proceso, el colector va al registro global (una vez)."""
+    global _colector_registrado
+    if _colector_registrado:
+        return
+    try:
+        from prometheus_client import REGISTRY
+        from app.core.metricas_negocio import colector
+        REGISTRY.register(colector())
+        _colector_registrado = True
+    except Exception:
+        logger.warning("No se pudo registrar el colector de métricas de negocio", exc_info=True)
 
 
 def setup_metrics(app: FastAPI) -> bool:
@@ -340,6 +362,17 @@ def setup_metrics(app: FastAPI) -> bool:
         return False
 
     _install_metrics_route(app, settings.METRICS_AUTH_TOKEN)
+
+    # Observabilidad por empresa (22-11-2026, docs/OBSERVABILIDAD.md): peticiones,
+    # latencia y errores por empresa (etiqueta acotada), y métricas de negocio
+    # leídas de la base con caché.
+    try:
+        from app.core.metricas_empresa import MetricasPorEmpresaMiddleware
+        app.add_middleware(MetricasPorEmpresaMiddleware)
+    except Exception:
+        logger.warning("No se pudo instalar el middleware de métricas por empresa", exc_info=True)
+    if settings.METRICS_BUSINESS_ENABLED and not _multiproc_dir():
+        _registrar_colector_de_negocio()
 
     try:
         app_info.labels(

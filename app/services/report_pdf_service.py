@@ -434,7 +434,8 @@ def build_report_pdf(report, db, org_id: Optional[str] = None, idioma: Optional[
 
     # ── Header ────────────────────────────────────────────────────────────────
     clave_tipo = (f"informe.tipo.{report_type}" if report_type in (
-        "executive_summary", "utilization", "pipeline", "portfolio", "custom") else "informe.tipo.otro")
+        "executive_summary", "utilization", "pipeline", "portfolio", "custom", "cyber_risk", "vuln_management")
+        else "informe.tipo.otro")
     subtitle = texto(clave_tipo, idioma)
     story += _header_block(report.name, subtitle, styles)
 
@@ -463,6 +464,11 @@ def build_report_pdf(report, db, org_id: Optional[str] = None, idioma: Optional[
     elif report_type == "portfolio":
         portfolio_data = _fetch_portfolio_data(org_id)
         story += _portfolio_table(portfolio_data, styles)
+
+    elif report_type in ("cyber_risk", "vuln_management"):
+        # 22-11-2026: índice de riesgo y gestión de vulnerabilidades (CMDB de software, §11).
+        from app.services.cmdb_software.riesgo.informes import historia_pdf
+        story += historia_pdf(report, db, org_id, styles)
 
     else:
         # Una métrica de la pantalla de Informes. Revisión 2026-11: se llamaba

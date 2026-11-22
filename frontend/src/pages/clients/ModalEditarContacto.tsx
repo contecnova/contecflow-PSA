@@ -2,7 +2,7 @@
 // y la tarjeta «Contacto principal» de la ficha.
 import { useId, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Button, Modal, Select, useErroresDeCampo } from '../../components/ui'
+import { Button, Modal, Select, useErroresDeCampo, Textarea } from '../../components/ui'
 import { clientExtApi, type ClientContact } from '../../services/api'
 import { useToast } from '../../context/ToastContext'
 import { useAppLang } from '../../i18n/AppLangContext'
@@ -73,10 +73,7 @@ export function ModalEditarContacto({ cid, contacto, onClose }: { cid: string; c
         </div>
         <div className="u-mb-16">
           <label id={`${idCampo}-et-notes`} htmlFor={`${idCampo}-notes`} className="clpata-lbl">{t('clicontactos.notas')}</label>
-          <textarea id={`${idCampo}-notes`} aria-labelledby={`${idCampo}-et-notes`} value={form.notes}
-            aria-invalid={campos.de('notes') ? true : undefined}
-            onChange={e => { campos.limpiar('notes'); setForm(f => ({ ...f, notes: e.target.value })) }}
-            className="clpata-inp" />
+          <Textarea id={`${idCampo}-notes`} aria-labelledby={`${idCampo}-et-notes`} value={form.notes} aria-invalid={campos.de('notes') ? true : undefined} onChange={e => { campos.limpiar('notes'); setForm(f => ({ ...f, notes: e.target.value })) }} inputClassName="clpata-inp" />
           {campos.de('notes') && <div className="u-field-error">{campos.de('notes')}</div>}
         </div>
         <div className="u-actions-8">

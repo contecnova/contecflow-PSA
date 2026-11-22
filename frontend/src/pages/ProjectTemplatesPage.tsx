@@ -14,7 +14,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { templatesApi, type ApiError } from '../services/api'
 import type { PlantillaDeProyecto, ProyectoDesdePlantilla } from '../services/api/tipos-proyectos'
-import { Button, Card, ClientSelect, EmptyState, Input, Modal, Select, Spinner, Pulsable } from '../components/ui'
+import { Button, Card, ClientSelect, EmptyState, Input, Modal, Select, Spinner, Pulsable, Textarea } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { useCatalogo } from '../hooks/useCatalogo'
 import PageHeader from '../components/layout/PageHeader'
@@ -230,7 +230,7 @@ function CreateTemplateModal({ onClose, onDone }: { onClose: () => void; onDone:
         </div>
         <div className="ui-field">
           <label className="uiinde-estiloetiqueta" htmlFor="ptpl-descripcion">{t('projecttemplates.descripcion')}</label>
-          <textarea id="ptpl-descripcion" className="ds-input ptpl-textarea" value={form.description} onChange={set('description')} rows={2} />
+          <Textarea id="ptpl-descripcion" value={form.description} onChange={set('description')} rows={2} inputClassName="ptpl-textarea" />
         </div>
 
         <section className="ptpl-bloque">
@@ -286,7 +286,7 @@ function CreateTemplateModal({ onClose, onDone }: { onClose: () => void; onDone:
           </div>
           <div className="ui-field">
             <label className="uiinde-estiloetiqueta" htmlFor="ptpl-mitigacion">{t('projecttemplates.mitigacion_opcional')}</label>
-            <textarea id="ptpl-mitigacion" className="ds-input ptpl-textarea" value={risk.mitigation_plan} onChange={e => setRisk(f => ({ ...f, mitigation_plan: e.target.value }))} rows={2} />
+            <Textarea id="ptpl-mitigacion" value={risk.mitigation_plan} onChange={e => setRisk(f => ({ ...f, mitigation_plan: e.target.value }))} rows={2} inputClassName="ptpl-textarea" />
           </div>
           <div>
             <Button variant="secondary" icon={<Plus size={14} />} onClick={addRisk} disabled={!risk.title.trim()}>{t('plantillas_ui.anadir_riesgo')}</Button>
@@ -308,7 +308,7 @@ function CreateTemplateModal({ onClose, onDone }: { onClose: () => void; onDone:
           </div>
           <div className="ui-field">
             <label className="uiinde-estiloetiqueta" htmlFor="ptpl-aceptacion">{t('projecttemplates.criterio_aceptacion_opcional')}</label>
-            <textarea id="ptpl-aceptacion" className="ds-input ptpl-textarea" value={deliverable.acceptance_criteria} onChange={e => setDeliverable(f => ({ ...f, acceptance_criteria: e.target.value }))} rows={2} />
+            <Textarea id="ptpl-aceptacion" value={deliverable.acceptance_criteria} onChange={e => setDeliverable(f => ({ ...f, acceptance_criteria: e.target.value }))} rows={2} inputClassName="ptpl-textarea" />
           </div>
           <div>
             <Button variant="secondary" icon={<Plus size={14} />} onClick={addDeliverable} disabled={!deliverable.name.trim()}>{t('plantillas_ui.anadir_entregable')}</Button>

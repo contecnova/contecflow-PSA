@@ -30,7 +30,7 @@ import {
   Palmtree, Package, ClipboardList, Handshake, GitBranch, UserPlus, Tag, Plug, Laptop, Undo2, Circle, AlarmClockPlus, ShieldAlert,
   ArrowLeft, FolderOpen, Pencil, Check, Plus, X, AlertTriangle, Download,
 } from 'lucide-react'
-import { Button, Modal, EmptyState, Tabs, Page, Table, KpiCard, IconButton, StatusBadge, SelectorDePeriodo, Pulsable, Select, TablaSimple, Checkbox, useErroresDeCampo } from '../components/ui'
+import { Button, Modal, EmptyState, Tabs, Page, Table, KpiCard, IconButton, StatusBadge, SelectorDePeriodo, Pulsable, Select, TablaSimple, Checkbox, useErroresDeCampo, Input } from '../components/ui'
 import { usePeriodo } from '../hooks/usePeriodo'
 import { CON_HORA, codigoDeErrorDePeriodo, formatearTramo } from '../utils/periodo'
 import { useAppT } from '../i18n/AppLangContext'
@@ -78,6 +78,8 @@ const ENTIDADES: Record<string, { icon: ReactNode; color: string }> = {
   vuln_exception: { icon: <ShieldAlert size={14} />, color: 'var(--warning)' },
   // Migración 191: estado de cuenta / factura de un proveedor, por importe.
   supplier_statement: { icon: <Handshake size={14} />, color: 'var(--accent)' },
+  // 22-11-2026: cargo interno (chargeback) que excede el presupuesto de la unidad.
+  internal_charge: { icon: <Receipt size={14} />, color: 'var(--warning)' },
 }
 const ICONO_ENTIDAD_DESCONOCIDA = <Circle size={14} />
 /** Nombre de cada tipo de entidad: `approvals.entity_<tipo>`. */
@@ -193,11 +195,11 @@ function StepModal({ workflowId, step, onClose }: { workflowId: string; step: Ap
       <div className="apv-rejilla-2">
         <div>
           <label htmlFor={id('name')} className="apv-label">{t('approvals.step_name_required')}</label>
-          <input id={id('name')} value={form.name} onChange={e => { campos.limpiar('name'); setForm(f => ({ ...f, name: e.target.value })) }} className="apv-input" placeholder={t('approvals.step_name_placeholder')} />{msg('name')}
+          <Input id={id('name')} value={form.name} onChange={e => { campos.limpiar('name'); setForm(f => ({ ...f, name: e.target.value })) }} placeholder={t('approvals.step_name_placeholder')} inputClassName="apv-input" />{msg('name')}
         </div>
         <div>
           <label htmlFor={id('order')} className="apv-label">{t('approvals.order')}</label>
-          <input id={id('order')} type="number" value={form.step_order} onChange={e => { campos.limpiar('step_order'); setForm(f => ({ ...f, step_order: +e.target.value })) }} className="apv-input" min="1" max="10" />{msg('step_order')}
+          <Input id={id('order')} type="number" value={form.step_order} onChange={e => { campos.limpiar('step_order'); setForm(f => ({ ...f, step_order: +e.target.value })) }} min="1" max="10" inputClassName="apv-input" />{msg('step_order')}
         </div>
         <div className="u-col-full">
           <label htmlFor={id('approver-type')} className="apv-label">{t('approvals.approver_type')}</label>
@@ -238,7 +240,7 @@ function StepModal({ workflowId, step, onClose }: { workflowId: string; step: Ap
 
         <div>
           <label htmlFor={id('timeout-hours')} className="apv-label">{t('approvals.timeout_hours')}</label>
-          <input id={id('timeout-hours')} type="number" value={form.timeout_hours} onChange={e => { campos.limpiar('timeout_hours'); setForm(f => ({ ...f, timeout_hours: +e.target.value })) }} className="apv-input" min="1" />{msg('timeout_hours')}
+          <Input id={id('timeout-hours')} type="number" value={form.timeout_hours} onChange={e => { campos.limpiar('timeout_hours'); setForm(f => ({ ...f, timeout_hours: +e.target.value })) }} min="1" inputClassName="apv-input" />{msg('timeout_hours')}
         </div>
         <div>
           <label htmlFor={id('on-timeout')} className="apv-label">{t('approvals.on_timeout')}</label>
@@ -275,15 +277,13 @@ function StepModal({ workflowId, step, onClose }: { workflowId: string; step: Ap
         {form.parallel_quorum && (
           <div>
             <label htmlFor={id('req-approvals')} className="apv-label">{t('approvals.aprobaciones_requeridas')}</label>
-            <input id={id('req-approvals')} type="number" min="1" value={form.required_approvals}
-              onChange={e => { campos.limpiar('required_approvals'); setForm(f => ({ ...f, required_approvals: +e.target.value })) }} className="apv-input" />{msg('required_approvals')}
+            <Input id={id('req-approvals')} type="number" min="1" value={form.required_approvals} onChange={e => { campos.limpiar('required_approvals'); setForm(f => ({ ...f, required_approvals: +e.target.value })) }} inputClassName="apv-input" />{msg('required_approvals')}
           </div>
         )}
 
         <div>
           <label htmlFor={id('reminder')} className="apv-label">{t('approvals.recordatorio_horas')}</label>
-          <input id={id('reminder')} type="number" min="1" value={form.reminder_hours}
-            onChange={e => { campos.limpiar('reminder_hours'); setForm(f => ({ ...f, reminder_hours: e.target.value ? +e.target.value : '' })) }} className="apv-input" placeholder={t('approvals.recordatorio_ejemplo')} />{msg('reminder_hours')}
+          <Input id={id('reminder')} type="number" min="1" value={form.reminder_hours} onChange={e => { campos.limpiar('reminder_hours'); setForm(f => ({ ...f, reminder_hours: e.target.value ? +e.target.value : '' })) }} placeholder={t('approvals.recordatorio_ejemplo')} inputClassName="apv-input" />{msg('reminder_hours')}
         </div>
 
         <div className="u-col-full">
@@ -797,7 +797,7 @@ function WorkflowTemplatesTab() {
           <div className="apv-rejilla-2">
             <div>
               <label htmlFor={id('scratch-name')} className="apv-label">{t('approvals.nombre')}</label>
-              <input id={id('scratch-name')} value={scratch.name} onChange={e => setScratch(s => ({ ...s, name: e.target.value }))} className="apv-input" placeholder={t('approvals.nombre_ejemplo')} />
+              <Input id={id('scratch-name')} value={scratch.name} onChange={e => setScratch(s => ({ ...s, name: e.target.value }))} placeholder={t('approvals.nombre_ejemplo')} inputClassName="apv-input" />
             </div>
             <div>
               <label htmlFor={id('scratch-entity')} className="apv-label">{t('approvals.entidad')}</label>
@@ -816,7 +816,7 @@ function WorkflowTemplatesTab() {
             )}
             <div className="u-col-full">
               <label htmlFor={id('scratch-description')} className="apv-label">{t('approvals.description')}</label>
-              <input id={id('scratch-description')} value={scratch.description} onChange={e => setScratch(s => ({ ...s, description: e.target.value }))} className="apv-input" placeholder={t('approvals.descripcion_ejemplo')} />
+              <Input id={id('scratch-description')} value={scratch.description} onChange={e => setScratch(s => ({ ...s, description: e.target.value }))} placeholder={t('approvals.descripcion_ejemplo')} inputClassName="apv-input" />
             </div>
             <label htmlFor={id('scratch-default')} className="apv-check apv-check--fila">
               <Checkbox id={id('scratch-default')} checked={scratch.is_default} onChange={(_, e) => setScratch(s => ({ ...s, is_default: e.target.checked }))} />
@@ -835,7 +835,7 @@ function WorkflowTemplatesTab() {
                 <div className="apv-paso-borrador__fila">
                   <div>
                     <label htmlFor={id(`step-name-${idx}`)} className="apv-label">{t('approvals.paso_n_nombre', { n: idx + 1 })}</label>
-                    <input id={id(`step-name-${idx}`)} value={step.name} onChange={e => updateScratchStep(idx, 'name', e.target.value)} className="apv-input" placeholder={t('approvals.nombre_del_paso')} />
+                    <Input id={id(`step-name-${idx}`)} value={step.name} onChange={e => updateScratchStep(idx, 'name', e.target.value)} placeholder={t('approvals.nombre_del_paso')} inputClassName="apv-input" />
                   </div>
                   <div>
                     <label htmlFor={id(`step-type-${idx}`)} className="apv-label">{t('approvals.aprobador')}</label>
@@ -847,7 +847,7 @@ function WorkflowTemplatesTab() {
                   </div>
                   <div>
                     <label htmlFor={id(`step-timeout-${idx}`)} className="apv-label">{t('approvals.timeout_hours')}</label>
-                    <input id={id(`step-timeout-${idx}`)} type="number" min="1" value={step.timeout_hours} onChange={e => updateScratchStep(idx, 'timeout_hours', e.target.value)} className="apv-input" />
+                    <Input id={id(`step-timeout-${idx}`)} type="number" min="1" value={step.timeout_hours} onChange={e => updateScratchStep(idx, 'timeout_hours', e.target.value)} inputClassName="apv-input" />
                   </div>
                   <div>
                     <label htmlFor={id(`step-ontimeout-${idx}`)} className="apv-label">{t('approvals.on_timeout')}</label>
@@ -930,7 +930,7 @@ function WorkflowSimulatorTab() {
           </div>
           <div>
             <label htmlFor={id('cat')} className="apv-label">{t('approvals.categoria')}</label>
-            <input id={id('cat')} value={category} onChange={e => setCategory(e.target.value)} className="apv-input" placeholder={t('approvals.categoria_ejemplo')} />
+            <Input id={id('cat')} value={category} onChange={e => setCategory(e.target.value)} placeholder={t('approvals.categoria_ejemplo')} inputClassName="apv-input" />
           </div>
           <div>
             <label htmlFor={id('dep')} className="apv-label">{t('approvals.department')}</label>
@@ -941,7 +941,7 @@ function WorkflowSimulatorTab() {
           </div>
           <div>
             <label htmlFor={id('imp')} className="apv-label">{t('approvals.importe')}</label>
-            <input id={id('imp')} value={amount} onChange={e => setAmount(e.target.value)} className="apv-input" type="number" />
+            <Input id={id('imp')} value={amount} onChange={e => setAmount(e.target.value)} type="number" inputClassName="apv-input" />
           </div>
           <div className="apv-span-2">
             <label htmlFor={id('sol')} className="apv-label">{t('approvals.solicitante_opcional')}</label>
@@ -1248,11 +1248,11 @@ function ApprovalGroupsTab() {
           <div className="apv-columna">
             <div>
               <label htmlFor={`${idCampo}-1`} className="apv-label">{t('approvals.name_required')}</label>
-              <input id={`${idCampo}-1`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="apv-input" placeholder={t('approvals.ej_comite_financiero')} />
+              <Input id={`${idCampo}-1`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={t('approvals.ej_comite_financiero')} inputClassName="apv-input" />
             </div>
             <div>
               <label htmlFor={`${idCampo}-2`} className="apv-label">{t('approvals.description')}</label>
-              <input id={`${idCampo}-2`} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="apv-input" />
+              <Input id={`${idCampo}-2`} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} inputClassName="apv-input" />
             </div>
             <div>
               <div id={`${idCampo}-miembros`} className="apv-label">{t('approvals.miembros')}</div>
@@ -1593,7 +1593,7 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
           <div className="apv-columna">
             <div>
               <label htmlFor={`${createIdPrefix}-name`} className="apv-label">{t('approvals.name_required')}</label>
-              <input id={`${createIdPrefix}-name`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="apv-input" placeholder={t('approvals.workflow_name_placeholder')} />
+              <Input id={`${createIdPrefix}-name`} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder={t('approvals.workflow_name_placeholder')} inputClassName="apv-input" />
             </div>
             <div>
               <label htmlFor={`${createIdPrefix}-entity-type`} className="apv-label">{t('approvals.entity_type')}</label>
@@ -1614,7 +1614,7 @@ export default function ApprovalsPage({ mode = 'inbox' }: ApprovalsPageProps): J
             )}
             <div>
               <label htmlFor={`${createIdPrefix}-description`} className="apv-label">{t('approvals.description')}</label>
-              <input id={`${createIdPrefix}-description`} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="apv-input" placeholder={t('approvals.description_placeholder')} />
+              <Input id={`${createIdPrefix}-description`} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder={t('approvals.description_placeholder')} inputClassName="apv-input" />
             </div>
             <label htmlFor={`${createIdPrefix}-is-default`} className="apv-check">
               <Checkbox id={`${createIdPrefix}-is-default`} checked={form.is_default} onChange={(_, e) => setForm(f => ({ ...f, is_default: e.target.checked }))} />

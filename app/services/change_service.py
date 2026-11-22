@@ -110,8 +110,24 @@ def review_change_request(
     from app.services.approval_engine import fuentes
     fuentes.cerrar(db, "change_request", cr.id, "approved" if approved else "rejected",
                    resolution_notes or "Revisado en Cambios")
+    if not approved:
+        _rechazar_solicitud_del_portal(db, cr, resolution_notes)
     db.commit()
     return cr
+
+
+def _rechazar_solicitud_del_portal(db: Session, cr: ChangeRequest, nota: Optional[str]) -> None:
+    """La CR de una solicitud del portal rechazada por el equipo rechaza la solicitud (22-11-2026).
+
+    La decisión del cliente (`client_approved`) se conserva: son dos decisiones
+    distintas, cada una con su actor. La nota va como respuesta del equipo.
+    """
+    from app.models.client_portal import FeatureRequest, FeatureRequestStatus
+    for fr in db.query(FeatureRequest).filter(FeatureRequest.change_request_id == cr.id).all():
+        if getattr(fr.status, "value", fr.status) not in ("done", "rejected"):
+            fr.status = FeatureRequestStatus.rejected
+            if nota:
+                fr.pm_response = nota
 
 
 def implement_change_request(db: Session, cr: ChangeRequest) -> ChangeRequest:

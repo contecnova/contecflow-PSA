@@ -18,7 +18,7 @@ import { CampoFecha } from '../ui/SelectorDeFecha'
 import { CODIGOS_DE_PAIS, nombreDePais } from '../../constants/paises'
 import { STALE_5_MIN_MS } from '../../constants/timings'
 import './politicas.css'
-import { Select, Pulsable, Checkbox } from '../ui'
+import { Select, Pulsable, Checkbox, Input } from '../ui'
 
 export function useCatalogo() {
   return useQuery({ queryKey: ['politicas', 'catalogo'], queryFn: politicasApi.catalogo, staleTime: STALE_5_MIN_MS })
@@ -193,8 +193,7 @@ export function EntradaDeValor({ dominio, campo, operador, valor, onChange, opci
     case 'importe':
       return <EntradaDeImporte valor={valor as Importe | null} onChange={onChange} opciones={opciones} etiqueta={etiqueta} />
     case 'numero':
-      return <input type="number" className="pol-campo pol-campo--corto" aria-label={etiqueta} value={(valor as number | null) ?? ''}
-        onChange={e => onChange(e.target.value === '' ? null : Number(e.target.value))} />
+      return <Input type="number" aria-label={etiqueta} value={(valor as number | null) ?? ''} onChange={e => onChange(e.target.value === '' ? null : Number(e.target.value))} inputClassName="pol-campo pol-campo--corto" />
     case 'hora':
       return <CampoFecha modo="hora" className="pol-campo pol-campo--corto" aria-label={etiqueta} value={(valor as string | null) ?? ''}
         onChange={v => onChange(v || null)} />
@@ -227,8 +226,7 @@ export function EntradaDeValor({ dominio, campo, operador, valor, onChange, opci
       const lista = campo.tipo === 'ciudad' ? opciones?.ciudades ?? [] : []
       return (
         <>
-          <input className="pol-campo pol-campo--medio" aria-label={etiqueta} list={`ciudades-${campo.clave}`} value={(valor as string) ?? ''}
-            onChange={e => onChange(e.target.value)} />
+          <Input aria-label={etiqueta} list={`ciudades-${campo.clave}`} value={(valor as string) ?? ''} onChange={e => onChange(e.target.value)} inputClassName="pol-campo pol-campo--medio" />
           {lista.length > 0 && <datalist id={`ciudades-${campo.clave}`}>{lista.map(c => <option key={c} value={c} />)}</datalist>}
         </>
       )

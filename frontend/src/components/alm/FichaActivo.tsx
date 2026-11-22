@@ -11,7 +11,7 @@ import {
   RotateCcw, ShieldAlert, Trash2, Undo2, Upload, UserPlus, Wrench, X,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { Button, Drawer, Modal, Spinner, Tabs, Pulsable, Select, useErroresDeCampo } from '../ui'
+import { Button, Drawer, Modal, Spinner, Tabs, Pulsable, Select, useErroresDeCampo, Input, Textarea } from '../ui'
 import { LicenseSelect } from '../ui/EntitySelect'
 import DateInput from '../ui/DateInput'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -63,13 +63,13 @@ function AccionModal({ assetId, accion, onClose }: { assetId: string; accion: st
         {accion === 'repair_sent' && (
           <div className="almf-rejilla-2">
             <div><label className="alm-label" htmlFor={`${id}-v`}>{t('alm.repair_vendor')}</label>
-              <input id={`${id}-v`} className="alm-input" value={datos.vendor ?? ''} onChange={campo('vendor')} />{msg('vendor')}</div>
+              <Input id={`${id}-v`} value={datos.vendor ?? ''} onChange={campo('vendor')} inputClassName="alm-input" />{msg('vendor')}</div>
             <div><label className="alm-label" htmlFor={`${id}-tk`}>{t('alm.repair_ticket')}</label>
-              <input id={`${id}-tk`} className="alm-input" value={datos.ticket ?? ''} onChange={campo('ticket')} />{msg('ticket')}</div>
+              <Input id={`${id}-tk`} value={datos.ticket ?? ''} onChange={campo('ticket')} inputClassName="alm-input" />{msg('ticket')}</div>
             <div><label className="alm-label" htmlFor={`${id}-b`}>{t('alm.repair_expected_back')}</label>
               <DateInput id={`${id}-b`} className="alm-input" value={datos.expected_back ?? ''} onChange={campo('expected_back')} />{msg('expected_back')}</div>
             <div><label className="alm-label" htmlFor={`${id}-c`}>{t('alm.repair_cost')}</label>
-              <input id={`${id}-c`} type="number" min={0} className="alm-input" value={datos.cost ?? ''} onChange={campo('cost')} />{msg('cost')}</div>
+              <Input id={`${id}-c`} type="number" min={0} value={datos.cost ?? ''} onChange={campo('cost')} inputClassName="alm-input" />{msg('cost')}</div>
           </div>
         )}
         {accion === 'retired' && (
@@ -85,11 +85,11 @@ function AccionModal({ assetId, accion, onClose }: { assetId: string; accion: st
                 {METODOS.map(m => <option key={m} value={m}>{t(`alm.disposal_method_${m}`)}</option>)}
               </Select>{msg('method')}</div>
             <div><label className="alm-label" htmlFor={`${id}-val`}>{t('alm.disposal_value')}</label>
-              <input id={`${id}-val`} type="number" min={0} className="alm-input" value={datos.value ?? ''} onChange={campo('value')} />{msg('value')}</div>
+              <Input id={`${id}-val`} type="number" min={0} value={datos.value ?? ''} onChange={campo('value')} inputClassName="alm-input" />{msg('value')}</div>
           </div>
         )}
         <div><label className="alm-label" htmlFor={`${id}-mot`}>{t('alm.reason')}</label>
-          <textarea id={`${id}-mot`} rows={2} className="alm-input" value={motivo} onChange={e => setMotivo(e.target.value)} /></div>
+          <Textarea id={`${id}-mot`} rows={2} value={motivo} onChange={e => setMotivo(e.target.value)} inputClassName="alm-input" /></div>
         {error && <p className="u-field-error" role="alert">{error}</p>}
       </div>
       <div className="almf-acciones-modal">

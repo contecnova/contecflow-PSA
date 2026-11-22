@@ -8,7 +8,7 @@ import type { CSSProperties, RefObject } from 'react'
 import type BaseViewer from 'bpmn-js/lib/BaseViewer'
 import type { BaseViewerOptions } from 'bpmn-js/lib/BaseViewer'
 import type Canvas from 'diagram-js/lib/core/Canvas'
-import { Button, Page, Tabs, EmptyState, IconButton, Pulsable, Select } from '../components/ui'
+import { Button, Page, Tabs, EmptyState, IconButton, Pulsable, Select, Input } from '../components/ui'
 import { Network, Plus, X, ChevronLeft, ChevronRight, Edit3, Download, Search, Play, History, Trash2, Archive, User, Timer, ListOrdered, LayoutGrid, Activity, Workflow, SearchX, Save } from 'lucide-react'
 import BpmRunPanel from './bpm/BpmRunPanel'
 import BpmVersionsModal, { BpmProblemsModal } from './bpm/BpmVersionsModal'
@@ -521,13 +521,7 @@ export default function BPMPage(): JSX.Element {
         <nav className="ds-card bpmp-sidebar" aria-label={traducir('bpm.categoria')}>
           <div className="bpmp-search">
             <Search size={13} aria-hidden className="bpmp-search__icon" />
-            <input aria-label={traducir('bpm.buscar_proceso')}
-              type="search"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder={traducir('bpm.buscar_proceso')}
-              className="ds-input"
-            />
+            <Input aria-label={traducir('bpm.buscar_proceso')} type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder={traducir('bpm.buscar_proceso')} />
           </div>
           <div className="bpmp-cats">
             {CATEGORIES.map(cat => {
@@ -566,7 +560,7 @@ export default function BPMPage(): JSX.Element {
               <div className="bpmp-form-grid">
                 <div>
                   <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="bpmp-label">{traducir('bpm.nombre_del_proceso')}</label>
-                  <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={newProcess.name} onChange={e => setNewProcess(p => ({ ...p, name: e.target.value }))} placeholder={traducir('bpm.ej_gestion_de_proveedores')} className="bpmp-input" />
+                  <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={newProcess.name} onChange={e => setNewProcess(p => ({ ...p, name: e.target.value }))} placeholder={traducir('bpm.ej_gestion_de_proveedores')} inputClassName="bpmp-input" />
                 </div>
                 <div>
                   <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="bpmp-label">{traducir('bpm.categoria')}</label>
@@ -576,16 +570,16 @@ export default function BPMPage(): JSX.Element {
                 </div>
                 <div>
                   <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="bpmp-label">{traducir('bpm.responsable')}</label>
-                  <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={newProcess.owner} onChange={e => setNewProcess(p => ({ ...p, owner: e.target.value }))} placeholder={traducir('bpm.ej_pm')} className="bpmp-input" />
+                  <Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={newProcess.owner} onChange={e => setNewProcess(p => ({ ...p, owner: e.target.value }))} placeholder={traducir('bpm.ej_pm')} inputClassName="bpmp-input" />
                 </div>
                 <div>
                   <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="bpmp-label">{traducir('bpm.sla')}</label>
-                  <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={newProcess.sla} onChange={e => setNewProcess(p => ({ ...p, sla: e.target.value }))} placeholder={traducir('bpm.ej_3_dias')} className="bpmp-input" />
+                  <Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={newProcess.sla} onChange={e => setNewProcess(p => ({ ...p, sla: e.target.value }))} placeholder={traducir('bpm.ej_3_dias')} inputClassName="bpmp-input" />
                 </div>
               </div>
               <div className="u-mb-12">
                 <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="bpmp-label">{traducir('bpm.descripcion')}</label>
-                <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={newProcess.description} onChange={e => setNewProcess(p => ({ ...p, description: e.target.value }))} placeholder={traducir('bpm.describe_brevemente_el_proceso')} className="bpmp-input" />
+                <Input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={newProcess.description} onChange={e => setNewProcess(p => ({ ...p, description: e.target.value }))} placeholder={traducir('bpm.describe_brevemente_el_proceso')} inputClassName="bpmp-input" />
               </div>
               <div className="u-row-8">
                 <Button disabled={!newProcess.name.trim()} onClick={handleAddProcess}>{traducir('bpm.crear_y_disenar')}</Button>

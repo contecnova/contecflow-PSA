@@ -46,6 +46,10 @@ def _registrar_uso(db: Session, p, result: dict, *, user_id, module,
     except Exception:
         _logger.warning("Failed to persist AIUsageLog entry; rolling back", exc_info=True)
         db.rollback()
+    # Observabilidad (22-11-2026): uso y coste por empresa y módulo, en caliente.
+    from app.core.metricas_empresa import contar_uso_de_ia
+    contar_uso_de_ia(organization_id, module, ok=error_msg is None, tokens_in=result.get("tokens_in", 0),
+                     tokens_out=result.get("tokens_out", 0), coste_usd=result.get("cost_usd", 0))
 
 
 class PresupuestoDeIAAgotado(RuntimeError):
@@ -93,6 +97,8 @@ def _exigir_presupuesto(db: Session, organization_id) -> None:
         return
     tope = presupuesto_diario(db, organization_id)
     if tope > 0 and gasto_de_hoy(db, organization_id) >= tope:
+        from app.core.metricas_empresa import contar_presupuesto_de_ia_agotado
+        contar_presupuesto_de_ia_agotado(organization_id)
         raise PresupuestoDeIAAgotado(
             f"La empresa ha alcanzado su límite diario de gasto en IA ({tope:.2f} USD). "
             "Se restablece a las 00:00 UTC o lo puede subir un administrador (AI_DAILY_BUDGET_USD).",

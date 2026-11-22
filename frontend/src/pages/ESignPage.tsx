@@ -11,7 +11,7 @@ import api, { documentsApi } from '../services/api'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AlertTriangle, CheckCircle2, Clock, ExternalLink, FileSignature, PenLine, Plus, X, XCircle } from 'lucide-react'
-import { Button, Spinner, EmptyState, Modal, KpiCard, IconButton, Pulsable, Select, TablaSimple } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, KpiCard, IconButton, Pulsable, Select, TablaSimple, Input, Textarea } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { fmtDate } from '../utils/helpers'
 import StatusBadge from '../components/ui/StatusBadge'
@@ -161,11 +161,11 @@ function CreateEnvelopeModal({ onClose, onCreated }: { onClose: () => void; onCr
         </div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="esign-page-e10">{t('esign.subject')}</label>
-          <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.subject} onChange={setField('subject')} className="esign-page-e11" placeholder={t('esign.subject_ph')} />
+          <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.subject} onChange={setField('subject')} placeholder={t('esign.subject_ph')} inputClassName="esign-page-e11" />
         </div>
         <div>
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="esign-page-e10">{t('esign.message')}</label>
-          <textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.message} onChange={setField('message')} className="esign-page-e2" rows={2} placeholder={t('esign.message_ph')} />
+          <Textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.message} onChange={setField('message')} rows={2} placeholder={t('esign.message_ph')} inputClassName="esign-page-e2" />
         </div>
         <div className="u-wrap-10">
           <div className="esign-box">
@@ -178,7 +178,7 @@ function CreateEnvelopeModal({ onClose, onCreated }: { onClose: () => void; onCr
           </div>
           <div className="esign-box-2">
             <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="esign-page-e10">{t('esign.valid_days')}</label>
-            <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" value={form.expires_days} onChange={setField('expires_days')} className="esign-page-e11" min={1} max={30} />
+            <Input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} type="number" value={form.expires_days} onChange={setField('expires_days')} min={1} max={30} inputClassName="esign-page-e11" />
           </div>
         </div>
 

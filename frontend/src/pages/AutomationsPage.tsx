@@ -16,7 +16,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, automationsApi } from '../services/api'
 import type { AccionDeRegla, CatalogoDeAutomatizaciones, CondicionDeRegla, PlantillaDeRegla, ReglaDeAutomatizacion, SimulacionDeRegla } from '../services/api/tipos-plataforma'
-import { Button, Modal, Spinner, EmptyState, Page, Table, KpiCard, IconButton, StatusBadge, Select, Checkbox, Radio, useErroresDeCampo } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, Page, Table, KpiCard, IconButton, StatusBadge, Select, Checkbox, Radio, useErroresDeCampo, Input } from '../components/ui'
 import {
   Bot, FileStack, Plus, Zap, Pause, Play, Settings as SettingsIcon, Search,
   ListChecks, FolderKanban, Wallet, AlertTriangle, Clock, Palmtree, Ticket, Receipt, TrendingUp, FileText,
@@ -240,11 +240,11 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
         <div className="u-grid2-14">
           <div className="u-col-full">
             <label id={`${idPrefix}-name-et`} htmlFor={`${idPrefix}-name`} className="aut-label">{t('automations.rule_name_lbl')}</label>
-            <input id={`${idPrefix}-name`} aria-labelledby={`${idPrefix}-name-et`} value={form.name} onChange={e => { campos.limpiar('name'); setForm(f => ({ ...f, name: e.target.value })) }} className="aut-input" placeholder={t('automations.rule_name_lbl')} />{msg('name')}
+            <Input id={`${idPrefix}-name`} aria-labelledby={`${idPrefix}-name-et`} value={form.name} onChange={e => { campos.limpiar('name'); setForm(f => ({ ...f, name: e.target.value })) }} placeholder={t('automations.rule_name_lbl')} inputClassName="aut-input" />{msg('name')}
           </div>
           <div>
             <label id={`${idPrefix}-description-et`} htmlFor={`${idPrefix}-description`} className="aut-label">{t('automations.description')}</label>
-            <input id={`${idPrefix}-description`} aria-labelledby={`${idPrefix}-description-et`} value={form.description} onChange={e => { campos.limpiar('description'); setForm(f => ({ ...f, description: e.target.value })) }} className="aut-input" />{msg('description')}
+            <Input id={`${idPrefix}-description`} aria-labelledby={`${idPrefix}-description-et`} value={form.description} onChange={e => { campos.limpiar('description'); setForm(f => ({ ...f, description: e.target.value })) }} inputClassName="aut-input" />{msg('description')}
           </div>
           <div>
             <label htmlFor={`${idPrefix}-project`} className="aut-label">{t('automations.project_lbl')}</label>
@@ -287,7 +287,7 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
               <div className="aut-box aut-box--grid2">
                 <div>
                   <label id={`${idPrefix}-cron-et`} htmlFor={`${idPrefix}-cron`} className="aut-label">{t('automations.cron_lbl')}</label>
-                  <input id={`${idPrefix}-cron`} aria-labelledby={`${idPrefix}-cron-et`} value={cron} onChange={e => setCron(e.target.value)} className="ds-codigo aut-input aut-input--mono ds-campo-codigo" placeholder="0 9 * * 1-5" />
+                  <Input id={`${idPrefix}-cron`} aria-labelledby={`${idPrefix}-cron-et`} value={cron} onChange={e => setCron(e.target.value)} placeholder="0 9 * * 1-5" inputClassName="ds-codigo aut-input aut-input--mono ds-campo-codigo" />
                 </div>
                 <div>
                   <label htmlFor={`${idPrefix}-cron-preset`} className="aut-label">{t('automations.cron_preset')}</label>
@@ -330,7 +330,7 @@ function RuleModal({ rule, onClose }: { rule?: ReglaDeAutomatizacion; onClose: (
                     </div>
                     <div>
                       <label id={`${idPrefix}-condition-value-${i}-et`} htmlFor={`${idPrefix}-condition-value-${i}`} className="aut-label">{t('automations.value_lbl')}</label>
-                      <input id={`${idPrefix}-condition-value-${i}`} aria-labelledby={`${idPrefix}-condition-value-${i}-et`} value={c.value || ''} onChange={e => cambiarCondicion(i, 'value', e.target.value)} className="aut-input" placeholder={t('automations.value_lbl')} />
+                      <Input id={`${idPrefix}-condition-value-${i}`} aria-labelledby={`${idPrefix}-condition-value-${i}-et`} value={c.value || ''} onChange={e => cambiarCondicion(i, 'value', e.target.value)} placeholder={t('automations.value_lbl')} inputClassName="aut-input" />
                     </div>
                     <IconButton ariaLabel={t('automations.remove_condition')} disabled={condiciones.length === 1}
                       onClick={() => setCondiciones(cs => cs.filter((_, j) => j !== i))}>
@@ -553,13 +553,7 @@ export default function AutomationsPage(): JSX.Element {
       <div className="ds-toolbar aut-mb">
         <div className="aut-search">
           <Search size={14} aria-hidden className="aut-search-icon" />
-          <input
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder={t('automations.search_placeholder')}
-            aria-label={t('automations.search_aria')}
-            className="ds-input"
-          />
+          <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder={t('automations.search_placeholder')} aria-label={t('automations.search_aria')} />
         </div>
         <Select suelto placeholder={false} aria-label={t('automations.filter_status_aria')} className="ds-input aut-filtro-estado"
           value={filterActive === null ? 'all' : filterActive ? 'active' : 'paused'}

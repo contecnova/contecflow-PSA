@@ -19,7 +19,7 @@ import { useToast } from '../../context/ToastContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
 import { ArrowUpCircle, CheckCircle2, ChevronDown, ChevronRight, Pause, Pencil, Play, Scissors, Sparkles, Undo2, X, Zap } from 'lucide-react'
-import { Button, Spinner, Modal, Pulsable, Select, Checkbox } from '../../components/ui'
+import { Button, Spinner, Modal, Pulsable, Select, Checkbox, Input, Textarea } from '../../components/ui'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import AIInlineEditor from '../../components/AIInlineEditor'
 import DocumentsPanel from '../../components/DocumentsPanel'
@@ -87,10 +87,7 @@ function CannedResponsePicker({ onSelect, onClose }: { onSelect: (body: string) 
   return (
     <div className="tkd-canned">
       <div className="tkd-canned__search">
-        <input autoFocus value={search} onChange={e => setSearch(e.target.value)}
-          aria-label={t('service_desk.canned_search')}
-          placeholder={t('service_desk.canned_search')}
-          className="tkd-canned__input" />
+        <Input autoFocus value={search} onChange={e => setSearch(e.target.value)} aria-label={t('service_desk.canned_search')} placeholder={t('service_desk.canned_search')} inputClassName="tkd-canned__input" />
       </div>
       <div className="tkd-canned__list">
         {responses.length === 0 ? (
@@ -161,20 +158,20 @@ function SplitTicketModal({ ticket, onClose, onCreated }: { ticket: TicketShape;
         <div className="u-grid2-14">
           <div>
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('service_desk.split_title_lbl')} *</label>
-            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.new_title} onChange={e => setForm(f => ({ ...f, new_title: e.target.value }))} className={IS} autoFocus />
+            <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.new_title} onChange={e => setForm(f => ({ ...f, new_title: e.target.value }))} autoFocus inputClassName="tkd-input" />
           </div>
           <div>
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('service_desk.split_tags_lbl')}</label>
-            <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} className={IS} />
+            <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} inputClassName="tkd-input" />
           </div>
         </div>
         <div>
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={LS}>{t('service_desk.split_desc_child')}</label>
-          <textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.new_description} onChange={e => setForm(f => ({ ...f, new_description: e.target.value }))} rows={4} className={IS} />
+          <Textarea id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.new_description} onChange={e => setForm(f => ({ ...f, new_description: e.target.value }))} rows={4} inputClassName="tkd-input" />
         </div>
         <div>
           <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className={LS}>{t('service_desk.split_desc_original')}</label>
-          <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.keep_original_description} onChange={e => setForm(f => ({ ...f, keep_original_description: e.target.value }))} rows={4} className={IS} />
+          <Textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.keep_original_description} onChange={e => setForm(f => ({ ...f, keep_original_description: e.target.value }))} rows={4} inputClassName="tkd-input" />
         </div>
         <div className="u-actions-10">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -213,7 +210,7 @@ function TicketEditModal({ ticket, onClose, onSaved }: { ticket: TicketShape; on
       <div className="tkd-edit-grid">
         <div className="u-col-full">
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={LS}>{t('service_desk.ticket_title')} *</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={set('title')} className={IS} />
+          <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={set('title')} inputClassName="tkd-input" />
         </div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={LS}>{t('service_desk.ticket_type')}</label>
@@ -259,12 +256,12 @@ function TicketEditModal({ ticket, onClose, onSaved }: { ticket: TicketShape; on
         {['resolved', 'closed'].includes(form.status) && (
           <div className="u-col-full">
             <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className={LS}>{t('service_desk.edit_resolution')}</label>
-            <textarea id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.resolution} onChange={set('resolution')} rows={3} className={IS} />
+            <Textarea id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.resolution} onChange={set('resolution')} rows={3} inputClassName="tkd-input" />
           </div>
         )}
         <div className="u-col-full">
           <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className={LS}>{t('service_desk.edit_tags')}</label>
-          <input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={form.tags} onChange={set('tags')} className={IS} />
+          <Input id={`${idCampo}-8`} aria-labelledby={`${idCampo}-et8`} value={form.tags} onChange={set('tags')} inputClassName="tkd-input" />
         </div>
         <div className="tkd-full-actions">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -781,8 +778,7 @@ export default function TicketDetail({ ticketId, onClose, embedded = false }: { 
         <Modal open title={`${t('sd_cfg.qa_resolve')} ${ticket.number}`} onClose={() => setResolviendo(false)}>
           <div className="u-stack-12">
             <label htmlFor="sd-resolucion" className={LS}>{t('sd_cfg.qa_resolution')}</label>
-            <textarea id="sd-resolucion" aria-label={t('sd_cfg.qa_resolution')} value={textoResolucion} onChange={e => setTextoResolucion(e.target.value)}
-              rows={5} className={IS} autoFocus />
+            <Textarea id="sd-resolucion" aria-label={t('sd_cfg.qa_resolution')} value={textoResolucion} onChange={e => setTextoResolucion(e.target.value)} rows={5} autoFocus inputClassName="tkd-input" />
             <div className="u-text3-xs">{t('sd_cfg.qa_resolution_hint')}</div>
             <div className="u-actions-10">
               <Button variant="secondary" onClick={() => setResolviendo(false)}>{t('common.cancel')}</Button>
@@ -847,8 +843,7 @@ function AprobacionDelTicket({ ticket, yo, rechazando, motivo, setRechazando, se
       {puedeDecidir && rechazando && (
         <div className="u-stack-8">
           <label htmlFor="apr-motivo" className={LS}>{t('sd_cfg.apr_reason')}</label>
-          <textarea id="apr-motivo" aria-label={t('sd_cfg.apr_reason')} value={motivo} onChange={e => setMotivo(e.target.value)} rows={3}
-            className={IS} autoFocus />
+          <Textarea id="apr-motivo" aria-label={t('sd_cfg.apr_reason')} value={motivo} onChange={e => setMotivo(e.target.value)} rows={3} autoFocus inputClassName="tkd-input" />
           <div className="u-row-8">
             <Button variant="secondary" onClick={() => setRechazando(false)}>{t('common.cancel')}</Button>
             <Button disabled={!motivo.trim()} loading={decidir.isPending}

@@ -11,7 +11,7 @@ import {
   LifeBuoy, Monitor, MousePointer2, Network, Package, Printer, RefreshCw, Repeat, Server, ShoppingCart, Smartphone,
   Tablet, Timer, User, Users, Wrench, Briefcase, Landmark, Radio, Boxes,
 } from 'lucide-react'
-import { StatusBadge, GrupoDeOpciones, Select, Checkbox } from '../ui'
+import { StatusBadge, GrupoDeOpciones, Select, Checkbox, Input } from '../ui'
 import type { StatusBadgeKind } from '../ui/StatusBadge'
 import { UserSelect, ProjectSelect, ClientSelect, AssetSelect } from '../ui/EntitySelect'
 import { settingsApi } from '../../services/settingsApi'
@@ -139,9 +139,7 @@ export function EditorDeChecklist({ t, filas, onChange }: { t: Traductor; filas:
             <Checkbox checked={f.ok} onChange={(_, e) => cambiar(i, { ok: e.target.checked })} />
             <span>{textoDeChecklist(t, f.item)}</span>
           </label>
-          <input className="alm-input almf-checklist__nota" value={f.note ?? ''} placeholder={t('alm.checklist_note')}
-            aria-label={`${t('alm.checklist_note')} — ${textoDeChecklist(t, f.item)}`}
-            onChange={e => cambiar(i, { note: e.target.value })} />
+          <Input value={f.note ?? ''} placeholder={t('alm.checklist_note')} aria-label={`${t('alm.checklist_note')} — ${textoDeChecklist(t, f.item)}`} onChange={e => cambiar(i, { note: e.target.value })} inputClassName="alm-input almf-checklist__nota" />
         </li>
       ))}
     </ul>

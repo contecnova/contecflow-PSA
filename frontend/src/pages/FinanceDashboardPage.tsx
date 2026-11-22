@@ -12,7 +12,7 @@ import { useAppLang } from '../i18n/AppLangContext'
 import { useToast } from '../context/ToastContext'
 import { extractErr, fmtDate } from '../utils/helpers'
 import { useTono } from '../hooks/useOrgSettings'
-import { Button, EmptyState, KpiCard, Page, SelectorDePeriodo, TablaSimple } from '../components/ui'
+import { Button, EmptyState, KpiCard, Page, SelectorDePeriodo, TablaSimple, Input } from '../components/ui'
 import {
   COLOR, KpiCardSkeleton, GaugeCard, BarRow, SectionCard,
   fmtCur, typePalette,
@@ -357,15 +357,12 @@ export default function FinanceDashboardPage(): JSX.Element {
             {([['from_currency', t('pagina_findash.de'), 'EUR'], ['to_currency', t('pagina_findash.a'), 'USD']] as const).map(([k, l, ph]) => (
               <div key={k} className="findash-box-2">
                 <div className="ds-eyebrow findash-box-3">{l}</div>
-                <input maxLength={3} aria-label={l} value={rateForm[k]} onChange={e => setRateForm(f => ({ ...f, [k]: e.target.value.toUpperCase() }))}
-                  className="ds-input" placeholder={ph} />
+                <Input maxLength={3} aria-label={l} value={rateForm[k]} onChange={e => setRateForm(f => ({ ...f, [k]: e.target.value.toUpperCase() }))} placeholder={ph} />
               </div>
             ))}
             <div className="findash-box-4">
               <div className="ds-eyebrow findash-box-3">{t('pagina_findash.tasa')}</div>
-              <input type="number" step="0.0001" min="0" aria-label={t('pagina_findash.tasa')} value={rateForm.rate}
-                onChange={e => setRateForm(f => ({ ...f, rate: e.target.value }))}
-                className="ds-input" placeholder="1.0850" />
+              <Input type="number" step="0.0001" min="0" aria-label={t('pagina_findash.tasa')} value={rateForm.rate} onChange={e => setRateForm(f => ({ ...f, rate: e.target.value }))} placeholder="1.0850" />
             </div>
             <Button onClick={() => upsertRate({ from_currency: rateForm.from_currency, to_currency: rateForm.to_currency, rate: parseFloat(rateForm.rate) })}
               disabled={!rateForm.from_currency || !rateForm.to_currency || !rateForm.rate}

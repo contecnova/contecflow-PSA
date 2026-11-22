@@ -15,7 +15,7 @@ import { useToast } from '../../context/ToastContext'
 import { openConfirmGlobal } from '../../context/ConfirmContext'
 import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { Button, EmptyState, Modal, Select, Spinner, StatusBadge, TablaSimple } from '../../components/ui'
+import { Button, EmptyState, Modal, Select, Spinner, StatusBadge, TablaSimple, Input } from '../../components/ui'
 import { sdGroupsApi, sdMonitoringApi, sdOnCallApi, usersApi, apiUrlAbsoluta, type UserListItem } from '../../services/api'
 import type { SdCalendarioDeGuardia } from '../../services/api/tipos-sd'
 import DateInput from '../../components/ui/DateInput'
@@ -106,7 +106,7 @@ function FormCalendario({ colas, pendiente, onCancelar, onGuardar }: { colas: Co
   const [cola, setCola] = useState(colas[0]?.id ?? '')
   return (
     <div className="u-stack-12">
-      <div><label className="coguym-ls" htmlFor="oc-name">{t('sd_cfg.chg_name')} *</label><input id="oc-name" aria-label={t('sd_cfg.chg_name')} value={nombre} onChange={e => setNombre(e.target.value)} className="ds-input" /></div>
+      <div><label className="coguym-ls" htmlFor="oc-name">{t('sd_cfg.chg_name')} *</label><Input id="oc-name" aria-label={t('sd_cfg.chg_name')} value={nombre} onChange={e => setNombre(e.target.value)} /></div>
       <div><label className="coguym-ls" htmlFor="oc-queue">{t('sd_cfg.oc_queue')} *</label>
         <Select suelto placeholder={false} className="coguym-sel" id="oc-queue" aria-label={t('sd_cfg.oc_queue')} value={cola} onChange={e => setCola(e.target.value)}>
           {colas.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}

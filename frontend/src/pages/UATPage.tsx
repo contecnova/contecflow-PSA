@@ -13,7 +13,7 @@ import { useId, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { uatApi, projectsApi, tasksApi } from '../services/api'
 import type { CasoUat, InformeUat } from '../services/api/tipos-proyectos'
-import { Spinner, EmptyState, Button, Modal, KpiCard, IconButton, StatusBadge, Select } from '../components/ui'
+import { Spinner, EmptyState, Button, Modal, KpiCard, IconButton, StatusBadge, Select, Input, Textarea } from '../components/ui'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -94,7 +94,7 @@ function CaseFormModal({ open, onClose, onSave, initial, tasks = [] }: { open: b
       <div className="u-stack-14">
         <div>
           <label htmlFor={`${idPrefix}-title`} id={`${idPrefix}-title-etiqueta`} className={ls}>{traducir('uat.titulo')}</label>
-          <input id={`${idPrefix}-title`} aria-labelledby={`${idPrefix}-title-etiqueta`} value={form.title} onChange={s('title')} className={fs} placeholder={traducir('uat.titulo_del_caso_uat')} />
+          <Input id={`${idPrefix}-title`} aria-labelledby={`${idPrefix}-title-etiqueta`} value={form.title} onChange={s('title')} placeholder={traducir('uat.titulo_del_caso_uat')} inputClassName="uat-input" />
         </div>
 
         <div className="uat-grid3">
@@ -127,30 +127,22 @@ function CaseFormModal({ open, onClose, onSave, initial, tasks = [] }: { open: b
 
         <div>
           <label htmlFor={`${idPrefix}-description`} id={`${idPrefix}-description-etiqueta`} className={ls}>{traducir('uat.pasos_para_ejecutar_el_test')}</label>
-          <textarea id={`${idPrefix}-description`} aria-labelledby={`${idPrefix}-description-etiqueta`} value={form.description} onChange={s('description')} rows={3}
-            className={ta}
-            placeholder={traducir('uat.pasos_para_ejecutar_el_test')} />
+          <Textarea id={`${idPrefix}-description`} aria-labelledby={`${idPrefix}-description-etiqueta`} value={form.description} onChange={s('description')} rows={3} placeholder={traducir('uat.pasos_para_ejecutar_el_test')} inputClassName="uat-input uat-textarea" />
         </div>
 
         <div>
           <label htmlFor={`${idPrefix}-expected-result`} id={`${idPrefix}-expected-result-etiqueta`} className={ls}>{traducir('uat.resultado_esperado_req')}</label>
-          <textarea id={`${idPrefix}-expected-result`} aria-labelledby={`${idPrefix}-expected-result-etiqueta`} value={form.expected_result} onChange={s('expected_result')} rows={2}
-            className={ta}
-            placeholder={traducir('uat.resultado_esperado')} />
+          <Textarea id={`${idPrefix}-expected-result`} aria-labelledby={`${idPrefix}-expected-result-etiqueta`} value={form.expected_result} onChange={s('expected_result')} rows={2} placeholder={traducir('uat.resultado_esperado')} inputClassName="uat-input uat-textarea" />
         </div>
 
         <div>
           <label htmlFor={`${idPrefix}-actual-result`} id={`${idPrefix}-actual-result-etiqueta`} className={ls}>{traducir('uat.resultado_obtenido_rellenar_al_ejecutar')}</label>
-          <textarea id={`${idPrefix}-actual-result`} aria-labelledby={`${idPrefix}-actual-result-etiqueta`} value={form.actual_result} onChange={s('actual_result')} rows={2}
-            className={ta}
-            placeholder={traducir('uat.resultado_obtenido')} />
+          <Textarea id={`${idPrefix}-actual-result`} aria-labelledby={`${idPrefix}-actual-result-etiqueta`} value={form.actual_result} onChange={s('actual_result')} rows={2} placeholder={traducir('uat.resultado_obtenido')} inputClassName="uat-input uat-textarea" />
         </div>
 
         <div>
           <label htmlFor={`${idPrefix}-notes`} id={`${idPrefix}-notes-etiqueta`} className={ls}>{traducir('uat.notas_internas')}</label>
-          <textarea id={`${idPrefix}-notes`} aria-labelledby={`${idPrefix}-notes-etiqueta`} value={form.notes} onChange={s('notes')} rows={2}
-            className={ta}
-            placeholder={traducir('uat.notas_internas')} />
+          <Textarea id={`${idPrefix}-notes`} aria-labelledby={`${idPrefix}-notes-etiqueta`} value={form.notes} onChange={s('notes')} rows={2} placeholder={traducir('uat.notas_internas')} inputClassName="uat-input uat-textarea" />
         </div>
 
         <div className="uat-form-actions">

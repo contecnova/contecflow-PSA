@@ -188,6 +188,8 @@ export interface ConfigSoftware {
 export type ConfigSoftwareIn = Partial<Omit<ConfigSoftware, `${string}_effective` | 'nvd_api_key_set' | 'ghsa_token_set' | 'last_sync_at' | 'last_sync_status'>> & { nvd_api_key?: string; ghsa_token?: string }
 
 export type TipoDeConexion = 'sw_ssh' | 'sw_winrm' | 'sw_api'
+  // Índice de riesgo (22-11-2026, §11.9): vulnerabilidades de terceros e intentos de explotación (SIEM).
+  | 'sw_vm_trendmicro' | 'sw_vm_defender' | 'sw_vm_qualys' | 'sw_vm_tenable' | 'sw_vm_rapid7' | 'sw_siem'
 export interface ConexionDeEscaneo {
   id: string; name: string; type: TipoDeConexion; is_active: boolean; scan_interval_minutes: number
   /** Sin secretos: los puestos vienen en `secrets_set`. */

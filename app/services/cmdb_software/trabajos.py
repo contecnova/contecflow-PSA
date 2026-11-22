@@ -6,6 +6,8 @@
    y SLA.
 3. Caduca las excepciones vencidas (el hallazgo vuelve a abierto).
 4. Ticket automático para los hallazgos nuevos desde la severidad configurada.
+5. Índice de riesgo (rev. 194, `riesgo/trabajos.py`): caduca controles
+   compensatorios, guarda la foto del día, manda avisos y poda el histórico.
 
 Se ejecuta con `en_cada_organizacion` (`trabajos_de_fondo`), que pone la
 empresa en la sesión y confirma por empresa.
@@ -28,5 +30,9 @@ def diario(db: Session, org) -> dict:
     resumen.update({k: v for k, v in res.items() if k != "new_ids"})
     resumen["exceptions_expired"] = gestion.caducar_excepciones(db, org)
     resumen["auto_tickets"] = gestion.tickets_automaticos(db, org, res.get("new_ids") or [])
+    db.commit()
+    # Rev. 194: índice de riesgo (controles caducados, foto del día, avisos, poda del histórico).
+    from app.services.cmdb_software.riesgo.trabajos import diario as riesgo_diario
+    resumen["risk"] = riesgo_diario(db, org)
     db.commit()
     return resumen

@@ -13,7 +13,7 @@ import { openConfirmGlobal } from '../context/ConfirmContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { okrsApi, usersApi, projectsApi } from '../services/api'
 import type { EstadoDeObjetivo, Objetivo, PeriodoDeObjetivo, ResultadoClave } from '../services/api/tipos-proyectos'
-import { Button, Card, IconButton, KpiCard, Modal, Select, Spinner, EmptyState, Page, useErroresDeCampo } from '../components/ui'
+import { Button, Card, IconButton, KpiCard, Modal, Select, Spinner, EmptyState, Page, useErroresDeCampo, Input, Textarea } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import { CheckCircle2, ChevronDown, ChevronRight, Pencil, Plus, Target, Trash2, TrendingUp, Trophy, X, ListChecks } from 'lucide-react'
@@ -248,14 +248,11 @@ function ObjModal({ obj, onClose }: { obj: Objective | null; onClose: () => void
       <div className="ds-stack">
         <div className="ds-field">
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('okrs.titulo')}</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e => { camposB.limpiar('title'); setForm(f => ({ ...f, title: e.target.value })) }}
-            className="ds-input" placeholder={t('okrs.ej_incrementar_retencion_de_clientes')} autoFocus />{msgB('title')}
+          <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e => { camposB.limpiar('title'); setForm(f => ({ ...f, title: e.target.value })) }} placeholder={t('okrs.ej_incrementar_retencion_de_clientes')} autoFocus />{msgB('title')}
         </div>
         <div className="ds-field">
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="ds-field__label">{t('okrs.descripcion')}</label>
-          <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description} onChange={e => { camposB.limpiar('description'); setForm(f => ({ ...f, description: e.target.value })) }}
-            rows={2} className="ds-input okr-textarea"
-            placeholder={t('okrs.que_problema_resuelve_y_como_se_medira')} />
+          <Textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.description} onChange={e => { camposB.limpiar('description'); setForm(f => ({ ...f, description: e.target.value })) }} rows={2} placeholder={t('okrs.que_problema_resuelve_y_como_se_medira')} inputClassName="okr-textarea" />
           {msgB('description')}
         </div>
 
@@ -301,9 +298,7 @@ function ObjModal({ obj, onClose }: { obj: Objective | null; onClose: () => void
           </div>
           <div className="ds-field">
             <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="ds-field__label">{t('okrs.year')}</label>
-            <input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} type="number" value={form.year}
-              onChange={e => { camposB.limpiar('year'); setForm(f => ({ ...f, year: parseInt(e.target.value) || f.year })) }}
-              className="ds-input" />{msgB('year')}
+            <Input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} type="number" value={form.year} onChange={e => { camposB.limpiar('year'); setForm(f => ({ ...f, year: parseInt(e.target.value) || f.year })) }} />{msgB('year')}
           </div>
           <div className="ds-field">
             <label id={`${idCampo}-et8`} htmlFor={`${idCampo}-8`} className="ds-field__label">{t('pagina_okr.estado')}</label>
@@ -364,8 +359,7 @@ function KRModal({ objective, onClose }: { objective: Objective; onClose: () => 
       <div className="ds-stack">
         <div className="ds-field">
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('okrs.descripcion_del_resultado')}</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e => { campos.limpiar('title'); setForm(f => ({ ...f, title: e.target.value })) }}
-            className="ds-input" placeholder={t('pagina_okr.ej_aumentar_nps_a_60')} autoFocus />{msg('title')}
+          <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e => { campos.limpiar('title'); setForm(f => ({ ...f, title: e.target.value })) }} placeholder={t('pagina_okr.ej_aumentar_nps_a_60')} autoFocus />{msg('title')}
         </div>
         <div className="okr-grid-3">
           <div className="ds-field">
@@ -376,14 +370,11 @@ function KRModal({ objective, onClose }: { objective: Objective; onClose: () => 
           </div>
           <div className="ds-field">
             <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="ds-field__label">{t('pagina_okr.meta')}</label>
-            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.target_value}
-              onChange={e => { campos.limpiar('target_value'); setForm(f => ({ ...f, target_value: parseFloat(e.target.value) || 0 })) }}
-              className="ds-input" />{msg('target_value')}
+            <Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.target_value} onChange={e => { campos.limpiar('target_value'); setForm(f => ({ ...f, target_value: parseFloat(e.target.value) || 0 })) }} />{msg('target_value')}
           </div>
           <div className="ds-field">
             <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="ds-field__label">{t('pagina_okr.unidad')}</label>
-            <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.unit} onChange={e => { campos.limpiar('unit'); setForm(f => ({ ...f, unit: e.target.value })) }}
-              className="ds-input" placeholder={t('pagina_okr.puntos_nps')} />{msg('unit')}
+            <Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.unit} onChange={e => { campos.limpiar('unit'); setForm(f => ({ ...f, unit: e.target.value })) }} placeholder={t('pagina_okr.puntos_nps')} />{msg('unit')}
           </div>
         </div>
         <div className="okr-grid">
@@ -403,9 +394,7 @@ function KRModal({ objective, onClose }: { objective: Objective; onClose: () => 
         </div>
         <div className="ds-field">
           <label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="ds-field__label">{t('pagina_okr.notas_opcional')}</label>
-          <textarea id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.notes} onChange={e => { campos.limpiar('notes'); setForm(f => ({ ...f, notes: e.target.value })) }}
-            rows={2} className="ds-input okr-textarea"
-            placeholder={t('okrs.detalles_criterios_de_exito_dependencias')} />
+          <Textarea id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.notes} onChange={e => { campos.limpiar('notes'); setForm(f => ({ ...f, notes: e.target.value })) }} rows={2} placeholder={t('okrs.detalles_criterios_de_exito_dependencias')} inputClassName="okr-textarea" />
           {msg('notes')}
         </div>
         <div className="okr-acciones">

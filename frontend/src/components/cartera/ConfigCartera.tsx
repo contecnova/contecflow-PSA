@@ -11,7 +11,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
-import { Button, Checkbox, Select, TablaSimple } from '../ui'
+import { Button, Checkbox, Select, TablaSimple, Input } from '../ui'
 import { approvalsApi, carteraApi, type Criterio, type Fase } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
@@ -54,8 +54,7 @@ export default function ConfigCartera() {
             {criterios.map(c => (
               <tr key={c.id}>
                 <td>{c.name}</td>
-                <td className="plan-num"><input type="number" min={0} step={0.5} className="ds-input cit-num" aria-label={t('cartera.col_peso')} defaultValue={c.weight}
-                  onBlur={e => Number(e.target.value) !== c.weight && guardarCriterio.mutate({ id: c.id, b: { weight: Number(e.target.value) } })} /></td>
+                <td className="plan-num"><Input type="number" min={0} step={0.5} aria-label={t('cartera.col_peso')} defaultValue={c.weight} onBlur={e => Number(e.target.value) !== c.weight && guardarCriterio.mutate({ id: c.id, b: { weight: Number(e.target.value) } })} inputClassName="cit-num" /></td>
                 <td><Checkbox aria-label={t('cartera.inverso')} checked={c.inverse} onChange={(_, e) => guardarCriterio.mutate({ id: c.id, b: { inverse: e.target.checked } })} /></td>
                 <td><Checkbox aria-label={t('cartera.activo')} checked={c.is_active} onChange={(_, e) => guardarCriterio.mutate({ id: c.id, b: { is_active: e.target.checked } })} /></td>
               </tr>
@@ -76,8 +75,7 @@ export default function ConfigCartera() {
               <tr key={g.id}>
                 <td className="plan-num">{g.sort_order}</td>
                 <td>{g.name}</td>
-                <td className="plan-num"><input type="number" min={0} max={100} className="ds-input cit-num" aria-label={t('cartera.col_minimo')} defaultValue={g.min_score ?? ''}
-                  onBlur={e => guardarFase.mutate({ id: g.id, b: { min_score: e.target.value === '' ? null : Number(e.target.value) } })} /></td>
+                <td className="plan-num"><Input type="number" min={0} max={100} aria-label={t('cartera.col_minimo')} defaultValue={g.min_score ?? ''} onBlur={e => guardarFase.mutate({ id: g.id, b: { min_score: e.target.value === '' ? null : Number(e.target.value) } })} inputClassName="cit-num" /></td>
                 <td>
                   <Select suelto placeholder={false} className="ds-input cit-flujo" aria-label={t('cartera.col_flujo')} value={g.workflow_id ?? ''}
                     onChange={e => guardarFase.mutate({ id: g.id, b: { workflow_id: e.target.value || null } })}>

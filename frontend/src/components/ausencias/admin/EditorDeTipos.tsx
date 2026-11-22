@@ -18,7 +18,7 @@ import type {
   DestinatarioDeAviso, ModoDePeticion, PeriodoDeSaldo, PlazoDesde, ReglasDeBolsa, RequisitoDocumental, Saldo, TipoDeAusencia,
   TipoDeAusenciaIn, TipoDeDocumento,
 } from '../../../services/api/tipos-ausencias'
-import { Button, EmptyState, Modal, Spinner, Select, Pulsable, IconButton , useErroresDeCampo } from '../../ui'
+import { Button, EmptyState, Modal, Spinner, Select, Pulsable, IconButton , useErroresDeCampo, Input } from '../../ui'
 import { confirmar } from '../../../context/ConfirmContext'
 import { useToast } from '../../../context/ToastContext'
 import { SelectorDeEntidad, useOpciones } from '../../politicas/comun'
@@ -142,14 +142,13 @@ function FormularioDeTipo({ id, inicial, deSistema, onCerrar }: {
         <div className="ausadm-grid-2">
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('clave')}</span>
-            <input aria-label={ta('clave')} className="ausadm-campo" required pattern="[a-z0-9_]{2,50}" value={d.clave} disabled={deSistema}
-              aria-describedby="ausadm-clave-ayuda" onChange={e => cambiar({ clave: e.target.value.toLowerCase() })} />
+            <Input aria-label={ta('clave')} required pattern="[a-z0-9_]{2,50}" value={d.clave} disabled={deSistema} aria-describedby="ausadm-clave-ayuda" onChange={e => cambiar({ clave: e.target.value.toLowerCase() })} inputClassName="ausadm-campo" />
             <span id="ausadm-clave-ayuda" className="ausadm-ayuda">{ta('clave_ayuda')}</span>
             <ErrorDeCampo texto={campos.de('clave')} />
           </label>
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('nombre_principal')}</span>
-            <input aria-label={ta('nombre_principal')} className="ausadm-campo" value={d.nombre} onChange={e => cambiar({ nombre: e.target.value })} />
+            <Input aria-label={ta('nombre_principal')} value={d.nombre} onChange={e => cambiar({ nombre: e.target.value })} inputClassName="ausadm-campo" />
             <ErrorDeCampo texto={campos.de('nombre')} />
           </label>
         </div>
@@ -248,23 +247,17 @@ function FormularioDeTipo({ id, inicial, deSistema, onCerrar }: {
                 )}
                 <label className="ausadm-campo-con-etiqueta">
                   <span className="ausadm-etiqueta">{ta('arrastre_max', { unidad: ta(`unidad_${d.unidad}`) })}</span>
-                  <input aria-label={ta('arrastre_max', { unidad: ta(`unidad_${d.unidad}`) })} type="number" min={0} step="0.5"
-                    className="ausadm-campo ausadm-campo--corto" value={d.arrastre_max ?? ''} placeholder={ta('sin_arrastre')}
-                    onChange={e => cambiar({ arrastre_max: numOpcional(e.target.value) })} />
+                  <Input aria-label={ta('arrastre_max', { unidad: ta(`unidad_${d.unidad}`) })} type="number" min={0} step="0.5" value={d.arrastre_max ?? ''} placeholder={ta('sin_arrastre')} onChange={e => cambiar({ arrastre_max: numOpcional(e.target.value) })} inputClassName="ausadm-campo ausadm-campo--corto" />
                 </label>
                 {d.arrastre_max != null && d.arrastre_max > 0 && (
                   <label className="ausadm-campo-con-etiqueta">
                     <span className="ausadm-etiqueta">{ta('arrastre_caduca_meses')}</span>
-                    <input aria-label={ta('arrastre_caduca_meses')} type="number" min={0} step={1} className="ausadm-campo ausadm-campo--corto"
-                      value={d.arrastre_caduca_meses ?? ''} placeholder={ta('no_caduca')}
-                      onChange={e => cambiar({ arrastre_caduca_meses: numOpcional(e.target.value) })} />
+                    <Input aria-label={ta('arrastre_caduca_meses')} type="number" min={0} step={1} value={d.arrastre_caduca_meses ?? ''} placeholder={ta('no_caduca')} onChange={e => cambiar({ arrastre_caduca_meses: numOpcional(e.target.value) })} inputClassName="ausadm-campo ausadm-campo--corto" />
                   </label>
                 )}
                 <label className="ausadm-campo-con-etiqueta">
                   <span className="ausadm-etiqueta">{ta('caduca_meses')}</span>
-                  <input aria-label={ta('caduca_meses')} type="number" min={0} step={1} className="ausadm-campo ausadm-campo--corto"
-                    value={d.caduca_meses ?? ''} placeholder={ta('no_caduca')} aria-describedby="ausadm-caduca-ayuda"
-                    onChange={e => cambiar({ caduca_meses: numOpcional(e.target.value) })} />
+                  <Input aria-label={ta('caduca_meses')} type="number" min={0} step={1} value={d.caduca_meses ?? ''} placeholder={ta('no_caduca')} aria-describedby="ausadm-caduca-ayuda" onChange={e => cambiar({ caduca_meses: numOpcional(e.target.value) })} inputClassName="ausadm-campo ausadm-campo--corto" />
                   <span id="ausadm-caduca-ayuda" className="ausadm-ayuda">{ta('caduca_meses_ayuda')}</span>
                 </label>
               </div>
@@ -312,15 +305,13 @@ function ReglasDeLaBolsa({ valor, onChange }: { valor: ReglasDeBolsa; onChange: 
   const numero = (clave: 'factor' | 'factor_festivo' | 'factor_no_laborable') => (
     <label className="ausadm-campo-con-etiqueta">
       <span className="ausadm-etiqueta">{ta(`bolsa_${clave}`)}</span>
-      <input aria-label={ta(`bolsa_${clave}`)} type="number" min={0} step="0.25" className="ausadm-campo ausadm-campo--corto" required
-        value={valor[clave]} onChange={e => poner({ [clave]: Math.max(0, Number(e.target.value) || 0) } as Partial<ReglasDeBolsa>)} />
+      <Input aria-label={ta(`bolsa_${clave}`)} type="number" min={0} step="0.25" required value={valor[clave]} onChange={e => poner({ [clave]: Math.max(0, Number(e.target.value) || 0) } as Partial<ReglasDeBolsa>)} inputClassName="ausadm-campo ausadm-campo--corto" />
     </label>
   )
   const opcional = (clave: 'tope_diario' | 'tope_periodo') => (
     <label className="ausadm-campo-con-etiqueta">
       <span className="ausadm-etiqueta">{ta(`bolsa_${clave}`)}</span>
-      <input aria-label={ta(`bolsa_${clave}`)} type="number" min={0} step="0.5" className="ausadm-campo ausadm-campo--corto"
-        value={valor[clave] ?? ''} placeholder={ta('sin_tope')} onChange={e => poner({ [clave]: numOpcional(e.target.value) } as Partial<ReglasDeBolsa>)} />
+      <Input aria-label={ta(`bolsa_${clave}`)} type="number" min={0} step="0.5" value={valor[clave] ?? ''} placeholder={ta('sin_tope')} onChange={e => poner({ [clave]: numOpcional(e.target.value) } as Partial<ReglasDeBolsa>)} inputClassName="ausadm-campo ausadm-campo--corto" />
     </label>
   )
   return (
@@ -333,8 +324,7 @@ function ReglasDeLaBolsa({ valor, onChange }: { valor: ReglasDeBolsa; onChange: 
         {numero('factor_no_laborable')}
         <label className="ausadm-campo-con-etiqueta">
           <span className="ausadm-etiqueta">{ta('bolsa_umbral_minutos')}</span>
-          <input aria-label={ta('bolsa_umbral_minutos')} type="number" min={0} step={5} className="ausadm-campo ausadm-campo--corto"
-            value={valor.umbral_minutos} onChange={e => poner({ umbral_minutos: Math.max(0, Number(e.target.value) || 0) })} />
+          <Input aria-label={ta('bolsa_umbral_minutos')} type="number" min={0} step={5} value={valor.umbral_minutos} onChange={e => poner({ umbral_minutos: Math.max(0, Number(e.target.value) || 0) })} inputClassName="ausadm-campo ausadm-campo--corto" />
         </label>
         {opcional('tope_diario')}
         {opcional('tope_periodo')}

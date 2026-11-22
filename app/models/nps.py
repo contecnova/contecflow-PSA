@@ -27,6 +27,9 @@ class ClientNPS(Base):
     comment    = Column(Text, nullable=True)
     respondent = Column(String(200), nullable=True)         # name of the person who replied
     source     = Column(String(50),  default="manual")      # manual | email | portal
+    # Rev. 193: CSAT además de NPS y, en el portal interno, el empleado que responde.
+    survey_type = Column(String(10), nullable=False, default="nps", server_default="nps")  # nps | csat
+    respondent_user_id = Column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), default=utcnow, index=True)
 
     client = relationship("Client", backref="nps_responses")

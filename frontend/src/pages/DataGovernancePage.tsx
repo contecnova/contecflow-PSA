@@ -11,7 +11,7 @@ import { extractErr, fmtDateTime, localeActivo } from '../utils/helpers'
 import PageShell from '../components/layout/PageShell'
 import PageHeader from '../components/layout/PageHeader'
 import { ArrowRight, Bookmark, Check, Eye, GitBranch, History, MessageSquare, Plus, RefreshCw, Search, Shield, ShieldCheck, Tags, X } from 'lucide-react'
-import { Button, EmptyState, IconButton, KpiCard, SelectorDePeriodo, Select, Checkbox } from '../components/ui'
+import { Button, EmptyState, IconButton, KpiCard, SelectorDePeriodo, Select, Checkbox, Input, Textarea } from '../components/ui'
 import { usePeriodo } from '../hooks/usePeriodo'
 import { CON_HORA, codigoDeErrorDePeriodo } from '../utils/periodo'
 import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
@@ -287,8 +287,8 @@ export default function DataGovernancePage(): JSX.Element {
               </div>
               <div className="dg-card__body">
                 <div className="dg-form-grid">
-                  <input aria-label={t('datagovernance.dataset_id')} value={newFieldDataset} onChange={e => setNewFieldDataset(e.target.value)} placeholder={t('datagovernance.dataset_id')} className="dg-input dg-input--xs" />
-                  <input aria-label={t('datagovernance.campo_ejemplo')} value={newFieldName} onChange={e => setNewFieldName(e.target.value)} placeholder={t('datagovernance.campo_ejemplo')} className="dg-input dg-input--xs" />
+                  <Input aria-label={t('datagovernance.dataset_id')} value={newFieldDataset} onChange={e => setNewFieldDataset(e.target.value)} placeholder={t('datagovernance.dataset_id')} inputClassName="dg-input dg-input--xs" />
+                  <Input aria-label={t('datagovernance.campo_ejemplo')} value={newFieldName} onChange={e => setNewFieldName(e.target.value)} placeholder={t('datagovernance.campo_ejemplo')} inputClassName="dg-input dg-input--xs" />
                   <Select suelto placeholder={false} aria-label={t('datagovernance.nivel_de_sensibilidad')} value={newFieldSensitivity} onChange={e => setNewFieldSensitivity(e.target.value as NivelDeSensibilidadBi)} className="dg-input dg-input--xs">
                     {NIVELES.map((s) => <option key={s} value={s}>{t(`datagovernance.sens_${s}`)}</option>)}
                   </Select>
@@ -382,9 +382,7 @@ export default function DataGovernancePage(): JSX.Element {
                 <option value="profit_table">{t('datagovernance.rentabilidad_por_proyecto')}</option>
                 <option value="ai_narrative">{t('datagovernance.widget_narrativa_ia')}</option>
               </Select>
-              <textarea aria-label={t('datagovernance.anade_un_comentario_para_este_widget')} value={commentText} onChange={e => setCommentText(e.target.value)} rows={3}
-                placeholder={t('datagovernance.anade_un_comentario_para_este_widget')}
-                className="dg-input" />
+              <Textarea aria-label={t('datagovernance.anade_un_comentario_para_este_widget')} value={commentText} onChange={e => setCommentText(e.target.value)} rows={3} placeholder={t('datagovernance.anade_un_comentario_para_este_widget')} inputClassName="dg-input" />
               <div><Button size="sm" icon={<MessageSquare size={14} />} onClick={handleCreateComment}>{t('datagovernance.guardar_comentario')}</Button></div>
               <div className="dg-comments">
                 {comments.length === 0

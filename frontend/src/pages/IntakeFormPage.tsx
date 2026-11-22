@@ -10,7 +10,7 @@ import { CheckCircle2 } from 'lucide-react'
 import { useAppT } from '../i18n/AppLangContext'
 import { apiPublica } from '../services/api/clienteBase'
 import './IntakeFormPage.css'
-import { Pulsable, Select } from '../components/ui'
+import { Pulsable, Select, Textarea } from '../components/ui'
 
 // axios directo y no el cliente de la app: formulario público, sin sesión que
 // refrescar ni redirección a login si responde 401.
@@ -124,8 +124,7 @@ export default function IntakeFormPage(): JSX.Element {
 
           <div>
             <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} style={LS}>{t('intake_form.description_label')}</label>
-            <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={fields.description} onChange={set('description')} className="intake-form-page-e1"
-              rows={5} placeholder={t('intake_form.description_placeholder')} />
+            <Textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={fields.description} onChange={set('description')} rows={5} placeholder={t('intake_form.description_placeholder')} inputClassName="intake-form-page-e1" />
           </div>
 
           <div>

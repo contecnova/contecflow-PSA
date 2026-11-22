@@ -11,7 +11,7 @@ import { assetsApi, licensesApi, vendorsApi, almExtApi, usersApi, cmdbApi } from
 import type { UserListItem } from '../services/api'
 import type { AlmActivo, AlmCentroDeCoste, AlmContrato, AlmKpis, AlmLicencia, AlmProveedor } from '../services/api/tipos-alm'
 import type { MetaDeLista } from '../services/api/tipos-plataforma'
-import { Button, Spinner, EmptyState, Modal, Tabs, Page, KpiCard, SelectorDePeriodo, Pulsable, Select, Checkbox, useErroresDeCampo } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, Tabs, Page, KpiCard, SelectorDePeriodo, Pulsable, Select, Checkbox, useErroresDeCampo, Input, Textarea } from '../components/ui'
 import { usePeriodo } from '../hooks/usePeriodo'
 import { SIN_HORA } from '../utils/periodo'
 import Pagination from '../components/ui/Pagination'
@@ -304,21 +304,21 @@ function VendorModal({ vendor, onClose }: { vendor: Partial<Vendor> | null; onCl
   return (
     <Modal open onClose={onClose} title={isEdit ? t('alm.vendor_modal_edit') : t('alm.vendor_modal_new')} width={640}>
       <div className="u-grid2-14">
-        <div className="u-col-full"><label id={`${idPrefix}-name-et`} htmlFor={`${idPrefix}-name`} className="alm-label">{t('alm.vendor_label_name')} *</label><input id={`${idPrefix}-name`} aria-labelledby={`${idPrefix}-name-et`} value={form.name} onChange={s('name')} className="alm-input" placeholder={t('alm.vendor_placeholder_name')} />{msgD('name')}</div>
+        <div className="u-col-full"><label id={`${idPrefix}-name-et`} htmlFor={`${idPrefix}-name`} className="alm-label">{t('alm.vendor_label_name')} *</label><Input id={`${idPrefix}-name`} aria-labelledby={`${idPrefix}-name-et`} value={form.name} onChange={s('name')} placeholder={t('alm.vendor_placeholder_name')} inputClassName="alm-input" />{msgD('name')}</div>
         <div>
           <label htmlFor={`${idPrefix}-category`} className="alm-label">{t('alm.vendor_label_category')}</label>
           <Select suelto placeholder={false} id={`${idPrefix}-category`} value={form.category} onChange={s('category')} className="alm-input">
             {Object.keys(VENDOR_CATS).map(k => <option key={k} value={k}>{t(`alm.vendor_cat_${k}`)}</option>)}
           </Select>{msgD('category')}
         </div>
-        <div><label id={`${idPrefix}-country-et`} htmlFor={`${idPrefix}-country`} className="alm-label">{t('alm.vendor_label_country')}</label><input id={`${idPrefix}-country`} aria-labelledby={`${idPrefix}-country-et`} value={form.country} onChange={s('country')} className="alm-input" placeholder={t('alm.ej_espana')} />{msgD('country')}</div>
-        <div><label id={`${idPrefix}-website-et`} htmlFor={`${idPrefix}-website`} className="alm-label">{t('alm.vendor_label_web')}</label><input id={`${idPrefix}-website`} aria-labelledby={`${idPrefix}-website-et`} value={form.website} onChange={s('website')} className="alm-input" placeholder={t('alm.vendor_placeholder_web')} />{msgD('website')}</div>
-        <div><label id={`${idPrefix}-support-email-et`} htmlFor={`${idPrefix}-support-email`} className="alm-label">{t('alm.vendor_label_support_email')}</label><input id={`${idPrefix}-support-email`} aria-labelledby={`${idPrefix}-support-email-et`} value={form.support_email} onChange={s('support_email')} className="alm-input" />{msgD('support_email')}</div>
-        <div><label id={`${idPrefix}-support-phone-et`} htmlFor={`${idPrefix}-support-phone`} className="alm-label">{t('alm.vendor_label_support_phone')}</label><input id={`${idPrefix}-support-phone`} aria-labelledby={`${idPrefix}-support-phone-et`} value={form.support_phone} onChange={s('support_phone')} className="alm-input" />{msgD('support_phone')}</div>
-        <div><label id={`${idPrefix}-account-manager-et`} htmlFor={`${idPrefix}-account-manager`} className="alm-label">{t('alm.vendor_label_account_manager')}</label><input id={`${idPrefix}-account-manager`} aria-labelledby={`${idPrefix}-account-manager-et`} value={form.account_manager} onChange={s('account_manager')} className="alm-input" />{msgD('account_manager')}</div>
-        <div><label id={`${idPrefix}-account-number-et`} htmlFor={`${idPrefix}-account-number`} className="alm-label">{t('alm.vendor_label_account_number')}</label><input id={`${idPrefix}-account-number`} aria-labelledby={`${idPrefix}-account-number-et`} value={form.account_number} onChange={s('account_number')} className="alm-input" />{msgD('account_number')}</div>
-        <div><label id={`${idPrefix}-tax-id-et`} htmlFor={`${idPrefix}-tax-id`} className="alm-label">{t('alm.vendor_label_tax_id')}</label><input id={`${idPrefix}-tax-id`} aria-labelledby={`${idPrefix}-tax-id-et`} value={form.tax_id} onChange={s('tax_id')} className="alm-input" />{msgD('tax_id')}</div>
-        <div className="u-col-full"><label id={`${idPrefix}-notes-et`} htmlFor={`${idPrefix}-notes`} className="alm-label">{t('alm.vendor_label_notes')}</label><textarea id={`${idPrefix}-notes`} aria-labelledby={`${idPrefix}-notes-et`} value={form.notes} onChange={s('notes')} rows={3} className="alm-input" />{msgD('notes')}</div>
+        <div><label id={`${idPrefix}-country-et`} htmlFor={`${idPrefix}-country`} className="alm-label">{t('alm.vendor_label_country')}</label><Input id={`${idPrefix}-country`} aria-labelledby={`${idPrefix}-country-et`} value={form.country} onChange={s('country')} placeholder={t('alm.ej_espana')} inputClassName="alm-input" />{msgD('country')}</div>
+        <div><label id={`${idPrefix}-website-et`} htmlFor={`${idPrefix}-website`} className="alm-label">{t('alm.vendor_label_web')}</label><Input id={`${idPrefix}-website`} aria-labelledby={`${idPrefix}-website-et`} value={form.website} onChange={s('website')} placeholder={t('alm.vendor_placeholder_web')} inputClassName="alm-input" />{msgD('website')}</div>
+        <div><label id={`${idPrefix}-support-email-et`} htmlFor={`${idPrefix}-support-email`} className="alm-label">{t('alm.vendor_label_support_email')}</label><Input id={`${idPrefix}-support-email`} aria-labelledby={`${idPrefix}-support-email-et`} value={form.support_email} onChange={s('support_email')} inputClassName="alm-input" />{msgD('support_email')}</div>
+        <div><label id={`${idPrefix}-support-phone-et`} htmlFor={`${idPrefix}-support-phone`} className="alm-label">{t('alm.vendor_label_support_phone')}</label><Input id={`${idPrefix}-support-phone`} aria-labelledby={`${idPrefix}-support-phone-et`} value={form.support_phone} onChange={s('support_phone')} inputClassName="alm-input" />{msgD('support_phone')}</div>
+        <div><label id={`${idPrefix}-account-manager-et`} htmlFor={`${idPrefix}-account-manager`} className="alm-label">{t('alm.vendor_label_account_manager')}</label><Input id={`${idPrefix}-account-manager`} aria-labelledby={`${idPrefix}-account-manager-et`} value={form.account_manager} onChange={s('account_manager')} inputClassName="alm-input" />{msgD('account_manager')}</div>
+        <div><label id={`${idPrefix}-account-number-et`} htmlFor={`${idPrefix}-account-number`} className="alm-label">{t('alm.vendor_label_account_number')}</label><Input id={`${idPrefix}-account-number`} aria-labelledby={`${idPrefix}-account-number-et`} value={form.account_number} onChange={s('account_number')} inputClassName="alm-input" />{msgD('account_number')}</div>
+        <div><label id={`${idPrefix}-tax-id-et`} htmlFor={`${idPrefix}-tax-id`} className="alm-label">{t('alm.vendor_label_tax_id')}</label><Input id={`${idPrefix}-tax-id`} aria-labelledby={`${idPrefix}-tax-id-et`} value={form.tax_id} onChange={s('tax_id')} inputClassName="alm-input" />{msgD('tax_id')}</div>
+        <div className="u-col-full"><label id={`${idPrefix}-notes-et`} htmlFor={`${idPrefix}-notes`} className="alm-label">{t('alm.vendor_label_notes')}</label><Textarea id={`${idPrefix}-notes`} aria-labelledby={`${idPrefix}-notes-et`} value={form.notes} onChange={s('notes')} rows={3} inputClassName="alm-input" />{msgD('notes')}</div>
       </div>
       <div className="alm-modal-actions">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -665,10 +665,10 @@ function ContractModal({ contract, vendors, users, costCenters, onClose }: { con
             {costCenters.map(c => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
           </Select>{msgC('cost_center_id')}
         </div>
-        <div><label id={`${idCampo}-et14`} htmlFor={`${idCampo}-14`} className="alm-label">{t('alm.contracts_label_po')}</label><input id={`${idCampo}-14`} aria-labelledby={`${idCampo}-et14`} value={form.po_number} onChange={s('po_number')} className="alm-input" />{msgC('po_number')}</div>
-        <div><label id={`${idCampo}-et15`} htmlFor={`${idCampo}-15`} className="alm-label">{t('alm.contracts_label_payment_method')}</label><input id={`${idCampo}-15`} aria-labelledby={`${idCampo}-et15`} value={form.payment_method} onChange={s('payment_method')} className="alm-input" placeholder={t('alm.contracts_placeholder_payment_method')} />{msgC('payment_method')}</div>
-        <div className="u-col-full"><label id={`${idCampo}-et16`} htmlFor={`${idCampo}-16`} className="alm-label">{t('alm.contracts_label_document_url')}</label><input id={`${idCampo}-16`} aria-labelledby={`${idCampo}-et16`} value={form.document_url} onChange={s('document_url')} className="alm-input" placeholder={t('alm.contracts_placeholder_document_url')} />{msgC('document_url')}</div>
-        <div className="u-col-full"><label id={`${idCampo}-et17`} htmlFor={`${idCampo}-17`} className="alm-label">{t('alm.contracts_label_notes')}</label><textarea id={`${idCampo}-17`} aria-labelledby={`${idCampo}-et17`} value={form.notes} onChange={s('notes')} rows={3} className="alm-input" />{msgC('notes')}</div>
+        <div><label id={`${idCampo}-et14`} htmlFor={`${idCampo}-14`} className="alm-label">{t('alm.contracts_label_po')}</label><Input id={`${idCampo}-14`} aria-labelledby={`${idCampo}-et14`} value={form.po_number} onChange={s('po_number')} inputClassName="alm-input" />{msgC('po_number')}</div>
+        <div><label id={`${idCampo}-et15`} htmlFor={`${idCampo}-15`} className="alm-label">{t('alm.contracts_label_payment_method')}</label><Input id={`${idCampo}-15`} aria-labelledby={`${idCampo}-et15`} value={form.payment_method} onChange={s('payment_method')} placeholder={t('alm.contracts_placeholder_payment_method')} inputClassName="alm-input" />{msgC('payment_method')}</div>
+        <div className="u-col-full"><label id={`${idCampo}-et16`} htmlFor={`${idCampo}-16`} className="alm-label">{t('alm.contracts_label_document_url')}</label><Input id={`${idCampo}-16`} aria-labelledby={`${idCampo}-et16`} value={form.document_url} onChange={s('document_url')} placeholder={t('alm.contracts_placeholder_document_url')} inputClassName="alm-input" />{msgC('document_url')}</div>
+        <div className="u-col-full"><label id={`${idCampo}-et17`} htmlFor={`${idCampo}-17`} className="alm-label">{t('alm.contracts_label_notes')}</label><Textarea id={`${idCampo}-17`} aria-labelledby={`${idCampo}-et17`} value={form.notes} onChange={s('notes')} rows={3} inputClassName="alm-input" />{msgC('notes')}</div>
       </div>
       <div className="alm-modal-actions">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -839,9 +839,9 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }: { l
           <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={s('name')} className={claseCampo(validation.errors.name)} aria-invalid={!!validation.errors.name} placeholder={t('alm.licenses_placeholder_name')} />{msgB('name')}
           {validation.errors.name && <p className="u-field-error">{validation.errors.name}</p>}
         </div>
-        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="alm-label">{t('alm.licenses_label_product')}</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.product_name} onChange={s('product_name')} className="alm-input" placeholder={t('alm.licenses_placeholder_product')} />{msgB('product_name')}</div>
-        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="alm-label">{t('alm.licenses_label_edition')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.edition} onChange={s('edition')} className="alm-input" placeholder={t('alm.licenses_placeholder_edition')} />{msgB('edition')}</div>
-        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="alm-label">{t('alm.licenses_label_version')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.version} onChange={s('version')} className="alm-input" placeholder={t('alm.licenses_placeholder_version')} />{msgB('version')}</div>
+        <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="alm-label">{t('alm.licenses_label_product')}</label><Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.product_name} onChange={s('product_name')} placeholder={t('alm.licenses_placeholder_product')} inputClassName="alm-input" />{msgB('product_name')}</div>
+        <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="alm-label">{t('alm.licenses_label_edition')}</label><Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={form.edition} onChange={s('edition')} placeholder={t('alm.licenses_placeholder_edition')} inputClassName="alm-input" />{msgB('edition')}</div>
+        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="alm-label">{t('alm.licenses_label_version')}</label><Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.version} onChange={s('version')} placeholder={t('alm.licenses_placeholder_version')} inputClassName="alm-input" />{msgB('version')}</div>
         <div>
           <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="alm-label">{t('alm.licenses_label_type')}</label>
           <Select suelto placeholder={false} id={`${idCampo}-5`} value={form.type} onChange={s('type')} className="alm-input">
@@ -857,7 +857,7 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }: { l
         </div>
         <div>
           <label htmlFor={`${idCampo}-tier`} className="alm-label">{t('alm.tier')}</label>
-          <input id={`${idCampo}-tier`} value={form.tier} onChange={s('tier')} className="alm-input" placeholder={t('alm.tier_placeholder')} />{msgB('tier')}
+          <Input id={`${idCampo}-tier`} value={form.tier} onChange={s('tier')} placeholder={t('alm.tier_placeholder')} inputClassName="alm-input" />{msgB('tier')}
         </div>
         <div>
           <label htmlFor={`${idCampo}-tierrank`} className="alm-label">{t('alm.tier_rank')}</label>
@@ -866,7 +866,7 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }: { l
         </div>
         <div>
           <label htmlFor={`${idCampo}-sku`} className="alm-label">{t('alm.sku')}</label>
-          <input id={`${idCampo}-sku`} value={form.sku} onChange={s('sku')} className="alm-input" />{msgB('sku')}
+          <Input id={`${idCampo}-sku`} value={form.sku} onChange={s('sku')} inputClassName="alm-input" />{msgB('sku')}
         </div>
         <div>
           <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="alm-label">{t('alm.licenses_label_platform')}</label>
@@ -937,11 +937,10 @@ function LicenseModal({ license, vendors, contracts, costCenters, onClose }: { l
         </div>
         <div className="u-col-full">
           <label htmlFor={`${idCampo}-16`} className="alm-label">{t('alm.licenses_label_key')}</label>
-          <input id={`${idCampo}-16`} value={form.license_key} onChange={s('license_key')} className="ds-codigo alm-input alm-input--mono ds-campo-codigo" autoComplete="off"
-            placeholder={license?.has_key ? t('alm.key_keep', { hint: license.license_key_hint ?? '' }) : t('alm.licenses_placeholder_key')} />{msgB('license_key')}
+          <Input id={`${idCampo}-16`} value={form.license_key} onChange={s('license_key')} autoComplete="off" placeholder={license?.has_key ? t('alm.key_keep', { hint: license.license_key_hint ?? '' }) : t('alm.licenses_placeholder_key')} inputClassName="ds-codigo alm-input alm-input--mono ds-campo-codigo" />{msgB('license_key')}
           <p className="alm-hint">{t('alm.key_encrypted_hint')}</p>
         </div>
-        <div className="u-col-full"><label id={`${idCampo}-et17`} htmlFor={`${idCampo}-17`} className="alm-label">{t('alm.contracts_label_notes')}</label><textarea id={`${idCampo}-17`} aria-labelledby={`${idCampo}-et17`} value={form.notes} onChange={s('notes')} rows={3} className="alm-input" />{msgB('notes')}</div>
+        <div className="u-col-full"><label id={`${idCampo}-et17`} htmlFor={`${idCampo}-17`} className="alm-label">{t('alm.contracts_label_notes')}</label><Textarea id={`${idCampo}-17`} aria-labelledby={`${idCampo}-et17`} value={form.notes} onChange={s('notes')} rows={3} inputClassName="alm-input" />{msgB('notes')}</div>
       </div>
       <div className="alm-modal-actions">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -1174,15 +1173,15 @@ function AssetModal({ asset, vendors, onClose }: { asset: Partial<Asset> | null;
               {['ordered', 'available'].map(k => <option key={k} value={k}>{t(`alm.asset_status_${k}`)}</option>)}
             </Select>
           ) : (
-            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={t(`alm.asset_status_${form.status}`)} readOnly className="alm-input" />
+            <Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={t(`alm.asset_status_${form.status}`)} readOnly inputClassName="alm-input" />
           )}
           {msg('status')}
           <p className="alm-hint">{t('alm.status_by_actions_hint')}</p>
         </div>
-        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="alm-label">{t('alm.assets_label_brand')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.brand} onChange={s('brand')} className="alm-input" placeholder={t('alm.assets_placeholder_brand')} />{msg('brand')}</div>
-        <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="alm-label">{t('alm.assets_label_model')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.model} onChange={s('model')} className="alm-input" />{msg('model')}</div>
-        <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="alm-label">{t('alm.assets_label_serial')}</label><input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.serial_number} onChange={s('serial_number')} className="alm-input" />{msg('serial_number')}</div>
-        <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="alm-label">{t('alm.assets_label_tag')}</label><input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.asset_tag} onChange={s('asset_tag')} className="alm-input" placeholder={t('alm.assets_placeholder_tag')} />{msg('asset_tag')}</div>
+        <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="alm-label">{t('alm.assets_label_brand')}</label><Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.brand} onChange={s('brand')} placeholder={t('alm.assets_placeholder_brand')} inputClassName="alm-input" />{msg('brand')}</div>
+        <div><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="alm-label">{t('alm.assets_label_model')}</label><Input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.model} onChange={s('model')} inputClassName="alm-input" />{msg('model')}</div>
+        <div><label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="alm-label">{t('alm.assets_label_serial')}</label><Input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.serial_number} onChange={s('serial_number')} inputClassName="alm-input" />{msg('serial_number')}</div>
+        <div><label id={`${idCampo}-et7`} htmlFor={`${idCampo}-7`} className="alm-label">{t('alm.assets_label_tag')}</label><Input id={`${idCampo}-7`} aria-labelledby={`${idCampo}-et7`} value={form.asset_tag} onChange={s('asset_tag')} placeholder={t('alm.assets_placeholder_tag')} inputClassName="alm-input" />{msg('asset_tag')}</div>
         <div>
           <label htmlFor={`${idCampo}-cc`} className="alm-label">{t('alm.licenses_label_cost_center')}</label>
           <Select suelto placeholder={false} id={`${idCampo}-cc`} value={form.cost_center_id} onChange={s('cost_center_id')} className="alm-input">
@@ -1190,7 +1189,7 @@ function AssetModal({ asset, vendors, onClose }: { asset: Partial<Asset> | null;
             {costCenters.map(c => <option key={c.id} value={c.id}>{c.code} · {c.name}</option>)}
           </Select>{msg('cost_center_id')}
         </div>
-        <div><label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="alm-label">{t('alm.assets_label_location')}</label><input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} value={form.location} onChange={s('location')} className="alm-input" placeholder={t('alm.assets_placeholder_location')} />{msg('location')}</div>
+        <div><label id={`${idCampo}-et9`} htmlFor={`${idCampo}-9`} className="alm-label">{t('alm.assets_label_location')}</label><Input id={`${idCampo}-9`} aria-labelledby={`${idCampo}-et9`} value={form.location} onChange={s('location')} placeholder={t('alm.assets_placeholder_location')} inputClassName="alm-input" />{msg('location')}</div>
         <div>
           <label id={`${idCampo}-et10`} htmlFor={`${idCampo}-10`} className="alm-label">{t('alm.assets_label_vendor')}</label>
           <Select suelto placeholder={false} id={`${idCampo}-10`} value={form.vendor_id} onChange={s('vendor_id')} className="alm-input">
@@ -1233,10 +1232,10 @@ function AssetModal({ asset, vendors, onClose }: { asset: Partial<Asset> | null;
           <label htmlFor={`${idCampo}-rebill`} className="alm-check-label">{t('alm.rebillable_default')}</label>
         </div>
         {showNetwork && <>
-          <div><label id={`${idCampo}-et16`} htmlFor={`${idCampo}-16`} className="alm-label">{t('alm.assets_label_ip')}</label><input id={`${idCampo}-16`} aria-labelledby={`${idCampo}-et16`} value={form.ip_address} onChange={s('ip_address')} className="alm-input" placeholder={t('alm.assets_placeholder_ip')} />{msg('ip_address')}</div>
-          <div><label id={`${idCampo}-et17`} htmlFor={`${idCampo}-17`} className="alm-label">{t('alm.assets_label_hostname')}</label><input id={`${idCampo}-17`} aria-labelledby={`${idCampo}-et17`} value={form.hostname} onChange={s('hostname')} className="alm-input" />{msg('hostname')}</div>
-          <div><label id={`${idCampo}-et18`} htmlFor={`${idCampo}-18`} className="alm-label">{t('alm.assets_label_os')}</label><input id={`${idCampo}-18`} aria-labelledby={`${idCampo}-et18`} value={form.os} onChange={s('os')} className="alm-input" placeholder={t('alm.assets_placeholder_os')} />{msg('os')}</div>
-          <div><label id={`${idCampo}-et19`} htmlFor={`${idCampo}-19`} className="alm-label">{t('alm.assets_label_cpu')}</label><input id={`${idCampo}-19`} aria-labelledby={`${idCampo}-et19`} value={form.cpu} onChange={s('cpu')} className="alm-input" placeholder={t('alm.assets_placeholder_cpu')} />{msg('cpu')}</div>
+          <div><label id={`${idCampo}-et16`} htmlFor={`${idCampo}-16`} className="alm-label">{t('alm.assets_label_ip')}</label><Input id={`${idCampo}-16`} aria-labelledby={`${idCampo}-et16`} value={form.ip_address} onChange={s('ip_address')} placeholder={t('alm.assets_placeholder_ip')} inputClassName="alm-input" />{msg('ip_address')}</div>
+          <div><label id={`${idCampo}-et17`} htmlFor={`${idCampo}-17`} className="alm-label">{t('alm.assets_label_hostname')}</label><Input id={`${idCampo}-17`} aria-labelledby={`${idCampo}-et17`} value={form.hostname} onChange={s('hostname')} inputClassName="alm-input" />{msg('hostname')}</div>
+          <div><label id={`${idCampo}-et18`} htmlFor={`${idCampo}-18`} className="alm-label">{t('alm.assets_label_os')}</label><Input id={`${idCampo}-18`} aria-labelledby={`${idCampo}-et18`} value={form.os} onChange={s('os')} placeholder={t('alm.assets_placeholder_os')} inputClassName="alm-input" />{msg('os')}</div>
+          <div><label id={`${idCampo}-et19`} htmlFor={`${idCampo}-19`} className="alm-label">{t('alm.assets_label_cpu')}</label><Input id={`${idCampo}-19`} aria-labelledby={`${idCampo}-et19`} value={form.cpu} onChange={s('cpu')} placeholder={t('alm.assets_placeholder_cpu')} inputClassName="alm-input" />{msg('cpu')}</div>
           <div>
             <label id={`${idCampo}-et20`} htmlFor={`${idCampo}-20`} className="alm-label">{t('alm.assets_label_ram')}</label>
             <input id={`${idCampo}-20`} aria-labelledby={`${idCampo}-et20`} type="number" value={form.ram_gb} onChange={s('ram_gb')} className={claseCampo(validation.errors.ram_gb)} aria-invalid={!!validation.errors.ram_gb} />{msg('ram_gb')}
@@ -1262,8 +1261,8 @@ function AssetModal({ asset, vendors, onClose }: { asset: Partial<Asset> | null;
         <div><label className="alm-label" htmlFor="asset-eol">{t('alm.assets_label_eol')}</label><DateInput id="asset-eol" value={form.eol_date} onChange={s('eol_date')} className="alm-input" />{msg('eol_date')}</div>
         <div><label className="alm-label" htmlFor="asset-lease">{t('alm.assets_label_lease')}</label><DateInput id="asset-lease" value={form.lease_expiry} onChange={s('lease_expiry')} className="alm-input" />{msg('lease_expiry')}</div>
         <div><label className="alm-label" htmlFor="asset-maint">{t('alm.assets_label_maintenance')}</label><DateInput id="asset-maint" value={form.next_maintenance_date} onChange={s('next_maintenance_date')} className="alm-input" />{msg('next_maintenance_date')}</div>
-        <div><label id="asset-maint-c-et" className="alm-label" htmlFor="asset-maint-c">{t('alm.assets_label_maintenance_contract')}</label><input id="asset-maint-c" aria-labelledby="asset-maint-c-et" value={form.maintenance_contract} onChange={s('maintenance_contract')} className="alm-input" />{msg('maintenance_contract')}</div>
-        <div className="u-col-full"><label id={`${idCampo}-et22`} htmlFor={`${idCampo}-22`} className="alm-label">{t('alm.assets_label_notes')}</label><textarea id={`${idCampo}-22`} aria-labelledby={`${idCampo}-et22`} value={form.notes} onChange={s('notes')} rows={3} className="alm-input" />{msg('notes')}</div>
+        <div><label id="asset-maint-c-et" className="alm-label" htmlFor="asset-maint-c">{t('alm.assets_label_maintenance_contract')}</label><Input id="asset-maint-c" aria-labelledby="asset-maint-c-et" value={form.maintenance_contract} onChange={s('maintenance_contract')} inputClassName="alm-input" />{msg('maintenance_contract')}</div>
+        <div className="u-col-full"><label id={`${idCampo}-et22`} htmlFor={`${idCampo}-22`} className="alm-label">{t('alm.assets_label_notes')}</label><Textarea id={`${idCampo}-22`} aria-labelledby={`${idCampo}-et22`} value={form.notes} onChange={s('notes')} rows={3} inputClassName="alm-input" />{msg('notes')}</div>
       </div>
       <div className="alm-modal-actions">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
@@ -1477,11 +1476,11 @@ function CostCentersTab() {
         <div className="alm-card alm-cc-form">
           <h4 className="alm-cc-form__title">{editing ? t('alm.cost_centers_edit') : t('alm.cost_centers_new')}</h4>
           <div className="alm-cc-form__grid">
-            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="alm-label">{t('alm.cost_centers_label_code')} *</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.code} onChange={s('code')} className="alm-input" placeholder={t('alm.cost_centers_placeholder_code')} /></div>
-            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="alm-label">{t('alm.cost_centers_label_name')} *</label><input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.name} onChange={s('name')} className="alm-input" placeholder={t('alm.cost_centers_placeholder_name')} /></div>
-            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="alm-label">{t('alm.cost_centers_label_budget')}</label><input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.budget_annual} onChange={s('budget_annual')} className="alm-input" /></div>
-            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="alm-label">{t('alm.cost_centers_label_currency')}</label><input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.currency} onChange={s('currency')} className="alm-input" /></div>
-            <div className="u-col-full"><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="alm-label">{t('alm.cost_centers_label_description')}</label><input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.description} onChange={s('description')} className="alm-input" /></div>
+            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="alm-label">{t('alm.cost_centers_label_code')} *</label><Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.code} onChange={s('code')} placeholder={t('alm.cost_centers_placeholder_code')} inputClassName="alm-input" /></div>
+            <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="alm-label">{t('alm.cost_centers_label_name')} *</label><Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={form.name} onChange={s('name')} placeholder={t('alm.cost_centers_placeholder_name')} inputClassName="alm-input" /></div>
+            <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="alm-label">{t('alm.cost_centers_label_budget')}</label><Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.budget_annual} onChange={s('budget_annual')} inputClassName="alm-input" /></div>
+            <div><label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="alm-label">{t('alm.cost_centers_label_currency')}</label><Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.currency} onChange={s('currency')} inputClassName="alm-input" /></div>
+            <div className="u-col-full"><label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="alm-label">{t('alm.cost_centers_label_description')}</label><Input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={form.description} onChange={s('description')} inputClassName="alm-input" /></div>
           </div>
           <div className="alm-cc-form__actions">
             <Button variant="secondary" onClick={() => { setShowForm(false); setEditing(null) }}>{t('common.cancel')}</Button>

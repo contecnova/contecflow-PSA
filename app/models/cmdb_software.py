@@ -201,6 +201,8 @@ class SoftwareInstance(Base):
     config_path = Column(String(500), nullable=True)
     ports = Column(Text, nullable=True)               # JSON lista de puertos
     exposure = Column(String(10), nullable=False, default="internal")  # internet | internal | isolated
+    #: rev. 194: de dónde sale la exposición: manual | ports | ci | import
+    exposure_source = Column(String(10), nullable=True)
     criticality = Column(String(20), nullable=True)   # vacío: la del producto
     owner_user_id = _usuario()
     client_id = Column(String(36), ForeignKey("clients.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -370,6 +372,12 @@ class VulnerabilityFinding(Base):
     closed_at = Column(DateTime(timezone=True), nullable=True)
     verified_at = Column(DateTime(timezone=True), nullable=True)
     verified_by = _usuario()
+    # rev. 194 (índice de riesgo): quién lo detecta (JSON: correlation, defender, qualys...),
+    # intentos de explotación vistos y riesgo del hallazgo (0-100) de la última evaluación.
+    detected_by = Column(Text, nullable=True)
+    exploit_attempts = Column(Integer, nullable=False, default=0, server_default="0")
+    last_exploit_at = Column(DateTime(timezone=True), nullable=True)
+    risk_points = Column(Float, nullable=True)
     created_at = _creado()
     updated_at = _actualizado()
 
@@ -433,6 +441,8 @@ class SoftwareConfig(Base):
     eol_warning_days = Column(Integer, nullable=False, default=90, server_default="90")
     last_sync_at = Column(DateTime(timezone=True), nullable=True)
     last_sync_status = Column(String(12), nullable=True)
+    #: rev. 194: pesos y constantes del índice de riesgo, rangos, objetivo, avisos (JSON; ver riesgo/ajustes.py)
+    risk_settings = Column(Text, nullable=True)
     updated_by = _usuario()
     created_at = _creado()
     updated_at = _actualizado()

@@ -7,7 +7,7 @@ import { imputationsApi, projectsApi, tasksApi, aiCopilotApi } from '../services
 import type { AnomaliasDeImputacion } from '../services/api/tipos-analitica'
 import type { Imputacion, ResumenSemanal, SesionDeCronometro } from '../services/api/tipos-personas'
 import { queueImputation } from '../services/offlineQueue'
-import { Button, Card, Drawer, EmptyState, IconButton, Page, Select, Checkbox, useErroresDeCampo } from '../components/ui'
+import { Button, Card, Drawer, EmptyState, IconButton, Page, Select, Checkbox, useErroresDeCampo, Textarea, Input } from '../components/ui'
 import { AlertTriangle, CalendarClock, Check, CheckCircle2, Clock, FolderX, Lightbulb, Pencil, Timer, Trash2, TrendingDown, X } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { fmtDate, fmtNumber, extractErr, localeActivo } from '../utils/helpers'
@@ -493,13 +493,7 @@ export default function ImputarPage(): JSX.Element {
           <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="imput-label-6">
             {t('imputa_page.description_label')}
           </label>
-          <textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`}
-            value={form.description}
-            onChange={e => set('description')(e.target.value)}
-            placeholder={t('imputa_page.description_placeholder')}
-            rows={3}
-            className="imput-input-3"
-          />
+          <Textarea id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={form.description} onChange={e => set('description')(e.target.value)} placeholder={t('imputa_page.description_placeholder')} rows={3} inputClassName="imput-input-3" />
           {msg('description')}
         </div>
 
@@ -570,23 +564,12 @@ export default function ImputarPage(): JSX.Element {
                 <div className="imput-row-6">
                   <div className="imput-box-10">
                     <label className="imput-label-10">{t('imputa_page.hours_edit').toUpperCase()}</label>
-                    <input
-                      type="number" step="0.25" min="0.25" max={HORAS_MAXIMAS_POR_DIA}
-                      value={editForm.hours}
-                      aria-label={t('imputa_page.hours_edit')}
-                      onChange={e => { camposEdit.limpiar('hours'); setEditForm(f => ({ ...f, hours: parseFloat(e.target.value) || 0 })) }}
-                      className="imput-input-6"
-                    />
+                    <Input type="number" step="0.25" min="0.25" max={HORAS_MAXIMAS_POR_DIA} value={editForm.hours} aria-label={t('imputa_page.hours_edit')} onChange={e => { camposEdit.limpiar('hours'); setEditForm(f => ({ ...f, hours: parseFloat(e.target.value) || 0 })) }} inputClassName="imput-input-6" />
                     {msgEdit('hours')}
                   </div>
                   <div className="imput-box-11">
                     <label className="imput-label-10">{t('imputa_page.description_edit').toUpperCase()}</label>
-                    <input
-                      value={editForm.description}
-                      aria-label={t('imputa_page.description_edit')}
-                      onChange={e => { camposEdit.limpiar('description'); setEditForm(f => ({ ...f, description: e.target.value })) }}
-                      className="imput-input-7"
-                    />
+                    <Input value={editForm.description} aria-label={t('imputa_page.description_edit')} onChange={e => { camposEdit.limpiar('description'); setEditForm(f => ({ ...f, description: e.target.value })) }} inputClassName="imput-input-7" />
                     {msgEdit('description')}
                   </div>
                   <div className="imput-box-12">

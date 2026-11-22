@@ -10,7 +10,7 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Pencil, Plus, Trash2, X } from 'lucide-react'
-import { Button, Checkbox, IconButton, Input, Modal, Select, useErroresDeCampo } from '../../components/ui'
+import { Button, Checkbox, IconButton, Input, Modal, Select, useErroresDeCampo, Textarea } from '../../components/ui'
 import { usePersonasInternas } from '../../components/externos/FormularioDeExterno'
 import { etiquetaDePersona } from '../../components/ui/MarcaExterno'
 import { proveedoresApi } from '../../services/api/proveedores'
@@ -132,7 +132,7 @@ export function FormularioDeContrato({ subId, contrato, plantilla = false, onClo
         <Checkbox checked={f.expenses_rebillable} onChange={v => setF(x => ({ ...x, expenses_rebillable: v }))} label={t('proveedores.gastos_repercutibles')} />
         <div className="ui-field">
           <label htmlFor="prv-contrato-notas" className="uiinde-estiloetiqueta">{t('subcontractors.notes')}</label>
-          <textarea id="prv-contrato-notas" value={f.notes} onChange={set('notes')} className="ds-input prv-textarea" />
+          <Textarea id="prv-contrato-notas" value={f.notes} onChange={set('notes')} inputClassName="prv-textarea" />
         </div>
         <div className="u-actions-8">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>

@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { timesheetsApi, imputationsApi } from '../services/api'
 import type { FiltroDeTimesheets, FiltroDeTimesheetsDelEquipo } from '../services/api'
 import type { EstadoDeTimesheet, LineaDeTimesheet, Timesheet } from '../services/api/tipos-personas'
-import { Button, IconButton, Modal, Spinner, EmptyState, Tabs, SortableTH, ariaSort, Select, TablaSimple } from '../components/ui'
+import { Button, IconButton, Modal, Spinner, EmptyState, Tabs, SortableTH, ariaSort, Select, TablaSimple, Textarea } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Clock, Hourglass, ClipboardList, Search, CircleCheck, Users, Pencil, Trash2, Check, X, MessageSquare } from 'lucide-react'
@@ -189,8 +189,7 @@ function ReviewModal({ timesheet, onClose }: { timesheet: TimesheetItem; onClose
           ))}
         </div>
         <label id={`${idCampo}-etnotas`} htmlFor={`${idCampo}-notas`} className="ts-label">{t('timesheets.notas_opcional')}</label>
-        <textarea id={`${idCampo}-notas`} aria-labelledby={`${idCampo}-etnotas`} value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder={t('timesheets.notas_de_revision')}
-          className="ts-textarea" />
+        <Textarea id={`${idCampo}-notas`} aria-labelledby={`${idCampo}-etnotas`} value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder={t('timesheets.notas_de_revision')} inputClassName="ts-textarea" />
       </div>
       <div className="u-actions-10">
         <Button variant="secondary" onClick={onClose}>{t('timesheets.cancelar')}</Button>

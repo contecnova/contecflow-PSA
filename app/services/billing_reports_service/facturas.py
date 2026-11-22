@@ -233,8 +233,10 @@ def create_invoice(payload, current_user: User, db: Session) -> dict:
     try:
         from app.core.metrics import invoices_created_total
         _status = getattr(inv, "status", None)
+        from app.core.metricas_empresa import etiqueta_de_empresa
+        # 22-11-2026: etiqueta de empresa acotada (antes el id crudo).
         invoices_created_total.labels(
-            tenant_id=str(getattr(inv, "organization_id", None) or "unknown"),
+            tenant_id=etiqueta_de_empresa(getattr(inv, "organization_id", None)),
             status=str(getattr(_status, "value", _status) or "draft"),
         ).inc()
     except Exception:

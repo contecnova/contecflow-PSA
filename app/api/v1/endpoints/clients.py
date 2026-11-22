@@ -34,6 +34,7 @@ def list_clients(
     status: Optional[str] = None,
     industry: Optional[str] = None,
     limit: Optional[int] = None,
+    kind: Optional[str] = Query(None, pattern="^(externo|interno)$"),
     pagina: Paginacion = Depends(paginacion),
     db: Session = Depends(get_db),
     cu: User = Depends(get_current_user),
@@ -45,7 +46,7 @@ def list_clients(
     ``LIST_MAX_ROWS``. ``limit`` sigue siendo «solo las primeras N»."""
     from app.services.politica_de_visibilidad import recortar_ficha_de_cliente
     return lista_paginada(response, _svc.list_clients(
-        db, cu, q=q, status=status, industry=industry, limit=limit, pagina=pagina,
+        db, cu, q=q, status=status, industry=industry, limit=limit, pagina=pagina, kind=kind,
     ).mapear(lambda f: recortar_ficha_de_cliente(cu, f)))
 
 

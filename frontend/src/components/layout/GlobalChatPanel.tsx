@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { MessageSquare, Search, Send, X, ExternalLink, Plus, User, Minus, Volume2, VolumeX, Hash, Users } from 'lucide-react'
-import { Checkbox, EmptyState, IconButton, Pulsable, Select } from '../ui'
+import { Checkbox, EmptyState, IconButton, Pulsable, Select, Input } from '../ui'
 import { collabApi } from '../../services/collaborationApi'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
@@ -510,12 +510,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
         <div className="glchpa-row-5">
           <div className="glchpa-box-2">
             <Search size={13} className="globalch-sx2" aria-hidden="true" />
-            <input aria-label={t('globalchat.buscar_conversacion')}
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              placeholder={t('globalchat.buscar_conversacion')}
-              className="glchpa-fieldstyle2"
-            />
+            <Input aria-label={t('globalchat.buscar_conversacion')} value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={t('globalchat.buscar_conversacion')} inputClassName="glchpa-fieldstyle2" />
           </div>
           <IconButton ariaLabel={t('globalchat.nuevo_chat_directo')}
             onClick={() => setNewDirectOpen(v => !v)}
@@ -542,12 +537,7 @@ export default function GlobalChatPanel({ open, unread = 0, onClose, onOpenFull 
 
         {newDirectOpen && (
           <div className="glchpa-box-3">
-            <input aria-label={t('globalchat.buscar_persona')}
-              value={userSearch}
-              onChange={(e) => setUserSearch(e.target.value)}
-              placeholder={t('globalchat.buscar_persona')}
-              className="glchpa-fieldstyle"
-            />
+            <Input aria-label={t('globalchat.buscar_persona')} value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder={t('globalchat.buscar_persona')} inputClassName="glchpa-fieldstyle" />
             <div className="glchpa-stack-1">
               {(suggestions.users || []).slice(0, 8).map(u => (
                 <Pulsable

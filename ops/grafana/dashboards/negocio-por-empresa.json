@@ -1,0 +1,1134 @@
+{
+  "uid": "contecflow-negocio",
+  "title": "Contecflow · Negocio por empresa",
+  "description": "Tickets, proyectos, horas, ausencias, demanda, licencias y equipos, usuarios activos. Datos de la base, recalculados cada METRICS_BUSINESS_CACHE_SECONDS.",
+  "tags": [
+    "contecflow",
+    "negocio"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": false,
+  "graphTooltip": 1,
+  "refresh": "1m",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "type": "query",
+        "name": "empresa",
+        "label": "Empresa",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "contecflow-prometheus"
+        },
+        "query": {
+          "query": "label_values(empresa)",
+          "refId": "empresa"
+        },
+        "definition": "label_values(empresa)",
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "sort": 1,
+        "regex": "",
+        "hide": 0,
+        "description": "Slug acotado de la organización (las que pasan de METRICS_TENANT_MAX van en «otras»)."
+      }
+    ]
+  },
+  "annotations": {
+    "list": []
+  },
+  "links": [
+    {
+      "title": "Contecflow",
+      "type": "dashboards",
+      "tags": [
+        "contecflow"
+      ],
+      "asDropdown": true
+    }
+  ],
+  "panels": [
+    {
+      "type": "row",
+      "title": "Resumen",
+      "id": 1,
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Tickets abiertos",
+      "id": 2,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum(contecflow_negocio_tickets_abiertos{empresa=~\"$empresa\"})",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Tickets creados 24 h",
+      "id": 3,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum(contecflow_negocio_tickets_creados_24h{empresa=~\"$empresa\"})",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Tickets resueltos 24 h",
+      "id": 4,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum(contecflow_negocio_tickets_resueltos_24h{empresa=~\"$empresa\"})",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Proyectos activos",
+      "id": 5,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum(contecflow_negocio_proyectos{empresa=~\"$empresa\",estado=\"active\"})",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Horas imputadas 7 d",
+      "id": 6,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum(contecflow_negocio_horas_imputadas_7d{empresa=~\"$empresa\"})",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Usuarios activos (15 min)",
+      "id": 7,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum(contecflow_negocio_usuarios_activos{empresa=~\"$empresa\",ventana=\"15m\"})",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      }
+    },
+    {
+      "type": "row",
+      "title": "Service desk",
+      "id": 8,
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "panels": []
+    },
+    {
+      "type": "bargauge",
+      "title": "Tickets abiertos por empresa",
+      "id": 9,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 6
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (empresa) (contecflow_negocio_tickets_abiertos{empresa=~\"$empresa\"})",
+          "legendFormat": "{{empresa}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Tickets abiertos por prioridad",
+      "id": 10,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (prioridad) (contecflow_negocio_tickets_abiertos{empresa=~\"$empresa\"})",
+          "legendFormat": "{{prioridad}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 15,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Creados vs resueltos (ventana de 24 h)",
+      "id": 11,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 14
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum(contecflow_negocio_tickets_creados_24h{empresa=~\"$empresa\"})",
+          "legendFormat": "creados"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "B",
+          "expr": "sum(contecflow_negocio_tickets_resueltos_24h{empresa=~\"$empresa\"})",
+          "legendFormat": "resueltos"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Tickets creados (en caliente) por tipo",
+      "id": 12,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 14
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (ticket_type) (rate(contecflow_tickets_created_total{tenant_id=~\"$empresa\"}[15m]))",
+          "legendFormat": "{{ticket_type}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Proyectos y horas",
+      "id": 13,
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 22
+      },
+      "panels": []
+    },
+    {
+      "type": "bargauge",
+      "title": "Proyectos por estado",
+      "id": 14,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 23
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (estado) (contecflow_negocio_proyectos{empresa=~\"$empresa\"})",
+          "legendFormat": "{{estado}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true
+      }
+    },
+    {
+      "type": "bargauge",
+      "title": "Horas imputadas 7 d por empresa",
+      "id": 15,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 23
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (empresa) (contecflow_negocio_horas_imputadas_7d{empresa=~\"$empresa\"})",
+          "legendFormat": "{{empresa}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Horas extra 30 d por estado",
+      "id": 16,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 31
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (estado) (contecflow_negocio_horas_extra_30d{empresa=~\"$empresa\"})",
+          "legendFormat": "{{estado}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 15,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Ausencias: hoy y pendientes de aprobar",
+      "id": 17,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 31
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (estado) (contecflow_negocio_ausencias{empresa=~\"$empresa\"})",
+          "legendFormat": "{{estado}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Demanda",
+      "id": 18,
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 39
+      },
+      "panels": []
+    },
+    {
+      "type": "bargauge",
+      "title": "Solicitudes abiertas por fase",
+      "id": 19,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 40
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (fase) (contecflow_negocio_demanda_abiertas{empresa=~\"$empresa\"})",
+          "legendFormat": "{{fase}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true
+      }
+    },
+    {
+      "type": "row",
+      "title": "Licencias y equipos",
+      "id": 20,
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 48
+      },
+      "panels": []
+    },
+    {
+      "type": "bargauge",
+      "title": "Licencias por estado",
+      "id": 21,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 49
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (estado) (contecflow_negocio_licencias{empresa=~\"$empresa\"})",
+          "legendFormat": "{{estado}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Puestos asignados / contratados",
+      "id": 22,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 49
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum(contecflow_negocio_licencias_puestos{empresa=~\"$empresa\",tipo=\"asignados\"}) / clamp_min(sum(contecflow_negocio_licencias_puestos{empresa=~\"$empresa\",tipo=\"totales\"}), 1)",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.9
+              },
+              {
+                "color": "red",
+                "value": 1.0
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      }
+    },
+    {
+      "type": "bargauge",
+      "title": "Equipos por estado",
+      "id": 23,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 49
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (estado) (contecflow_negocio_equipos{empresa=~\"$empresa\"})",
+          "legendFormat": "{{estado}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true
+      }
+    },
+    {
+      "type": "row",
+      "title": "Usuarios",
+      "id": 24,
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 57
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Usuarios activos por ventana",
+      "id": 25,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 58
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (ventana) (contecflow_negocio_usuarios_activos{empresa=~\"$empresa\"})",
+          "legendFormat": "{{ventana}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 5,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            },
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "table",
+      "title": "Usuarios activos por empresa (30 d)",
+      "id": 26,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "contecflow-prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 58
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "contecflow-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (empresa) (contecflow_negocio_usuarios_activos{empresa=~\"$empresa\",ventana=\"30d\"})",
+          "legendFormat": "",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

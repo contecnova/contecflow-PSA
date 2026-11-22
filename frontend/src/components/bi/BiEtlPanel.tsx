@@ -11,7 +11,7 @@ import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, Database, FlaskConica
 import { biEtlApi } from '../../services/api'
 import type { ConectorEtl, FichaDeConectorEtl } from '../../services/api/tipos-bi'
 import { useAppT } from '../../i18n/AppLangContext'
-import { Button, Card, Confirm, EmptyState, IconButton, Modal, Spinner, Select } from '../ui'
+import { Button, Card, Confirm, EmptyState, IconButton, Modal, Spinner, Select, Input } from '../ui'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { useToast } from '../../context/ToastContext'
 import { extractErr, fmtDateTime, fmtNumber } from '../../utils/helpers'
@@ -100,7 +100,7 @@ function NuevaFuente({ ficha, onClose }: { ficha: Ficha; onClose: () => void }) 
       <div className="bietpa-grid-3">
         <label className="bietpa-grid-2">
           {t('etl.nombre')}
-          <input aria-label={t('etl.nombre')} className="bietpa-campo" value={nombre} onChange={e => setNombre(e.target.value)} />
+          <Input aria-label={t('etl.nombre')} value={nombre} onChange={e => setNombre(e.target.value)} inputClassName="bietpa-campo" />
         </label>
         <Campos ficha={ficha} valores={valores} puestos={[]} onChange={(k, v) => setValores(x => ({ ...x, [k]: v }))} />
         <div className="u-actions-8">

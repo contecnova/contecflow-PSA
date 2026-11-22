@@ -1,0 +1,182 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# Contecflow PSA — alertas de plataforma (API, worker, beat, base, Redis, máquina)
+#
+# Las evalúa Prometheus y las envía a Alertmanager (ops/alertmanager/), que las
+# reparte por correo o webhook según el .env. Umbrales y su porqué:
+# docs/OBSERVABILIDAD.md §Alertas. Severidades: critical (despertar a alguien),
+# warning (mirar hoy), info (tendencia).
+# ══════════════════════════════════════════════════════════════════════════════
+groups:
+  - name: contecflow-api
+    rules:
+      - alert: ApiCaida
+        expr: up{job="contecflow-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "La API de Contecflow no responde a Prometheus"
+          description: "El objetivo {{ $labels.instance }} lleva 2 min sin contestar (o contesta 401: revisa METRICS_AUTH_TOKEN)."
+
+      - alert: TasaDeErrores5xxAlta
+        expr: |
+          sum(rate(http_requests_total{job="contecflow-api", status="5xx"}[5m]))
+            / clamp_min(sum(rate(http_requests_total{job="contecflow-api"}[5m])), 1e-9) > 0.05
+          and sum(rate(http_requests_total{job="contecflow-api"}[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Más del 5 % de las peticiones terminan en 5xx"
+          description: "Tasa de 5xx: {{ $value | humanizePercentage }} en los últimos 5 min."
+
+      - alert: LatenciaP95Alta
+        expr: |
+          histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{job="contecflow-api"}[5m]))) > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "La latencia p95 de la API supera los 2 s"
+          description: "p95 actual: {{ $value | humanizeDuration }}."
+
+      - alert: ColectorDeNegocioConErrores
+        expr: increase(contecflow_negocio_colector_errores_total[15m]) > 0
+        for: 15m
+        labels:
+          severity: info
+        annotations:
+          summary: "El colector de métricas de negocio falla en el bloque {{ $labels.bloque }}"
+          description: "Ese bloque sale sin datos en los paneles. Mira el log de la API (contecflow.metrics)."
+
+  - name: contecflow-celery
+    rules:
+      - alert: CeleryWorkerCaido
+        expr: up{job="celery-worker"} == 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "El worker de Celery no responde"
+          description: "Sin worker no corren las tareas de fondo (SLA, correo, avisos)."
+
+      - alert: CeleryBeatCaido
+        expr: up{job="celery-beat"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "El planificador (beat) de Celery no responde"
+          description: "Sin beat no se disparan las tareas programadas."
+
+      - alert: ColaDeCeleryAtascada
+        expr: |
+          contecflow_celery_cola_longitud > 0
+          and on() (sum(rate(contecflow_celery_tareas_total[10m])) or on() vector(0)) == 0
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Hay tareas en la cola de Celery y ninguna termina"
+          description: "{{ $value }} tareas esperando y 0 terminadas en 10 min."
+
+      - alert: ColaDeCeleryLarga
+        expr: contecflow_celery_cola_longitud > 500
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "La cola de Celery supera las 500 tareas"
+          description: "{{ $value }} tareas esperando. ¿Falta concurrencia (WORKER_CONCURRENCY)?"
+
+      - alert: TareasDeCeleryFallando
+        expr: |
+          sum by (tarea) (increase(contecflow_celery_tareas_total{resultado="error"}[30m])) > 3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "La tarea {{ $labels.tarea }} ha fallado varias veces"
+          description: "{{ $value }} fallos en 30 min."
+
+  - name: contecflow-datos
+    rules:
+      - alert: PostgresCaido
+        expr: pg_up == 0 or up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL no responde"
+          description: "postgres-exporter no consigue conectar con la base."
+
+      - alert: PostgresConexionesAlLimite
+        expr: |
+          sum(pg_stat_activity_count) / clamp_min(max(pg_settings_max_connections), 1) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "PostgreSQL usa más del 80 % de sus conexiones"
+          description: "Uso: {{ $value | humanizePercentage }}."
+
+      - alert: RedisCaido
+        expr: redis_up == 0 or up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis no responde"
+          description: "Sin Redis fallan la cola de Celery, el rate limiting compartido y los WebSocket."
+
+      - alert: RedisMemoriaAlLimite
+        expr: redis_memory_max_bytes > 0 and redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis está por encima del 90 % de su maxmemory"
+          description: "Con allkeys-lru empezará a desalojar claves (REDIS_MAXMEMORY)."
+
+  - name: contecflow-maquina
+    rules:
+      - alert: DiscoCasiLleno
+        expr: |
+          node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|ramfs"}
+            / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs|ramfs"} < 0.10
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Queda menos del 10 % de disco en {{ $labels.mountpoint }}"
+          description: "En Docker Desktop es el disco de la máquina virtual de Docker."
+
+      - alert: MemoriaCasiAgotada
+        expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 0.10
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Queda menos del 10 % de memoria"
+          description: "En Docker Desktop es la memoria asignada a la máquina virtual de Docker."
+
+      - alert: ContenedorCercaDeSuLimiteDeMemoria
+        expr: |
+          container_spec_memory_limit_bytes{name=~"contecflow-.*"} > 0
+          and container_memory_working_set_bytes{name=~"contecflow-.*"}
+            / container_spec_memory_limit_bytes{name=~"contecflow-.*"} > 0.9
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "El contenedor {{ $labels.name }} usa más del 90 % de su límite de memoria"
+          description: "Riesgo de OOM-kill."
+
+      - alert: ObjetivoDeMetricasCaido
+        expr: up{job=~"node|cadvisor|alertmanager"} == 0
+        for: 15m
+        labels:
+          severity: info
+        annotations:
+          summary: "{{ $labels.job }} no responde a Prometheus"
+          description: "En Docker Desktop node-exporter/cAdvisor pueden no arrancar: docs/OBSERVABILIDAD.md."

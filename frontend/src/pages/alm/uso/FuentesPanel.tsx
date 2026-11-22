@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, EyeOff, History, KeyRound, Link2, PlugZap, RefreshCw, Settings2 } from 'lucide-react'
-import { Button, DataTable, EmptyState, Modal, Section, Spinner, Select, Checkbox } from '../../../components/ui'
+import { Button, DataTable, EmptyState, Modal, Section, Spinner, Select, Checkbox, Textarea, Input } from '../../../components/ui'
 import type { ColumnaDeTabla } from '../../../components/ui'
 import { useToast } from '../../../context/ToastContext'
 import { useAppT } from '../../../i18n/AppLangContext'
@@ -54,9 +54,7 @@ function Configurar({ c, onClose }: { c: Conexion; onClose: () => void }) {
               {c.credenciales.map(f => (
                 <label key={f.clave} className="almu-campo">{etiquetaCodigo(t, 'alm_uso.credencial', f.clave, f.etiqueta)}
                   {f.clave === 'service_account_json'
-                    ? <textarea className="ds-codigo alm-input alm-input--mono ds-campo-codigo" rows={4} autoComplete="off"
-                        placeholder={f.configurado ? t('alm_uso.configurado_sin_cambios') : ''}
-                        value={creds[f.clave] ?? ''} onChange={e => setCreds({ ...creds, [f.clave]: e.target.value })} />
+                    ? <Textarea rows={4} autoComplete="off" placeholder={f.configurado ? t('alm_uso.configurado_sin_cambios') : ''} value={creds[f.clave] ?? ''} onChange={e => setCreds({ ...creds, [f.clave]: e.target.value })} inputClassName="ds-codigo alm-input alm-input--mono ds-campo-codigo" />
                     : <input className="alm-input" type={f.secreto ? 'password' : 'text'} autoComplete="off"
                         placeholder={f.secreto && f.configurado ? t('alm_uso.configurado_sin_cambios') : ''}
                         value={creds[f.clave] ?? (f.secreto ? '' : (f.valor ?? ''))}
@@ -77,8 +75,7 @@ function Configurar({ c, onClose }: { c: Conexion; onClose: () => void }) {
             <legend>{t('alm_uso.opciones')}</legend>
             {c.opciones.map(o => (
               <label key={o.clave} className="almu-campo">{etiquetaCodigo(t, 'alm_uso.opcion', o.clave, o.descripcion)}
-                <input className="ds-codigo alm-input alm-input--mono ds-campo-codigo" value={opciones[o.clave] ?? ''}
-                  onChange={e => setOpciones({ ...opciones, [o.clave]: e.target.value })} />
+                <Input value={opciones[o.clave] ?? ''} onChange={e => setOpciones({ ...opciones, [o.clave]: e.target.value })} inputClassName="ds-codigo alm-input alm-input--mono ds-campo-codigo" />
               </label>
             ))}
           </fieldset>

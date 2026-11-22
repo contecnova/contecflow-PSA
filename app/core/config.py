@@ -261,6 +261,19 @@ class Settings(
     # solo se leía METRICS_MULTIPROC_DIR, no la PROMETHEUS_MULTIPROC_DIR documentada.
     METRICS_MULTIPROC_DIR: Optional[str] = Field(
         default=None, validation_alias=AliasChoices("PROMETHEUS_MULTIPROC_DIR", "METRICS_MULTIPROC_DIR"))
+    # Observabilidad por empresa (22-11-2026, docs/OBSERVABILIDAD.md). La etiqueta
+    # `empresa` de las métricas es el slug (o el id) de la organización, nunca un
+    # dato personal. Solo las METRICS_TENANT_MAX primeras empresas (por fecha de
+    # alta) tienen etiqueta propia; el resto se agrega en `otras`, para que la
+    # cardinalidad de Prometheus quede acotada.
+    METRICS_TENANT_LABEL: str = Field(default="slug")          # slug | id
+    METRICS_TENANT_MAX: int = Field(default=50)
+    # Métricas de negocio leídas de la base en cada scrape, con caché (segundos).
+    METRICS_BUSINESS_ENABLED: bool = Field(default=True)
+    METRICS_BUSINESS_CACHE_SECONDS: int = Field(default=60)
+    # Puerto del servidor de métricas del worker/beat de Celery (0 = apagado).
+    # Solo para la red interna de compose: no se publica en el host.
+    CELERY_METRICS_PORT: int = Field(default=0)
     FRONTEND_URL: str = Field(default="http://localhost:5173", env="FRONTEND_URL")
     BACKEND_URL: str = Field(default="http://localhost:8000", env="BACKEND_URL")
 
@@ -604,6 +617,9 @@ class Settings(
     BUDGET_VARIANCE_EXPLAIN_PCT: float = Field(default=15.0, env="BUDGET_VARIANCE_EXPLAIN_PCT")
     BUDGET_VARIANCE_EXPLAIN_MIN_AMOUNT: float = Field(default=1000.0, env="BUDGET_VARIANCE_EXPLAIN_MIN_AMOUNT")
     BUDGET_ALM_LINE_TYPE: str = Field(default="licencias", env="BUDGET_ALM_LINE_TYPE")
+    # Clientes internos (rev. 193): cuenta o centro de TI que recibe el haber del
+    # asiento de los cargos internos. Sin valor, no se exportan asientos.
+    INTERNAL_IT_ERP_ACCOUNT: str = Field(default="", env="INTERNAL_IT_ERP_ACCOUNT")
 
     # ── Licencias y hardware, fases 1 y 3 (16-11-2026) ─────────────────────────
     ALM_HANDOVER_ACT_ENABLED: bool = Field(default=True, env="ALM_HANDOVER_ACT_ENABLED")

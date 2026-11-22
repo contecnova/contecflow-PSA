@@ -8,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Repeat, Trash2 } from 'lucide-react'
 import { ausenciasApi } from '../../../services/api/ausencias'
 import type { Rotacion, RotacionIn, Turno } from '../../../services/api/tipos-ausencias'
-import { Button, EmptyState, Modal, Spinner, Select, Pulsable , useErroresDeCampo } from '../../ui'
+import { Button, EmptyState, Modal, Spinner, Select, Pulsable , useErroresDeCampo, Input } from '../../ui'
 import { UserSelect } from '../../ui/EntitySelect'
 import DateInput from '../../ui/DateInput'
 import { confirmar } from '../../../context/ConfirmContext'
@@ -84,7 +84,7 @@ function Formulario({ id, inicial, turnos, onCerrar }: { id: string | null; inic
         <div className="ausadm-grid-2">
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('nombre')}</span>
-            <input aria-label={ta('nombre')} className="ausadm-campo" required value={d.nombre} onChange={e => setD({ ...d, nombre: e.target.value })} />
+            <Input aria-label={ta('nombre')} required value={d.nombre} onChange={e => setD({ ...d, nombre: e.target.value })} inputClassName="ausadm-campo" />
             <ErrorDeCampo texto={campos.de('nombre')} />
           </label>
           <label className="ausadm-campo-con-etiqueta">

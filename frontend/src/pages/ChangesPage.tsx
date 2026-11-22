@@ -7,7 +7,7 @@ import { z } from 'zod'
 import { projectsApi, projectChangesApi, cabApi } from '../services/api'
 import type { CambioEnCab } from '../services/api/tipos-cambios'
 import type { SolicitudDeCambio } from '../services/api/tipos-proyectos'
-import { Button, Modal, Spinner, EmptyState, Tabs, KpiCard, IconButton, Select, useErroresDeCampo } from '../components/ui'
+import { Button, Modal, Spinner, EmptyState, Tabs, KpiCard, IconButton, Select, useErroresDeCampo, Textarea } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { ArrowLeftRight, CalendarClock, Check, Coins, FolderOpen, Hourglass, ListChecks, MessageSquare, Pencil, Plus, ThumbsDown, ThumbsUp, Trash2, User, Users, Wrench, X, Zap } from 'lucide-react'
@@ -228,8 +228,7 @@ function ReviewCRModal({ cr, projectId, onClose }: { cr: SolicitudDeCambio; proj
       </div>
       <div className="u-mb-16">
         <label htmlFor={`${idPrefix}-resolution-notes`} id={`${idPrefix}-resolution-notes-etiqueta`} className="chg-label chg-label--notes">{t('changes.notas_de_resolucion')}</label>
-        <textarea id={`${idPrefix}-resolution-notes`} aria-labelledby={`${idPrefix}-resolution-notes-etiqueta`} value={notes} onChange={e => { setNotes(e.target.value); validation.clearFieldError('resolution_notes') }} rows={2}
-          className="chg-input" aria-invalid={!!notesErr || undefined} aria-describedby={notesErr ? `${idPrefix}-resolution-notes-err` : undefined} />
+        <Textarea id={`${idPrefix}-resolution-notes`} aria-labelledby={`${idPrefix}-resolution-notes-etiqueta`} value={notes} onChange={e => { setNotes(e.target.value); validation.clearFieldError('resolution_notes') }} rows={2} aria-invalid={!!notesErr || undefined} aria-describedby={notesErr ? `${idPrefix}-resolution-notes-err` : undefined} inputClassName="chg-input" />
         {notesErr && <p id={`${idPrefix}-resolution-notes-err`} className="u-field-error">{notesErr}</p>}
       </div>
       <div className="u-actions-10">

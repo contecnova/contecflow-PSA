@@ -7,7 +7,7 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link2, Plus, Trash2 } from 'lucide-react'
 import { dependenciasApi, tasksApi, type Dependencia } from '../../services/api'
-import { Button, EmptyState, Spinner, Select, TablaSimple } from '../ui'
+import { Button, EmptyState, Spinner, Select, TablaSimple, Input } from '../ui'
 import { useAppT } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
@@ -118,9 +118,8 @@ export default function EditorDeDependencias({ projectId }: { projectId: string 
                   </td>
                   <td className="plan-num">
                     {puedeEditar && d.link_type === 'schedule' ? (
-                      <input type="number" className="plan-input plan-input--num" aria-label={t('planificador.col_desfase')}
-                        defaultValue={d.lag_days} onBlur={e => Number(e.target.value) !== d.lag_days
-                          && editar.mutate({ id: d.id, cambios: { lag_days: Number(e.target.value) || 0 } })} />
+                      <Input type="number" aria-label={t('planificador.col_desfase')} defaultValue={d.lag_days} onBlur={e => Number(e.target.value) !== d.lag_days
+                          && editar.mutate({ id: d.id, cambios: { lag_days: Number(e.target.value) || 0 } })} inputClassName="plan-input plan-input--num" />
                     ) : d.lag_days}
                   </td>
                   <td>{nombre[d.successor_id] ?? d.successor_id}</td>

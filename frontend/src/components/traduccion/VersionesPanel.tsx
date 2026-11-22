@@ -14,7 +14,7 @@
 import { useId, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, CheckCircle2, Eye, Languages, RefreshCw, Trash2, Undo2 } from 'lucide-react'
-import { Button, Confirm, FormField, IconButton, Input, Modal, Spinner, StatusBadge, Checkbox } from '../ui'
+import { Button, Confirm, FormField, IconButton, Input, Modal, Spinner, StatusBadge, Checkbox, Textarea } from '../ui'
 import type { StatusBadgeKind } from '../ui/StatusBadge'
 import { useToast } from '../../context/ToastContext'
 import { useAppLang } from '../../i18n/AppLangContext'
@@ -271,8 +271,7 @@ export function ModalDeVersion({ adaptador, version, original, puedeRevisar = tr
           <div key={c.clave} className="u-stack-8" lang={version.language}>
             {c.multilinea ? (
               <FormField label={t(c.etiqueta)} required={c.obligatorio} hint={i === adaptador.campos.length - 1 && cambiado ? t('traduccion_admin.kb_editar_vuelve_a_revision') : undefined}>
-                <textarea id={`${idBase}-${c.clave}`} className="ds-input" rows={8} value={form[c.clave] ?? ''}
-                  onChange={e => setForm(f => ({ ...f, [c.clave]: e.target.value }))} />
+                <Textarea id={`${idBase}-${c.clave}`} rows={8} value={form[c.clave] ?? ''} onChange={e => setForm(f => ({ ...f, [c.clave]: e.target.value }))} />
               </FormField>
             ) : (
               <Input id={`${idBase}-${c.clave}`} label={t(c.etiqueta)} required={c.obligatorio} value={form[c.clave] ?? ''}
@@ -290,7 +289,7 @@ export function ModalDeVersion({ adaptador, version, original, puedeRevisar = tr
 
         {rechazando && (
           <FormField label={t('traduccion_admin.kb_comentario')} hint={t('traduccion_admin.kb_comentario_obligatorio')}>
-            <textarea id={`${idBase}-comentario`} className="ds-input" rows={3} value={comentario} onChange={e => setComentario(e.target.value)} />
+            <Textarea id={`${idBase}-comentario`} rows={3} value={comentario} onChange={e => setComentario(e.target.value)} />
           </FormField>
         )}
         {!puedeRevisar && !cambiado && (

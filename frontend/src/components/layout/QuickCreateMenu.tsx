@@ -9,7 +9,7 @@ import { useAppLang } from '../../i18n/AppLangContext'
 import { alpha } from '../../constants/theme'
 import { STALE_DEFAULT_MS } from '../../constants/timings'
 import { SELECTOR_LIST_SIZE } from '../../constants/pagination'
-import { IconButton, Pulsable, Select } from '../ui'
+import { IconButton, Pulsable, Select, Input } from '../ui'
 import './QuickCreateMenu.css'
 
 const ACTIONS = [
@@ -67,16 +67,7 @@ function CreateTaskForm({ onClose }: { onClose: () => void }) {
   return (
     <div className="qucrme-stack-1">
       <div className="qucrme-box-1">{t('quickcreatemenu.nueva_tarea')}</div>
-      <input aria-label={t('quickcreatemenu.titulo_de_la_tarea')}
-        ref={inputRef}
-        value={title}
-        onChange={e => setTitle(e.target.value)}
-        placeholder={t('quickcreatemenu.titulo_de_la_tarea')}
-        onKeyDown={e => { if (e.key === 'Enter' && title.trim()) create() }}
-        className="qucrme-box-2"
-        onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-        onBlur={e => e.target.style.borderColor = 'var(--surface-4)'}
-      />
+      <Input aria-label={t('quickcreatemenu.titulo_de_la_tarea')} ref={inputRef} value={title} onChange={e => setTitle(e.target.value)} placeholder={t('quickcreatemenu.titulo_de_la_tarea')} onKeyDown={e => { if (e.key === 'Enter' && title.trim()) create() }} onFocus={e => e.target.style.borderColor = 'var(--accent)'} onBlur={e => e.target.style.borderColor = 'var(--surface-4)'} inputClassName="qucrme-box-2" />
       {projects.length > 0 && (
         <Select suelto className={`qucrme-box-5 ${projectId ? 'quick-create-menu-m1' : 'quick-create-menu-m2'}`}
           value={projectId}

@@ -16,7 +16,7 @@ import { ausenciasApi } from '../../../services/api/ausencias'
 import type {
   AmbitoDeJornada, AsignacionDeJornada, AsignacionDeJornadaIn, DiaDeSemana, Jornada, JornadaIn, Tramo,
 } from '../../../services/api/tipos-ausencias'
-import { Button, EmptyState, Modal, Spinner, Select, Pulsable , useErroresDeCampo } from '../../ui'
+import { Button, EmptyState, Modal, Spinner, Select, Pulsable , useErroresDeCampo, Input } from '../../ui'
 import DateInput from '../../ui/DateInput'
 import { UserSelect } from '../../ui/EntitySelect'
 import { confirmar } from '../../../context/ConfirmContext'
@@ -127,7 +127,7 @@ function FormularioDeJornada({ id, inicial, asignaciones, puedeEditar, onGuardad
           <div className="ausadm-grid-2">
             <label className="ausadm-campo-con-etiqueta">
               <span className="ausadm-etiqueta">{ta('nombre')}</span>
-              <input aria-label={ta('nombre')} className="ausadm-campo" required value={d.nombre} onChange={e => cambiar({ nombre: e.target.value })} />
+              <Input aria-label={ta('nombre')} required value={d.nombre} onChange={e => cambiar({ nombre: e.target.value })} inputClassName="ausadm-campo" />
               <ErrorDeCampo texto={campos.de('nombre')} />
             </label>
             <label className="ausadm-campo-con-etiqueta">
@@ -152,8 +152,7 @@ function FormularioDeJornada({ id, inicial, asignaciones, puedeEditar, onGuardad
           <div className="ausadm-grid-2">
             <label className="ausadm-campo-con-etiqueta">
               <span className="ausadm-etiqueta">{ta('pausa_minutos')}</span>
-              <input aria-label={ta('pausa_minutos')} type="number" min={0} step={5} className="ausadm-campo ausadm-campo--corto" value={d.pausa_minutos}
-                onChange={e => cambiar({ pausa_minutos: Math.max(0, Number(e.target.value) || 0) })} />
+              <Input aria-label={ta('pausa_minutos')} type="number" min={0} step={5} value={d.pausa_minutos} onChange={e => cambiar({ pausa_minutos: Math.max(0, Number(e.target.value) || 0) })} inputClassName="ausadm-campo ausadm-campo--corto" />
               <span className="ausadm-ayuda">{ta('pausa_jornada_ayuda')}</span>
               <ErrorDeCampo texto={campos.de('pausa_minutos')} />
             </label>
@@ -251,7 +250,7 @@ function FilaDeAsignacion({ id, inicial, puedeEditar, onHecha }: {
           </label>
         </div>
         <label className="ausadm-campo-con-etiqueta"><span className="ausadm-ayuda">{ta('nota')}</span>
-          <input className="ausadm-campo" aria-label={ta('nota')} value={a.nota ?? ''} onChange={e => poner({ nota: e.target.value || null })} />
+          <Input aria-label={ta('nota')} value={a.nota ?? ''} onChange={e => poner({ nota: e.target.value || null })} inputClassName="ausadm-campo" />
           <ErrorDeCampo texto={campos.de('nota')} />
         </label>
         {!a.desde && !a.hasta && <span className="ausadm-ayuda">{ta('sin_fechas_siempre')}</span>}

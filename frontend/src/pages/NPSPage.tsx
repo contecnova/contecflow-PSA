@@ -26,7 +26,7 @@ import type { FotoDeSalud, ResumenNps } from '../services/api/tipos-personas'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { Activity, Calculator, LineChart as IconoLinea, MousePointerClick, Send, ThumbsUp, Users } from 'lucide-react'
-import { Button, Card, EmptyState, FormField, Input, Pulsable, Section, SelectorDePeriodo } from '../components/ui'
+import { Button, Card, EmptyState, FormField, Input, Pulsable, Section, SelectorDePeriodo, Textarea } from '../components/ui'
 import { usePeriodo } from '../hooks/usePeriodo'
 import { CON_HORA, codigoDeErrorDePeriodo, formatearTramo, type Granularidad } from '../utils/periodo'
 import { useAppT } from '../i18n/AppLangContext'
@@ -315,7 +315,7 @@ export default function NPSPage() {
                   </div>
                   <Input label={t('nps.respondent')} value={respondent} onChange={e => setRespondent(e.target.value)} placeholder={t('nps.respondent')} />
                   <FormField label={t('nps.comment')}>
-                    <textarea value={comment} onChange={e => setComment(e.target.value)} rows={2} className="nps-textarea" placeholder={t('nps.comment')} />
+                    <Textarea value={comment} onChange={e => setComment(e.target.value)} rows={2} placeholder={t('nps.comment')} inputClassName="nps-textarea" />
                   </FormField>
                   <div>
                     <Button icon={<Send size={14} />} onClick={submitNPS} loading={submitting}>

@@ -15,7 +15,7 @@ import type { ChangeEvent, CSSProperties, ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { projectsApi, usersApi } from '../services/api'
 import type { PersonaVisible } from '../services/api'
-import { Avatar, Spinner, EmptyState, Button, Card, Modal, Pulsable, Select, TablaSimple, useErroresDeCampo } from '../components/ui'
+import { Avatar, Spinner, EmptyState, Button, Card, Modal, Pulsable, Select, TablaSimple, useErroresDeCampo, Input } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -143,7 +143,7 @@ function AddEntryModal({ projectId, users, onClose, onSaved }: { projectId: IdTy
         </div>
         <div className="ui-field">
           <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-4`}>{traducir('raci.nombre_del_elemento')}</label>
-          <input id={`${idCampo}-4`} className="ds-input" value={form.item_label} onChange={onField('item_label')} placeholder={traducir('raci.nombre_del_elemento')} />{msgB('item_label')}
+          <Input id={`${idCampo}-4`} value={form.item_label} onChange={onField('item_label')} placeholder={traducir('raci.nombre_del_elemento')} />{msgB('item_label')}
         </div>
       </div>
       <div className="raci-grid-2">

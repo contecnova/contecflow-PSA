@@ -348,16 +348,16 @@ export function Button({ children, onClick, variant = 'primary', size = 'md', di
 // htmlFor/id), asi que el lector de pantalla anunciaba "campo de edicion" sin
 // nombre y pulsar la etiqueta no enfocaba. Ahora cada campo genera su id con
 // useId (o usa el que se pase) y enlaza ayuda y error con aria-describedby.
-interface InputProps {
+export interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'className' | 'style' | 'value' | 'type'> {
   label?: React.ReactNode
-  value?: string | number
-  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void
-  placeholder?: string
+  value?: string | number | readonly string[]
   type?: string
   /** Solo pinta el asterisco: la validacion es de quien lo usa. */
   required?: boolean
   /** Clases del contenedor (la maqueta base es `ui-field`). */
   className?: string
+  /** Clases extra del propio `<input>` (p. ej. `u-mono`). */
+  inputClassName?: string
   style?: React.CSSProperties
   hint?: React.ReactNode
   /** Mensaje de error: se pinta bajo el campo y marca aria-invalid. */
@@ -366,10 +366,6 @@ interface InputProps {
   id?: string
   /** Nombre accesible cuando no hay `label` visible. */
   'aria-label'?: string
-  maxLength?: number
-  autoFocus?: boolean
-  inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode']
-  disabled?: boolean
   min?: number | string
   max?: number | string
   step?: number | string
@@ -386,7 +382,7 @@ function useIdsDeCampo(id: string | undefined, hint: unknown, error: unknown) {
 }
 
 
-export function Input({ label, value, onChange, placeholder, type = 'text', required, className, style, hint, error, id, 'aria-label': ariaLabel, maxLength, autoFocus, inputMode, disabled, min, max, step }: InputProps) {
+export const Input = React.forwardRef<HTMLInputElement, InputProps>(function Input({ label, value, onChange, placeholder, type = 'text', required, className, inputClassName, style, hint, error, id, 'aria-label': ariaLabel, maxLength, autoFocus, inputMode, disabled, min, max, step, onFocus, onBlur, ...resto }, ref) {
   const { base, idHint, idError, describedBy } = useIdsDeCampo(id, hint, error)
   // 16-11-2026: fecha, fecha y hora u hora → el selector propio del kit (nunca el nativo).
   const modoFecha = type === 'date' ? 'fecha' : type === 'datetime-local' ? 'fechaHora' : type === 'time' ? 'hora' : null
@@ -426,31 +422,89 @@ export function Input({ label, value, onChange, placeholder, type = 'text', requ
           {label}{required && <span className="u-danger" aria-hidden="true"> *</span>}
         </label>
       )}
-      <input className="uiinde-box-18 index-sx3 ui-index-e7"
+      <input className={inputClassName ? `uiinde-box-18 index-sx3 ui-index-e7 ${inputClassName}` : 'uiinde-box-18 index-sx3 ui-index-e7'}
+        ref={ref}
+        {...resto}
         id={base}
-        aria-labelledby={label ? `${base}-etiqueta` : undefined}
+        aria-labelledby={label ? `${base}-etiqueta` : resto['aria-labelledby']}
         aria-label={label ? undefined : ariaLabel}
         type={type} value={value} onChange={onChange} placeholder={placeholder}
         maxLength={maxLength} autoFocus={autoFocus} inputMode={inputMode} disabled={disabled}
         min={min} max={max} step={step}
         required={required || undefined}
         aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy}
+        aria-describedby={resto['aria-describedby'] ?? describedBy}
         style={{ '--ui-index-border': `1px solid ${error ? 'var(--danger-border)' : 'var(--surface-4)'}` } as CSSProperties}
         onFocus={e => {
           e.target.style.borderColor = 'color-mix(in srgb, var(--accent) 50%, transparent)'
           e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--accent) 8%, transparent)'
+          onFocus?.(e)
         }}
         onBlur={e => {
           e.target.style.borderColor = error ? 'var(--danger-border)' : 'var(--surface-4)'
           e.target.style.boxShadow = 'none'
+          onBlur?.(e)
         }}
       />
       {hint && <div id={idHint} className="u-text3-xs">{hint}</div>}
       {error && <div id={idError} role="alert" className="u-field-error">{error}</div>}
     </div>
   )
+})
+
+// ── Textarea ──────────────────────────────────────────────────────────────────
+// Mismo estilo, etiqueta, ayuda, error y aria que Input (migración al kit,
+// 20-11-2026: ningún <textarea> suelto fuera de components/ui).
+export interface TextareaProps extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'className' | 'style'> {
+  label?: React.ReactNode
+  required?: boolean
+  /** Clases del contenedor (la maqueta base es `ui-field`). */
+  className?: string
+  /** Clases extra del propio `<textarea>` (p. ej. `u-mono`). */
+  inputClassName?: string
+  style?: React.CSSProperties
+  hint?: React.ReactNode
+  error?: React.ReactNode
+  id?: string
+  'aria-label'?: string
 }
+
+export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea({ label, required, className, inputClassName, style, hint, error, id, 'aria-label': ariaLabel, rows = 3, onFocus, onBlur, ...resto }, ref) {
+  const { base, idHint, idError, describedBy } = useIdsDeCampo(id, hint, error)
+  return (
+    <div className={className ? `ui-field ${className}` : 'ui-field'} style={style}>
+      {label && (
+        <label htmlFor={base} id={`${base}-etiqueta`} className="uiinde-estiloetiqueta">
+          {label}{required && <span className="u-danger" aria-hidden="true"> *</span>}
+        </label>
+      )}
+      <textarea className={inputClassName ? `uiinde-box-18 index-sx3 ui-index-e7 ui-textarea ${inputClassName}` : 'uiinde-box-18 index-sx3 ui-index-e7 ui-textarea'}
+        ref={ref}
+        rows={rows}
+        {...resto}
+        id={base}
+        aria-labelledby={label ? `${base}-etiqueta` : resto['aria-labelledby']}
+        aria-label={label ? undefined : ariaLabel}
+        required={required || undefined}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={resto['aria-describedby'] ?? describedBy}
+        style={{ '--ui-index-border': `1px solid ${error ? 'var(--danger-border)' : 'var(--surface-4)'}` } as CSSProperties}
+        onFocus={e => {
+          e.target.style.borderColor = 'color-mix(in srgb, var(--accent) 50%, transparent)'
+          e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--accent) 8%, transparent)'
+          onFocus?.(e)
+        }}
+        onBlur={e => {
+          e.target.style.borderColor = error ? 'var(--danger-border)' : 'var(--surface-4)'
+          e.target.style.boxShadow = 'none'
+          onBlur?.(e)
+        }}
+      />
+      {hint && <div id={idHint} className="u-text3-xs">{hint}</div>}
+      {error && <div id={idError} role="alert" className="u-field-error">{error}</div>}
+    </div>
+  )
+})
 
 // ── Select ────────────────────────────────────────────────────────────────────
 // El unico desplegable de la app (16-11-2026, migracion al kit): `<select>`

@@ -18,7 +18,7 @@ import {
 import { useAppT } from '../i18n/AppLangContext'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Button, Card, EmptyState, IconButton, Input, KpiCard, Modal, Select, Spinner, useErroresDeCampo } from '../components/ui'
+import { Button, Card, EmptyState, IconButton, Input, KpiCard, Modal, Select, Spinner, useErroresDeCampo, Textarea } from '../components/ui'
 import type { ErroresDeCampo } from '../components/ui'
 import { ClientSelect } from '../components/ui/EntitySelect'
 import {
@@ -244,8 +244,7 @@ function OpportunityDetailModal({ opp, onClose, stageLabels, onUpdate }: { opp: 
               <CamposDeOportunidad form={edicion} setForm={f => setEdicion(c => (c ? f(c) : c))} campos={camposEdicion} />
               <div>
                 <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('pipeline.descripcion')}</label>
-                <textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={edicion.description} onChange={e => { camposEdicion.limpiar('description'); setEdicion(c => (c ? { ...c, description: e.target.value } : c)) }}
-                  rows={3} className="ds-input pipe-textarea" />
+                <Textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={edicion.description} onChange={e => { camposEdicion.limpiar('description'); setEdicion(c => (c ? { ...c, description: e.target.value } : c)) }} rows={3} inputClassName="pipe-textarea" />
                 {camposEdicion.de('description') && <div className="u-field-error">{camposEdicion.de('description')}</div>}
               </div>
               <div className="u-actions-8">
@@ -690,12 +689,7 @@ export default function PipelinePage() {
 
           <div>
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="ds-field__label">{t('pipeline.descripcion')}</label>
-            <textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
-              value={form.description}
-              onChange={(event) => { camposNueva.limpiar('description'); setForm((current) => ({ ...current, description: event.target.value })) }}
-              rows={4}
-              className="ds-input pipe-textarea"
-            />
+            <Textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.description} onChange={(event) => { camposNueva.limpiar('description'); setForm((current) => ({ ...current, description: event.target.value })) }} rows={4} inputClassName="pipe-textarea" />
             {camposNueva.de('description') && <div className="u-field-error">{camposNueva.de('description')}</div>}
           </div>
 

@@ -1026,7 +1026,8 @@ export const npsApi = {
 // ── Portfolios ────────────────────────────────────────────────────────────────
 export const portfolioApi = {
   list:          (): Promise<AxiosResponse<Cartera[]>> => api.get('/portfolios'),
-  dashboard:     (id: PathId): Promise<AxiosResponse<PanelDeCartera>> => api.get(`/portfolios/${id}/dashboard`),
+  /** `params.client_kind` (rev. 193): solo proyectos de clientes externos o de unidades internas. */
+  dashboard:     (id: PathId, params?: QueryParams): Promise<AxiosResponse<PanelDeCartera>> => api.get(`/portfolios/${id}/dashboard`, { params }),
   create:        (data: unknown): Promise<AxiosResponse<Cartera>> => api.post('/portfolios', data),
   update:        (id: PathId, data: unknown): Promise<AxiosResponse<Cartera>> => api.patch(`/portfolios/${id}`, data),
   delete:        (id: PathId): Promise<AxiosResponse<ConfirmacionAnalitica>> => api.delete(`/portfolios/${id}`),

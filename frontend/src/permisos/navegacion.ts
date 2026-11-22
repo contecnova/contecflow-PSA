@@ -34,6 +34,8 @@ export const RUTAS: RutaDeclarada[] = [
     '/portfolio/intake', '/skills', '/training', '/reports',
   ]),
   ...con('gastos.ver', ['/expenses']),
+  // Flujo de demanda (22-11-2026): «Mis solicitudes» es para cualquiera con sesión; las vistas de gestión las acota el servidor (demanda.ver).
+  ...con(undefined, ['/demand']),
   ...con('proyectos.trabajo', [
     '/lessons', '/sprints', '/raci', '/changelog', '/uat', '/gantt', '/epic-gantt', '/epics', '/dependencies',
   ]),
@@ -52,6 +54,9 @@ export const RUTAS: RutaDeclarada[] = [
   // `/api/v1/suppliers`), no solo finanzas; el portal, los externos contacto de su proveedor.
   ...con('proveedores.ver', ['/subcontractors']),
   ...con('proveedores.portal', ['/supplier-portal']),
+  // Clientes internos (22-11-2026): cuadro de dirección y cargos (gestión) y portal «Mi departamento».
+  ...con('interno.gestionar', ['/internal-clients']),
+  ...con('interno.portal', ['/mi-departamento']),
   ...con('soporte.panel', ['/support-dashboard']),
   ...con('sd.ver', ['/service-desk']),
   ...con('sd.disenar_flujos', ['/sd/workflow-designer']),

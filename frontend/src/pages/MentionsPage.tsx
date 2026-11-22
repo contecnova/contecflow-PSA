@@ -7,7 +7,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { mentionsApi } from '../services/api'
 import type { ComentarioEnHilo, Mencion } from '../services/api/tipos-personas'
-import { Button, Checkbox, Pulsable, Select, Spinner, EmptyState } from '../components/ui'
+import { Button, Checkbox, Pulsable, Select, Spinner, EmptyState, Input } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { AtSign, Bell } from 'lucide-react'
@@ -247,8 +247,7 @@ export default function MentionsPage() {
               </div>
               <div>
                 <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="mentions-page-e9">{t('mentions.entity_id_label')}</label>
-                <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={demoEntity} onChange={e=>setDemoEntity(e.target.value)}
-                  placeholder={t('mentions.entity_id_placeholder')} className="mentions-page-e10"/>
+                <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={demoEntity} onChange={e=>setDemoEntity(e.target.value)} placeholder={t('mentions.entity_id_placeholder')} inputClassName="mentions-page-e10" />
               </div>
             </div>
           </div>

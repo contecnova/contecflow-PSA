@@ -12,7 +12,7 @@ import { Clock, MoonStar, Plus, Split, Trash2 } from 'lucide-react'
 import { ausenciasApi } from '../../../services/api/ausencias'
 import { advancedConfigApi } from '../../../services/settingsApi'
 import type { Turno, TurnoIn } from '../../../services/api/tipos-ausencias'
-import { Button, EmptyState, Modal, Spinner, Select, Pulsable, Checkbox , useErroresDeCampo } from '../../ui'
+import { Button, EmptyState, Modal, Spinner, Select, Pulsable, Checkbox , useErroresDeCampo, Input } from '../../ui'
 import { confirmar } from '../../../context/ConfirmContext'
 import { useToast } from '../../../context/ToastContext'
 import { useOpciones } from '../../politicas/comun'
@@ -114,7 +114,7 @@ function Formulario({ id, inicial, oficinas, onCerrar }: { id: string | null; in
         <div className="ausadm-grid-2">
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('nombre')}</span>
-            <input aria-label={ta('nombre')} className="ausadm-campo" required value={d.nombre} onChange={e => cambiar({ nombre: e.target.value })} />
+            <Input aria-label={ta('nombre')} required value={d.nombre} onChange={e => cambiar({ nombre: e.target.value })} inputClassName="ausadm-campo" />
             <ErrorDeCampo texto={campos.de('nombre')} />
           </label>
           <label className="ausadm-campo-con-etiqueta">
@@ -125,8 +125,7 @@ function Formulario({ id, inicial, oficinas, onCerrar }: { id: string | null; in
         <EditorDeTramos tramos={d.tramos} onChange={tramos => cambiar({ tramos })} leyenda={ta('tramos_del_turno')} />
         <label className="ausadm-campo-con-etiqueta">
           <span className="ausadm-etiqueta">{ta('pausa_minutos')}</span>
-          <input aria-label={ta('pausa_minutos')} type="number" min={0} step={5} className="ausadm-campo ausadm-campo--corto" value={d.pausa_minutos}
-            aria-describedby="ausadm-horario" onChange={e => cambiar({ pausa_minutos: Math.max(0, Number(e.target.value) || 0) })} />
+          <Input aria-label={ta('pausa_minutos')} type="number" min={0} step={5} value={d.pausa_minutos} aria-describedby="ausadm-horario" onChange={e => cambiar({ pausa_minutos: Math.max(0, Number(e.target.value) || 0) })} inputClassName="ausadm-campo ausadm-campo--corto" />
           <ErrorDeCampo texto={campos.de('pausa_minutos')} />
         </label>
         <p id="ausadm-horario" className="ausadm-ayuda" aria-live="polite">
@@ -167,8 +166,7 @@ function Formulario({ id, inicial, oficinas, onCerrar }: { id: string | null; in
           </label>
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('personas_requeridas')}</span>
-            <input aria-label={ta('personas_requeridas')} type="number" min={0} className="ausadm-campo ausadm-campo--corto" value={d.personas_requeridas}
-              onChange={e => cambiar({ personas_requeridas: Math.max(0, Number(e.target.value) || 0) })} />
+            <Input aria-label={ta('personas_requeridas')} type="number" min={0} value={d.personas_requeridas} onChange={e => cambiar({ personas_requeridas: Math.max(0, Number(e.target.value) || 0) })} inputClassName="ausadm-campo ausadm-campo--corto" />
             <span className="ausadm-ayuda">{ta('personas_requeridas_ayuda')}</span>
             <ErrorDeCampo texto={campos.de('personas_requeridas')} />
           </label>

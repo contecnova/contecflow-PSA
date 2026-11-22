@@ -10,7 +10,7 @@ import { useToast } from '../../context/ToastContext'
 import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { CLIENT_API, S as PORTAL_STYLES, useErrorDelPortal, useLang } from '../../pages/portal-client/portalClientContext'
 import { useAppLang } from '../../i18n/AppLangContext'
-import { useDialogo, Button, Checkbox, EmptyState, GrupoDeOpciones, Pulsable, Select } from '../ui'
+import { useDialogo, Button, Checkbox, EmptyState, GrupoDeOpciones, Pulsable, Select, Input, Textarea } from '../ui'
 import { MessagesSquare, Plus, Check, X, Send, Save } from 'lucide-react'
 import StatusBadge from '../ui/StatusBadge'
 import { POLL_FREQUENT_MS, WS_HEARTBEAT_MS } from '../../constants/timings'
@@ -308,7 +308,7 @@ function CreateConversationModal({ mode, open, onClose, onSubmit, projectOptions
         <div className="u-grid2-14">
           <div className="u-col-full">
             <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="goveconv-labelstyle">{t('governedconversations.titulo')}</label>
-            <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} className="goveconv-inputstyle" />
+            <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} inputClassName="goveconv-inputstyle" />
           </div>
           <div>
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="goveconv-labelstyle">{t('alm.type')}</label>
@@ -334,7 +334,7 @@ function CreateConversationModal({ mode, open, onClose, onSubmit, projectOptions
           )}
           <div className="u-col-full">
             <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="goveconv-labelstyle">{t('governedconversations.primer_mensaje')}</label>
-            <textarea id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.body} onChange={(event) => setForm((prev) => ({ ...prev, body: event.target.value }))} rows={5} className="goveconv-inputstyle4" />
+            <Textarea id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={form.body} onChange={(event) => setForm((prev) => ({ ...prev, body: event.target.value }))} rows={5} inputClassName="goveconv-inputstyle4" />
           </div>
         </div>
         <div className="goveconv-row-5">
@@ -739,7 +739,7 @@ export function ConversationPoliciesPanel() {
               </div>
               <div>
                 <label className="goveconv-labelstyle">{t('governedconversations.rol_por_defecto')}</label>
-                <input aria-label={t('governedconversations.rol_por_defecto')} value={draft.default_role_key || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], default_role_key: event.target.value } }))} className="goveconv-inputstyle" placeholder="admin, manager, pm..." />
+                <Input aria-label={t('governedconversations.rol_por_defecto')} value={draft.default_role_key || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], default_role_key: event.target.value } }))} placeholder="admin, manager, pm..." inputClassName="goveconv-inputstyle" />
               </div>
               <div>
                 <label id={`${idCampo}-${policy.id}-et-pool`} htmlFor={`${idCampo}-${policy.id}-pool`} className="goveconv-labelstyle">{t('governedconversations.pool_de_asignacion')}</label>
@@ -749,19 +749,19 @@ export function ConversationPoliciesPanel() {
               </div>
               <div>
                 <label id={`${idCampo}-${policy.id}-et-fr`} htmlFor={`${idCampo}-${policy.id}-fr`} className="goveconv-labelstyle">{t('governedconversations.primera_respuesta_sla_h')}</label>
-                <input id={`${idCampo}-${policy.id}-fr`} aria-labelledby={`${idCampo}-${policy.id}-et-fr`} type="number" min={0} value={draft.first_response_hours || 0} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], first_response_hours: Number(event.target.value) } }))} className="goveconv-inputstyle" />
+                <Input id={`${idCampo}-${policy.id}-fr`} aria-labelledby={`${idCampo}-${policy.id}-et-fr`} type="number" min={0} value={draft.first_response_hours || 0} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], first_response_hours: Number(event.target.value) } }))} inputClassName="goveconv-inputstyle" />
               </div>
               <div>
                 <label id={`${idCampo}-${policy.id}-et-esc`} htmlFor={`${idCampo}-${policy.id}-esc`} className="goveconv-labelstyle">{t('governedconversations.escalado_sla_h')}</label>
-                <input id={`${idCampo}-${policy.id}-esc`} aria-labelledby={`${idCampo}-${policy.id}-et-esc`} type="number" min={0} value={draft.escalation_hours || 0} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], escalation_hours: Number(event.target.value) } }))} className="goveconv-inputstyle" />
+                <Input id={`${idCampo}-${policy.id}-esc`} aria-labelledby={`${idCampo}-${policy.id}-et-esc`} type="number" min={0} value={draft.escalation_hours || 0} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], escalation_hours: Number(event.target.value) } }))} inputClassName="goveconv-inputstyle" />
               </div>
               <div>
                 <label id={`${idCampo}-${policy.id}-et-apr`} htmlFor={`${idCampo}-${policy.id}-apr`} className="goveconv-labelstyle">{t('governedconversations.rol_aprobador')}</label>
-                <input id={`${idCampo}-${policy.id}-apr`} aria-labelledby={`${idCampo}-${policy.id}-et-apr`} value={draft.approval_role_key || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], approval_role_key: event.target.value } }))} className="goveconv-inputstyle" placeholder="admin" />
+                <Input id={`${idCampo}-${policy.id}-apr`} aria-labelledby={`${idCampo}-${policy.id}-et-apr`} value={draft.approval_role_key || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], approval_role_key: event.target.value } }))} placeholder="admin" inputClassName="goveconv-inputstyle" />
               </div>
               <div>
                 <label id={`${idCampo}-${policy.id}-et-kw`} htmlFor={`${idCampo}-${policy.id}-kw`} className="goveconv-labelstyle">{t('governedconversations.keywords_sensibles')}</label>
-                <input id={`${idCampo}-${policy.id}-kw`} aria-labelledby={`${idCampo}-${policy.id}-et-kw`} value={draft.sensitive_keywords || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], sensitive_keywords: event.target.value } }))} className="goveconv-inputstyle" placeholder="password, token, iban" />
+                <Input id={`${idCampo}-${policy.id}-kw`} aria-labelledby={`${idCampo}-${policy.id}-et-kw`} value={draft.sensitive_keywords || ''} onChange={(event) => setDrafts((prev) => ({ ...prev, [policy.topic_type]: { ...prev[policy.topic_type], sensitive_keywords: event.target.value } }))} placeholder="password, token, iban" inputClassName="goveconv-inputstyle" />
               </div>
             </div>
 

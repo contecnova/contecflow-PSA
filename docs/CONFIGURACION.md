@@ -85,6 +85,7 @@ Reorganizada el 18-11-2026. El estado de antes, medido, está en
 | | `proveedores` Proveedores: plantillas de contrato, tipos de servicio, unidades de cobro y umbrales `PROVEEDORES_*` (`proveedores.config`). La pantalla de proveedores no tiene botón «Configurar»: si a una acción le falta un catálogo, su aviso lo dice y enlaza aquí (solo a quien tiene `proveedores.config`). La aprobación por importe de estados de cuenta se diseña en `approval-workflows` (tipo «Estado de cuenta de proveedor», `supplier_statement`, revisión 191) | admin, pm | nueva (19-11-2026, revisión 189) |
 | Aprobaciones y políticas | `approval-workflows` Flujos de aprobación | admin | `/settings/approval-workflows` (pm y team_lead lo veían; las escrituras son de admin) |
 | | `policies` Políticas y reglas | admin | `/settings/policies` |
+| | `demanda` Flujos de demanda: tipos de solicitud (canales y alcances), flujos versionados (fases, pasos, responsables, decisiones, condiciones, plazos, avisos, acciones al terminar), biblioteca de plantillas, importar/exportar, simulador y diagrama (`demanda.config`). Ver docs/FLUJO_DE_DEMANDA.md | admin | nueva (22-11-2026, revisión 195) |
 | IA e idiomas | `ai-hub` Proveedores de IA | admin | `/ai-hub` (pm: Enrutado y acciones daban 403) |
 | | `ai-governance` Gobierno de IA por módulo | admin | `/governance` |
 | | `idiomas` Idiomas | admin | pestaña |

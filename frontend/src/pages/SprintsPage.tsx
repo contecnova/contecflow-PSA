@@ -19,7 +19,7 @@ import { useInvalidate } from '../hooks/useInvalidate'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, projectSprintsApi, tasksApi } from '../services/api'
 import type { SprintDelProyecto, TareaDeSprint } from '../services/api/tipos-proyectos'
-import { Button, Card, EmptyState, KpiCard, Modal, Section, Spinner, Tabs, IconButton, Select, Checkbox } from '../components/ui'
+import { Button, Card, EmptyState, KpiCard, Modal, Section, Spinner, Tabs, IconButton, Select, Checkbox, Textarea, Input } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
@@ -126,13 +126,7 @@ function RetroModal({ sprint, projectId, onClose }: { sprint: Sprint; projectId:
       {/* Manual notes */}
       <div>
         <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="spr-label spr-label--notes">{t('sprints.notas_del_equipo')}</label>
-        <textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
-          value={manualNotes}
-          onChange={e => setManualNotes(e.target.value)}
-          rows={3}
-          placeholder={t('sprints.escribe_notas_para_el_equipo')}
-          className="ds-input spr-input spr-textarea"
-        />
+        <Textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={manualNotes} onChange={e => setManualNotes(e.target.value)} rows={3} placeholder={t('sprints.escribe_notas_para_el_equipo')} inputClassName="spr-input spr-textarea" />
       </div>
 
       <div className="u-actions-10">
@@ -606,7 +600,7 @@ export default function SprintsPage({ projectId }: { projectId?: string } = {}) 
       {showCreateSprint && (
         <Modal open title={t('sprints.nuevo_sprint_2')} onClose={() => setShowCreateSprint(false)} width={500}>
           <div className="u-stack-14">
-            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={ls}>{t('sprints.nombre_del_sprint')}</label><input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={sprintForm.name} onChange={e => setSprintForm(f => ({ ...f, name: e.target.value }))} className={fs} placeholder={t('sprints.nombre_del_sprint_2')} /></div>
+            <div><label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className={ls}>{t('sprints.nombre_del_sprint')}</label><Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={sprintForm.name} onChange={e => setSprintForm(f => ({ ...f, name: e.target.value }))} placeholder={t('sprints.nombre_del_sprint_2')} inputClassName="spr-input" /></div>
             <div><label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className={ls}>{t('sprints.objetivo_del_sprint')}</label><textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={sprintForm.goal} onChange={e => setSprintForm(f => ({ ...f, goal: e.target.value }))} rows={2} className={`${fs} spr-textarea`} placeholder={t('sprints.objetivo_del_sprint_2')} /></div>
             <div className="u-grid2-14">
               <div><label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className={ls}>{t('sprints.start_date')}</label><DateInput id={`${idCampo}-3`} value={sprintForm.start_date} onChange={e => setSprintForm(f => ({ ...f, start_date: e.target.value }))} className={fs} /></div>

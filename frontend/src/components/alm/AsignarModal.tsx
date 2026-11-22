@@ -9,7 +9,7 @@
  */
 import { useEffect, useId, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Modal, Button, GrupoDeOpciones, Select } from '../ui'
+import { Modal, Button, GrupoDeOpciones, Select, Input, Textarea } from '../ui'
 import { ProjectSelect, ClientSelect } from '../ui/EntitySelect'
 import DateInput from '../ui/DateInput'
 import { useToast } from '../../context/ToastContext'
@@ -139,7 +139,7 @@ export default function AsignarModal({ recurso, bolsa = null, modoInicial = 'ass
           {pideCantidad && (
             <div>
               <label className="alm-label" htmlFor={`${idBase}-q`}>{esBolsa ? t('alm.pool_seats') : t('alm.quantity')}</label>
-              <input id={`${idBase}-q`} type="number" min={1} className="alm-input" value={cantidad} onChange={e => setCantidad(e.target.value)} />
+              <Input id={`${idBase}-q`} type="number" min={1} value={cantidad} onChange={e => setCantidad(e.target.value)} inputClassName="alm-input" />
             </div>
           )}
           <div>
@@ -152,8 +152,7 @@ export default function AsignarModal({ recurso, bolsa = null, modoInicial = 'ass
           </div>
           <div className="almf-col-completa">
             <label className="alm-label" htmlFor={`${idBase}-motivo`}>{t('alm.reason')}</label>
-            <textarea id={`${idBase}-motivo`} rows={2} className="alm-input" value={motivo} onChange={e => setMotivo(e.target.value)}
-              placeholder={t('alm.reason_placeholder')} />
+            <Textarea id={`${idBase}-motivo`} rows={2} value={motivo} onChange={e => setMotivo(e.target.value)} placeholder={t('alm.reason_placeholder')} inputClassName="alm-input" />
           </div>
         </div>
 
@@ -171,7 +170,7 @@ export default function AsignarModal({ recurso, bolsa = null, modoInicial = 'ass
               </div>
               <div>
                 <label className="alm-label" htmlFor={`${idBase}-obs`}>{t('alm.observations')}</label>
-                <input id={`${idBase}-obs`} className="alm-input" value={observaciones} onChange={e => setObservaciones(e.target.value)} />
+                <Input id={`${idBase}-obs`} value={observaciones} onChange={e => setObservaciones(e.target.value)} inputClassName="alm-input" />
               </div>
             </div>
             <p className="alm-hint">{t('alm.delivery_act_hint')}</p>

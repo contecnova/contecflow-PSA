@@ -7,7 +7,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { projectsApi, epicsApi, epicDependenciesApi } from '../services/api'
 import type { DependenciaDeEpica, EpicaDelRoadmap, RoadmapDeEpicas } from '../services/api/tipos-proyectos'
-import { Button, Spinner, EmptyState, Modal, IconButton, Pulsable, Select, useErroresDeCampo } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, IconButton, Pulsable, Select, useErroresDeCampo, Input } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { ArrowRight, BarChart2, CalendarRange, FolderKanban, GitMerge, Plus, Target, Trash2 } from 'lucide-react'
@@ -193,8 +193,7 @@ function EpicDepForm({ projectId, epics, onClose }: { projectId: string; epics: 
 
         <div>
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="epic-gantt-page-e13">{t('epicgantt.lag_dias_de_retraso_adicional')}</label>
-          <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" className="epic-gantt-page-e8" value={form.lag_days} min={0}
-            onChange={e => set('lag_days')(+e.target.value)} />{msg('lag_days')}
+          <Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="number" value={form.lag_days} min={0} onChange={e => set('lag_days')(+e.target.value)} inputClassName="epic-gantt-page-e8" />{msg('lag_days')}
         </div>
 
         <div className="egantt-row-5">

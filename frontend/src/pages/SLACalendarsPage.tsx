@@ -14,7 +14,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { slaCalendarsApi, type SlaCalendar } from '../services/api'
 import type { SdComprobacionDeDia } from '../services/api/tipos-sd'
-import { Button, Card, EmptyState, IconButton, Spinner, Modal, Select, Pulsable, Checkbox, useErroresDeCampo } from '../components/ui'
+import { Button, Card, EmptyState, IconButton, Spinner, Modal, Select, Pulsable, Checkbox, useErroresDeCampo, Input } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { CalendarClock, CalendarDays, Check, CheckCircle2, Clock, Globe, Pencil, Plus, Trash2, X, XCircle } from 'lucide-react'
@@ -81,8 +81,7 @@ function CalendarForm({ cal, onClose }: { cal?: SlaCalendar | null; onClose: () 
       <div className="u-stack-14">
         <div>
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="slac-label">{t('sla_calendars_page.nombre')}</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} className="slac-input" value={form.name} onChange={e => set('name')(e.target.value)}
-            placeholder={t('sla_calendars_page.nombre_ph')} />{msg('name')}
+          <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.name} onChange={e => set('name')(e.target.value)} placeholder={t('sla_calendars_page.nombre_ph')} inputClassName="slac-input" />{msg('name')}
         </div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="slac-label">{t('sla_calendars_page.zona_horaria')}</label>
@@ -191,7 +190,7 @@ function HolidaysModal({ cal, onClose }: { cal: SlaCalendar; onClose: () => void
           </div>
           <div>
             <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="slac-label">{t('sla_calendars_page.nombre_opcional')}</label>
-            <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} className="slac-input" value={name} onChange={e => setName(e.target.value)} placeholder={t('sla_calendars_page.festivo_ph')} />{msg('name')}
+            <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={name} onChange={e => setName(e.target.value)} placeholder={t('sla_calendars_page.festivo_ph')} inputClassName="slac-input" />{msg('name')}
           </div>
           <Button icon={<Plus size={14} />} onClick={() => addH()} disabled={isPending || !date} loading={isPending}>
             {t('sla_calendars_page.anadir')}

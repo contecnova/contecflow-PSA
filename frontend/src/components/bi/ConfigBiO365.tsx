@@ -20,7 +20,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Settings } from 'lucide-react'
 import { biO365Api } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
-import { Button, Checkbox, Spinner } from '../ui'
+import { Button, Checkbox, Spinner, Input } from '../ui'
 import { extractErr, fmtDateTime } from '../../utils/helpers'
 import { useToast } from '../../context/ToastContext'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
@@ -75,11 +75,11 @@ export default function ConfigBiO365() {
       <div className="bio3pa-grid-3">
         <div>
           <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="bi-o365-panel-e13">{t('bio365.tenant_id')}</label>
-          <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="text" value={configForm.tenant_id} onChange={e => setConfigForm(f => ({ ...f, tenant_id: e.target.value }))} className="bi-o365-panel-e14" />
+          <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="text" value={configForm.tenant_id} onChange={e => setConfigForm(f => ({ ...f, tenant_id: e.target.value }))} inputClassName="bi-o365-panel-e14" />
         </div>
         <div>
           <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="bi-o365-panel-e13">{t('bio365.client_id')}</label>
-          <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="text" value={configForm.client_id} onChange={e => setConfigForm(f => ({ ...f, client_id: e.target.value }))} className="bi-o365-panel-e14" />
+          <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} type="text" value={configForm.client_id} onChange={e => setConfigForm(f => ({ ...f, client_id: e.target.value }))} inputClassName="bi-o365-panel-e14" />
         </div>
         <div className="u-col-full">
           <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="bi-o365-panel-e13">
@@ -88,7 +88,7 @@ export default function ConfigBiO365() {
               {t('bio365.secreto_ayuda')}
             </span>
           </label>
-          <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="password" value={configForm.client_secret} onChange={e => setConfigForm(f => ({ ...f, client_secret: e.target.value }))} placeholder={config?.secret_puesto ? t('bio365.secreto_puesto') : ''} autoComplete="off" className="bi-o365-panel-e14" />
+          <Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="password" value={configForm.client_secret} onChange={e => setConfigForm(f => ({ ...f, client_secret: e.target.value }))} placeholder={config?.secret_puesto ? t('bio365.secreto_puesto') : ''} autoComplete="off" inputClassName="bi-o365-panel-e14" />
         </div>
       </div>
       <div className="bio3pa-row-5">

@@ -9,7 +9,7 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import { epicsApi, projectsApi, tasksApi, clientsApi, ticketsApi, contractsApi, conectoresApi, mensajeDeConector } from '../services/api'
 import type { BusquedaNql } from '../services/api/tipos-proyectos'
 import DocumentoContecmind from '../components/conectores/DocumentoContecmind'
-import { Button, Spinner, EmptyState, DataTable, Pulsable, Select } from '../components/ui'
+import { Button, Spinner, EmptyState, DataTable, Pulsable, Select, Input, Textarea } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { FileText, Search } from 'lucide-react'
@@ -139,14 +139,7 @@ function FTSMode() {
             <span className="srch-bar__icon" aria-hidden="true">
               {isFetching ? '⟳' : '🔍'}
             </span>
-            <input
-              value={q}
-              onChange={e => setQ(e.target.value)}
-              placeholder={t('search_page.placeholder')}
-              aria-label={t('search_page.busqueda_rapida')}
-              className="srch-input srch-input--query"
-              autoFocus
-            />
+            <Input value={q} onChange={e => setQ(e.target.value)} placeholder={t('search_page.placeholder')} aria-label={t('search_page.busqueda_rapida')} autoFocus inputClassName="srch-input srch-input--query" />
           </div>
         </div>
         {/* Filtros por tipo */}
@@ -238,13 +231,7 @@ function NQLMode() {
           </Select>
           <span className="srch-hint">{t('search_page.campos', { campos: elegida.campos })}</span>
         </div>
-        <textarea
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder={t('search_page.ejemplo_ph', { ejemplo: elegida.ejemplo })}
-          aria-label={t('search_page.consulta_nql')}
-          className="srch-input srch-input--nql"
-        />
+        <Textarea value={query} onChange={e => setQuery(e.target.value)} placeholder={t('search_page.ejemplo_ph', { ejemplo: elegida.ejemplo })} aria-label={t('search_page.consulta_nql')} inputClassName="srch-input srch-input--nql" />
         <div className="srch-actions">
           <Pulsable type="button" onClick={() => setQuery(elegida.ejemplo)} className="srch-btn">
             {t('search_page.ejemplo')}

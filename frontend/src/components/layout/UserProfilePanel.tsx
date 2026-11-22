@@ -17,7 +17,7 @@ import { useToast } from '../../context/ToastContext'
 import useUserPreferences from '../../hooks/useUserPreferences'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { Bell, Languages, Palette, ShieldCheck, UserRound } from 'lucide-react'
-import { Avatar, Checkbox, IconButton, Pulsable, useErroresDeCampo } from '../ui'
+import { Avatar, Checkbox, IconButton, Pulsable, useErroresDeCampo, Input } from '../ui'
 import { Drawer } from '../ui/Drawer'
 import { useTabListKeys } from '../ui/Tabs'
 import PasskeysSection from '../security/PasskeysSection'
@@ -220,46 +220,34 @@ export default function UserProfilePanel({ onClose }: Props) {
 
               <div>
                 <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="usprpa-box-7">{traducir('userprofilepanel.email')}</label>
-                <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={profileForm.email}
-                  onChange={e => setProfileForm(f => ({ ...f, email: e.target.value }))}
-                  className="usprpa-is" type="email" placeholder={traducir('userprofilepanel.ph_email')} />{msg('email')}
+                <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={profileForm.email} onChange={e => setProfileForm(f => ({ ...f, email: e.target.value }))} type="email" placeholder={traducir('userprofilepanel.ph_email')} inputClassName="usprpa-is" />{msg('email')}
               </div>
 
               {/* Nombre */}
               <div className="u-grid2-10">
                 <div>
                   <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="usprpa-box-7">{traducir('userprofilepanel.nombre')}</label>
-                  <input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={profileForm.first_name}
-                    onChange={e => setProfileForm(f => ({ ...f, first_name: e.target.value }))}
-                    className="usprpa-is" placeholder={traducir('userprofilepanel.ph_nombre')} />{msg('first_name')}
+                  <Input id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={profileForm.first_name} onChange={e => setProfileForm(f => ({ ...f, first_name: e.target.value }))} placeholder={traducir('userprofilepanel.ph_nombre')} inputClassName="usprpa-is" />{msg('first_name')}
                 </div>
                 <div>
                   <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="usprpa-box-7">{traducir('userprofilepanel.apellidos')}</label>
-                  <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={profileForm.last_name}
-                    onChange={e => setProfileForm(f => ({ ...f, last_name: e.target.value }))}
-                    className="usprpa-is" placeholder={traducir('userprofilepanel.ph_apellidos')} />{msg('last_name')}
+                  <Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} value={profileForm.last_name} onChange={e => setProfileForm(f => ({ ...f, last_name: e.target.value }))} placeholder={traducir('userprofilepanel.ph_apellidos')} inputClassName="usprpa-is" />{msg('last_name')}
                 </div>
               </div>
 
               <div>
                 <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="usprpa-box-7">{traducir('userprofilepanel.cargo')}</label>
-                <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={profileForm.job_title}
-                  onChange={e => setProfileForm(f => ({ ...f, job_title: e.target.value }))}
-                  className="usprpa-is" placeholder={traducir('userprofilepanel.ph_cargo')} />{msg('job_title')}
+                <Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} value={profileForm.job_title} onChange={e => setProfileForm(f => ({ ...f, job_title: e.target.value }))} placeholder={traducir('userprofilepanel.ph_cargo')} inputClassName="usprpa-is" />{msg('job_title')}
               </div>
 
               <div>
                 <label id={`${idCampo}-et5`} htmlFor={`${idCampo}-5`} className="usprpa-box-7">{traducir('userprofile.telefono')}</label>
-                <input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={profileForm.phone}
-                  onChange={e => setProfileForm(f => ({ ...f, phone: e.target.value }))}
-                  className="usprpa-is" placeholder="+34 600 000 000" type="tel" />{msg('phone')}
+                <Input id={`${idCampo}-5`} aria-labelledby={`${idCampo}-et5`} value={profileForm.phone} onChange={e => setProfileForm(f => ({ ...f, phone: e.target.value }))} placeholder="+34 600 000 000" type="tel" inputClassName="usprpa-is" />{msg('phone')}
               </div>
 
               <div>
                 <label id={`${idCampo}-et6`} htmlFor={`${idCampo}-6`} className="usprpa-box-7">{traducir('userprofile.url_de_avatar_opcional')}</label>
-                <input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={profileForm.avatar_url}
-                  onChange={e => setProfileForm(f => ({ ...f, avatar_url: e.target.value }))}
-                  className="usprpa-is" placeholder="https://..." />{msg('avatar_url')}
+                <Input id={`${idCampo}-6`} aria-labelledby={`${idCampo}-et6`} value={profileForm.avatar_url} onChange={e => setProfileForm(f => ({ ...f, avatar_url: e.target.value }))} placeholder="https://..." inputClassName="usprpa-is" />{msg('avatar_url')}
                 {profileForm.avatar_url && (
                   <img src={profileForm.avatar_url} alt="preview"
                     loading="lazy" decoding="async"
@@ -425,9 +413,7 @@ export default function UserProfilePanel({ onClose }: Props) {
                   ] as Array<[keyof PasswordForm, string, string]>).map(([key, label, ph]) => (
                     <div key={key}>
                       <label id={`${idCampo}-pw-${key}-et`} htmlFor={`${idCampo}-pw-${key}`} className="usprpa-box-7">{label}</label>
-                      <input id={`${idCampo}-pw-${key}`} aria-labelledby={`${idCampo}-pw-${key}-et`} type="password" value={pwForm[key]}
-                        onChange={e => { camposPw.limpiar(); setPwForm(f => ({ ...f, [key]: e.target.value })) }}
-                        className="usprpa-is" placeholder={ph} />
+                      <Input id={`${idCampo}-pw-${key}`} aria-labelledby={`${idCampo}-pw-${key}-et`} type="password" value={pwForm[key]} onChange={e => { camposPw.limpiar(); setPwForm(f => ({ ...f, [key]: e.target.value })) }} placeholder={ph} inputClassName="usprpa-is" />
                       {msgPw(key === 'current' ? 'current_password' : key === 'new' ? 'new_password' : key)}
                     </div>
                   ))}

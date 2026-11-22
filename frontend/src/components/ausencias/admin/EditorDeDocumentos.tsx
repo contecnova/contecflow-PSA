@@ -7,7 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FileText, Plus, ShieldAlert, Trash2 } from 'lucide-react'
 import { ausenciasApi } from '../../../services/api/ausencias'
 import type { TipoDeDocumentoIn } from '../../../services/api/tipos-ausencias'
-import { Button, EmptyState, Modal, Spinner, Pulsable } from '../../ui'
+import { Button, EmptyState, Modal, Spinner, Pulsable, Input } from '../../ui'
 import { confirmar } from '../../../context/ConfirmContext'
 import { useToast } from '../../../context/ToastContext'
 import { AvisoDeError, Casilla, NombresPorIdioma, errorDe, nombreEn, useT } from './comun'
@@ -74,13 +74,12 @@ function Formulario({ id, inicial, onCerrar }: { id: string | null; inicial: Tip
         <div className="ausadm-grid-2">
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('clave')}</span>
-            <input aria-label={ta('clave')} className="ausadm-campo" required pattern="[a-z0-9_]{2,50}" value={d.clave}
-              onChange={e => setD({ ...d, clave: e.target.value.toLowerCase() })} />
+            <Input aria-label={ta('clave')} required pattern="[a-z0-9_]{2,50}" value={d.clave} onChange={e => setD({ ...d, clave: e.target.value.toLowerCase() })} inputClassName="ausadm-campo" />
             <span className="ausadm-ayuda">{ta('clave_ayuda')}</span>
           </label>
           <label className="ausadm-campo-con-etiqueta">
             <span className="ausadm-etiqueta">{ta('nombre_principal')}</span>
-            <input aria-label={ta('nombre_principal')} className="ausadm-campo" value={d.nombre} onChange={e => setD({ ...d, nombre: e.target.value })} />
+            <Input aria-label={ta('nombre_principal')} value={d.nombre} onChange={e => setD({ ...d, nombre: e.target.value })} inputClassName="ausadm-campo" />
           </label>
         </div>
         <NombresPorIdioma valor={d.nombres} onChange={nombres => setD({ ...d, nombres })} />

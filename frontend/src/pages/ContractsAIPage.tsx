@@ -19,7 +19,7 @@ import type { ClausulaDeContratoIa, ContratoIa, ContratoIaDetalle } from '../ser
 import { useToast } from '../context/ToastContext'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
-import { Button, Card, Spinner, EmptyState, Drawer, Tabs, IconButton, Select } from '../components/ui'
+import { Button, Card, Spinner, EmptyState, Drawer, Tabs, IconButton, Select, Textarea } from '../components/ui'
 import { Coins, DoorOpen, FileText, Flag, Lock, Package, Paperclip, Ruler, ShieldAlert, Sparkles, Timer, TriangleAlert, Upload, X, type LucideIcon } from 'lucide-react'
 import { extractErr, fmtDate, fmtDateTime, fmtNumber } from '../utils/helpers'
 import { useAppLang } from '../i18n/AppLangContext'
@@ -305,14 +305,7 @@ export default function ContractsAIPage(): JSX.Element {
         {/* Input by mode */}
         {mode === 'text' ? (
           <>
-            <textarea aria-label={t('contractsai.pega_aqui_el_texto_del_contrato_minimo')}
-              aria-describedby={`${idCampo}-contador`}
-              value={text}
-              onChange={e => setText(e.target.value)}
-              placeholder={t('contractsai.pega_aqui_el_texto_del_contrato_minimo')}
-              rows={12}
-              className="cai-input cai-textarea"
-            />
+            <Textarea aria-label={t('contractsai.pega_aqui_el_texto_del_contrato_minimo')} aria-describedby={`${idCampo}-contador`} value={text} onChange={e => setText(e.target.value)} placeholder={t('contractsai.pega_aqui_el_texto_del_contrato_minimo')} rows={12} inputClassName="cai-input cai-textarea" />
             <div id={`${idCampo}-contador`} className="cai-counter">
               {t('contractsaipage.n_caracteres', { count: fmtNumber(text.length, 0) })}
             </div>

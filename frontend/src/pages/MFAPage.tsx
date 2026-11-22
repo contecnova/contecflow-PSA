@@ -18,7 +18,7 @@ import { pedirReautenticacion, esFalloDeReautenticacion } from '../components/se
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { mfaApi } from '../services/api'
 import type { AltaMfa, EstadoMfa } from '../services/api/tipos-plataforma'
-import { Button, Card, Section, Spinner, Modal } from '../components/ui'
+import { Button, Card, Section, Spinner, Modal, Input } from '../components/ui'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { CheckCircle2, KeyRound, LifeBuoy, Lock, ShieldCheck, ShieldOff, Smartphone, Timer } from 'lucide-react'
@@ -126,15 +126,7 @@ export default function MFAPage() {
               </div>
             </Section>
             <Section title={t('mfa.step2')}>
-              <input aria-label={t('mfa.code_placeholder')}
-                className="ds-input mfa-codigo"
-                value={code}
-                onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder={t('mfa.code_placeholder')}
-                inputMode="numeric"
-                maxLength={6}
-                autoFocus
-              />
+              <Input aria-label={t('mfa.code_placeholder')} value={code} onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder={t('mfa.code_placeholder')} inputMode="numeric" maxLength={6} autoFocus inputClassName="mfa-codigo" />
               {verifyError && <div className="mfa-error" role="alert">{t('mfa.code_error')}</div>}
               <div className="mfa-acciones">
                 <Button variant="secondary" onClick={() => setStep('status')}>{t('mfa.cancel')}</Button>
@@ -187,9 +179,7 @@ export default function MFAPage() {
       {/* Auditoria 2026-11 (#41): overlay propio sin trampa de foco ni Esc -> Modal del kit. */}
       <Modal open={showDisable} onClose={() => setShowDisable(false)} title={t('mfa.disable_title')} size="sm">
         <div className="mfa-texto mfa-texto--mb">{t('mfa.disable_desc')}</div>
-        <input aria-label={t('mfa.code_placeholder')} className="ds-input mfa-codigo" value={disableCode}
-          onChange={e => setDisableCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-          placeholder={t('mfa.code_placeholder')} inputMode="numeric" maxLength={6} autoFocus />
+        <Input aria-label={t('mfa.code_placeholder')} value={disableCode} onChange={e => setDisableCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder={t('mfa.code_placeholder')} inputMode="numeric" maxLength={6} autoFocus inputClassName="mfa-codigo" />
         <div className="mfa-acciones">
           <Button variant="secondary" onClick={() => setShowDisable(false)}>{t('mfa.cancel')}</Button>
           <Button variant="danger" onClick={() => disable(disableCode)} disabled={disableCode.length !== 6} loading={disabling}>

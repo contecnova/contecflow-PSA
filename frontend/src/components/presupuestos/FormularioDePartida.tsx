@@ -11,7 +11,7 @@
  * Un gasto puede ser CAPEX (con vida para amortizarlo). Se puede acotar a unos meses.
  */
 import { useState } from 'react'
-import { Button, UserSelect, Select, GrupoDeOpciones } from '../ui'
+import { Button, UserSelect, Select, GrupoDeOpciones, Textarea } from '../ui'
 import DateInput from '../ui/DateInput'
 import type { FichaPresupuesto, Partida } from '../../services/api'
 import { useAppT } from '../../i18n/AppLangContext'
@@ -151,7 +151,7 @@ export default function FormularioDePartida({ p, inicial, onGuardar, onCancelar,
       <label><span className="fodepa-etiqueta">{t('pres.hasta_mes')}</span>
         <input aria-label={t('pres.hasta_mes')} type="month" min={desde} max={hasta} value={f.mes_hasta} onChange={set('mes_hasta')} className="fodepa-campo" /></label>
       <label className="u-col-full"><span className="fodepa-etiqueta">{t('pres.justificacion')}</span>
-        <textarea aria-label={t('pres.justificacion')} value={f.justificacion} onChange={set('justificacion')} rows={2} className="fodepa-campo2" placeholder={t('pres.justificacion_ayuda')} /></label>
+        <Textarea aria-label={t('pres.justificacion')} value={f.justificacion} onChange={set('justificacion')} rows={2} placeholder={t('pres.justificacion_ayuda')} inputClassName="fodepa-campo2" /></label>
       <div className="fodepa-row-1">
         {onCancelar && <Button variant="secondary" onClick={onCancelar}>{t('pres.cancelar')}</Button>}
         <Button loading={guardando} disabled={!listo} onClick={guardar}>{inicial ? t('pres.guardar') : t('pres.anadir')}</Button>

@@ -41,6 +41,8 @@ class ServiceItem(Base):
 
     sla_response_hours = Column(Float, default=settings.SLA_P3_RESPONSE_HOURS)
     sla_resolution_hours = Column(Float, default=settings.SLA_P3_RESOLUTION_HOURS)
+    # Rev. 193: precio del catálogo interno por petición atendida (showback/chargeback).
+    internal_price = Column(Float, nullable=True)
 
     custom_fields = Column(Text, nullable=True)
 

@@ -226,10 +226,20 @@ def generar(db, org: str) -> dict:
         # producción, CIs y aplicaciones sin propietario, excepciones, avisos al día).
         from app.services.cmdb_software.cumplimiento import controles as controles_de_software
         controles.extend(controles_de_software(db, org, _control))
+        # Rev. 193: clientes internos (responsable, presupuesto, segregación de cargos, cuenta ERP).
+        from app.services.clientes_internos.cumplimiento import controles as controles_internos
+        controles.extend(controles_internos(db, org, _control))
+        # 22-11-2026 (rev. 194): índice de riesgo sobre el umbral, explotados abiertos, mitigaciones caducadas.
+        from app.services.cmdb_software.riesgo.cumplimiento import controles as controles_de_riesgo
+        controles.extend(controles_de_riesgo(db, org, _control))
         # Migracion 189: GRC de terceros (DPA, documentos, revisiones, accesos).
         from app.services.proveedores.grc import controles as controles_de_terceros
         for id_, estado, medido, fuente, marcos in controles_de_terceros(db, org):
             controles.append(_control(id_, estado, medido, fuente, marcos))
+        # Migración 195: flujo de demanda (bypass de comité, estancadas, decisiones sin
+        # justificación e integridad del log de transiciones).
+        from app.services.demanda.cumplimiento import controles as controles_de_demanda
+        controles.extend(controles_de_demanda(db, org, _control))
         controles.append(_control("backups", "not_measurable", {},
                                   "las copias se hacen fuera de la aplicación (base de datos y almacenamiento)",
                                   ("ISO27001 A.8.13", "SOC2 A1.2")))

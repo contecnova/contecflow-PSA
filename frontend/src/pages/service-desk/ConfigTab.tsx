@@ -258,6 +258,8 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial,
     approval_mode: initial?.approval_mode || 'single',
     approval_workflow_id: initial?.approval_workflow_id || '',
     is_visible_to_clients: initial?.is_visible_to_clients ?? true,
+    // Rev. 193 (clientes internos): precio interno por petición atendida; vacío = sin precio.
+    internal_price: initial?.internal_price != null ? String(initial.internal_price) : '',
   })
   const faltaAprobador = form.requires_approval && form.approval_mode === 'single' && !form.approval_user_id
   type Tarea = { title: string; group_id: string; assignee_user_id?: string | null; sla_hours?: number | string | null; stage?: number | string; description?: string | null }
@@ -297,6 +299,10 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial,
         <div className="sdcfg-grid2-8">
           <Input id={`${idCampo}-5`} label={t('service_desk.sla_response_h')} type="number" value={form.sla_response_hours} onChange={set('sla_response_hours')} error={errorDe?.('sla_response_hours')} />
           <Input id={`${idCampo}-6`} label={t('service_desk.sla_resolution_h')} type="number" value={form.sla_resolution_hours} onChange={set('sla_resolution_hours')} error={errorDe?.('sla_resolution_hours')} />
+        </div>
+        <div>
+          <Input id={`${idCampo}-7`} label={t('sd_cfg.svc_internal_price')} type="number" min={0} step="any" value={form.internal_price}
+            onChange={set('internal_price')} error={errorDe?.('internal_price')} hint={t('sd_cfg.svc_internal_price_hint')} />
         </div>
         <div className="u-row-center-10">
           <Checkbox id="svc_visible" aria-label={t('sd_cfg.svc_visible')} checked={!!form.is_visible_to_clients} onChange={v => setForm(f => ({...f, is_visible_to_clients: v}))} label={t('sd_cfg.svc_visible')} />
@@ -362,6 +368,7 @@ function NewServiceModal({ catalog, onClose, onSave, isPending, IS, LS, initial,
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
           <Button onClick={() => onSave({
             ...form, approval_user_id: form.requires_approval && form.approval_user_id ? form.approval_user_id : null,
+            internal_price: form.internal_price.trim() === '' ? null : Number(form.internal_price),
             approval_workflow_id: form.requires_approval && form.approval_mode === 'engine' && form.approval_workflow_id ? form.approval_workflow_id : null,
             fulfillment_tasks: tareas.map(x => ({ ...x, sla_hours: x.sla_hours === '' || x.sla_hours == null ? null : Number(x.sla_hours), stage: Number(x.stage || 1) })),
           })}

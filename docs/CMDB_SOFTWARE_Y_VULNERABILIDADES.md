@@ -343,7 +343,7 @@ bandeja de aprobaciones conoce el tipo `vuln_exception`. Prueba:
 
 | Tarea | Cuándo | Qué |
 |---|---|---|
-| `cmdb_software_diario` | 04:20 | Por empresa: sincroniza las fuentes activas si `auto_sync`, reevalúa (correlación + SLA + prioridad), caduca excepciones, ticket automático si está activo |
+| `cmdb_software_diario` | 04:20 | Por empresa: sincroniza las fuentes activas si `auto_sync`, reevalúa (correlación + SLA + prioridad), caduca excepciones, ticket automático si está activo; y (rev. 194, `riesgo/trabajos.py`) caduca controles compensatorios, guarda la foto del índice de riesgo del día, manda avisos y poda el histórico (§11) |
 | `cmdb_discovery_run` (el de la CMDB) | cada 15 min | Lanza las conexiones de escaneo `sw_*` cuya ventana venció (`run_discovery_for_provider` → `escaneos.para_el_descubrimiento`) |
 
 ## 10. Límites
@@ -360,3 +360,265 @@ bandeja de aprobaciones conoce el tipo `vuln_exception`. Prueba:
   SSH/WinRM ni un EDR reales: los tests (`tests/test_cmdb_software.py`,
   `tests/test_cmdb_software_escaneo.py`) simulan sus respuestas con los
   formatos documentados.
+
+## 11. Índice de riesgo y gestión de vulnerabilidades
+
+22-11-2026. Referencia: Trend Vision One (*Cyber Risk Index* y *Vulnerability
+Management*). Lo que faltaba frente a ella, y cómo se cubre aquí sin duplicar
+lo que ya existe (hallazgos, prioridad, SLA, excepciones, escaneos).
+
+Servicio: `app/services/cmdb_software/riesgo/` (paquete). API:
+`/cmdb/software/risk/*` (`app/api/v1/endpoints/cmdb_riesgo.py`, mismas guardas
+que el resto del módulo). Migración `194_indice_de_riesgo` (tras
+`193_clientes_internos`). Pantalla: pestaña **Riesgo** de la CMDB
+(`components/cmdb/software/riesgo/`), configuración en la sección de
+*Software y vulnerabilidades* de Configuración.
+
+### 11.1 Modelo (migración 194)
+
+| Tabla / columna | Qué es |
+|---|---|
+| `sw_config.risk_settings` (Text JSON) | Pesos y constantes de la fórmula, rangos de impacto, objetivo de la empresa, avisos, retención del histórico. Validado al guardar; cada cambio, auditado con antes y después (`sw_risk_settings`). |
+| `sw_risk_snapshots` | Histórico diario: `scope_type` (`org`, `client`, `service`, `machine`, `application`), `scope_id` (vacío en `org`), `day`, `score`, `accepted_score`, `factors` (JSON con la puntuación de cada factor y sus puntos), `counts` (JSON), `computed_at`. Único por (empresa, ámbito, id, día): recalcular el mismo día sustituye. |
+| `sw_compensating_controls` | Control compensatorio sobre un hallazgo: `control_type` (`waf`, `ips`, `virtual_patch`, `isolation`, `edr`, `segmentation`, `other`), descripción, evidencia (URL o texto), `reduction` (0,1-0,9; por defecto el del tipo), `expires_at` (obligatoria), `status` (`active`, `expired`, `revoked`), quién lo registra y quién lo revoca. |
+| `sw_exploit_events` | Intento de explotación importado (SIEM/EDR/IPS): fuente, `vuln_id` (CVE), CI (casado por nombre/IP), `observed_at`, `action` (`blocked`, `detected`, `allowed`), `count`, `external_id` (deduplicación por empresa + fuente + id externo), `finding_id` si casa con un hallazgo. |
+| `sw_saved_views` | Vistas guardadas de la lista de vulnerabilidades: superficie, agrupación (`cve`/`asset`/ninguna), filtros y columnas (JSON), propietario, compartida o no. |
+| `sw_risk_alert_log` | Avisos ya mandados (`kind`, `key`, `sent_at`): no se repite el mismo aviso; queda como rastro. |
+| `sw_findings.detected_by` (Text JSON) | Quién lo detecta: `correlation` y/o la fuente externa (`trendmicro`, `defender`, `qualys`, `tenable`, `rapid7`, `file`). Deduplicación de terceros. |
+| `sw_findings.exploit_attempts`, `last_exploit_at` | Intentos de explotación vistos para ese hallazgo. |
+| `sw_findings.risk_points` | Riesgo del hallazgo (0-100) de la última evaluación (lo que suma al índice). |
+| `sw_instances.exposure_source` | De dónde sale la exposición: `manual`, `ports` (detectada por puertos públicos en IP pública), `ci` (marcada en el CI), `import`. |
+
+La exposición del **CI** se marca en sus atributos (`attributes.exposure`:
+`internet`/`internal`/`isolated`), sin columna nueva, y manda sobre la de sus
+instancias. Sin migrar el CI.
+
+### 11.2 Riesgo de un hallazgo (0-100)
+
+    base   = CVSS × 10 (sin CVSS: critical 90, high 70, medium 50, low 20, unknown 50)
+    explot = 1 + w_kev·KEV + w_epss·EPSS + w_attempts·(intentos > 0)
+    r      = base × explot × exposición × criticidad × (1 + w_age·min(1, edad / age_cap_days)) × (1 − reducción de controles)
+    r      = min(100, r);  posible afectado (versión desconocida) × 0,5
+
+- `exposición`: internet 1,0 · interna 0,7 · aislada 0,4.
+- `criticidad` (la mayor de producto, instancia y CI): critical 1,0 · high 0,85 · medium 0,7 · low 0,5.
+- Controles compensatorios activos: se combinan como `1 − Π(1 − reducción)`, con tope 0,9.
+- Prioridad (`priority_score`) y SLA no cambian de fórmula; un control activo
+  multiplica también la prioridad por `(1 − reducción)` (baja la prioridad sin
+  cerrar el hallazgo) y deja `score_detail.controls`.
+
+### 11.3 Índice (0-100) de un ámbito
+
+Seis factores, cada uno con puntos `P` y una constante de saturación `K`
+(los puntos con los que el factor llega al 63 %):
+
+    S_factor = 100 × (1 − e^(−P / K))
+    Índice   = Σ peso_f × S_f      (Σ pesos = 1)
+
+| Factor | Puntos (`P`) | `K` | Peso |
+|---|---|---|---|
+| `vulnerabilities` | Σ r/100 de hallazgos vivos no aceptados | 5 | 0,35 |
+| `exploitation` | Σ (KEV 1 + EPSS ≥ umbral 0,5 + con intentos 1) de esos hallazgos | 2 | 0,20 |
+| `exposure` | activos expuestos a Internet con algún hallazgo alto/crítico vivo | 3 | 0,15 |
+| `configuration` | deriva (1 por instancia) + incumplimientos de línea base (crítica 1, alta 0,7, media 0,4, baja 0,2) | 10 | 0,10 |
+| `eol` | instancias sin soporte (prod 1, resto 0,5; sistema operativo ×2) | 5 | 0,10 |
+| `signals` | intentos de explotación de los últimos 30 días (permitidos 1, detectados 0,5, bloqueados 0,2) | 3 | 0,10 |
+
+- **Riesgo aceptado**: el mismo factor `vulnerabilities` sobre los hallazgos
+  con excepción aprobada (`accepted_score`), aparte; no suma al índice.
+- **Ámbitos**: empresa; cliente (la instancia es del cliente, o su CI cuelga de
+  un proyecto del cliente; los clientes internos son las **unidades**);
+  servicio (servicio de la instancia o del producto); máquina (CI anfitrión);
+  aplicación (producto, incluidos los componentes de sus versiones). Un
+  componente se atribuye a las máquinas, clientes y servicios de las
+  instancias de su software.
+- **Nivel**: `nivel_de_riesgo` de `app/core/umbrales.py` (`RISK_LEVEL_*`).
+- **Configurable** en Configuración: pesos (0-1, suman 1 con ±0,001), `K` (>0),
+  multiplicadores, umbral de EPSS, rangos de impacto (`high_from` > `medium_from`),
+  objetivo (0-100). Cada cambio, auditado (`sw_risk_settings`).
+
+### 11.4 Evaluación e histórico
+
+- `POST /risk/recalculate`: recalcula riesgo de hallazgos, índices de todos los
+  ámbitos y guarda la foto del día. Lo hace también el trabajo diario
+  (`cmdb_software_diario`, tras reevaluar). `GET /risk/index` devuelve el
+  índice vivo de un ámbito con su desglose y `evaluated_at` (la última foto).
+- Retención: `risk_settings.history_days` (por defecto 730); el trabajo diario
+  borra lo anterior; registrado en `bloqueo_legal.TIPOS` (`sw_risk_snapshots`,
+  `sw_exploit_events`, `sw_risk_alert_log`), respeta el bloqueo legal.
+
+### 11.5 Plan de reducción
+
+`GET /risk/plan?scope_type=&scope_id=&target=`: de X (actual) a Y (objetivo,
+por defecto el de la empresa). Voraz: en cada paso, el hallazgo cuya
+resolución más baja el índice (impacto exacto recalculando los factores sin
+él), hasta llegar a Y o agotar (máximo 200). Cada paso: hallazgo, impacto
+(puntos de índice), índice tras resolverlo, **pasos de remediación**
+(actualizar a la versión corregida en las máquinas afectadas; sin corrección,
+control compensatorio o retirada), y su ticket/cambio/tarea si lo tiene
+(se crea con `/findings/{id}/remediate`).
+
+`GET /risk/events`: todos los eventos de riesgo del ámbito (hallazgos, deriva,
+incumplimientos, fin de vida, intentos de explotación) con sus puntos,
+paginados y ordenados.
+
+### 11.6 Métricas de gestión de vulnerabilidades
+
+`GET /risk/metrics?scope_type=&scope_id=&days=90`:
+`assets` (CIs con software), `% con vulnerabilidades` (todos, internos —no
+expuestos a Internet— y máquinas: servidor, VM, endpoint, contenedor, nube),
+**densidad** (hallazgos vivos por activo y por máquina), **MTTP** (media de
+`closed_at − first_seen_at` de los resueltos en el periodo), **antigüedad
+media** de lo no parcheado, equipos con **SO sin soporte** (instancia de
+categoría `os` en fin de vida o sin soporte), reparto por **impacto** (rangos
+configurables sobre la prioridad: alto ≥ 70, medio ≥ 40) y por **estado**
+(nuevo = `open`; en curso = `triaged`/`in_progress`/`mitigated`; resuelto en
+el periodo; aceptado).
+
+### 11.7 Superficies y vistas
+
+`GET /risk/surfaces`: cuenta por superficie —`internal`, `internet`,
+`container` (CI contenedor), `cloud_vm` (VM/servidor descubierto en AWS,
+Azure o GCP, o CI `cloud`), `serverless` (clase o atributo
+`serverless`/`function`)—. `GET /risk/findings?surface=&group_by=cve|asset`
+lista o agrupa (por CVE: activos afectados y peor riesgo; por activo:
+hallazgos y peor riesgo). Vistas guardadas: `GET/POST/PATCH/DELETE
+/risk/views` (filtros y columnas; propias o compartidas). Exposición:
+`POST /risk/exposure/detect` (puertos públicos —80, 443, 8080, 8443, 22,
+3389, 21, 25, 3306, 5432…— en IP pública → `internet`, `exposure_source =
+ports`; no pisa lo manual) y `PUT /risk/exposure/ci/{ci_id}` (marca el CI).
+
+### 11.8 Controles compensatorios e intentos de explotación
+
+- `POST /risk/controls` (uno o varios hallazgos), `GET /risk/controls`,
+  `POST /risk/controls/{id}/revoke`. Caducidad obligatoria (máximo
+  `exception_max_days`); al caducar (trabajo diario) deja de restar y se
+  audita (`sw_compensating_control`). No cierra el hallazgo.
+- Intentos de explotación: `POST /risk/exploits/import` (CSV o JSON:
+  `cve, host, ip, observed_at, action, count, id`) y conexión de tipo
+  `sw_siem` (API genérica con mapeo de campos, como `sw_api`). Casan con el
+  hallazgo del mismo CVE en el mismo CI y suben su riesgo.
+
+### 11.9 Importación de terceros
+
+Conexiones de escaneo nuevas (mismo mecanismo que §6: `cmdb_discovery_providers`,
+configuración cifrada, programación e historial; se configuran en
+Configuración y se lanzan desde la CMDB):
+
+| Tipo | API | Credencial |
+|---|---|---|
+| `sw_vm_trendmicro` | Trend Vision One: `GET {url}/v3.0/asrm/vulnerableDevices` (paginado por `nextLink`) | token (Bearer) |
+| `sw_vm_defender` | Microsoft Defender VM: token OAuth2 (cliente/secreto del inquilino), `GET {url}/api/machines` + `GET {url}/api/vulnerabilities/machinesVulnerabilities` (`@odata.nextLink`) | `client_secret` |
+| `sw_vm_qualys` | Qualys VMDR: `POST {url}/api/2.0/fo/asset/host/vm/detection/?action=list` (XML) + base de conocimiento para QID → CVE | usuario y contraseña |
+| `sw_vm_tenable` | Tenable.io: exportación `POST /vulns/export` → estado → trozos | `X-ApiKeys` (acceso y secreto) |
+| `sw_vm_rapid7` | Rapid7 InsightVM: `GET /api/3/assets` + `/assets/{id}/vulnerabilities` + `/vulnerabilities/{id}` | usuario y contraseña |
+| `sw_siem` | API genérica de eventos (intentos de explotación) | token |
+
+Y **fichero** (`POST /risk/import/file`, `source` + fichero): exportaciones
+JSON de cada uno, XML de Qualys y un CSV común (`host, ip, cve, product,
+vendor, version, fixed_version, severity, cvss, status, first_seen`).
+
+Todo se normaliza a detecciones `{host, ip, cve, título, severidad, CVSS,
+producto, fabricante, versión, versión corregida, estado, fechas}` y se
+aplica así: CI por nombre/FQDN/IP (o se crea si `create_cis`); producto por
+la conciliación del catálogo (o «sin identificar» de esa fuente); instancia
+del producto en ese CI; aviso por su id (CVE, o `QID-…`/plugin si no hay CVE)
+sin pisar datos mejores; hallazgo con **la misma clave que la correlación**
+(aviso × producto × versión × instancia), así que lo que detectan a la vez
+nuestra correlación y el tercero es **un solo hallazgo** con
+`detected_by = [correlation, defender]`. Una importación completa de una
+fuente quita esa fuente de los hallazgos que ya no informa; sin ninguna
+fuente viva, el hallazgo pasa a `resolved` (verificado por la fuente). La
+reevaluación propia ya no cierra un hallazgo que sigue informado por un
+tercero.
+
+### 11.10 Informes programados y avisos
+
+- Informes: los programados de siempre (`scheduled_reports`, worker horario,
+  correo con PDF) con dos tipos nuevos, `cyber_risk` (índice, tendencia,
+  factores, plan) y `vuln_management` (métricas, top hallazgos), y ámbito en
+  `filters_json` (`scope_type`, `scope_id`). Se crean y gestionan desde la
+  pestaña Riesgo (`GET/POST/PATCH/DELETE /risk/reports`, `POST
+  /risk/reports/{id}/run`); el PDF lo pinta `riesgo/informes.py` dentro de
+  `report_pdf_service.build_report_pdf`.
+- Avisos (campana + correo), configurables en `risk_settings.alerts`:
+  `kev_new` (nuevo hallazgo con CVE explotado —KEV o con intentos— que nos
+  afecta), `index_above` (índice de la empresa o de un cliente por encima de
+  un umbral), `sla_due_days` (hallazgos cuyo SLA vence en N días); a quién
+  (roles y usuarios) y si va por correo. Sin repetir el mismo aviso
+  (`sw_risk_alert_log`). Tipo de aviso `system` (el tipo de la tabla es un
+  enumerado y no se migra).
+
+### 11.11 GRC
+
+- Auditoría: controles compensatorios (alta, revocación, caducidad),
+  intentos importados (resumen por importación), importaciones de terceros,
+  cambios de pesos y avisos (`sw_risk_settings`), recálculos manuales,
+  vistas compartidas. Las excepciones ya se auditaban.
+- Informe de cumplimiento, tres controles nuevos: `sw_risk_index`
+  (índice de la empresa frente al umbral `alerts.index_above` o, sin él,
+  `RISK_LEVEL_HIGH`), `sw_kev_open` (críticos/altos explotados —KEV o con
+  intentos— abiertos sin excepción), `sw_mitigations_expired` (controles
+  compensatorios caducados con el hallazgo aún vivo).
+- Privilegios: `software.ver` ve todo; `software.gestionar` registra
+  controles, importa, recalcula, guarda vistas e informes; `software.config`
+  cambia pesos, avisos y conexiones; revocar un control, `software.gestionar`.
+- Retención: §11.4. Sin datos personales nuevos (ids de usuario con `SET NULL`;
+  los eventos de explotación guardan host e IP de equipos, no de personas).
+
+### 11.12 Límites
+
+- Los conectores de terceros se han escrito con los formatos públicos de cada
+  API y se prueban con respuestas simuladas; **no se han probado contra
+  ninguna consola real**. El de Trend Vision One es el más incierto (su API
+  de ASRM cambia de versión): si su respuesta no casa, la importación de
+  fichero JSON sirve igual.
+- El índice no es comparable con el de Trend Micro: es nuestra fórmula,
+  documentada y configurable.
+- El índice se calcula en memoria sobre los hallazgos vivos de la empresa
+  (sin consultas por ámbito): pensado para miles de hallazgos, no millones.
+- Las columnas nuevas de `sw_findings`, `sw_instances` y `sw_config` las lee
+  todo el módulo: hasta aplicar la migración 194 la CMDB de software falla
+  con «no such column».
+
+### 11.14 Código del servidor y pruebas
+
+`app/services/cmdb_software/riesgo/`: `ajustes.py` (§11.3, validación y
+auditoría), `calculo.py` (§11.2-11.5: riesgo, índice, ámbitos, histórico,
+comparación, plan y eventos), `metricas.py` (§11.6-11.7), `controles.py`
+(§11.8), `terceros.py` (§11.9; los tipos `sw_vm_*`/`sw_siem` se registran en
+`escaneos.TIPOS`/`CAMPOS` y `escaneos.ejecutar` delega en
+`terceros.ejecutar_conexion`), `informes.py` y `alertas.py` (§11.10),
+`cumplimiento.py` y `trabajos.py` (§11.11 y §11.4). Ganchos en código
+existente: `correlacion.reevaluar` (controles y `detected_by`),
+`report_pdf_service.build_report_pdf` (tipos `cyber_risk`/`vuln_management`),
+`textos_de_salida` (`riesgo.*`, `aviso.swr_*`), `informe_de_cumplimiento`,
+`bloqueo_legal.TIPOS`, `trabajos.diario`. Pruebas: `tests/test_cmdb_riesgo.py`.
+
+### 11.13 Pantallas
+
+- **CMDB → Riesgo** (`pages/CMDBPage.tsx`, pestaña `risk`, icono `Gauge`, con
+  `software.ver` y carga diferida en el mismo `Suspense` que las de software):
+  `components/cmdb/software/riesgo/RiesgoTab.tsx` con sub-pestañas y el
+  selector de ámbito (`SelectorDeAmbito.tsx`; las entidades salen de
+  `/risk/compare`, las unidades son clientes internos):
+  - `Indice.tsx`: cifra 0-100 con nivel, aceptado, objetivo, última
+    evaluación, «Recalcular» (`software.gestionar`), factores, recuentos,
+    tendencia (recharts con los colores del tema) y comparación.
+  - `Plan.tsx`: objetivo «de X a Y», pasos con sus acciones
+    (`swr.accion_<code>`), enlace o creación de ticket/cambio
+    (`/findings/{id}/remediate`), detalle del hallazgo y todos los eventos.
+  - `Metricas.tsx` (§11.6), `Superficies.tsx` (§11.7: tarjetas, lista
+    filtrable y agrupable, columnas, vistas guardadas, detectar y marcar
+    exposición, control sobre los elegidos), `Controles.tsx` (§11.8),
+    `Importar.tsx` (§11.9, fichero; las API van con las conexiones de
+    escaneo) e `Informes.tsx` (§11.10).
+  - Comunes: `comunRiesgo.tsx` (etiquetas `swr.v_<catálogo>`, `/risk/meta`,
+    nivel) y `riesgo.css` (clases `swr-*`, solo variables del tema).
+- **Configuración** → Software y vulnerabilidades: `riesgo/ConfigRiesgo.tsx`
+  al final de `ConfigSoftware.tsx` (pesos con la suma visible, saturaciones,
+  multiplicadores, explotación, edad, impacto, objetivo, histórico, avisos y
+  «Restaurar valores por defecto»; se guarda aparte). Los seis tipos de
+  conexión nuevos están en `Escaneos.tsx` (`TIPOS`).
+- Datos: `services/api/cmdbRiesgo.ts`. Textos: espacio `swr` de es/en/zh;
+  errores `err_srv.swr_*`. Prueba: `__tests__/cmdbRiesgo.test.ts`.

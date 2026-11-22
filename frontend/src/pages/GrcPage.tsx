@@ -32,7 +32,7 @@ import {
   KeyRound, Loader2, Pause, Pencil, Play, Plus, RefreshCw, RotateCcw, ScrollText, Search, ShieldAlert, ShieldCheck,
   Timer, Trash2, UserCheck, X, Zap,
 } from 'lucide-react'
-import { Button, Spinner, EmptyState, Modal, Page, Tabs, KpiCard, StatusBadge, IconButton, Select, TablaSimple, useErroresDeCampo } from '../components/ui'
+import { Button, Spinner, EmptyState, Modal, Page, Tabs, KpiCard, StatusBadge, IconButton, Select, TablaSimple, useErroresDeCampo, Input } from '../components/ui'
 import { extractErr, downloadBlob, fmtDate, fmtDateTime } from '../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../constants/errors'
 import { useAppT } from '../i18n/AppLangContext'
@@ -349,7 +349,7 @@ function SodRuleModal({ rule, workflows, onClose, roles }: { rule: SodRule | nul
 
         <div>
           <label className="grc-page-e18">{t('grc.risk_description')}</label>
-          <input value={form.description} onChange={e => { camposB.limpiar('description'); setForm(f => ({ ...f, description: e.target.value })) }} className="grc-page-e19" placeholder={traducir('grc.descripcion_de_la_regla_sod')} aria-label={traducir('grc.descripcion_de_la_regla_sod')} />{msgB('description')}
+          <Input value={form.description} onChange={e => { camposB.limpiar('description'); setForm(f => ({ ...f, description: e.target.value })) }} placeholder={traducir('grc.descripcion_de_la_regla_sod')} aria-label={traducir('grc.descripcion_de_la_regla_sod')} inputClassName="grc-page-e19" />{msgB('description')}
         </div>
 
         <div>
@@ -763,8 +763,7 @@ function RetencionTab() {
                 <tr key={p.entity} className="grc-row-19">
                   <td className="grc-td-4">{t(`grc.retencion_tipo_${p.entity}`)}</td>
                   <td className="grc-td-5">
-                    <input type="number" min={data.min_days} aria-label={t('grc.retencion_dias')} value={dias[p.entity] ?? p.keep_days ?? ''} placeholder="365"
-                      onChange={e => setDias(d => ({ ...d, [p.entity]: e.target.value }))} className="grc-page-e14" />
+                    <Input type="number" min={data.min_days} aria-label={t('grc.retencion_dias')} value={dias[p.entity] ?? p.keep_days ?? ''} placeholder="365" onChange={e => setDias(d => ({ ...d, [p.entity]: e.target.value }))} inputClassName="grc-page-e14" />
                   </td>
                   <td className="grc-td-6">
                     {v ? t('grc.retencion_previa_resultado', { borraria: v.would_delete, retenidos: v.held, vencidos: v.expired })

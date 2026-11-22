@@ -27,6 +27,7 @@ import DateInput from '../components/ui/DateInput'
 
 import { useFormatoMoneda } from '../hooks/useFormatoMoneda'
 import EvolucionDelMargen from './profitability/EvolucionDelMargen'
+import FiltroTipoDeCliente, { paramsDeTipo, type TipoDeCliente } from '../components/FiltroTipoDeCliente'
 import './ProfitabilityPage.css'
 import { TOOLTIP_SUPERFICIE_3_REDONDO_XS } from '../constants/estilosGrafico'
 type MilestoneItem = HitoDeRentabilidad
@@ -283,10 +284,12 @@ export default function ProfitabilityPage() {
   const t = useAppT()
   const [selectedProject, setSelectedProject] = useState<string | number | null>(null)
   const [statusFilter, setStatusFilter] = useState('active')
+  // Rev. 193: proyectos de clientes externos o de unidades internas.
+  const [tipoCliente, setTipoCliente] = useState<TipoDeCliente>('')
 
   const { data, isLoading } = useQuery<ResumenDeRentabilidad>({
-    queryKey: ['profitability-summary', statusFilter],
-    queryFn: () => profitabilityApi.summary({ status: statusFilter }).then(r => r.data),
+    queryKey: ['profitability-summary', statusFilter, tipoCliente],
+    queryFn: () => profitabilityApi.summary({ status: statusFilter, ...paramsDeTipo(tipoCliente) }).then(r => r.data),
   })
 
   const projects = data?.projects || []
@@ -307,6 +310,7 @@ export default function ProfitabilityPage() {
           <option value="active">{t('rentabilidad_ui.proyectos_activos')}</option>
           <option value="closed">{t('rentabilidad_ui.cerrados')}</option>
         </Select>
+        <FiltroTipoDeCliente className="prof-filtro" value={tipoCliente} onChange={setTipoCliente} />
       </div>
 
       {/* Portfolio KPIs */}

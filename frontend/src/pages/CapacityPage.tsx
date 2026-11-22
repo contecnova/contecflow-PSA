@@ -14,7 +14,7 @@ import type { PlanDeCapacidad } from '../services/api/tipos-personas'
 import PageHeader from '../components/layout/PageHeader'
 import PageShell from '../components/layout/PageShell'
 import { TrendingUp, Plus, X, Users, Building2, ClipboardList, CalendarRange, Info } from 'lucide-react'
-import { Button, Modal, EmptyState, KpiCard, RejillaPersonaDia, columnasDeSemanas, Pulsable, Select, useErroresDeCampo } from '../components/ui'
+import { Button, Modal, EmptyState, KpiCard, RejillaPersonaDia, columnasDeSemanas, Pulsable, Select, useErroresDeCampo, Input } from '../components/ui'
 import type { TonoDeRejilla } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { openConfirmGlobal } from '../context/ConfirmContext'
@@ -184,14 +184,13 @@ function AssignModal({ prefill, onClose }: { prefill: AssignPrefill | null; onCl
           </div>
           <div>
             <label id={`${idCampo}-et4`} htmlFor={`${idCampo}-4`} className="cap-label">{t('capacity.horas_planificadas')}</label>
-            <input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={form.planned_hours} min="1" max={2 * capacidadSemanal} step="0.5"
-              onChange={setField('planned_hours')} className="cap-input" aria-invalid={!!validation.errors.planned_hours} />{msg('planned_hours')}
+            <Input id={`${idCampo}-4`} aria-labelledby={`${idCampo}-et4`} type="number" value={form.planned_hours} min="1" max={2 * capacidadSemanal} step="0.5" onChange={setField('planned_hours')} aria-invalid={!!validation.errors.planned_hours} inputClassName="cap-input" />{msg('planned_hours')}
             {validation.errors.planned_hours && <div className="u-field-error" role="alert">{validation.errors.planned_hours}</div>}
           </div>
         </div>
         <div>
           <label id={`${idCampo}-eta183`} htmlFor={`${idCampo}-a183`} className="cap-label">{t('capacity.notas')}</label>
-          <input id={`${idCampo}-a183`} aria-labelledby={`${idCampo}-eta183`} value={form.notes} onChange={setField('notes')} className="cap-input" placeholder={t('capacity.notas_de_la_asignacion')} />{msg('notes')}
+          <Input id={`${idCampo}-a183`} aria-labelledby={`${idCampo}-eta183`} value={form.notes} onChange={setField('notes')} placeholder={t('capacity.notas_de_la_asignacion')} inputClassName="cap-input" />{msg('notes')}
         </div>
       </div>
       <div className="u-actions-8">

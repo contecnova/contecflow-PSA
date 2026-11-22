@@ -26,7 +26,7 @@ import {
 } from 'lucide-react'
 import { localeActivo } from '../utils/helpers'
 import { useAppT } from '../i18n/AppLangContext'
-import { Button, Card, EmptyState, Table, Tabs, Select, IconButton, Pulsable, TablaSimple, Checkbox } from '../components/ui'
+import { Button, Card, EmptyState, Table, Tabs, Select, IconButton, Pulsable, TablaSimple, Checkbox, Input } from '../components/ui'
 import { useToast } from '../context/ToastContext'
 import { STALE_DEFAULT_MS } from '../constants/timings'
 import { REPORT_BUILDER_ROW_LIMIT } from '../constants/pagination'
@@ -127,11 +127,7 @@ function ColumnPanel({ entityDef, selected, onToggle, onSelectAll, onDeselectAll
       {/* Search box */}
       <div className="rb-buscar">
         <Search size={14} className="rb-buscar__icono" aria-hidden />
-        <input className="ds-input rb-buscar__campo" aria-label={traducir('constructor_informes_ui.buscar_campos')}
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder={traducir('constructor_informes_ui.buscar_campos')}
-        />
+        <Input aria-label={traducir('constructor_informes_ui.buscar_campos')} value={search} onChange={e => setSearch(e.target.value)} placeholder={traducir('constructor_informes_ui.buscar_campos')} inputClassName="rb-buscar__campo" />
         {search && (
           <IconButton className="rb-buscar__limpiar" type="button" ariaLabel={traducir('constructor_informes_ui.limpiar_busqueda')}
             onClick={() => setSearch('')}><X size={13} aria-hidden /></IconButton>
@@ -221,12 +217,7 @@ function FilterRow({ filter, index, entityDef, operators, onChange, onRemove }: 
           {Object.entries(operators || {}).map(([k, o]) => <option key={k} value={k}>{o.label}</option>)}
         </Select>
         {needsValue && (
-          <input className="ds-input"
-            aria-label={traducir('reportbuilder.valor_del_filtro')}
-            value={filter.value}
-            onChange={set('value')}
-            placeholder={traducir('reportbuilder.valor_del_filtro')}
-          />
+          <Input aria-label={traducir('reportbuilder.valor_del_filtro')} value={filter.value} onChange={set('value')} placeholder={traducir('reportbuilder.valor_del_filtro')} />
         )}
       </div>
       <IconButton className="rb-icono" type="button" ariaLabel={traducir('constructor_informes_ui.quitar_filtro')} title={traducir('constructor_informes_ui.quitar_filtro')} onClick={() => onRemove(index)}><X size={14} aria-hidden /></IconButton>

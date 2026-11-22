@@ -8,6 +8,7 @@
  * cabecera (antes botones propios en la cabecera y «últimos N días» fijo en
  * castellano en el subtítulo). Proyectos críticos con StatusBadge.
  */
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { dashboardApi, analyticsApi, risksApi } from '../services/api'
 import type { RiesgoAbiertoDeLaCartera } from '../services/api/tipos-proyectos'
@@ -31,6 +32,7 @@ import { useAppT } from '../i18n/AppLangContext'
 import { colorDeEstado, etiquetaDeEstado } from '../constants/catalogos'
 import { STALE_DEFAULT_MS } from '../constants/timings'
 import type { FilaDeMetrica, KpisDelCuadroDeMando, SaludDeProyecto } from '../services/api/tipos-analitica'
+import FiltroTipoDeCliente, { paramsDeTipo, type TipoDeCliente } from '../components/FiltroTipoDeCliente'
 import './ProjectsDashboardPage.css'
 
 // 19-11-2026: etiquetas y colores de estado de una sola fuente (`constants/catalogos.ts`).
@@ -45,9 +47,11 @@ export default function ProjectsDashboardPage() {
 
   // `/dashboard/projects-health` y `/dashboard/kpis` no filtran por fechas: son
   // la foto actual, y no dependen del periodo elegido.
+  // Rev. 193: salud de los proyectos de clientes externos o de unidades internas.
+  const [tipoCliente, setTipoCliente] = useState<TipoDeCliente>('')
   const { data: health = [], isLoading: lh } = useQuery<SaludDeProyecto[]>({
-    queryKey: ['proj-dash-health'],
-    queryFn: () => dashboardApi.projectsHealth().then(r => r.data).catch(() => []),
+    queryKey: ['proj-dash-health', tipoCliente],
+    queryFn: () => dashboardApi.projectsHealth(paramsDeTipo(tipoCliente)).then(r => r.data).catch(() => []),
     staleTime: STALE_DEFAULT_MS,
   })
 
@@ -135,6 +139,7 @@ export default function ProjectsDashboardPage() {
       <div className="u-stack-16">
         <div className="ds-toolbar">
           <SelectorDePeriodo {...periodo.selector} sinGranularidad />
+          <FiltroTipoDeCliente value={tipoCliente} onChange={setTipoCliente} />
         </div>
         {errorDePeriodo && (
           <EmptyState icon={<AlertTriangle size={28} />} title={t(`periodo_err.${errorDePeriodo.motivo}`, errorDePeriodo.params)} />

@@ -22,7 +22,7 @@ import { problemsApi } from '../../services/api'
 import { problemasApi } from '../../services/api/serviceDeskMercado'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import type { SdAsistenteRca, SdRcaCompletado } from '../../services/api/tipos-sd'
-import { Button, Radio, Spinner, Modal } from '../ui'
+import { Button, Radio, Spinner, Modal, Textarea } from '../ui'
 import { useToast } from '../../context/ToastContext'
 import { useAppLang } from '../../i18n/AppLangContext'
 import { STALE_ALWAYS } from '../../constants/timings'
@@ -169,13 +169,7 @@ function WizardStep({ problemId, state, onRefresh, onComplete }: WizardStepProps
         )}
 
         <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="rcwimo-ls">{traducir('portalsupportdesk.tu_respuesta')}</label>
-        <textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
-          value={answer}
-          onChange={e => setAnswer(e.target.value)}
-          rows={4}
-          className="ds-input rcwimo-is"
-          placeholder={traducir('rcawizardmodal.describe_la_causa_o_responde_a_la')}
-        />
+        <Textarea id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={answer} onChange={e => setAnswer(e.target.value)} rows={4} placeholder={traducir('rcawizardmodal.describe_la_causa_o_responde_a_la')} inputClassName="rcwimo-is" />
 
         {/* AI hint */}
         {(aiHint ?? stepDef?.ai_hint) && (

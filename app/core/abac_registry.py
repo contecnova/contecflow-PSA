@@ -75,6 +75,9 @@ ABAC_COVERED_PREFIXES: dict[str, tuple[str, str]] = {
     "/api/v1/user-costs":            ("user_cost",        "read"),
     "/api/v1/suppliers":             ("supplier",         "read"),   # proveedores (rev. 189)
     "/api/v1/supplier-portal":       ("supplier_portal",  "read"),   # portal del proveedor (rev. 191)
+    "/api/v1/internal-clients":      ("internal_client",  "read"),   # clientes internos (rev. 193)
+    "/api/v1/internal-portal":       ("internal_portal",  "read"),   # portal interno (rev. 193)
+    "/api/v1/demand":                ("demand_request",   "read"),   # flujo de demanda (rev. 195); /portal/demand va por /api/v1/portal
 
     # ── Tiempo y dinero ────────────────────────────────────────────────────────
     "/api/v1/timesheets":            ("timesheet",        "read"),
@@ -196,7 +199,7 @@ ABAC_EXEMPT_PREFIXES: dict[str, str] = {
     # (`bpmn_engine.puede_completar`); no hay recurso ABAC por instancia.
     "/api/v1/bpmn-instances": "Acotado por organización y por el rol de la calle del paso (bpmn_engine)",
     # 19-11-2026: asistente de reuniones (docs/ASISTENTE_DE_REUNIONES.md). Cada
-    # ruta exige `requiere_capacidad("reuniones.*")` y la visibilidad es por
+    # ruta exige una capacidad `reuniones.*` y la visibilidad es por
     # reunión (asistente, responsable de una acción, gestor o `reuniones.ver_todas`,
     # en `reuniones/consultas.py`), con 404 si no es visible. Sus avisos firmados
     # cuelgan de `/api/v1/webhooks/meetings`, ya exento arriba.

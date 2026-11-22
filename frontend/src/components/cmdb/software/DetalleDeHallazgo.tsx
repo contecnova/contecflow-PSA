@@ -17,7 +17,7 @@ import { fmtDate, fmtDateTime } from '../../../utils/helpers'
 import { projectsApi } from '../../../services/api'
 import { cmdbSoftwareApi } from '../../../services/api/cmdbSoftware'
 import type { EstadoHallazgo } from '../../../services/api/cmdbSoftware'
-import { Button, DateInput, EmptyState, Modal, Section, Select, Spinner, StatusBadge, Tabs } from '../../ui'
+import { Button, DateInput, EmptyState, Modal, Section, Select, Spinner, StatusBadge, Tabs, Textarea } from '../../ui'
 import { ESTADO_KIND, EXCEPCION_KIND, ListaKv, PosibleBadge, Semaforo, SeveridadBadge, TRANSICIONES, VersionTexto, useErr, useEtiquetaSw } from './comun'
 
 type Remedio = 'ticket' | 'problem' | 'change' | 'task'
@@ -164,8 +164,7 @@ export default function DetalleDeHallazgo({ id, onClose }: { id: string; onClose
                   </div>
                 </div>
               )}
-              <label className="sdm-field"><span>{t('sw.notas')}</span>
-                <textarea className="ds-input" rows={4} value={notas ?? h.notes ?? ''} onChange={ev => setNotas(ev.target.value)} /></label>
+              <Textarea label={t('sw.notas')} rows={4} value={notas ?? h.notes ?? ''} onChange={ev => setNotas(ev.target.value)} />
               <div className="u-actions-10">
                 <Button disabled={notas === null} loading={cambiar.isPending} onClick={() => cambiar.mutate({ notes: notas?.trim() || null })}>{t('sw.guardar_notas')}</Button>
               </div>
@@ -193,8 +192,8 @@ export default function DetalleDeHallazgo({ id, onClose }: { id: string; onClose
                 </div>
                 {remedio === 'change' && (
                   <div className="sdm-form">
-                    <label className="sdm-field"><span>{t('sw.plan_implantacion')}</span><textarea className="ds-input" rows={3} value={plan} onChange={ev => setPlan(ev.target.value)} /></label>
-                    <label className="sdm-field"><span>{t('sw.plan_vuelta_atras')}</span><textarea className="ds-input" rows={3} value={vuelta} onChange={ev => setVuelta(ev.target.value)} /></label>
+                    <Textarea label={t('sw.plan_implantacion')} rows={3} value={plan} onChange={ev => setPlan(ev.target.value)} />
+                    <Textarea label={t('sw.plan_vuelta_atras')} rows={3} value={vuelta} onChange={ev => setVuelta(ev.target.value)} />
                   </div>
                 )}
                 <div className="u-text3-xs">{t(`sw.remedio_ayuda_${remedio}`)}</div>
@@ -209,10 +208,8 @@ export default function DetalleDeHallazgo({ id, onClose }: { id: string; onClose
             <div className="u-stack-12">
               {cerrado ? <div className="u-text3-xs">{t('sw.hallazgo_cerrado')}</div> : <>
                 <div className="u-text3-xs">{t('sw.excepcion_ayuda')}</div>
-                <label className="sdm-field"><span>{t('sw.motivo')}</span>
-                  <textarea className="ds-input" rows={3} value={motivo} onChange={ev => setMotivo(ev.target.value)} /></label>
-                <label className="sdm-field"><span>{t('sw.controles')}</span>
-                  <textarea className="ds-input" rows={3} value={controles} onChange={ev => setControles(ev.target.value)} /></label>
+                <Textarea label={t('sw.motivo')} rows={3} value={motivo} onChange={ev => setMotivo(ev.target.value)} />
+                <Textarea label={t('sw.controles')} rows={3} value={controles} onChange={ev => setControles(ev.target.value)} />
                 <label className="sdm-field"><span>{t('sw.caduca')}</span>
                   <DateInput className="ds-input" value={caduca} min={enDias(1)} onChange={ev => setCaduca(ev.target.value)} /></label>
                 <div className="u-actions-10">

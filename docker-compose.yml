@@ -4,7 +4,11 @@
 # Infra:  postgres · redis
 # Opt-in: s3 (versitygw)   (--profile s3; también con --profile app)
 # App:    api · worker · beat · web (nginx + frontend construido)
-# Opt-in: prometheus · exporters   (--profile observability)
+# Opt-in: prometheus · alertmanager · grafana · exporters   (--profile observability)
+# Opt-in: node-exporter · cadvisor   (--profile host-metrics; ver docs/OBSERVABILIDAD.md)
+#
+# TODO EN DOCKER (app + observabilidad + métricas de máquina), con migraciones,
+# espera de salud y URLs:   ./setup.sh docker   ·   setup.bat docker
 #
 # Misma estrategia que contecmind y contecweb:
 #   · Todos los puertos se publican en 127.0.0.1, nunca en 0.0.0.0.
@@ -23,7 +27,8 @@
 #                                           # que se itera sin reconstruir imágenes.
 #   docker compose --profile app up -d      # PRODUCCIÓN: infra + migrate + api +
 #                                           # worker + beat + web
-#   docker compose --profile observability up -d   # + prometheus y exporters
+#   docker compose --profile observability up -d   # + prometheus, alertmanager,
+#                                           # grafana y exporters
 #   docker compose down                     # apaga, conserva los datos
 #   docker compose down -v                  # borra SÓLO los volúmenes regenerables
 #
@@ -231,6 +236,11 @@ services:
       # que atendía el scrape. app/core/metrics.py usa MultiProcessCollector
       # cuando la variable está definida (config.py la lee con AliasChoices).
       PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus-multiproc
+      # Observabilidad (22-11-2026): la API en Docker siempre expone /metrics para
+      # el Prometheus del perfil `observability`. Sigue protegido: Bearer
+      # METRICS_AUTH_TOKEN (fuera de development/test sin token responde 401), y
+      # nginx no publica /metrics (solo /api, /health y unas pocas rutas).
+      METRICS_ENABLED: "1"
       # Segunda auditoría 2026-11 (#23): delante de la API siempre está nginx,
       # así que la app cree sus `X-Forwarded-For/-Proto/-Host` (IP real del
       # cliente, esquema https, host público). Se fuerzan aquí y no se leen del
@@ -283,15 +293,23 @@ services:
     <<: *app
     profiles: ["app"]
     container_name: contecflow-worker
+    environment:
+      <<: *app-env
+      # Observabilidad (22-11-2026): /metrics propio del worker en el 9808, solo
+      # en la red interna (sin puerto publicado). Con prefork, cada proceso hijo
+      # escribe en el directorio multiproceso y el padre los suma.
+      CELERY_METRICS_PORT: "9808"
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus-multiproc
     command:
-      - python
-      - -m
-      - celery
-      - -A
-      - app.worker.celery_app
-      - worker
-      - --loglevel=info
-      - --concurrency=${WORKER_CONCURRENCY:-4}
+      - sh
+      - -c
+      - >-
+        rm -rf "$$PROMETHEUS_MULTIPROC_DIR" &&
+        mkdir -p "$$PROMETHEUS_MULTIPROC_DIR" &&
+        exec python -m celery -A app.worker.celery_app worker --loglevel=info
+        --concurrency="${WORKER_CONCURRENCY:-4}"
+    expose:
+      - "9808"
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
@@ -307,6 +325,12 @@ services:
     <<: *app
     profiles: ["app"]
     container_name: contecflow-beat
+    environment:
+      <<: *app-env
+      # /metrics propio del beat (9809, red interna): su `up` es la alarma de beat caído.
+      CELERY_METRICS_PORT: "9809"
+    expose:
+      - "9809"
     command:
       - python
       - -m
@@ -336,25 +360,144 @@ services:
 
   # ══════════════════════════════════════════════════════════════════════════
   # Observabilidad (opt-in: --profile observability)
-  # La aplicación ya expone /metrics con METRICS_ENABLED=1; esto la recoge.
+  # La aplicación expone /metrics (API, worker y beat); esto la recoge, evalúa
+  # las alertas y la enseña. Documentación: docs/OBSERVABILIDAD.md.
   # ══════════════════════════════════════════════════════════════════════════
   prometheus:
     profiles: ["observability"]
     image: prom/prometheus:v2.54.1
     container_name: contecflow-prometheus
     restart: unless-stopped
+    # El token de /metrics no se escribe en ningún fichero del repositorio: se
+    # copia del entorno a un tmpfs (memoria, solo este contenedor) y
+    # prometheus.yml lo lee de ahí (`credentials_file`).
+    entrypoint: ["/bin/sh", "-c"]
     command:
-      - --config.file=/etc/prometheus/prometheus.yml
-      - --storage.tsdb.path=/prometheus
-      - --web.enable-lifecycle
+      - >-
+        umask 077 &&
+        printf '%s' "$$METRICS_AUTH_TOKEN" > /run/contecflow/metrics_token &&
+        exec /bin/prometheus
+        --config.file=/etc/prometheus/prometheus.yml
+        --storage.tsdb.path=/prometheus
+        --storage.tsdb.retention.time="$$PROMETHEUS_RETENTION"
+        --storage.tsdb.retention.size="$$PROMETHEUS_RETENTION_SIZE"
+        --web.enable-lifecycle
+    environment:
+      METRICS_AUTH_TOKEN: ${METRICS_AUTH_TOKEN:-}
+      # Retención (GRC): las series son agregadas y sin datos personales, pero no
+      # se guardan más de lo necesario. 15 días o 5 GB, lo que llegue antes.
+      PROMETHEUS_RETENTION: ${PROMETHEUS_RETENTION:-15d}
+      PROMETHEUS_RETENTION_SIZE: ${PROMETHEUS_RETENTION_SIZE:-5GB}
     volumes:
       - ./ops/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./ops/prometheus/rules:/etc/prometheus/rules:ro
       - prometheus_data:/prometheus
+      - type: tmpfs
+        target: /run/contecflow
+        tmpfs:
+          size: 65536
+          mode: 01777
     ports:
       - "${PROMETHEUS_PORT:-127.0.0.1:9090}:9090"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9090/-/ready >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
     depends_on:
       postgres-exporter: {condition: service_started}
       redis-exporter: {condition: service_started}
+
+  # ── Alertmanager: reparte las alertas de ops/prometheus/rules ────────────────
+  # Su configuración se genera al arrancar desde el .env (ALERT_*) con
+  # ops/alertmanager/generar-config.sh, en un tmpfs: los destinatarios y la
+  # contraseña SMTP no se escriben en el repositorio ni en el volumen.
+  alertmanager:
+    profiles: ["observability"]
+    image: prom/alertmanager:v0.27.0
+    container_name: contecflow-alertmanager
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/etc/alertmanager/generar-config.sh"]
+    environment:
+      ALERTMANAGER_CONFIG_DIR: /run/alertmanager
+      ALERTMANAGER_RETENTION: ${ALERTMANAGER_RETENTION:-120h}
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
+      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
+      ALERT_EMAIL_FROM: ${ALERT_EMAIL_FROM:-}
+      ALERT_SMTP_HOST: ${ALERT_SMTP_HOST:-}
+      ALERT_SMTP_USER: ${ALERT_SMTP_USER:-}
+      ALERT_SMTP_PASSWORD: ${ALERT_SMTP_PASSWORD:-}
+      ALERT_SMTP_REQUIRE_TLS: ${ALERT_SMTP_REQUIRE_TLS:-true}
+    volumes:
+      - ./ops/alertmanager/generar-config.sh:/etc/alertmanager/generar-config.sh:ro
+      - alertmanager_data:/alertmanager
+      - type: tmpfs
+        target: /run/alertmanager
+        tmpfs:
+          size: 65536
+          mode: 01777
+    ports:
+      - "${ALERTMANAGER_PORT:-127.0.0.1:9093}:9093"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9093/-/ready >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # ── Grafana: paneles provisionados desde ops/grafana ─────────────────────────
+  # Datasources y dashboards salen de ficheros del repositorio (no se editan en
+  # la interfaz). Acceso SOLO con usuario: sin anónimo, sin registro, sin
+  # Gravatar ni telemetría. El administrador sale del .env (GRAFANA_ADMIN_*;
+  # `setup docker` genera la contraseña si falta). El entrypoint se niega a
+  # arrancar sin contraseña o con «admin», que es el defecto de Grafana.
+  grafana:
+    profiles: ["observability"]
+    image: grafana/grafana:11.3.1
+    container_name: contecflow-grafana
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        if [ -z "$$GF_SECURITY_ADMIN_PASSWORD" ] || [ "$$GF_SECURITY_ADMIN_PASSWORD" = "admin" ]; then
+        echo "GRAFANA_ADMIN_PASSWORD vacia o 'admin': Grafana no arranca. Definela en .env (setup docker la genera)." >&2;
+        exit 1; fi;
+        exec /run.sh
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-}
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+      GF_SECURITY_COOKIE_SAMESITE: strict
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_AUTH_BASIC_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_USERS_ALLOW_ORG_CREATE: "false"
+      GF_SNAPSHOTS_EXTERNAL_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      GF_METRICS_ENABLED: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3001}
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/contecflow/plataforma.json
+      # Auditoría: Grafana OSS registra en su log los inicios de sesión y los
+      # cambios (docker compose logs grafana). Ver docs/OBSERVABILIDAD.md §GRC.
+      GF_LOG_MODE: console
+    volumes:
+      - ./ops/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./ops/grafana/dashboards:/var/lib/grafana/dashboards/contecflow:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "${GRAFANA_PORT:-127.0.0.1:3001}:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    depends_on:
+      prometheus: {condition: service_started}
 
   postgres-exporter:
     profiles: ["observability"]
@@ -375,6 +518,48 @@ services:
       REDIS_ADDR: redis://redis:6379
     depends_on:
       redis: {condition: service_healthy}
+
+  # ── Máquina y contenedores (opt-in: --profile host-metrics) ─────────────────
+  # Perfil aparte a propósito: en Docker Desktop (Windows/macOS) dependen de
+  # montajes del host que no siempre existen, y una pieza accesoria no puede
+  # tumbar el `up` de las demás (la lección de MinIO, arriba). `setup docker`
+  # los intenta levantar aparte y, si fallan, avisa y sigue.
+  # · node-exporter: sin montar `/` del host (en Docker Desktop no es un montaje
+  #   compartido y el contenedor no arranca); con /proc y /sys mide la máquina
+  #   virtual de Docker, que en Windows es la que tiene los límites de CPU/RAM/disco.
+  # · cAdvisor: CPU/memoria por contenedor. Necesita `privileged` para leer los
+  #   cgroups; sin puerto publicado.
+  node-exporter:
+    profiles: ["host-metrics"]
+    image: prom/node-exporter:v1.8.2
+    container_name: contecflow-node-exporter
+    restart: unless-stopped
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run|var/lib/docker/.+)($$|/)
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+
+  cadvisor:
+    profiles: ["host-metrics"]
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: contecflow-cadvisor
+    restart: unless-stopped
+    privileged: true
+    command:
+      - --docker_only=true
+      - --housekeeping_interval=30s
+      - --store_container_labels=false
+      - --disable_metrics=percpu,sched,tcp,udp,disk,diskIO,hugetlb,referenced_memory,cpu_topology,resctrl
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    devices:
+      - /dev/kmsg
 
 volumes:
   # ── Datos irremplazables: PROTEGIDOS de `docker compose down -v` ────────────
@@ -400,3 +585,9 @@ volumes:
     name: contecflow_redis_data
   prometheus_data:
     name: contecflow_prometheus_data
+  alertmanager_data:
+    name: contecflow_alertmanager_data
+  # Grafana: solo guarda sesiones y preferencias; datasources y paneles se
+  # provisionan desde ops/grafana en cada arranque.
+  grafana_data:
+    name: contecflow_grafana_data

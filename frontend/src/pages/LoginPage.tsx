@@ -13,7 +13,7 @@ import { startAuthentication, webauthnSupported } from '../lib/webauthn'
 import { paginaDeInicio } from '../permisos/navegacion'
 import { tieneCapacidad } from '../permisos/capacidades'
 import './LoginPage.css'
-import { Pulsable } from '../components/ui'
+import { Pulsable, Input } from '../components/ui'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -608,16 +608,7 @@ export default function LoginPage(): JSX.Element {
             <form onSubmit={handleSubmit} style={st.form} noValidate>
               {/* Honeypot — hidden from humans, catches bots */}
               <div aria-hidden="true" className="lgn-box-2">
-                <input
-                  aria-label={t('pagina_lgn.no_rellenar')}
-                  tabIndex={-1}
-                  autoComplete="off"
-                  data-1p-ignore="true"
-                  data-lpignore="true"
-                  data-bwignore="true"
-                  value={trap}
-                  onChange={e => setTrap(e.target.value)}
-                />
+                <Input aria-label={t('pagina_lgn.no_rellenar')} tabIndex={-1} autoComplete="off" data-1p-ignore="true" data-lpignore="true" data-bwignore="true" value={trap} onChange={e => setTrap(e.target.value)} />
               </div>
 
               {/* Empresa (modo org_field) */}

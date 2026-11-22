@@ -34,7 +34,7 @@ import {
   useRef,
 } from 'react'
 import type { ReactNode } from 'react'
-import { Button, Modal } from '../components/ui'
+import { Button, Modal, Textarea } from '../components/ui'
 import { useAppT } from '../hooks/useAppT'
 import './ConfirmContext.estilos.css'
 
@@ -228,18 +228,7 @@ function DialogoConfirmacion({ peticion, onResultado }: {
               </label>
             )}
             {peticion.tipo === 'prompt' && peticion.opts.multiline ? (
-              <textarea
-                id={idCampo}
-                aria-labelledby={etiquetaCampo ? `${idCampo}-etiqueta` : undefined}
-                autoFocus
-                rows={3}
-                value={texto}
-                placeholder={peticion.opts.placeholder}
-                aria-label={etiquetaCampo ? undefined : (typeof opts.message === 'string' ? opts.message : titulo)}
-                aria-required={peticion.opts.required || undefined}
-                onChange={e => setTexto(e.target.value)}
-                className="confirm-context-e6"
-              />
+              <Textarea id={idCampo} aria-labelledby={etiquetaCampo ? `${idCampo}-etiqueta` : undefined} autoFocus rows={3} value={texto} placeholder={peticion.opts.placeholder} aria-label={etiquetaCampo ? undefined : (typeof opts.message === 'string' ? opts.message : titulo)} aria-required={peticion.opts.required || undefined} onChange={e => setTexto(e.target.value)} inputClassName="confirm-context-e6" />
             ) : (
               <input
                 id={idCampo}

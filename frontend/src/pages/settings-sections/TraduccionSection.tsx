@@ -17,7 +17,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, BookA, CheckCircle2, Coins, FileClock, KeyRound, Languages, Lock, Pencil, Plus, Save, Sparkles, Trash2, Trash, XCircle, FlaskConical, Gauge } from 'lucide-react'
-import { Button, Checkbox, Confirm, DataTable, IconButton, KpiCard, Modal, Section, Select, StatusBadge, Switch, Tabs, Spinner, EmptyState, type ColumnaDeTabla, useErroresDeCampo } from '../../components/ui'
+import { Button, Checkbox, Confirm, DataTable, IconButton, KpiCard, Modal, Section, Select, StatusBadge, Switch, Tabs, Spinner, EmptyState, type ColumnaDeTabla, useErroresDeCampo, Textarea, Input } from '../../components/ui'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { useAppLang } from '../../i18n/AppLangContext'
@@ -361,7 +361,7 @@ function ProbarProveedor() {
         </div>
         <div className="ds-field">
           <label className="ds-field__label" htmlFor="trad-admin-probar-texto">{t('traduccion_admin.texto_de_prueba')}</label>
-          <textarea id="trad-admin-probar-texto" className="ds-input" rows={3} value={texto} onChange={e => setTexto(e.target.value)} />
+          <Textarea id="trad-admin-probar-texto" rows={3} value={texto} onChange={e => setTexto(e.target.value)} />
         </div>
         <div className="u-row-end">
           <Button icon={<FlaskConical size={14} />} onClick={() => probar.mutate()} disabled={!texto.trim() || !destino} loading={probar.isPending}>
@@ -515,7 +515,7 @@ export function ModalDeTermino({ termino, onClose, onGuardado }: { termino: Term
       <div className="u-stack-14">
         <div className="ds-field">
           <label className="ds-field__label" htmlFor="trad-termino">{t('traduccion_admin.col_termino')}</label>
-          <input id="trad-termino" className="ds-input" value={form.term} maxLength={200} onChange={e => { campos.limpiar('term'); setForm(f => ({ ...f, term: e.target.value })) }} />{msg('term')}
+          <Input id="trad-termino" value={form.term} maxLength={200} onChange={e => { campos.limpiar('term'); setForm(f => ({ ...f, term: e.target.value })) }} />{msg('term')}
         </div>
 
         <fieldset className="ds-grupo-opciones trad-admin__grupo">
@@ -527,8 +527,7 @@ export function ModalDeTermino({ termino, onClose, onGuardado }: { termino: Term
                 onChange={e => cambiarFila(i, { idioma: e.target.value })}>
                 {[fila.idioma, ...libres].filter(Boolean).map(c => <option key={c} value={c}>{nombreDeIdioma(c, lang)}</option>)}
               </Select>
-              <input aria-label={t('traduccion_admin.texto_en', { idioma: nombreDeIdioma(fila.idioma, lang) })} className="ds-input"
-                value={fila.texto} onChange={e => cambiarFila(i, { texto: e.target.value })} />
+              <Input aria-label={t('traduccion_admin.texto_en', { idioma: nombreDeIdioma(fila.idioma, lang) })} value={fila.texto} onChange={e => cambiarFila(i, { texto: e.target.value })} />
               <IconButton ariaLabel={t('traduccion_admin.quitar_idioma', { idioma: nombreDeIdioma(fila.idioma, lang) })} onClick={() => quitarFila(i)}>
                 <Trash size={14} aria-hidden="true" />
               </IconButton>
@@ -547,7 +546,7 @@ export function ModalDeTermino({ termino, onClose, onGuardado }: { termino: Term
           label={t('traduccion_admin.activo')} />
         <div className="ds-field">
           <label className="ds-field__label" htmlFor="trad-notas">{t('traduccion_admin.col_notas')}</label>
-          <textarea id="trad-notas" className="ds-input" rows={2} value={form.notes} onChange={e => { campos.limpiar('notes'); setForm(f => ({ ...f, notes: e.target.value })) }} />{msg('notes')}
+          <Textarea id="trad-notas" rows={2} value={form.notes} onChange={e => { campos.limpiar('notes'); setForm(f => ({ ...f, notes: e.target.value })) }} />{msg('notes')}
         </div>
         <div className="u-actions-8">
           <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>

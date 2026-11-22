@@ -24,7 +24,7 @@ import {
   CheckCircle, XCircle, ExternalLink, Loader, Lock, LockOpen, Clock,
   type LucideIcon,
 } from 'lucide-react';
-import { Page, Button, Drawer, useDialogo, KpiCard, EmptyState, Tabs, IconButton, Pulsable, Select, TablaSimple, Checkbox } from '../components/ui'
+import { Page, Button, Drawer, useDialogo, KpiCard, EmptyState, Tabs, IconButton, Pulsable, Select, TablaSimple, Checkbox, Input, Textarea } from '../components/ui'
 import { localeActivo, fmtDate, fmtDateTime, extractErr } from '../utils/helpers'
 import { etiquetaCodigo } from '../i18n/etiquetaCodigo'
 import DateInput from '../components/ui/DateInput'
@@ -473,11 +473,11 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
           <div className="docs-stack-4">
             <div>
               <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="documents-page-e7">{t('documents.titulo')}</label>
-              <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} className="documents-page-e8" placeholder={file?.name || t('pagina_docs.titulo_del_documento')} />
+              <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder={file?.name || t('pagina_docs.titulo_del_documento')} inputClassName="documents-page-e8" />
             </div>
             <div>
               <label className="documents-page-e7">{t('documents.descripcion')}</label>
-              <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} rows={2} className="documents-page-e5" placeholder={t('documents.descripcion_del_documento')} aria-label={t('documents.descripcion_del_documento')} />
+              <Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} rows={2} placeholder={t('documents.descripcion_del_documento')} aria-label={t('documents.descripcion_del_documento')} inputClassName="documents-page-e5" />
             </div>
             <div className="u-grid2-10">
               <div>
@@ -496,7 +496,7 @@ function UploadModal({ open, onClose, onSuccess }: { open: boolean; onClose: () 
             </div>
             <div>
               <label id={`${idCampo}-etiquetas-et`} htmlFor={`${idCampo}-etiquetas`} className="documents-page-e7">{t('pagina_docs.etiquetas')}</label>
-              <input id={`${idCampo}-etiquetas`} aria-labelledby={`${idCampo}-etiquetas-et`} value={form.tags} onChange={e => setForm(p => ({ ...p, tags: e.target.value }))} className="documents-page-e8" placeholder={t('documents.etiquetas_separadas_por_comas')} aria-label={t('documents.etiquetas_separadas_por_comas')} />
+              <Input id={`${idCampo}-etiquetas`} aria-labelledby={`${idCampo}-etiquetas-et`} value={form.tags} onChange={e => setForm(p => ({ ...p, tags: e.target.value }))} placeholder={t('documents.etiquetas_separadas_por_comas')} aria-label={t('documents.etiquetas_separadas_por_comas')} inputClassName="documents-page-e8" />
             </div>
             <label className="docs-label-2">
               <Checkbox aria-label={t('documents.requiere_aprobacion_antes_de_usar')} checked={form.requires_approval} onChange={(_, e) => setForm(p => ({ ...p, requires_approval: e.target.checked }))}
@@ -645,9 +645,7 @@ function SharePanel({ documentId }: { documentId: PathId }) {
         {subjectType === 'department' && (
           <div className="u-mb-12">
             <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="documents-page-e9">{t('pagina_docs.departamento_2')}</label>
-            <input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="text" value={deptVal} onChange={e => setDeptVal(e.target.value)}
-              list="departments-list" placeholder={t('pagina_docs.ej_finance')}
-              className="documents-page-e10" />
+            <Input id={`${idCampo}-3`} aria-labelledby={`${idCampo}-et3`} type="text" value={deptVal} onChange={e => setDeptVal(e.target.value)} list="departments-list" placeholder={t('pagina_docs.ej_finance')} inputClassName="documents-page-e10" />
             <datalist id="departments-list">
               {departments.map(d => <option key={d} value={d} aria-label={d} />)}
             </datalist>
@@ -1023,7 +1021,7 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                           : <span className="u-text3-sm"><Upload size={13} className="docs-box-42" />{t('documents.clic_para_seleccionar_archivo')}</span>}
                         <input ref={fileRef} type="file" aria-label={t('documents.clic_para_seleccionar_archivo')} className="docs-input" onChange={e => setFile(e.target.files?.[0] ?? null)} />
                       </div>
-                      <input placeholder={t('documents.nota_del_cambio')} value={changeNote} onChange={e => setChangeNote(e.target.value)} className="documents-page-e8" aria-label={t('documents.nota_del_cambio')} />
+                      <Input placeholder={t('documents.nota_del_cambio')} value={changeNote} onChange={e => setChangeNote(e.target.value)} aria-label={t('documents.nota_del_cambio')} inputClassName="documents-page-e8" />
                       <div className="u-row-8">
                         <Button size="sm" icon={<Upload size={14} />} onClick={() => versionMutation.mutate()} disabled={!file} loading={versionMutation.isPending}>
                           {versionMutation.isPending ? t('pagina_docs.subiendo') : t('pagina_docs.subir')}
@@ -1164,11 +1162,11 @@ function DocumentDrawer({ documentId, onClose, onRefresh }: { documentId: string
                 <div className="u-stack-14">
                   <div>
                     <label id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`} className="docs-label-12">{t('documents.titulo')}</label>
-                    <input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={metaForm.title} onChange={e => setMetaForm(f => f && ({ ...f, title: e.target.value }))} className="documents-page-e8" />
+                    <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} value={metaForm.title} onChange={e => setMetaForm(f => f && ({ ...f, title: e.target.value }))} inputClassName="documents-page-e8" />
                   </div>
                   <div>
                     <label id={`${idCampo}-et2`} htmlFor={`${idCampo}-2`} className="docs-label-12">{t('documents.descripcion')}</label>
-                    <textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={metaForm.description} onChange={e => setMetaForm(f => f && ({ ...f, description: e.target.value }))} rows={3} className="documents-page-e6" />
+                    <Textarea id={`${idCampo}-2`} aria-labelledby={`${idCampo}-et2`} value={metaForm.description} onChange={e => setMetaForm(f => f && ({ ...f, description: e.target.value }))} rows={3} inputClassName="documents-page-e6" />
                   </div>
                   <div>
                     <label id={`${idCampo}-et3`} htmlFor={`${idCampo}-3`} className="docs-label-12">{t('documents.categoria')}</label>
@@ -1311,11 +1309,7 @@ export default function DocumentsPage(): JSX.Element {
       <div className="ds-toolbar">
         <div className="docs-box-36">
           <Search size={14} aria-hidden className="docs-box-44" />
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder={t('documents.buscar_por_titulo_archivo_o_etiqueta')}
-            aria-label={t('pagina_docs.buscar_documentos')}
-            className="ds-input docs-input-4"
-            />
+          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('documents.buscar_por_titulo_archivo_o_etiqueta')} aria-label={t('pagina_docs.buscar_documentos')} inputClassName="docs-input-4" />
         </div>
         <Select suelto placeholder={false} value={filterCat} onChange={e => setFilterCat(e.target.value)}
           aria-label={t('documents.filtrar_por_categoria')}

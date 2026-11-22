@@ -13,7 +13,7 @@ import { biCollaborationApi, biGovernanceAuditApi } from '../../services/api'
 import type { AccesoBi as AuditEvent, ReglasDeGobiernoBi, ResumenDeGobiernoBi as OverviewData } from '../../services/api/tipos-grc'
 import { useAppT } from '../../i18n/AppLangContext'
 import { Shield, RefreshCw, Database, MessageCircle, Calendar, Zap, Clock, History, LayoutDashboard, ListChecks } from 'lucide-react'
-import { Card, Button, Tabs, Spinner, EmptyState, SelectorDePeriodo, Checkbox } from '../ui'
+import { Card, Button, Tabs, Spinner, EmptyState, SelectorDePeriodo, Checkbox, Input } from '../ui'
 import { usePeriodo } from '../../hooks/usePeriodo'
 import { CON_HORA, codigoDeErrorDePeriodo } from '../../utils/periodo'
 import { useToast } from '../../context/ToastContext'
@@ -245,15 +245,11 @@ export default function BiGovernancePanel() {
             <div className="bigopa-grid-2">
               <label className="bigopa-stack-1">
                 {t('bigovernance.horas_max_olap')}
-                <input type="number" aria-label={t('bigovernance.horas_max_olap')} min={1} max={240} value={reglas.olap_max_staleness_hours ?? ''}
-                  onChange={e => setReglas(r => ({ ...r, olap_max_staleness_hours: e.target.value === '' ? undefined : Number(e.target.value) }))}
-                  className="bigopa-inputbase" />
+                <Input type="number" aria-label={t('bigovernance.horas_max_olap')} min={1} max={240} value={reglas.olap_max_staleness_hours ?? ''} onChange={e => setReglas(r => ({ ...r, olap_max_staleness_hours: e.target.value === '' ? undefined : Number(e.target.value) }))} inputClassName="bigopa-inputbase" />
               </label>
               <label className="bigopa-stack-1">
                 {t('bigovernance.informes_en_error_max')}
-                <input type="number" aria-label={t('bigovernance.informes_en_error_max')} min={0} max={100} value={reglas.max_error_reports ?? ''}
-                  onChange={e => setReglas(r => ({ ...r, max_error_reports: e.target.value === '' ? undefined : Number(e.target.value) }))}
-                  className="bigopa-inputbase" />
+                <Input type="number" aria-label={t('bigovernance.informes_en_error_max')} min={0} max={100} value={reglas.max_error_reports ?? ''} onChange={e => setReglas(r => ({ ...r, max_error_reports: e.target.value === '' ? undefined : Number(e.target.value) }))} inputClassName="bigopa-inputbase" />
               </label>
               <Checkbox className="bigopa-row-6" label={t('bigovernance.exigir_informes_activos')} checked={!!reglas.require_active_schedules} onChange={m => setReglas(r => ({ ...r, require_active_schedules: m }))} />
             </div>
@@ -276,13 +272,7 @@ export default function BiGovernancePanel() {
             </div>
             <div className="bigopa-box-5">
               <div className="bigopa-fieldlabel">{t('bigovernance.filtrar_por_user_id')}</div>
-              <input aria-label={t('bigovernance.user_id_opcional')}
-                type="text"
-                placeholder={t('bigovernance.user_id_opcional')}
-                value={auditUserFilter}
-                onChange={e => setAuditUserFilter(e.target.value)}
-                className="bigopa-inputbase"
-              />
+              <Input aria-label={t('bigovernance.user_id_opcional')} type="text" placeholder={t('bigovernance.user_id_opcional')} value={auditUserFilter} onChange={e => setAuditUserFilter(e.target.value)} inputClassName="bigopa-inputbase" />
             </div>
             <Button size="sm" variant="secondary" icon={<RefreshCw size={13} />} onClick={() => refetchAudit()}>
               {t('common.update')}

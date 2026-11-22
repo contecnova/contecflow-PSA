@@ -11,7 +11,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Calculator, Plus, Trash2, Users, Wallet } from 'lucide-react'
 import { ausenciasApi } from '../../../services/api/ausencias'
 import type { FichaLaboral, FichaLaboralIn, SaldoDeAusencia, SaldosDePersona, UnidadDeSaldo } from '../../../services/api/tipos-ausencias'
-import { Button, EmptyState, Modal, Spinner, Select, TablaSimple, SearchInput, useErroresDeCampo } from '../../ui'
+import { Button, EmptyState, Modal, Spinner, Select, TablaSimple, SearchInput, useErroresDeCampo, Input } from '../../ui'
 import DateInput from '../../ui/DateInput'
 import { confirmar } from '../../../context/ConfirmContext'
 import { useToast } from '../../../context/ToastContext'
@@ -121,10 +121,7 @@ function FilaDePersona({ ficha, saldos, contratos, editable, onSaldos }: {
       </td>
       <td>
         {editable ? (
-          <input className="ausadm-campo" aria-label={ta('tipo_de_contrato_de', { nombre: ficha.nombre })} value={contrato} maxLength={40}
-            list={contratos.length ? 'ausadm-contratos' : undefined} placeholder={ta('sin_contrato')}
-            onChange={e => setContrato(e.target.value)}
-            onBlur={() => { if ((contrato || null) !== (ficha.employment_type || null)) guardar.mutate({ employment_type: contrato || null }) }} />
+          <Input aria-label={ta('tipo_de_contrato_de', { nombre: ficha.nombre })} value={contrato} maxLength={40} list={contratos.length ? 'ausadm-contratos' : undefined} placeholder={ta('sin_contrato')} onChange={e => setContrato(e.target.value)} onBlur={() => { if ((contrato || null) !== (ficha.employment_type || null)) guardar.mutate({ employment_type: contrato || null }) }} inputClassName="ausadm-campo" />
         ) : (ficha.employment_type || '—')}
       </td>
       <td>
@@ -273,7 +270,7 @@ function NuevoAjuste({ userId, saldo }: { userId: string; saldo: SaldoDeAusencia
         </label>
       </div>
       <label className="ausadm-campo-con-etiqueta"><span className="ausadm-ayuda">{ta('motivo_obligatorio')}</span>
-        <input className="ausadm-campo" required maxLength={500} aria-label={ta('motivo_obligatorio')} value={nota} onChange={e => setNota(e.target.value)} />{msg('motivo_obligatorio')}
+        <Input required maxLength={500} aria-label={ta('motivo_obligatorio')} value={nota} onChange={e => setNota(e.target.value)} inputClassName="ausadm-campo" />{msg('motivo_obligatorio')}
       </label>
       {cantidad !== '' && !Number.isNaN(n) && n !== 0 && (
         <span className="ausadm-ayuda">{ta(n > 0 ? 'ajuste_suma' : 'ajuste_resta', { n: cantidadDeSaldo(t, unidad, Math.abs(n)) })}</span>

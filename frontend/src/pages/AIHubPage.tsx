@@ -10,7 +10,7 @@ import type {
   EstadisticasIa as AiStats, DiagnosticoIa as Diagnostics,
 } from '../services/api/tipos-grc'
 import { PROVIDER_DOCS } from '../constants/api'
-import { Button, Spinner, Modal, Tabs, Page, Drawer, KpiCard, EmptyState, StatusBadge, SelectorDePeriodo, Pulsable, Select, Checkbox } from '../components/ui'
+import { Button, Spinner, Modal, Tabs, Page, Drawer, KpiCard, EmptyState, StatusBadge, SelectorDePeriodo, Pulsable, Select, Checkbox, Input } from '../components/ui'
 import { usePeriodo } from '../hooks/usePeriodo'
 import { CON_HORA, codigoDeErrorDePeriodo } from '../utils/periodo'
 import { useAppLang, useAppT } from '../i18n/AppLangContext'
@@ -177,7 +177,7 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
       <div className="u-grid2-14">
         <div className="u-col-full">
           <label id={`${idPrefix}-name-et`} htmlFor={`${idPrefix}-name`} className="aih-label">{t('ai.config_name')} *</label>
-          <input id={`${idPrefix}-name`} aria-labelledby={`${idPrefix}-name-et`} value={form.name} onChange={s('name')} className="aih-input" placeholder={`${catEntry.name || ''} — ${t('ai.config_name_placeholder')}`} />
+          <Input id={`${idPrefix}-name`} aria-labelledby={`${idPrefix}-name-et`} value={form.name} onChange={s('name')} placeholder={`${catEntry.name || ''} — ${t('ai.config_name_placeholder')}`} inputClassName="aih-input" />
         </div>
 
         {providerType !== 'ollama' && (
@@ -185,8 +185,7 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
             <label id={`${idPrefix}-api-key-et`} htmlFor={`${idPrefix}-api-key`} className="aih-label">
               {t('aihub.api_key')} {catEntry.key_hint && <span className="aih-label-hint">({catEntry.key_hint})</span>}
             </label>
-            <input id={`${idPrefix}-api-key`} aria-labelledby={`${idPrefix}-api-key-et`} type="password" value={form.api_key} onChange={s('api_key')} className="aih-input"
-              placeholder={isEdit ? t('ai.keep_api_key_placeholder') : t('ai.enter_api_key_placeholder')} />
+            <Input id={`${idPrefix}-api-key`} aria-labelledby={`${idPrefix}-api-key-et`} type="password" value={form.api_key} onChange={s('api_key')} placeholder={isEdit ? t('ai.keep_api_key_placeholder') : t('ai.enter_api_key_placeholder')} inputClassName="aih-input" />
             {catEntry.docs_url && (
               <a href={catEntry.docs_url} target="_blank" rel="noreferrer"
                 className="aih-link aih-link--block">
@@ -199,8 +198,7 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
         {(providerType === 'ollama' || providerType === 'azure') && (
           <div className="u-col-full">
             <label id={`${idPrefix}-api-base-url-et`} htmlFor={`${idPrefix}-api-base-url`} className="aih-label">{t('ai.base_url')} {providerType === 'ollama' ? `(${t('ai.base_url_example')} http://localhost:11434)` : ''}</label>
-            <input id={`${idPrefix}-api-base-url`} aria-labelledby={`${idPrefix}-api-base-url-et`} value={form.api_base_url} onChange={s('api_base_url')} className="aih-input"
-              placeholder={catEntry.base_url || 'https://...'} />
+            <Input id={`${idPrefix}-api-base-url`} aria-labelledby={`${idPrefix}-api-base-url-et`} value={form.api_base_url} onChange={s('api_base_url')} placeholder={catEntry.base_url || 'https://...'} inputClassName="aih-input" />
           </div>
         )}
 
@@ -239,8 +237,7 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
               )}
             </>
           ) : (
-            <input id={`${idPrefix}-default-model`} aria-labelledby={`${idPrefix}-default-model-et`} value={form.default_model} onChange={s('default_model')} className="aih-input"
-              placeholder={t('ai.model_name_placeholder')} />
+            <Input id={`${idPrefix}-default-model`} aria-labelledby={`${idPrefix}-default-model-et`} value={form.default_model} onChange={s('default_model')} placeholder={t('ai.model_name_placeholder')} inputClassName="aih-input" />
           )}
           {(!isEdit || form.api_key || providerType === 'ollama') && (
             <div className="aih-mt8">
@@ -265,18 +262,17 @@ function ProviderModal({ provider, catalog, onClose }: { provider: Partial<AiPro
 
         <div>
           <label id={`${idPrefix}-max-tokens-et`} htmlFor={`${idPrefix}-max-tokens`} className="aih-label">{t('ai.max_response_tokens')}</label>
-          <input id={`${idPrefix}-max-tokens`} aria-labelledby={`${idPrefix}-max-tokens-et`} type="number" value={form.max_tokens} onChange={s('max_tokens')} className="aih-input" />
+          <Input id={`${idPrefix}-max-tokens`} aria-labelledby={`${idPrefix}-max-tokens-et`} type="number" value={form.max_tokens} onChange={s('max_tokens')} inputClassName="aih-input" />
         </div>
 
         <div>
           <label id={`${idPrefix}-temperature-et`} htmlFor={`${idPrefix}-temperature`} className="aih-label">{t('ai.temperature')}</label>
-          <input id={`${idPrefix}-temperature`} aria-labelledby={`${idPrefix}-temperature-et`} type="number" step="0.1" min="0" max="2" value={form.temperature} onChange={s('temperature')} className="aih-input" />
+          <Input id={`${idPrefix}-temperature`} aria-labelledby={`${idPrefix}-temperature-et`} type="number" step="0.1" min="0" max="2" value={form.temperature} onChange={s('temperature')} inputClassName="aih-input" />
         </div>
 
         <div>
           <label id={`${idPrefix}-priority-et`} htmlFor={`${idPrefix}-priority`} className="aih-label">{t('aihub.fallback_order')}</label>
-          <input id={`${idPrefix}-priority`} aria-labelledby={`${idPrefix}-priority-et`} type="number" min="0" value={form.priority} onChange={s('priority')} className="aih-input"
-            title={t('aihub.fallback_order_help')} />
+          <Input id={`${idPrefix}-priority`} aria-labelledby={`${idPrefix}-priority-et`} type="number" min="0" value={form.priority} onChange={s('priority')} title={t('aihub.fallback_order_help')} inputClassName="aih-input" />
         </div>
 
         <div className="aih-default-check">
@@ -1000,8 +996,7 @@ function RoutingTab({ providers }: { providers: AiProvider[] }) {
                 <option value="">{t('aihub.routing_default')}</option>
                 {providers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </Select>
-              <input aria-label={t('aihub.routing_model_for', { label: etiqueta })} list={lista} value={ruta.model || ''}
-                placeholder={prov?.default_model || t('aihub.routing_default_model')} onChange={e => cambiar(m.key, 'model', e.target.value)} className="aih-input" />
+              <Input aria-label={t('aihub.routing_model_for', { label: etiqueta })} list={lista} value={ruta.model || ''} placeholder={prov?.default_model || t('aihub.routing_default_model')} onChange={e => cambiar(m.key, 'model', e.target.value)} inputClassName="aih-input" />
               <datalist id={lista}>{(prov?.available_models || []).map((x: string) => <option key={x} value={x} aria-label={x} />)}</datalist>
             </Fragment>
           )

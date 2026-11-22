@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import date, timedelta
@@ -41,6 +41,7 @@ def _milestone_out(m) -> dict:
 @router.get("/summary", summary="Rentabilidad de todos los proyectos")
 def get_profitability_summary(
     status: Optional[str] = None,
+    client_kind: Optional[str] = Query(None, pattern="^(externo|interno)$"),  # rev. 193: clientes internos
     # Periodo libre (16-11-2026): `date_from`/`date_to` (inclusivos) siguen
     # valiendo. Sin periodo, el histórico completo (como antes).
     p: Periodo = Depends(_PERIODO),
@@ -50,6 +51,8 @@ def get_profitability_summary(
 ):
     date_from, date_to = _fechas(p)
     projects = profitability_service.get_summary_projects(db, status)
+    from app.services.clientes_internos.unidades import filtrar_proyectos
+    projects = filtrar_proyectos(db, projects, client_kind)
     project_ids = [pr.id for pr in projects]
 
     imputation_totals_by_project = profitability_service.get_imputation_totals_by_project(
@@ -91,6 +94,7 @@ def get_profitability_summary(
 @router.get("/projects", summary="Lista de proyectos con datos de rentabilidad (para dashboards)")
 def get_profitability_projects(
     status: Optional[str] = None,
+    client_kind: Optional[str] = Query(None, pattern="^(externo|interno)$"),  # rev. 193: clientes internos
     # Periodo libre (16-11-2026): `date_from`/`date_to` (inclusivos) siguen
     # valiendo. Sin periodo, el histórico completo (como antes).
     p: Periodo = Depends(_PERIODO),
@@ -101,6 +105,8 @@ def get_profitability_projects(
     """Returns a flat list of projects with profitability metrics (margin_pct, revenue, cost, etc.)."""
     date_from, date_to = _fechas(p)
     projects = profitability_service.get_summary_projects(db, status)
+    from app.services.clientes_internos.unidades import filtrar_proyectos
+    projects = filtrar_proyectos(db, projects, client_kind)
     project_ids = [pr.id for pr in projects]
 
     imputation_totals_by_project = profitability_service.get_imputation_totals_by_project(

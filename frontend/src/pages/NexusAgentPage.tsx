@@ -16,7 +16,7 @@ import { useToast } from '../context/ToastContext'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { aiProvidersApi, nexusAgentApi, apiStream } from '../services/api'
 import type { EjecucionDelAgente, EjecucionDelAgenteResumen, PasoDelAgente } from '../services/api/tipos-analitica'
-import { Button, Card, Checkbox, EmptyState, Pulsable, Section, Spinner } from '../components/ui'
+import { Button, Card, Checkbox, EmptyState, Pulsable, Section, Spinner, Textarea } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import type { StatusBadgeKind } from '../components/ui/StatusBadge'
 import MarkdownText from '../components/ui/MarkdownText'
@@ -302,16 +302,7 @@ export default function ContecflowAgentPage() {
             {/* Instrucción */}
             <Card>
               <label htmlFor="nexus-instruccion" className="nexus-etiqueta">{t('nexusagent.instruccion')}</label>
-              <textarea
-                id="nexus-instruccion"
-                ref={textareaRef}
-                value={instruction}
-                onChange={e => setInstruction(e.target.value)}
-                onKeyDown={handleKey}
-                placeholder={t('nexusagent.ej_resume_el_estado_de_todos_los')}
-                rows={4}
-                className="ds-input nexus-instruccion"
-              />
+              <Textarea id="nexus-instruccion" ref={textareaRef} value={instruction} onChange={e => setInstruction(e.target.value)} onKeyDown={handleKey} placeholder={t('nexusagent.ej_resume_el_estado_de_todos_los')} rows={4} inputClassName="nexus-instruccion" />
               <div className="nexus-controles">
                 <div className="nexus-opciones">
                   <span className="nexus-pista">{t('nexusagent.enter_para_ejecutar')}</span>

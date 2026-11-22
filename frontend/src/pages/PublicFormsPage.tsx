@@ -13,7 +13,7 @@ import type { ChangeEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { formsApi, projectsApi } from '../services/api'
 import type { FormularioPublico } from '../services/api/tipos-documentos'
-import { Button, Card, Input, Modal, EmptyState, Spinner, Table, Checkbox, Select, useErroresDeCampo } from '../components/ui'
+import { Button, Card, Input, Modal, EmptyState, Spinner, Table, Checkbox, Select, useErroresDeCampo, Textarea } from '../components/ui'
 import StatusBadge from '../components/ui/StatusBadge'
 import Pagination from '../components/ui/Pagination'
 import { SMALL_PAGE_SIZE } from '../constants/pagination'
@@ -93,7 +93,7 @@ function FormModal({ form, onClose }: { form?: PublicForm | null; onClose: () =>
         <Input error={camposB.de('name')} label={t('public_forms.name_label')} value={f.name} onChange={set('name')} placeholder={t('public_forms.name_placeholder')} />
         <div className="ui-field">
           <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-2`}>{t('public_forms.description_label')}</label>
-          <textarea className="ds-input pubf-textarea" id={`${idCampo}-2`} value={f.description} onChange={set('description')} rows={2} />{msgB('description')}
+          <Textarea id={`${idCampo}-2`} value={f.description} onChange={set('description')} rows={2} inputClassName="pubf-textarea" />{msgB('description')}
         </div>
         <div className="u-grid2-12">
           <div className="ui-field">
@@ -126,8 +126,7 @@ function FormModal({ form, onClose }: { form?: PublicForm | null; onClose: () =>
         <Input error={camposB.de('default_category')} label={t('public_forms.default_category_label')} value={f.default_category} onChange={set('default_category')} placeholder={t('public_forms.default_category_placeholder')} />
         <div className="ui-field">
           <label className="uiinde-estiloetiqueta" htmlFor={`${idCampo}-6`}>{t('public_forms.success_message_label')}</label>
-          <textarea className="ds-input pubf-textarea" id={`${idCampo}-6`} value={f.success_message} onChange={set('success_message')} rows={2}
-            placeholder={t('public_forms.success_message_placeholder')} />{msgB('success_message')}
+          <Textarea id={`${idCampo}-6`} value={f.success_message} onChange={set('success_message')} rows={2} placeholder={t('public_forms.success_message_placeholder')} inputClassName="pubf-textarea" />{msgB('success_message')}
         </div>
         <Checkbox className="u-row-center-8-pointer" checked={!!f.is_active} onChange={setCheck('is_active')} label={t('public_forms.active_form_label')} />
         <div className="pubf-row">

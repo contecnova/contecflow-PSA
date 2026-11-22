@@ -134,6 +134,15 @@ def puntuar(valores: dict, lista: list[PortfolioCriterion]) -> Optional[float]:
     return round(suma / total_peso / _VALOR_MAXIMO * 100, 1)
 
 
+def _cliente_de(db: Session, client_id: Optional[str]) -> dict:
+    """Nombre y tipo (externo/interno, rev. 193) del cliente de la propuesta."""
+    if not client_id:
+        return {"client_name": None, "client_kind": None}
+    from app.models.clients import Client
+    fila = db.query(Client.name, Client.kind).filter(Client.id == client_id).first()
+    return {"client_name": fila[0] if fila else None, "client_kind": (fila[1] or "externo") if fila else None}
+
+
 def propuesta_dict(db: Session, p: PortfolioProposal, lista_fases: Optional[list] = None) -> dict:
     from app.services.approval_engine import fuentes
     fases_ = lista_fases or []
@@ -141,6 +150,7 @@ def propuesta_dict(db: Session, p: PortfolioProposal, lista_fases: Optional[list
     return {
         "id": p.id, "title": p.title, "description": p.description, "portfolio_id": p.portfolio_id,
         "requested_by": p.requested_by, "sponsor_id": p.sponsor_id, "client_id": p.client_id,
+        **_cliente_de(db, p.client_id),
         "estimated_budget": p.estimated_budget, "estimated_hours": p.estimated_hours,
         "wanted_start": p.wanted_start.isoformat() if p.wanted_start else None,
         "wanted_end": p.wanted_end.isoformat() if p.wanted_end else None,
@@ -153,11 +163,17 @@ def propuesta_dict(db: Session, p: PortfolioProposal, lista_fases: Optional[list
     }
 
 
-def listar(db: Session, user, estado: Optional[str] = None, pagina=None):
+def listar(db: Session, user, estado: Optional[str] = None, pagina=None, client_kind: Optional[str] = None):
     from app.core.paginacion import paginar
     q = db.query(PortfolioProposal).filter(PortfolioProposal.organization_id == _org(user))
     if estado:
         q = q.filter(PortfolioProposal.status == estado)
+    if client_kind in ("externo", "interno"):
+        # Clientes internos (rev. 193): propuestas de unidades internas o de clientes de fuera.
+        from sqlalchemy import or_
+        from app.models.clients import Client
+        internos = db.query(Client.id).filter(Client.kind == "interno")
+        q = q.filter(PortfolioProposal.client_id.in_(internos)) if client_kind == "interno" else             q.filter(or_(PortfolioProposal.client_id.is_(None), PortfolioProposal.client_id.notin_(internos)))
     return paginar(q.order_by(PortfolioProposal.created_at.desc()), pagina, "portfolio_proposals.list")
 
 

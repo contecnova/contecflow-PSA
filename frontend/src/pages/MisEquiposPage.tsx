@@ -14,7 +14,7 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { AlertTriangle, FileSignature, History, KeyRound, Laptop, PackagePlus, Send, Undo2, Wrench } from 'lucide-react'
 import { almIntegracionApi } from '../services/api/almIntegracion'
 import type { MiEquipo, MiLicencia, Peticion, Devolucion, HistorialPropio, ActaResumen } from '../services/api/almIntegracion'
-import { Button, DataTable, EmptyState, KpiCard, Modal, Page, Select, Spinner, Tabs, useErroresDeCampo } from '../components/ui'
+import { Button, DataTable, EmptyState, KpiCard, Modal, Page, Select, Spinner, Tabs, useErroresDeCampo, Textarea } from '../components/ui'
 import { useAppT } from '../i18n/AppLangContext'
 import { useToast } from '../context/ToastContext'
 import { fmtDate } from '../utils/helpers'
@@ -205,7 +205,7 @@ function PedirModal({ que, onClose }: { que: 'licencia' | 'equipo'; onClose: () 
           <DateInput className="ds-input" value={f.hasta} onChange={e => setF({ ...f, hasta: e.target.value })} />{msgB('hasta')}
           <span className="almint-tenue">{t('almint.prestamo_hasta_ayuda')}</span></label>}
         <label className="almint-campo">{t('almint.motivo')}
-          <textarea className="ds-input" rows={3} value={f.motivo} onChange={e => setF({ ...f, motivo: e.target.value })} />{msgB('motivo')}</label>
+          <Textarea rows={3} value={f.motivo} onChange={e => setF({ ...f, motivo: e.target.value })} />{msgB('motivo')}</label>
         <div className="almint-acciones almint-acciones--fin">
           <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
           <Button icon={<Send size={14} />} disabled={!listo} loading={m.isPending} onClick={() => m.mutate()}>{t('almint.enviar_peticion')}</Button>
@@ -232,7 +232,7 @@ function AveriaModal({ equipo, onClose }: { equipo: MiEquipo; onClose: () => voi
     <Modal open onClose={onClose} title={t('almint.comunicar_averia')} subtitle={equipo.name ?? undefined}>
       <div className="almint-form">
         <label className="almint-campo">{t('almint.que_le_pasa')}
-          <textarea className="ds-input" rows={4} value={descripcion} onChange={e => setDescripcion(e.target.value)} /></label>
+          <Textarea rows={4} value={descripcion} onChange={e => setDescripcion(e.target.value)} /></label>
         <Select label={t('almint.urgencia')} value={urgencia} onChange={e => setUrgencia(e.target.value)}
           options={URGENCIAS.map(u => ({ value: u, label: etiqueta(t, 'urgencia', u) }))} />
         <div className="almint-acciones almint-acciones--fin">
@@ -265,7 +265,7 @@ function MotivoModal({ accion, onClose }: { accion: Extract<Accion, { tipo: 'dev
       <div className="almint-form">
         <p className="almint-tenue">{devolver ? t('almint.devolver_explicacion') : t('almint.dejar_explicacion')}</p>
         <label className="almint-campo">{t('almint.motivo')}
-          <textarea className="ds-input" rows={3} value={motivo} onChange={e => setMotivo(e.target.value)} /></label>
+          <Textarea rows={3} value={motivo} onChange={e => setMotivo(e.target.value)} /></label>
         <div className="almint-acciones almint-acciones--fin">
           <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
           <Button variant={devolver ? 'primary' : 'danger'} loading={m.isPending} onClick={() => m.mutate()}>{devolver ? t('almint.devolver') : t('almint.liberar')}</Button>

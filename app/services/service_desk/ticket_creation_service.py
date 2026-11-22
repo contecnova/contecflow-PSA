@@ -31,8 +31,10 @@ def _emit_ticket_created_metric(ticket: Ticket) -> None:
             value = getattr(ticket, field, None)
             return getattr(value, "value", value) if value is not None else "unknown"
 
+        from app.core.metricas_empresa import etiqueta_de_empresa
+        # 22-11-2026: etiqueta de empresa acotada (antes el id crudo: una serie por empresa sin tope).
         tickets_created_total.labels(
-            tenant_id=str(getattr(ticket, "organization_id", None) or "unknown"),
+            tenant_id=etiqueta_de_empresa(getattr(ticket, "organization_id", None)),
             ticket_type=str(_v("ticket_type")),
             priority=str(_v("priority")),
             source=str(_v("source")),

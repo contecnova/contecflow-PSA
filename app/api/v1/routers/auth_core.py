@@ -144,6 +144,9 @@ def _rechazar_credenciales(bucket, *, cuenta=None, db=None, user=None, request=N
         lock_for = max(lock_for, _register_login_failure(cuenta, _svc.LOGIN_ACCOUNT_MULTIPLIER))
     if user is not None:
         _auditar_en_soc(db, user, request, exito=False)
+    # Observabilidad (22-11-2026): por empresa, nunca por usuario.
+    from app.core.metricas_empresa import contar_login
+    contar_login("bloqueado" if lock_for > 0 else "fallido", getattr(user, "organization_id", None))
     if lock_for > 0:
         raise error_http(
             status.HTTP_429_TOO_MANY_REQUESTS, "login_bloqueado",
@@ -298,6 +301,8 @@ def login(request: Request, response: Response, payload: LoginRequest, db: Sessi
     user.last_login = datetime.now(timezone.utc)
     audit_log(db, user, "LOGIN", "users", user.id, user.full_name)
     _auditar_en_soc(db, user, request, exito=True)
+    from app.core.metricas_empresa import contar_login
+    contar_login("correcto", org or user.organization_id)
     if eleccion is not None:
         return _pedir_eleccion(db, user, eleccion)
 

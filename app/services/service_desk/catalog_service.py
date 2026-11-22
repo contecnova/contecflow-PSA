@@ -31,6 +31,8 @@ def _servicio(service, interno: bool) -> dict:
             "is_visible_to_clients": service.is_visible_to_clients,
             "default_support_level": getattr(service.default_support_level, "value",
                                              service.default_support_level),
+            # Rev. 193: precio del catálogo interno (showback/chargeback); no va al portal.
+            "internal_price": getattr(service, "internal_price", None),
         })
     return datos
 

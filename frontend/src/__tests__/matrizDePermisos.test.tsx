@@ -44,6 +44,15 @@ describe('catálogo de capacidades', () => {
     expect(CATALOGO_DEL_BACKEND['plataforma.empresas']).toEqual([])
   })
 
+  it('flujo de demanda (migración 195): ver internos, gestionar admin y PM, configurar admin', () => {
+    expect([...CATALOGO_DEL_BACKEND['demanda.ver']].sort()).toEqual(['admin', 'employee', 'hr', 'pm', 'team_lead'])
+    expect([...CATALOGO_DEL_BACKEND['demanda.gestionar']].sort()).toEqual(['admin', 'pm'])
+    expect(CATALOGO_DEL_BACKEND['demanda.config']).toEqual(['admin'])
+    expect(CAPACIDADES).toEqual(expect.arrayContaining(['demanda.ver', 'demanda.gestionar', 'demanda.config']))
+    // «Mis solicitudes» llega a cualquier sesión: /demand no pide demanda.ver (lo filtra la API).
+    expect(capacidadesDe('subcontractor')).not.toContain('demanda.ver')
+  })
+
   it('tieneCapacidad: sin lista, no', () => {
     expect(tieneCapacidad(undefined, 'org.administrar')).toBe(false)
     expect(tieneCapacidad(['org.administrar'], 'org.administrar')).toBe(true)

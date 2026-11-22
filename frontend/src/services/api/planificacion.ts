@@ -140,6 +140,8 @@ export type EstadoDePropuesta = 'draft' | 'in_review' | 'in_progress' | 'approve
 export interface Propuesta {
   id: string; title: string; description: string | null; portfolio_id: string | null
   requested_by: string | null; sponsor_id: string | null; client_id: string | null
+  /** Rev. 193: nombre y tipo del cliente (externo o unidad interna). */
+  client_name?: string | null; client_kind?: 'externo' | 'interno' | null
   estimated_budget: number | null; estimated_hours: number | null; wanted_start: string | null; wanted_end: string | null
   roles_needed: { role: string; hours: number }[]; scores: Record<string, number>; score: number | null
   status: EstadoDePropuesta; gate_index: number; gates_total: number; current_gate: Fase | null
@@ -157,7 +159,10 @@ export const carteraApi = {
   fases: () => D<Fase[]>(api.get('/portfolio-intake/gates')),
   crearFase: (b: Partial<Fase>) => D<Fase>(api.post('/portfolio-intake/gates', b)),
   editarFase: (id: string, b: Partial<Fase>) => D<Fase>(api.patch(`/portfolio-intake/gates/${id}`, b)),
-  propuestas: (status?: string) => D<Propuesta[]>(api.get('/portfolio-intake/proposals', { params: status ? { status } : {} })),
+  /** `clientKind` (rev. 193): solo propuestas de clientes externos o de unidades internas. */
+  propuestas: (status?: string, clientKind?: 'externo' | 'interno') => D<Propuesta[]>(api.get('/portfolio-intake/proposals', {
+    params: { ...(status ? { status } : {}), ...(clientKind ? { client_kind: clientKind } : {}) },
+  })),
   crearPropuesta: (b: Partial<Propuesta>) => D<Propuesta>(api.post('/portfolio-intake/proposals', b)),
   editarPropuesta: (id: string, b: Partial<Propuesta>) => D<Propuesta>(api.patch(`/portfolio-intake/proposals/${id}`, b)),
   enviar: (id: string) => D<Propuesta>(api.post(`/portfolio-intake/proposals/${id}/submit`)),

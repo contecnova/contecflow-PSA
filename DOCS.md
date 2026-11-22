@@ -538,9 +538,10 @@ Toda la configuración del operador vive en **Configuración** (`/settings/:secc
 - `./setup.sh clean` — limpia datos y deja solo admin, luego arranca. El reset crea automáticamente una organización base y asigna el usuario admin a esa organización para cumplir la restricción multi-tenant actual.
 - `./setup.sh start` — arranca y preserva la base de datos existente; antes aplica las migraciones pendientes (`alembic upgrade head`) y se detiene si fallan.
 - `demo`, `clean` y `start` arrancan la API (8000, `ENABLE_APSCHEDULER=0 ENABLE_CELERY_BEAT=1`), un worker y un beat de Celery (registros en `/tmp/contecflow-worker.log` y `/tmp/contecflow-beat.log`) y Vite (3000). Puertos cambiables con `BACKEND_PORT`/`FRONTEND_PORT`.
-- `./setup.sh stop`, `update`, `docker-stop`, `docker-clean` — parar, actualizar y parar o borrar la infraestructura Docker.
+- `./setup.sh stop`, `update`, `docker-stop`, `docker-clean` — parar, actualizar y parar o borrar la infraestructura Docker. `docker-stop` (22-11-2026) para TODOS los contenedores de todos los perfiles, sin `-v`.
+- `./setup.sh docker [demo|clean]` (alias `docker-start`, `docker-up`; 22-11-2026) — TODO en Docker: infraestructura, API, worker, beat, web (nginx), Prometheus, Alertmanager, Grafana y exporters; completa el `.env` con lo que falte (secretos generados, nunca en el repositorio), crea los volúmenes persistentes sin tocarlos nunca, construye, aplica las migraciones (servicio `migrate`), espera a que la API esté sana y enseña las URLs. `docker-status` enseña el estado. Lógica común en `scripts/docker_stack.py`; detalle en `docs/OBSERVABILIDAD.md`.
 - `clean`, `demo` y `docker-clean` se niegan (salida 2) si `ENVIRONMENT` no es de desarrollo o pruebas.
-- `setup.bat` tiene los mismos modos que `setup.sh` (`demo`, `clean`, `start`, `stop`, `update`, `docker-stop`, `docker-clean`) más `install` (instala y pregunta el modo), `start demo|clean` y la variable `SETUP_INIT_MODE=demo|clean`. Sin argumentos muestra la lista de opciones. `setup.bat start` sin modo conserva la base de datos.
+- `setup.bat` tiene los mismos modos que `setup.sh` (`demo`, `clean`, `start`, `stop`, `update`, `docker [demo|clean]`, `docker-status`, `docker-stop`, `docker-clean`) más `install` (instala y pregunta el modo), `start demo|clean` y la variable `SETUP_INIT_MODE=demo|clean`. Sin argumentos muestra la lista de opciones. `setup.bat start` sin modo conserva la base de datos.
 
 ### Opción manual
 1. API backend: `ENABLE_APSCHEDULER=0 ENABLE_CELERY_BEAT=1 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000` (con beat en marcha; si APScheduler y beat están activos a la vez la API no arranca. Sin beat, `ENABLE_APSCHEDULER=1`, el defecto, replica en el proceso todo el `beat_schedule`)
@@ -615,7 +616,11 @@ docker compose --profile s3 up -d       # + el almacén S3 (versitygw), para
                                         # probar el camino de S3 en local
 docker compose --profile app up -d      # PRODUCCIÓN: + s3, migrate, api,
                                         # worker, beat y web (nginx)
-docker compose --profile observability up -d   # + prometheus y exporters
+docker compose --profile observability up -d   # + prometheus, alertmanager,
+                                        # grafana y exporters
+docker compose --profile host-metrics up -d    # + node-exporter y cAdvisor
+./setup.sh docker                      # TODO lo anterior, con migraciones,
+                                        # espera de salud y URLs (setup.bat docker)
 docker compose down                     # apaga, conserva los datos
 docker compose down -v                  # borra SÓLO los volúmenes regenerables
 ```
@@ -1082,6 +1087,10 @@ Notas:
 ### Observabilidad
 - Logs de aplicación
 - Sentry y OpenTelemetry si están habilitados; métricas Prometheus en `/metrics` (`METRICS_ENABLED`) y perfil `observability` en el compose
+- **Observabilidad completa (22-11-2026, `docs/OBSERVABILIDAD.md`)**: `setup docker` levanta Prometheus (retención `PROMETHEUS_RETENTION`/`_SIZE`), Alertmanager (correo/webhook desde `ALERT_*`), Grafana (admin del `.env`, sin anónimo; 6 dashboards provisionados desde `ops/grafana/`: plataforma, negocio por empresa, seguridad, IA, service desk/SLA, riesgo) y node-exporter/cAdvisor (perfil `host-metrics`, opcional en Docker Desktop).
+- Métricas por empresa con etiqueta `empresa` acotada (slug de la organización, tope `METRICS_TENANT_MAX`, resto en `otras`; nunca datos personales): HTTP por empresa y errores por ruta-plantilla y código del catálogo (`app/core/metricas_empresa.py`), logins, uso/coste de IA y tope agotado, worker/beat de Celery con `/metrics` propio (`CELERY_METRICS_PORT`, `app/core/metricas_celery.py`) y negocio leído de la base con caché (`METRICS_BUSINESS_CACHE_SECONDS`, `app/core/metricas_negocio.py`): tickets, SLA, proyectos, horas, horas extra, ausencias, demanda por fase, vulnerabilidades, índice de riesgo, licencias, equipos, IA, logins y usuarios activos.
+- Alertas en `ops/prometheus/rules/`: API caída, 5xx, p95, Celery (cola atascada, worker/beat caídos, fallos), Postgres/Redis caídos o al límite, disco/memoria, IA (errores, tope), SLA, vulnerabilidades críticas, ráfagas de logins fallidos.
+- `contecflow_tickets_created_total` e `invoices_created_total` llevan en `tenant_id` la etiqueta acotada (antes el id crudo, sin tope de cardinalidad).
 
 ### Jobs periódicos
 Definidos en `app/worker.py` (`celery_app.conf.beat_schedule`: 42 entradas, 46 tareas, a 16-11-2026; tabla completa en el README, «Technical guide → 8.2»):
@@ -2695,6 +2704,7 @@ Diseño, reparto CMDB/Activos y referencia completa: [docs/CMDB_SOFTWARE_Y_VULNE
 - **Pantallas**: CMDB → Software, Dónde se usa, Por máquina, Vulnerabilidades; Configuración → Service desk → Software y vulnerabilidades (`/settings/cmdb-software`). Sin botón «Configurar» en el módulo: avisos contextuales con enlace solo para `software.config`.
 - **GRC**: auditoría `sw_*`; capacidades `software.ver`, `software.gestionar`, `software.aprobar`, `software.config`; controles de cumplimiento `sw_critical_vulns_sla`, `sw_eol_production`, `sw_ci_without_owner`, `sw_vuln_exceptions`, `sw_vuln_feed`; retención `sw_config_snapshots` y `sw_findings` (cerrados) con bloqueo legal; SoD `vuln_exception` → módulo `cmdb`.
 - **Trabajo diario** `cmdb_software_diario` (04:20). Tests: `tests/test_cmdb_software.py`, `tests/test_cmdb_software_escaneo.py`, `frontend/src/__tests__/cmdbSoftware.test.ts`. Dependencias: `paramiko`, `pywinrm`.
+- **Índice de riesgo y gestión de vulnerabilidades** (22-11-2026, migración 194, diseño §11 de `docs/CMDB_SOFTWARE_Y_VULNERABILIDADES.md`): índice 0-100 por empresa, cliente/unidad, servicio, máquina y aplicación (seis factores con pesos configurables y validados; riesgo aceptado aparte; histórico diario, objetivo y comparación); plan de reducción «de X a Y» por impacto; métricas (% con vulnerabilidades, densidad, MTTP, antigüedad, SO sin soporte, impacto, estado); superficies (internet, interna, contenedor, VM en la nube, serverless) con vistas guardadas; controles compensatorios con caducidad; intentos de explotación (SIEM/EDR); conectores de Trend Vision One, Defender VM, Qualys, Tenable y Rapid7 (API o fichero, deduplicados con la correlación); informes programados `cyber_risk`/`vuln_management` y avisos. API `/cmdb/software/risk/*`; pestaña CMDB → Riesgo. GRC: controles `sw_risk_index`, `sw_kev_open`, `sw_mitigations_expired`; retención `sw_risk_snapshots`, `sw_exploit_events`, `sw_risk_alert_log`. Tests: `tests/test_cmdb_riesgo.py`, `frontend/src/__tests__/cmdbRiesgo.test.ts`.
 
 ## Cierre de pendientes: ajustes, textos, guardas por capacidad e informes (19-11-2026)
 
@@ -2750,3 +2760,14 @@ El diseñador de flujos en sí ya estaba en `sd.config` (gestores), como su guar
   sincronización corregidos.
 - Recuentos de guardas: 1304 pares con guarda; exenciones «acotada al propio usuario» 93 y «sin
   sujeto autenticado» 56 (webhooks firmados de reuniones).
+
+## Clientes internos: showback, chargeback, portal interno y gobierno (22-11-2026)
+
+Diseño, inventario medido y API: [docs/CLIENTES_INTERNOS.md](docs/CLIENTES_INTERNOS.md). Migración `193_clientes_internos`.
+
+- Un solo `Client` con `kind` externo|interno (los existentes, externos), subtipo, vínculo con departamento/área/centro de coste/empresa del grupo, responsable de negocio y finanzas (`finance_mode` showback|chargeback|intercompania, `cost_method` horas_coste|tarifa_interna|precio_cerrado|catalogo). Filtro `GET /clients?kind=`.
+- Personas de la unidad deducidas de RR. HH. (`users.department`), sin altas; designaciones explícitas (usuario clave, finanzas, delegado).
+- Coste por fuente (`app/services/clientes_internos/costes.py`): horas, precio cerrado, catálogo interno (`sd_service_items.internal_price`), licencias y equipos de ALM, aplicaciones propias de la CMDB (TCO) y reparto de servicios compartidos.
+- Cargos (`/internal-clients/charges`): informe de showback, nota de cargo interna sin IVA exportable como asiento CSV, intercompañía con factura real. Presupuesto = `budgets` aprobados con `cliente_id`; exceso con aprobación del responsable (tipo de bandeja `internal_charge`) y segregación.
+- Portal interno `/internal-portal` (pantalla `/mi-departamento`): proyectos, hitos y UAT a firmar, tickets, SLA, coste (responsable/finanzas), peticiones por el flujo de demanda (respaldo: cartera), NPS/CSAT, adopción y beneficios.
+- Capacidades `interno.portal`, `interno.gestionar`, `interno.cargos`. GRC: retención `internal_satisfaction`, `internal_client_roles`, `internal_charges`; controles `internal_units_owner`, `internal_units_budget`, `internal_charges_sod`, `internal_charges_pending`, `internal_chargeback_erp`. Tests: `tests/test_clientes_internos.py`, `frontend/src/__tests__/clientesInternos.test.ts`.

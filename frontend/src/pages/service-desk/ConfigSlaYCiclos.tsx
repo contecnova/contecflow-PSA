@@ -13,7 +13,7 @@ import { useAuth } from '../../context/AuthContext'
 import { confirmar } from '../../context/ConfirmContext'
 import { extractErr } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { Button, Checkbox, EmptyState, Modal, Radio, Section, Select, Spinner, StatusBadge, TablaSimple } from '../../components/ui'
+import { Button, Checkbox, EmptyState, Modal, Radio, Section, Select, Spinner, StatusBadge, TablaSimple, Input } from '../../components/ui'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
 import { clientsApi, contractsApi, sdCatalogApi, sdGroupsApi, sdSlaPoliciesApi } from '../../services/api'
 import { slaAvanzadoApi } from '../../services/api/serviceDeskMercado'
@@ -119,8 +119,8 @@ function FormRegla({ inicial, servicios, clientes, contratos, politicas, onCance
   return (
     <div className="u-stack-12">
       <div className="sdm-form">
-        <label className="sdm-field"><span>{t('sd_mercado.nombre')}</span><input className="ds-input" value={r.name} onChange={e => setR({ ...r, name: e.target.value })} /></label>
-        <label className="sdm-field"><span>{t('sd_mercado.orden')}</span><input className="ds-input" type="number" min={0} value={r.sort_order} onChange={e => setR({ ...r, sort_order: Number(e.target.value) || 0 })} /></label>
+        <Input label={t('sd_mercado.nombre')} value={r.name} onChange={e => setR({ ...r, name: e.target.value })} />
+        <Input label={t('sd_mercado.orden')} type="number" min={0} value={r.sort_order} onChange={e => setR({ ...r, sort_order: Number(e.target.value) || 0 })} />
         <Checkbox className="u-row-center-8" checked={!!r.is_active} onChange={v => setR({ ...r, is_active: v })} label={t('sd_mercado.activo')} />
       </div>
       <div className="ds-eyebrow">{t('sd_mercado.condiciones')}</div>
@@ -141,8 +141,8 @@ function FormRegla({ inicial, servicios, clientes, contratos, politicas, onCance
       </div>
       <div className="ds-eyebrow">{t('sd_mercado.objetivos')}</div>
       <div className="sdm-form">
-        <label className="sdm-field"><span>{t('sd_mercado.horas_respuesta')}</span><input className="ds-input" type="number" min={0} step={0.25} value={r.response_hours ?? ''} onChange={num('response_hours')} /></label>
-        <label className="sdm-field"><span>{t('sd_mercado.horas_resolucion')}</span><input className="ds-input" type="number" min={0} step={0.25} value={r.resolution_hours ?? ''} onChange={num('resolution_hours')} /></label>
+        <Input label={t('sd_mercado.horas_respuesta')} type="number" min={0} step={0.25} value={r.response_hours ?? ''} onChange={num('response_hours')} />
+        <Input label={t('sd_mercado.horas_resolucion')} type="number" min={0} step={0.25} value={r.resolution_hours ?? ''} onChange={num('resolution_hours')} />
         {lista('sla_policy_id', politicas, t('sd_mercado.calendario_de_politica'))}
       </div>
       <div className="u-text3-xs">{t('sd_mercado.regla_hint')}</div>
@@ -183,9 +183,7 @@ function OlaPorPrioridad({ esAdmin }: { esAdmin: boolean }) {
           <div className="sdm-form">
             {PRIORIDADES.map(p => (
               <label key={p} className="sdm-field"><span>{etiquetaCodigo(t, 'estado', p)} (h)</span>
-                <input className="ds-input" type="number" min={0} step={0.25} disabled={!esAdmin} value={objetivos[p] ?? ''}
-                  placeholder={ola.data?.default_hours != null ? String(ola.data.default_hours) : ''}
-                  onChange={e => setObjetivos({ ...objetivos, [p]: e.target.value })} /></label>
+                <Input type="number" min={0} step={0.25} disabled={!esAdmin} value={objetivos[p] ?? ''} placeholder={ola.data?.default_hours != null ? String(ola.data.default_hours) : ''} onChange={e => setObjetivos({ ...objetivos, [p]: e.target.value })} /></label>
             ))}
           </div>
           {esAdmin && <div className="u-row-end"><Button onClick={() => guardar.mutate()} loading={guardar.isPending}>{t('common.save')}</Button></div>}
@@ -261,7 +259,7 @@ function EditorDeCiclo({ inicial, onCancel, onSave, guardando }: { inicial: Cicl
   return (
     <div className="u-stack-12">
       <div className="sdm-form">
-        <label className="sdm-field"><span>{t('sd_mercado.nombre')}</span><input className="ds-input" value={c.name} onChange={e => setC({ ...c, name: e.target.value })} /></label>
+        <Input label={t('sd_mercado.nombre')} value={c.name} onChange={e => setC({ ...c, name: e.target.value })} />
         <Checkbox className="u-row-center-8" checked={!!c.is_active} onChange={v => setC({ ...c, is_active: v })} label={t('sd_mercado.activo')} />
         <Checkbox className="u-row-center-8" checked={!!c.restrict_transitions} onChange={v => setC({ ...c, restrict_transitions: v })} label={t('sd_mercado.transiciones_restringidas')} />
       </div>

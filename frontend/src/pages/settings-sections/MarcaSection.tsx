@@ -17,7 +17,7 @@ import { useAppLang } from '../../i18n/AppLangContext'
 import { useToast } from '../../context/ToastContext'
 import { settingsApi } from '../../services/api'
 import { extractErr } from '../../utils/helpers'
-import { Button } from '../../components/ui'
+import { Button, Input } from '../../components/ui'
 import { RotateCcw, Save } from 'lucide-react'
 import './MarcaSection.css'
 
@@ -55,7 +55,7 @@ export default function MarcaSection() {
       <p className="marcsect-box-1">{t('marca.intro')}</p>
       <label className="marcsect-grid-2">
         {t('marca.nombre')}
-        <input aria-label={t('marca.nombre')} value={form.app_name || ''} onChange={e => setForm(f => ({ ...f, app_name: e.target.value }))} className="ds-input marcsect-campo" />
+        <Input aria-label={t('marca.nombre')} value={form.app_name || ''} onChange={e => setForm(f => ({ ...f, app_name: e.target.value }))} inputClassName="marcsect-campo" />
       </label>
       {(['primary_color', 'accent_color', 'text_color'] as const).map(c => (
         <label key={c} className="marcsect-row-1">

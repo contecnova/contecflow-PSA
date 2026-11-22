@@ -8,7 +8,7 @@ import { useQuery } from '@tanstack/react-query'
 import PageShell from '../components/layout/PageShell'
 import PageHeader from '../components/layout/PageHeader'
 import { Database, Eye, GitCompare, Radio, RefreshCw, Save } from 'lucide-react'
-import { Button, Select } from '../components/ui'
+import { Button, Select, Input } from '../components/ui'
 import { useAppLang } from '../i18n/AppLangContext'
 import { biIntelligenceApi, biPlatformApi, wsApi, apiWsUrl } from '../services/api'
 import type { DiferenciaDeInstantaneasBi } from '../services/api/tipos-bi'
@@ -155,7 +155,7 @@ export default function DataPlatformPage(): JSX.Element {
               <div className="u-text2-sm">
                 {t('dataplatform.aristas_y_versiones', { aristas: phase3LineageEdges.length, versiones: phase3SnapshotItems.length })}
               </div>
-              <input aria-label={t('dataplatform.dataset')} value={datasetKey} onChange={e => setDatasetKey(e.target.value)} placeholder={t('dataplatform.dataset')} className="dpl-input" />
+              <Input aria-label={t('dataplatform.dataset')} value={datasetKey} onChange={e => setDatasetKey(e.target.value)} placeholder={t('dataplatform.dataset')} inputClassName="dpl-input" />
               <div className="u-wrap-8">
                 <Button size="sm" icon={<Save size={14} />} onClick={handleCreateSnapshot}>{t('dataplatform.crear_version')}</Button>
                 <Button size="sm" variant="secondary" icon={<GitCompare size={14} />} onClick={handleDiffLastSnapshots} disabled={phase3SnapshotItems.length < 2}>{t('dataplatform.diff_ultimos_2')}</Button>

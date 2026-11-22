@@ -6,7 +6,7 @@ import { authApi } from '../services/api'
 import { useAppT } from '../i18n/AppLangContext'
 import LangSelector from '../components/LangSelector'
 import { REDIRECT_AFTER_SUCCESS_MS } from '../constants/timings'
-import { Pulsable } from '../components/ui'
+import { Pulsable, Input } from '../components/ui'
 import './ResetPasswordPage.css'
 
 function strengthScore(password: string): number {
@@ -141,14 +141,7 @@ export default function ResetPasswordPage() {
             <label className="rpw-label-muted" id={`${idCampo}-et1`} htmlFor={`${idCampo}-1`}>
               {t('reset_password.confirm_password_placeholder')}
             </label>
-            <input className="rpw-input-2" id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`}
-              type="password"
-              value={confirmPassword}
-              onChange={e => setConfirmPassword(e.target.value)}
-              autoComplete="new-password"
-              onFocus={e => { e.target.style.borderColor = 'var(--accent)' }}
-              onBlur={e => { e.target.style.borderColor = 'var(--surface-4)' }}
-            />
+            <Input id={`${idCampo}-1`} aria-labelledby={`${idCampo}-et1`} type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} autoComplete="new-password" onFocus={e => { e.target.style.borderColor = 'var(--accent)' }} onBlur={e => { e.target.style.borderColor = 'var(--surface-4)' }} inputClassName="rpw-input-2" />
           </div>
 
           {error && (

@@ -15,7 +15,7 @@ import { useToast } from '../../context/ToastContext'
 import { confirmar } from '../../context/ConfirmContext'
 import { extractErr, fmtDate } from '../../utils/helpers'
 import { GENERIC_ERROR_FALLBACK } from '../../constants/errors'
-import { Button, Checkbox, EmptyState, Modal, Section, SelectorDePeriodo, Select, Spinner, StatusBadge } from '../ui'
+import { Button, Checkbox, EmptyState, Modal, Section, SelectorDePeriodo, Select, Spinner, StatusBadge, Input } from '../ui'
 import { usePeriodo } from '../../hooks/usePeriodo'
 import { CON_HORA, codigoDeErrorDePeriodo } from '../../utils/periodo'
 import { etiquetaCodigo } from '../../i18n/etiquetaCodigo'
@@ -123,12 +123,12 @@ function ProveedorModal({ inicial, onClose, onSaved }: { inicial: ProveedorDeDes
     <Modal open size="lg" onClose={onClose} title={inicial ? t('sd_mercado.proveedor_editar') : t('sd_mercado.proveedor_nuevo')}>
       <div className="u-stack-12">
         <div className="sdm-form">
-          <label className="sdm-field"><span>{t('sd_mercado.nombre')}</span><input className="ds-input" value={nombre} onChange={e => setNombre(e.target.value)} /></label>
+          <Input label={t('sd_mercado.nombre')} value={nombre} onChange={e => setNombre(e.target.value)} />
           <label className="sdm-field"><span>{t('sd_mercado.tipo')}</span>
             <Select suelto placeholder={false} value={tipo} disabled={!!inicial} onChange={e => setTipo(e.target.value)}>
               {TIPOS_DE_PROVEEDOR.map(x => <option key={x} value={x}>{etiquetaCodigo(t, 'sd_mercado.proveedor', x)}</option>)}
             </Select></label>
-          <label className="sdm-field"><span>{t('sd_mercado.intervalo_min')}</span><input className="ds-input" type="number" min={5} value={intervalo} onChange={e => setIntervalo(Number(e.target.value) || 60)} /></label>
+          <Input label={t('sd_mercado.intervalo_min')} type="number" min={5} value={intervalo} onChange={e => setIntervalo(Number(e.target.value) || 60)} />
         </div>
         <div className="ds-eyebrow">{t('sd_mercado.configuracion')}</div>
         <div className="sdm-form">
@@ -167,8 +167,7 @@ function Reconciliacion() {
         {t('sd_mercado.fusionar_duplicados')}</Button>}>
       <div className="u-stack-12">
         {salud.data && <InformeSaludReconciliacion datos={salud.data as unknown as SaludDeReconciliacion} />}
-        <label className="sdm-field"><span>{t('sd_mercado.confianza_minima')}</span>
-          <input className="ds-input" type="number" min={0.5} max={1} step={0.05} value={minimo} onChange={e => setMinimo(Math.min(1, Math.max(0.5, Number(e.target.value) || 0.9)))} /></label>
+        <Input label={t('sd_mercado.confianza_minima')} type="number" min={0.5} max={1} step={0.05} value={minimo} onChange={e => setMinimo(Math.min(1, Math.max(0.5, Number(e.target.value) || 0.9)))} />
         {candidatos.isLoading ? <Spinner size={16} /> : (candidatos.data?.items ?? []).length === 0
           ? <div className="u-text3-xs">{t('sd_mercado.sin_duplicados_ci')}</div>
           : <InformeCandidatos datos={(candidatos.data?.items ?? []) as unknown as CandidatoADuplicado[]} />}
@@ -211,7 +210,7 @@ export function ImpactoTab() {
   return (
     <Section title={t('sd_mercado.impacto_ci')} subtitle={t('sd_mercado.impacto_ci_desc')}>
       <div className="u-stack-12">
-        <label className="sdm-field"><span>{t('sd_mercado.buscar_ci')}</span><input className="ds-input" value={busqueda} onChange={e => setBusqueda(e.target.value)} /></label>
+        <Input label={t('sd_mercado.buscar_ci')} value={busqueda} onChange={e => setBusqueda(e.target.value)} />
         <div className="u-wrap-6">{(cis.data ?? []).map(c => (
           <Button key={c.id} size="sm" variant={ci === c.id ? 'primary' : 'secondary'} onClick={() => setCi(c.id)}><span className="u-mono">{c.code}</span> {c.name}</Button>
         ))}</div>
@@ -276,15 +275,15 @@ export function ClasesPropiasTab() {
         <Modal open onClose={() => setEditando(null)} title={editando.id ? t('sd_mercado.clase_editar') : t('sd_mercado.clase_nueva')}>
           <div className="u-stack-12">
             <div className="sdm-form">
-              <label className="sdm-field"><span>{t('sd_mercado.clave')}</span><input className="ds-input" value={editando.key} disabled={!!editando.id} onChange={e => setEditando({ ...editando, key: e.target.value.toLowerCase() })} /></label>
-              <label className="sdm-field"><span>{t('sd_mercado.nombre')}</span><input className="ds-input" value={editando.label} onChange={e => setEditando({ ...editando, label: e.target.value })} /></label>
+              <Input label={t('sd_mercado.clave')} value={editando.key} disabled={!!editando.id} onChange={e => setEditando({ ...editando, key: e.target.value.toLowerCase() })} />
+              <Input label={t('sd_mercado.nombre')} value={editando.label} onChange={e => setEditando({ ...editando, label: e.target.value })} />
               <label className="sdm-field"><span>{t('sd_mercado.clase_base_label')}</span>
                 <Select suelto placeholder={false} value={editando.base_type} onChange={e => setEditando({ ...editando, base_type: e.target.value })}>
                   {(data?.base_types ?? []).map(b => <option key={b} value={b}>{etiquetaCodigo(t, 'sd_mercado.clase_base', b)}</option>)}
                 </Select></label>
-              <label className="sdm-field"><span>{t('sd_mercado.orden')}</span><input className="ds-input" type="number" min={0} value={editando.sort_order} onChange={e => setEditando({ ...editando, sort_order: Number(e.target.value) || 0 })} /></label>
+              <Input label={t('sd_mercado.orden')} type="number" min={0} value={editando.sort_order} onChange={e => setEditando({ ...editando, sort_order: Number(e.target.value) || 0 })} />
             </div>
-            <label className="sdm-field"><span>{t('sd_mercado.descripcion')}</span><input className="ds-input" value={editando.description ?? ''} onChange={e => setEditando({ ...editando, description: e.target.value || null })} /></label>
+            <Input label={t('sd_mercado.descripcion')} value={editando.description ?? ''} onChange={e => setEditando({ ...editando, description: e.target.value || null })} />
             <Checkbox className="u-row-center-8" checked={!!editando.is_active} onChange={v => setEditando({ ...editando, is_active: v })} label={t('sd_mercado.activo')} />
             <div className="u-text3-xs">{t('sd_mercado.clase_hint')}</div>
             <div className="u-actions-10">
