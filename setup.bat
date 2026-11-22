@@ -511,7 +511,7 @@ if errorlevel 1 (
 
 :: Regenerar SECRET_KEY si quedó con placeholder/insegura
 set "SECRET_STATUS="
-for /f "delims=" %%S in ('powershell -NoProfile -Command "$p='.env'; if(-not (Test-Path $p)){ Write-Output 'OK'; exit 0 }; $line=(Get-Content $p | Where-Object {$_ -match '^SECRET_KEY='} | Select-Object -Last 1); $v=if($line){$line.Substring(11)} else {''}; $bad=($v.Length -lt 32) -or ($v -match '^(?i:CHANGE_ME|REPLACE_ME)') -or ($v -eq 'contecflow-secret-key-change-in-production-min32chars!!'); if($bad){ $rng=[System.Security.Cryptography.RandomNumberGenerator]::Create(); $bytes=New-Object byte[] 32; $rng.GetBytes($bytes); $new=[System.BitConverter]::ToString($bytes).Replace('-','').ToLower(); $content=Get-Content $p; $seen=$false; $content=$content | ForEach-Object { if($_ -match '^SECRET_KEY='){ $seen=$true; 'SECRET_KEY='+$new } else { $_ } }; if(-not $seen){ $content += 'SECRET_KEY='+$new }; Set-Content -Path $p -Value $content -Encoding ASCII; Write-Output 'ROTATED' } else { Write-Output 'OK' }"') do set "SECRET_STATUS=%%S"
+for /f "delims=" %%S in ('.venv\Scripts\python scripts\rotar_secret_key.py') do set "SECRET_STATUS=%%S"
 if /I "!SECRET_STATUS!"=="ROTATED" (
     echo [WARN] SECRET_KEY insegura detectada en .env - regenerada automaticamente
 )
